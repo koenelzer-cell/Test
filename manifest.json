@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "ONS Agendahulp",
+  "version": "1.6.47",
+  "description": "Afspraak-/registratiehulp en gekleurde dagindeling voor ONS Agenda.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ONS Agendahulp"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "https://impegno.ons-dossier.nl/*",
+    "https://impegno-staging-staging.ons-dossier.nl/*",
+    "https://*.onsagenda.nl/*",
+    "https://onsagenda.nl/*",
+    "https://*.ons-dossier.nl/*",
+    "https://ons-dossier.nl/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://impegno.ons-dossier.nl/*",
+        "https://impegno-staging-staging.ons-dossier.nl/*",
+        "https://*.ons-dossier.nl/*",
+        "https://ons-dossier.nl/*"
+      ],
+      "js": ["survey-required.js"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.onsagenda.nl/*",
+        "https://onsagenda.nl/*",
+        "https://*.ons-dossier.nl/*",
+        "https://ons-dossier.nl/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
