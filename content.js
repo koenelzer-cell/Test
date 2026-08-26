@@ -907,26 +907,47 @@
     wrap.append(head, body);
     return wrap;
   }
+  // Eén gedeelde modal-schil (spine + kop + sluitknop + Esc/klik-buiten) voor
+  // alle onderbrekende dialogen. Voorheen bouwden de twee modals hieronder
+  // deze schil allebei apart, bijna letterlijk gelijk.
+  function mkModalShell(id, titleText, opts) {
+    opts = opts || {};
+    var old = document.getElementById(id); if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = id;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(20,15,13,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;color:#201d1f;max-width:' + (opts.maxWidth || '420px') + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui,sans-serif;overflow:hidden;display:flex';
+    var spine = document.createElement('div');
+    spine.style.cssText = 'width:14px;flex:0 0 auto;background:linear-gradient(180deg,' + (opts.spineColor || '#cc087d') + ',' + (opts.spineColorDeep || '#8c0a58') + ')';
+    var mainCol = document.createElement('div');
+    mainCol.style.cssText = 'flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #f1ecea;position:sticky;top:0;background:#fff';
+    var htitle = document.createElement('div'); htitle.textContent = titleText;
+    htitle.style.cssText = 'font-weight:800;font-size:15px;color:#201d1f';
+    var close = document.createElement('button'); close.type = 'button';
+    close.setAttribute('aria-label', 'Sluiten');
+    close.style.cssText = 'border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex:0 0 auto';
+    close.appendChild(svgCloseIcon());
+    head.append(htitle, close); mainCol.appendChild(head);
+    var body = document.createElement('div'); body.style.cssText = 'padding:14px 16px'; mainCol.appendChild(body);
+    card.appendChild(spine); card.appendChild(mainCol);
+    overlay.appendChild(card);
+    var closeModal = function () { overlay.remove(); document.removeEventListener('keydown', onKey); };
+    function onKey(e) { if (e.key === 'Escape') closeModal(); }
+    document.addEventListener('keydown', onKey);
+    close.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    (document.body || document.documentElement).appendChild(overlay);
+    return { overlay: overlay, body: body, close: closeModal };
+  }
   // Modal met de tijd-OPBOUW (geopend door op de Cliënttijd-kaart te klikken).
   function showAgendaBreakdownModal(s, opts) {
     opts = opts || {}; s = s || {};
-    var old = document.getElementById('onsAgendaBreakdownModal'); if (old) old.remove();
     var fmt = _agFmtMin;
-    var overlay = document.createElement('div');
-    overlay.id = 'onsAgendaBreakdownModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
-    var card = document.createElement('div');
-    card.style.cssText = 'background:#fff;color:#222;max-width:420px;width:100%;max-height:calc(100vh - 40px);overflow:auto;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);font:13px/1.45 system-ui,sans-serif';
-    var head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #eee';
-    var htitle = document.createElement('div'); htitle.textContent = 'Waar de tijd uit bestaat' + (opts.week ? ' — week ' + opts.week : '');
-    htitle.style.cssText = 'font-weight:800;font-size:14px;color:#cc087d';
-    var close = document.createElement('button'); close.type = 'button'; close.textContent = '×';
-    close.style.cssText = 'border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:#666';
-    var closeModal = function () { overlay.remove(); document.removeEventListener('keydown', onKey); };
-    close.addEventListener('click', closeModal);
-    head.append(htitle, close); card.appendChild(head);
-    var body = document.createElement('div'); body.style.cssText = 'padding:12px 14px'; card.appendChild(body);
+    var shell = mkModalShell('onsAgendaBreakdownModal', 'Waar de tijd uit bestaat' + (opts.week ? ', week ' + opts.week : ''));
+    var body = shell.body;
     function row(label, val, opt) {
       opt = opt || {};
       var r = document.createElement('div');
@@ -942,36 +963,15 @@
     var oth = (s.unknownMinutes != null ? s.unknownMinutes : (s.otherMinutes || 0));
     body.appendChild(row('Niet-cliënttijd (' + (opts.unknownLabel || 'overig').toLowerCase() + ')', fmt(oth), { strong: true }));
     body.appendChild(row('Totaal', fmt(s.totalMinutes), { strong: true }));
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
-    function onKey(e) { if (e.key === 'Escape') closeModal(); }
-    document.addEventListener('keydown', onKey);
-    overlay.appendChild(card);
-    (document.body || document.documentElement).appendChild(overlay);
   }
   // Apart scherm (overlay) dat laat zien HOE de cijfers zijn opgebouwd — met de
   // daadwerkelijke minuten. Puur getallen/labels uit de summary; geen cliënt-PII.
   function showAgendaCalcModal(s, opts) {
     opts = opts || {}; s = s || {};
-    var old = document.getElementById('onsAgendaCalcModal'); if (old) old.remove();
     var registered = (opts.headerHint === 'geregistreerd');
     var fmt = _agFmtMin;
-    var overlay = document.createElement('div');
-    overlay.id = 'onsAgendaCalcModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
-    var card = document.createElement('div');
-    card.style.cssText = 'background:#fff;color:#222;max-width:460px;width:100%;max-height:calc(100vh - 40px);overflow:auto;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35);font:13px/1.45 system-ui,sans-serif';
-    // Kop
-    var head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff';
-    var htitle = document.createElement('div');
-    htitle.textContent = 'Verhouding per uursoort' + (opts.week ? ' — week ' + opts.week : '');
-    htitle.style.cssText = 'font-weight:800;font-size:14px;color:#cc087d';
-    var close = document.createElement('button'); close.type = 'button'; close.textContent = '×';
-    close.style.cssText = 'border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:#666';
-    var closeModal = function () { overlay.remove(); document.removeEventListener('keydown', onKey); };
-    close.addEventListener('click', closeModal);
-    head.append(htitle, close); card.appendChild(head);
-    var body = document.createElement('div'); body.style.cssText = 'padding:12px 14px'; card.appendChild(body);
+    var shell = mkModalShell('onsAgendaCalcModal', 'Verhouding per uursoort' + (opts.week ? ', week ' + opts.week : ''), { maxWidth: '460px' });
+    var body = shell.body;
 
     function note(t) { var e = document.createElement('div'); e.textContent = t; e.style.cssText = 'color:#777;font-size:11px;margin:3px 0 0'; return e; }
     body.appendChild(note('Verhouding direct / indirect / reistijd per cliëntgebonden uursoort. Niet-cliënturen (met "' + _nonClientMarker() + '") tellen hier niet mee.'));
@@ -1033,13 +1033,6 @@
         body.appendChild(block);
       });
     }
-
-    // Sluiten via achtergrond-klik en Esc.
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
-    function onKey(e) { if (e.key === 'Escape') closeModal(); }
-    document.addEventListener('keydown', onKey);
-    overlay.appendChild(card);
-    (document.body || document.documentElement).appendChild(overlay);
   }
   // Lijst met mini-balken, gesorteerd (langste bovenaan) — schaalt op het grootste item.
   function _agBarList(rows) {
@@ -8895,17 +8888,22 @@
     if (_regOvPanel) return _regOvPanel;
     ensureOnsAhBaseStyles();
     const p = document.createElement('div'); _regOvPanel = p; p.setAttribute('data-ons-reg-overview', '1');
-    p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:300px;max-height:75vh;overflow:auto;background:#fff;color:#222;border:1px solid #e0cdd9;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);font:13px/1.4 system-ui,sans-serif';
+    p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch';
+    const spine = document.createElement('div');
+    spine.style.cssText = 'width:14px;flex:0 0 auto;background:linear-gradient(180deg,#cc087d,#8c0a58)';
+    const mainCol = document.createElement('div');
+    mainCol.style.cssText = 'flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto';
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#cc087d,#a3066a);color:#fff;padding:9px 12px;font-weight:700;border-radius:12px 12px 0 0';
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#fff;color:#201d1f;padding:10px 12px;font-weight:700;border-bottom:1px solid #f1ecea';
     const t = document.createElement('span'); t.textContent = 'Declarabiliteit';
     const x = document.createElement('button'); x.type = 'button'; x.setAttribute('data-popup-control', '');
-    x.title = 'Sluiten'; x.setAttribute('aria-label', 'Sluiten'); x.style.cssText = 'border:0;background:transparent;color:#fff;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px';
+    x.title = 'Sluiten'; x.setAttribute('aria-label', 'Sluiten'); x.style.cssText = 'border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px';
     x.appendChild(svgCloseIcon());
     x.addEventListener('click', function () { removeRegistrationsOverviewPanel(); });
-    header.append(t, x); p.appendChild(header);
+    header.append(t, x); mainCol.appendChild(header);
     const body = document.createElement('div'); body.setAttribute('data-reg-ov-body', ''); body.style.cssText = 'padding:10px 12px';
-    p.appendChild(body);
+    mainCol.appendChild(body);
+    p.appendChild(spine); p.appendChild(mainCol);
     (document.body || document.documentElement).appendChild(p);
     return p;
   }
@@ -9762,9 +9760,20 @@
       if (agPopup) return;
       ensureOnsAhBaseStyles();
       agPopup = document.createElement('div');
-      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', width: '260px', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#222', border: '1px solid #e3e3e3', borderRadius: '12px', boxShadow: '0 8px 28px rgba(0,0,0,.28)', font: '14px/1.4 system-ui, sans-serif', overflowY: 'auto', overflowX: 'hidden' });
+      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', width: '272px', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+      const agSpine = document.createElement('div');
+      Object.assign(agSpine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'move', userSelect: 'none' });
+      const agSpineChip = document.createElement('span');
+      Object.assign(agSpineChip.style, { width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flex: '0 0 auto' });
+      agSpine.appendChild(agSpineChip);
+      agSpine.addEventListener('mousedown', function (e) {
+        if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+        agDragging = true; const r = agPopup.getBoundingClientRect(); agDX = e.clientX - r.left; agDY = e.clientY - r.top; e.preventDefault();
+      });
+      const agMainCol = document.createElement('div');
+      Object.assign(agMainCol.style, { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' });
       const header = document.createElement('div');
-      Object.assign(header.style, { display: 'flex', alignItems: 'center', background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', fontWeight: '600', userSelect: 'none', cursor: 'move' });
+      Object.assign(header.style, { display: 'flex', alignItems: 'center', background: '#fff', color: '#201d1f', padding: '11px 12px', fontWeight: '700', userSelect: 'none', cursor: 'move', borderBottom: '1px solid #f1ecea' });
       const title = document.createElement('span');
       title.textContent = 'Agendahulp';
       Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
@@ -9793,6 +9802,9 @@
         onoff.setAttribute('aria-label', greyEnabled ? 'Agendahulp uitschakelen' : 'Agendahulp inschakelen');
         onoff.setAttribute('aria-pressed', greyEnabled ? 'true' : 'false');
         onoff.title = greyEnabled ? 'Aan' : 'Uit';
+        agSpine.style.background = greyEnabled ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : 'linear-gradient(180deg,#9a9296,#6b6367)';
+        agSpineChip.innerHTML = '';
+        agSpineChip.appendChild(greyEnabled ? svgSpineCheck() : svgSpinePause());
       };
       updOnoff();
       onoff.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); greyEnabled = !greyEnabled; storageSet(STORE_GREY_ENABLED, greyEnabled ? '1' : '0'); updOnoff(); schedule(); if (!agInfoOpen) agRenderMain(); });
@@ -9800,13 +9812,13 @@
       info.type = 'button';
       info.setAttribute('data-popup-control', '');
       info.appendChild(svgInfoIcon());
-      Object.assign(info.style, { background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', borderRadius: '8px', color: '#fff', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+      Object.assign(info.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
       info.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (agCollapsed) agSetCollapsed(false); agInfoOpen = !agInfoOpen; if (agInfoOpen) agRenderInfo(); else agRenderMain(); });
       const chev = document.createElement('button');
       chev.type = 'button';
       chev.setAttribute('data-ag-collapse', '');
       chev.setAttribute('data-popup-control', '');
-      Object.assign(chev.style, { background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', borderRadius: '8px', color: '#fff', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+      Object.assign(chev.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
       agSetChevron(chev);
       chev.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); agSetCollapsed(!agCollapsed); });
       controls.appendChild(onoff); controls.appendChild(info); controls.appendChild(chev);
@@ -9815,21 +9827,23 @@
         if (e.target.closest && e.target.closest('[data-popup-control]')) return;
         agDragging = true; const r = agPopup.getBoundingClientRect(); agDX = e.clientX - r.left; agDY = e.clientY - r.top; e.preventDefault();
       });
-      agPopup.appendChild(header);
+      agMainCol.appendChild(header);
       const body = document.createElement('div');
       body.setAttribute('data-ag-body', '');
       Object.assign(body.style, { padding: '12px' });
-      agPopup.appendChild(body);
+      agMainCol.appendChild(body);
       // Aparte container voor de per-dag tijdstotalen (wordt niet gewist door agRenderMain).
       const totals = document.createElement('div');
       totals.setAttribute('data-ag-totals', '');
       Object.assign(totals.style, { padding: '0 12px 12px' });
-      agPopup.appendChild(totals);
+      agMainCol.appendChild(totals);
       // Weekoverzicht uit de API (cliënttijd, directe/indirecte/reistijd, per type, 80%).
       const weekBox = document.createElement('div');
       weekBox.setAttribute('data-ag-week', '');
       Object.assign(weekBox.style, { padding: '0 12px 12px' });
-      agPopup.appendChild(weekBox);
+      agMainCol.appendChild(weekBox);
+      agPopup.appendChild(agSpine);
+      agPopup.appendChild(agMainCol);
       document.body.appendChild(agPopup);
       // Standaard rechtsonder in beeld (via CSS right/bottom); alleen als de
       // gebruiker het paneel zelf heeft versleept, gebruiken we die positie.
