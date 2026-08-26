@@ -1061,7 +1061,7 @@
   function _agBarList(rows) {
     var T = ONSAH_TOKENS;
     var wrap = document.createElement('div');
-    if (!rows.length) { wrap.textContent = 'Geen gegevens'; wrap.style.cssText = 'color:' + T.inkSoft + ';font-size:12px'; return wrap; }
+    if (!rows.length) return onsahEmptyState('Geen gegevens voor deze periode.');
     var max = rows.reduce(function (m, r) { return Math.max(m, r.minutes || 0); }, 0) || 1;
     rows.forEach(function (r) {
       var row = document.createElement('div'); row.style.cssText = 'margin:0 0 6px';
@@ -1082,11 +1082,11 @@
     var wrap = document.createElement('div'); wrap.style.cssText = 'margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px';
     var h = document.createElement('div');
     h.innerHTML = 'Afgerond · geregistreerd' + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">· ' + dateLabel + '</span>' : '');
-    h.style.cssText = 'font-weight:700;font-size:11px;color:#8a4a70;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px';
+    h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px';
     wrap.appendChild(h);
     if (!rs || !rs.count) {
-      var none = document.createElement('div'); none.textContent = 'Nog niets geregistreerd in deze week.';
-      none.style.cssText = 'color:#888;font-size:12px'; wrap.appendChild(none); return wrap;
+      wrap.appendChild(onsahEmptyState('Nog niets geregistreerd in deze week.'));
+      return wrap;
     }
     // Declarabiliteit uit de ECHTE geregistreerde tijd (profielafhankelijk), in u:m.
     var dec = declarabiliteitPct(rs, profile);
@@ -4697,7 +4697,7 @@
 
   /*  popup  */
   let popupEl = null, observer = null, active = false, repositionTimer = null;
-  let userPos = null, dragging = false, dragDX = 0, dragDY = 0;
+  let userPos = null, dragging = false, dragDX = 0, dragDY = 0, popupDragMoved = false;
   let manualUursoortAutoTimer = null;
   let pendingChoice = null, clientWaitTimer = null, activeAppointmentDurationMinutes = null, activeAppointmentStartTimeText = '', appointmentTimeGuardTimers = [];
   // Eindtijd-guard: `helperEndText` = de laatste eindtijd die de hulp zelf schreef.
@@ -4781,8 +4781,27 @@
   let registrationRestoreHoldStart = 0;    // start van het wachten-op-laden (veiligheidscap)
 
   const $body = () => popupEl && popupEl.querySelector('[data-body]');
+  // Stippenrij op de spine: een grove indruk van de voortgang (kiezen ->
+  // invullen -> klaar om op te slaan/indienen), afgeleid uit de huidige
+  // schermtekst. Bewust een indicatie, geen exacte stapteller — de flows
+  // hebben te veel varianten voor een exacte stap-N-van-M-telling.
+  function updateSpineProgress() {
+    if (!popupEl) return;
+    const dotsWrap = popupEl.querySelector('[data-spine-dots]');
+    if (!dotsWrap) return;
+    const dots = dotsWrap.querySelectorAll('i');
+    if (!dots.length) return;
+    if (!helperEnabled) { dots.forEach((dot) => { dot.style.background = 'rgba(255,255,255,.35)'; }); return; }
+    const body = $body();
+    const text = clean((body && body.textContent) || '');
+    let phase = 1;
+    if (/als de instellingen kloppen|voeg eventueel nog een locatie|klaar om (in te dienen|op te slaan)|schrijf nu je rapportage|richtlijn rapporteren|^indienen$|indienen /.test(text)) phase = 3;
+    else if (pendingChoice || activeRegistrationChoice || / duur[: ]|totale reistijd|tijd aanwezig in deze registratie/.test(text)) phase = 2;
+    dots.forEach((dot, i) => { dot.style.background = (i < phase) ? '#fff' : 'rgba(255,255,255,.35)'; });
+  }
   function setStatus(text, ok) {
     if (!popupEl) return;
+    safe(updateSpineProgress);
     const s = popupEl.querySelector('[data-status]');
     if (!s) return;
     s.innerHTML = '';
@@ -4807,22 +4826,43 @@
     chip.appendChild(lbl);
     s.appendChild(chip);
   }
+  // Laadstatus: drie stippen die na elkaar oplichten. JS-gedreven (setInterval
+  // + inline style) i.p.v. een CSS @keyframes-animatie in een geïnjecteerde
+  // <style>-tag — diezelfde constructie brak eerder de knop-opmaak omdat de
+  // host-pagina een geïnjecteerde stylesheet kan negeren.
   function showLoadingState(text) {
     const body = $body(); if (!body) return;
     body.innerHTML = '';
+    const T = ONSAH_TOKENS;
     const wrap = document.createElement('div');
-    Object.assign(wrap.style, { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', color: '#333', fontWeight: '700', fontSize: '13px' });
-    const spinner = document.createElement('span');
-    Object.assign(spinner.style, { width: '16px', height: '16px', border: '2px solid #f2b7dc', borderTopColor: '#cc087d', borderRadius: '50%', display: 'inline-block', animation: 'onsHelperSpin .75s linear infinite', flex: '0 0 auto' });
-    if (!document.getElementById('ons-helper-spin-style')) {
-      const style = document.createElement('style');
-      style.id = 'ons-helper-spin-style';
-      style.textContent = '@keyframes onsHelperSpin{to{transform:rotate(360deg)}}';
-      document.head.appendChild(style);
+    Object.assign(wrap.style, { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', color: T.ink, fontWeight: '700', fontSize: '13px' });
+    const dotsWrap = document.createElement('span');
+    Object.assign(dotsWrap.style, { display: 'flex', gap: '4px', flex: '0 0 auto' });
+    const dots = [];
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      Object.assign(dot.style, { width: '6px', height: '6px', borderRadius: '50%', background: T.brand, opacity: '.3', transition: 'opacity .2s ease, transform .2s ease' });
+      dotsWrap.appendChild(dot);
+      dots.push(dot);
     }
+    let step = 0;
+    const timer = setInterval(() => {
+      dots.forEach((dot, i) => {
+        const active = i === step % 3;
+        dot.style.opacity = active ? '1' : '.3';
+        dot.style.transform = active ? 'scale(1.2)' : 'scale(1)';
+      });
+      step++;
+    }, 260);
+    const stopTimer = () => clearInterval(timer);
+    // Stopt vanzelf zodra dit scherm wordt vervangen (body.innerHTML = '' in
+    // de volgende render) — geen losse interval die eeuwig doortikt.
+    const stopObserver = new MutationObserver(() => { if (!wrap.isConnected) { stopTimer(); stopObserver.disconnect(); } });
+    try { stopObserver.observe(body, { childList: true }); } catch (e) {}
+    setTimeout(() => { stopTimer(); try { stopObserver.disconnect(); } catch (e) {} }, 30000); // vangnet
     const label = document.createElement('span');
     label.textContent = text || 'Bezig...';
-    wrap.appendChild(spinner);
+    wrap.appendChild(dotsWrap);
     wrap.appendChild(label);
     body.appendChild(wrap);
     setStatus(text || 'Bezig...');
@@ -4980,6 +5020,28 @@
     svg.appendChild(l1); svg.appendChild(l2);
     return svg;
   }
+  function svgEmptyIcon() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', '22'); svg.setAttribute('height', '22'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.4');
+    const rect = document.createElementNS(svgNS, 'rect'); rect.setAttribute('x', '3'); rect.setAttribute('y', '5'); rect.setAttribute('width', '18'); rect.setAttribute('height', '15'); rect.setAttribute('rx', '2');
+    const p = document.createElementNS(svgNS, 'path'); p.setAttribute('d', 'M3 10h18M8 3v4M16 3v4');
+    svg.appendChild(rect); svg.appendChild(p);
+    return svg;
+  }
+  // Herbruikbare "lege status": icoon + gedempte tekst i.p.v. een kaal
+  // tekstregeltje, voor plekken zonder gegevens (bv. een leeg overzicht).
+  function onsahEmptyState(text) {
+    const T = ONSAH_TOKENS;
+    const wrap = document.createElement('div');
+    Object.assign(wrap.style, { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', padding: '10px 2px', color: T.inkSoft, fontSize: '12.5px' });
+    const icon = svgEmptyIcon();
+    icon.style.width = '22px'; icon.style.height = '22px'; icon.style.color = T.line;
+    const lbl = document.createElement('span'); lbl.textContent = text;
+    wrap.append(icon, lbl);
+    return wrap;
+  }
   // `opts.tick` (hex) zet een kleine categoriekleur-stip vooraan (voor
   // type-keuzes); zonder tick is de tegel neutraal (voor Ja/Nee/Terug e.d.).
   // `opts.chevron` (default aan) toont een navigatie-chevron rechts.
@@ -5045,20 +5107,22 @@
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
+  // Vlakke schakelaar (geen gradient, geen rand): grijs uit, roze aan — zelfde
+  // moderne taal als de rest van de tegels/pillen.
   function mkSwitch(initial, onChange) {
+    const T = ONSAH_TOKENS;
     const sw = document.createElement('button');
     sw.type = 'button';
     sw.setAttribute('role', 'switch');
     let on = !!initial;
-    Object.assign(sw.style, { position: 'relative', width: '40px', height: '22px', borderRadius: '999px', border: '1px solid #cc087d', background: on ? '#cc087d' : '#fff', cursor: 'pointer', flex: '0 0 auto', padding: '0', transition: 'background .15s' });
+    Object.assign(sw.style, { position: 'relative', width: '38px', height: '22px', borderRadius: '999px', border: '0', background: on ? T.brand : '#c7bfbc', cursor: 'pointer', flex: '0 0 auto', padding: '0', transition: 'background .15s ease' });
     const knob = document.createElement('span');
-    Object.assign(knob.style, { position: 'absolute', top: '2px', left: on ? '20px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: on ? '#fff' : '#cc087d', transition: 'left .15s, background .15s' });
+    Object.assign(knob.style, { position: 'absolute', top: '2px', left: on ? '18px' : '2px', width: '18px', height: '18px', borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', transition: 'left .15s ease' });
     sw.appendChild(knob);
     const render = () => {
       sw.setAttribute('aria-checked', on ? 'true' : 'false');
-      sw.style.background = on ? '#cc087d' : '#fff';
-      knob.style.left = on ? '20px' : '2px';
-      knob.style.background = on ? '#fff' : '#cc087d';
+      sw.style.background = on ? T.brand : '#c7bfbc';
+      knob.style.left = on ? '18px' : '2px';
     };
     render();
     sw.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); on = !on; render(); try { onChange && onChange(on); } catch (err) {} });
@@ -5069,9 +5133,10 @@
   // Kader (zoals de opslaanknop) met een vraagtekst links en een aan/uit-knop
   // rechts. `labelKey` verwijst naar een beheerbare schermtekst.
   function mkToggleBox(labelKey, fallbackLabel, initial, onChange) {
+    const T = ONSAH_TOKENS;
     const box = document.createElement('div');
-    Object.assign(box.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: '1px solid #cc087d', borderRadius: '8px', padding: '9px 10px', background: '#fff' });
-    const lab = mkText(labelKey, fallbackLabel, { fontSize: '13px', color: '#cc087d', fontWeight: '600', lineHeight: '1.3' });
+    Object.assign(box.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: '1px solid ' + T.brand, borderRadius: '11px', padding: '10px 11px', background: '#fff' });
+    const lab = mkText(labelKey, fallbackLabel, { fontSize: '13px', color: T.ink, fontWeight: '600', lineHeight: '1.3' });
     lab.style.flex = '1';
     lab.style.fontWeight = '600'; // zelfde dikte als de Opslaan-knop (mkButton), ongeacht managed 'bold'
     const sw = mkSwitch(initial, onChange);
@@ -5092,10 +5157,12 @@
     svg.appendChild(path);
     return svg;
   }
+  // Zijwaartse chevron: het paneel klapt in de spine (opzij), niet meer
+  // verticaal samen. Links = "klap in (richting de spine)", rechts = "klap uit".
   function setChevronIcon(button, collapsed) {
     if (!button) return;
     button.textContent = '';
-    button.appendChild(svgIcon(collapsed ? 'M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z' : 'M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z'));
+    button.appendChild(svgIcon(collapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
   }
   function mkBackButton(onClick, label) {
     // Elke Terug-klik geeft ~1,2s rust aan de auto-refresh, zodat de navigatie
@@ -5221,19 +5288,42 @@
     const reset = mkButton('Verwijder instellingen', () => safe(clearSettings), { tick: false, chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     body.appendChild(reset);
   }
+  // Onderbrekende dialoog (spine-modal) i.p.v. een inline Ja/Nee-prompt in het
+  // paneel: dit is een besluit met risico (mogelijk dubbel boeken), dus dat
+  // verdient dezelfde nadruk als de andere onderbrekende dialogen.
   function showAvailabilityWarning() {
     const body = $body(); if (!body) return;
     const entries = unavailableInvitees().filter((entry) => !appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
     if (!entries.length) { showChoices(); return; }
     if (!_availabilityRestore) _availabilityRestore = createCurrentScreenRestore();
-    body.innerHTML = '';
     const names = entries.map((entry) => entry.firstName).filter(Boolean);
     const nameText = names.length <= 1 ? (names[0] || 'Deze genodigde') : `${names.slice(0, -1).join(', ')} en ${names[names.length - 1]}`;
+    setStatus('Let op: al een afspraak', false);
+    const shell = mkModalShell('onsAvailabilityWarningModal', 'Toch doorgaan?', { spineColor: '#b45309', maxWidth: '360px' });
     const msg = document.createElement('div');
-    msg.textContent = `${nameText} ${names.length === 1 ? 'heeft' : 'hebben'} al een afspraak, alsnog doorgaan?`;
-    Object.assign(msg.style, { fontWeight: '700', fontSize: '14px', margin: '2px 0 4px', lineHeight: '1.35' });
-    body.appendChild(msg);
-    body.appendChild(mkButton('Ja', () => safe(() => {
+    msg.textContent = `${nameText} ${names.length === 1 ? 'heeft' : 'hebben'} op dit moment al een afspraak.`;
+    Object.assign(msg.style, { fontSize: '13.5px', color: '#4a4448', lineHeight: '1.45', margin: '0 0 16px' });
+    shell.body.appendChild(msg);
+    const actions = document.createElement('div');
+    Object.assign(actions.style, { display: 'flex', justifyContent: 'flex-end', gap: '8px' });
+    const noBtn = document.createElement('button');
+    noBtn.type = 'button'; noBtn.textContent = 'Nee';
+    Object.assign(noBtn.style, { appearance: 'none', border: '1px solid #ece7e5', background: 'transparent', color: '#6b6367', borderRadius: '999px', padding: '9px 16px', font: '600 12.5px system-ui,-apple-system,sans-serif', cursor: 'pointer' });
+    onsahFocusRing(noBtn);
+    noBtn.addEventListener('click', () => safe(() => {
+      shell.close();
+      _availabilityRestore = null;
+      body.innerHTML = '';
+      const msg2 = document.createElement('div');
+      msg2.textContent = 'Plan een andere datum/tijdstip in of sluit het scherm af.';
+      Object.assign(msg2.style, { fontSize: '13px', color: '#333', lineHeight: '1.45', padding: '4px 0 8px' });
+      body.appendChild(msg2);
+      body.appendChild(mkButton('Afsluiten', () => safe(closeOnsModal)));
+      body.appendChild(mkButton('Terug', () => safe(showChoices)));
+      setStatus('Niet doorgaan gekozen', false);
+    }));
+    const yesBtn = mkPillButton('Ja, doorgaan', () => safe(() => {
+      shell.close();
       entries.forEach((entry) => appointmentAvailabilityConfirmedPeople.add(availabilityPersonKey(entry)));
       _availabilityRestore = null;
       // Door naar de juiste vervolgpagina: bij een ingevulde 'Overig'-titel of een
@@ -5246,19 +5336,9 @@
         showChoices();
       }
       setStatus('');
-    })));
-    body.appendChild(mkButton('Nee', () => safe(() => {
-      _availabilityRestore = null;
-      body.innerHTML = '';
-      const msg = document.createElement('div');
-      msg.textContent = 'Plan een andere datum/tijdstip in of sluit het scherm af.';
-      Object.assign(msg.style, { fontSize: '13px', color: '#333', lineHeight: '1.45', padding: '4px 0 8px' });
-      body.appendChild(msg);
-      body.appendChild(mkButton('Afsluiten', () => safe(closeOnsModal)));
-      body.appendChild(mkButton('Terug', () => safe(showChoices)));
-      setStatus('Niet doorgaan gekozen', false);
-    })));
-    setStatus('Let op: al een afspraak', false);
+    }), { from: '#b45309', to: '#8a3d05', shadowRgb: '180,83,9' });
+    actions.append(noBtn, yesBtn);
+    shell.body.appendChild(actions);
   }
   // Sluit het ONS-afspraakmodal via de secundaire (Annuleren) knop. De knop is
   // een uc-button (web component): de echte <button> zit in de shadow root en
@@ -8535,18 +8615,28 @@
   }
   function safe(fn) { try { fn(); } catch (e) { setStatus('Er ging iets mis', false); } }
 
+  // Klapt het paneel ZIJWAARTS in/uit (breedte naar 0, spine blijft altijd
+  // zichtbaar) i.p.v. het oude verticaal inklappen van de inhoud.
   function setPopupCollapsed(collapsed) {
     popupCollapsed = collapsed;
     if (!popupEl) return;
-    const body = popupEl.querySelector('[data-body]');
-    const status = popupEl.querySelector('[data-status]');
+    const mainCol = popupEl.querySelector('[data-popup-maincol]');
     const toggle = popupEl.querySelector('[data-collapse-toggle]');
-    if (body) body.style.display = collapsed ? 'none' : 'flex';
-    if (status) status.style.display = collapsed ? 'none' : '';
+    const spine = popupEl.querySelector('[data-popup-spine]');
+    if (mainCol) {
+      mainCol.style.width = collapsed ? '0' : '280px';
+      mainCol.style.minWidth = collapsed ? '0' : '280px';
+      mainCol.style.opacity = collapsed ? '0' : '1';
+      mainCol.style.pointerEvents = collapsed ? 'none' : 'auto';
+    }
     if (toggle) {
       setChevronIcon(toggle, collapsed);
       toggle.setAttribute('aria-label', collapsed ? 'Hulp uitklappen' : 'Hulp inklappen');
     }
+    if (spine) spine.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    // Na de animatie (of meteen als er niet geanimeerd wordt) opnieuw binnen
+    // het scherm klemmen: de breedte is veranderd, dus de rand kan anders vallen.
+    requestAnimationFrame(() => safe(reclampToViewport));
   }
   function clampPos(left, top) {
     const w = (popupEl && popupEl.offsetWidth) || 280;
@@ -8610,23 +8700,48 @@
   function buildPopup() {
     ensureOnsAhBaseStyles();
     popupEl = document.createElement('div');
-    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', width: '296px', top: '74px', right: '24px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', top: '74px', right: '24px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
     // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
-    // status draagt (roze werkend, grijs uitgeschakeld) en samen met de
-    // kopregel het sleepgebied vormt.
+    // status draagt (roze werkend, grijs uitgeschakeld), het sleepgebied vormt
+    // én zelf klikbaar is om het paneel zijwaarts in/uit te klappen (net als
+    // de kopregel-knop, maar altijd zichtbaar — ook als het paneel dicht is).
     const spine = document.createElement('div');
     spine.setAttribute('data-popup-spine', '');
-    Object.assign(spine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'move', userSelect: 'none' });
+    spine.setAttribute('role', 'button');
+    spine.setAttribute('tabindex', '0');
+    spine.title = 'Klik om in/uit te klappen';
+    Object.assign(spine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'pointer', userSelect: 'none' });
     const spineChip = document.createElement('span');
     Object.assign(spineChip.style, { width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flex: '0 0 auto' });
     spine.appendChild(spineChip);
+    // Kleine stippenrij: geeft een globale indruk van de voortgang (kiezen ->
+    // invullen -> klaar om op te slaan), bijgewerkt door updateSpineProgress().
+    const spineDots = document.createElement('span');
+    spineDots.setAttribute('data-spine-dots', '');
+    Object.assign(spineDots.style, { display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '10px' });
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('i');
+      Object.assign(dot.style, { display: 'block', width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,.35)' });
+      spineDots.appendChild(dot);
+    }
+    spine.appendChild(spineDots);
     const onSpineMousedown = (e) => {
       if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+      popupDragMoved = false;
       dragging = true; const r = rect(popupEl); dragDX = e.clientX - r.left; dragDY = e.clientY - r.top; e.preventDefault();
     };
     spine.addEventListener('mousedown', onSpineMousedown);
+    spine.addEventListener('click', (e) => {
+      if (popupDragMoved) { popupDragMoved = false; return; } // dit was slepen, geen klik
+      e.preventDefault(); e.stopPropagation();
+      setPopupCollapsed(!popupCollapsed);
+    });
+    spine.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPopupCollapsed(!popupCollapsed); }
+    });
     const mainCol = document.createElement('div');
-    Object.assign(mainCol.style, { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column' });
+    mainCol.setAttribute('data-popup-maincol', '');
+    Object.assign(mainCol.style, { width: '280px', minWidth: '280px', display: 'flex', flexDirection: 'column', overflow: 'hidden', opacity: '1', transition: 'width .22s cubic-bezier(.2,.8,.2,1), opacity .15s ease' });
     const header = document.createElement('div');
     Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', color: '#201d1f', padding: '11px 12px', fontWeight: '700', cursor: 'move', userSelect: 'none', borderBottom: '1px solid #f1ecea' });
     const title = document.createElement('span');
@@ -8733,6 +8848,7 @@
     header.appendChild(controls);
     header.addEventListener('mousedown', (e) => {
       if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+      popupDragMoved = false;
       dragging = true; const r = rect(popupEl); dragDX = e.clientX - r.left; dragDY = e.clientY - r.top; e.preventDefault();
     });
     mainCol.appendChild(header);
@@ -8762,6 +8878,7 @@
   // sleep-listeners (een keer)
   window.addEventListener('mousemove', (e) => {
     if (!dragging || !popupEl) return;
+    popupDragMoved = true; // onderscheidt slepen van een klik-op-de-spine
     const p = clampPos(e.clientX - dragDX, e.clientY - dragDY);
     userPos = p;
     popupEl.style.left = p.left + 'px'; popupEl.style.top = p.top + 'px';
@@ -9164,7 +9281,7 @@
     // Ververs de inkleuring wanneer de config verandert (config.json/beleid).
     onHelperConfigChanged = function () { try { sync(); if (active) schedule(); if (agPopup) agRenderMain(); } catch (e) {} };
     let agPopup = null, agCollapsed = false, agInfoOpen = false;
-    let agDragging = false, agDX = 0, agDY = 0, agUserPos = null;
+    let agDragging = false, agDX = 0, agDY = 0, agUserPos = null, agDragMoved = false;
     // Handtekening van de laatst getekende totalen; voorkomt onnodig herbouwen
     // (en dus geflikker/verspringende hover) als er niets veranderde.
     let _totalsSig = null;
@@ -9497,21 +9614,24 @@
       const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       p.setAttribute('fill', 'currentColor'); p.setAttribute('d', d); svg.appendChild(p); return svg;
     }
+    // Zijwaartse chevron, zelfde richting-logica als de Afspraakhulp-popup.
     function agSetChevron(btn) {
       btn.textContent = '';
-      btn.appendChild(agSvgIcon(agCollapsed ? 'M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z' : 'M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6z'));
+      btn.appendChild(agSvgIcon(agCollapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
     }
     function agBody() { return agPopup && agPopup.querySelector('[data-ag-body]'); }
+    // Klapt ZIJWAARTS in/uit (breedte naar 0, spine blijft zichtbaar), net als
+    // de Afspraakhulp/Registratiehulp-popup.
     function agSetCollapsed(c) {
       agCollapsed = c;
-      const body = agBody();
-      const totals = agPopup && agPopup.querySelector('[data-ag-totals]');
-      const week = agPopup && agPopup.querySelector('[data-ag-week]');
+      const mainCol = agPopup && agPopup.querySelector('[data-ag-maincol]');
       const chev = agPopup && agPopup.querySelector('[data-ag-collapse]');
-      if (body) body.style.display = c ? 'none' : 'block';
-      // Inklappen verbergt de HELE inhoud: tekst, per-dag-totalen én het weekoverzicht.
-      if (totals) totals.style.display = c ? 'none' : 'block';
-      if (week) week.style.display = c ? 'none' : 'block';
+      if (mainCol) {
+        mainCol.style.width = c ? '0' : '256px';
+        mainCol.style.minWidth = c ? '0' : '256px';
+        mainCol.style.opacity = c ? '0' : '1';
+        mainCol.style.pointerEvents = c ? 'none' : 'auto';
+      }
       if (chev) { agSetChevron(chev); chev.setAttribute('aria-label', c ? 'Agendahulp uitklappen' : 'Agendahulp inklappen'); }
       // Bij uitklappen alles geforceerd opnieuw tekenen (stond tijdens inklappen stil).
       if (!c) { _totalsSig = null; updateTotals(); safe(refreshAgendaWeekApi); }
@@ -9866,18 +9986,31 @@
       if (agPopup) return;
       ensureOnsAhBaseStyles();
       agPopup = document.createElement('div');
-      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', width: '272px', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
       const agSpine = document.createElement('div');
-      Object.assign(agSpine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'move', userSelect: 'none' });
+      agSpine.setAttribute('role', 'button');
+      agSpine.setAttribute('tabindex', '0');
+      agSpine.title = 'Klik om in/uit te klappen';
+      Object.assign(agSpine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'pointer', userSelect: 'none' });
       const agSpineChip = document.createElement('span');
       Object.assign(agSpineChip.style, { width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flex: '0 0 auto' });
       agSpine.appendChild(agSpineChip);
       agSpine.addEventListener('mousedown', function (e) {
         if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+        agDragMoved = false;
         agDragging = true; const r = agPopup.getBoundingClientRect(); agDX = e.clientX - r.left; agDY = e.clientY - r.top; e.preventDefault();
       });
+      agSpine.addEventListener('click', function (e) {
+        if (agDragMoved) { agDragMoved = false; return; }
+        e.preventDefault(); e.stopPropagation();
+        agSetCollapsed(!agCollapsed);
+      });
+      agSpine.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); agSetCollapsed(!agCollapsed); }
+      });
       const agMainCol = document.createElement('div');
-      Object.assign(agMainCol.style, { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' });
+      agMainCol.setAttribute('data-ag-maincol', '');
+      Object.assign(agMainCol.style, { width: '256px', minWidth: '256px', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden', opacity: '1', transition: 'width .22s cubic-bezier(.2,.8,.2,1), opacity .15s ease' });
       const header = document.createElement('div');
       Object.assign(header.style, { display: 'flex', alignItems: 'center', background: '#fff', color: '#201d1f', padding: '11px 12px', fontWeight: '700', userSelect: 'none', cursor: 'move', borderBottom: '1px solid #f1ecea' });
       const title = document.createElement('span');
@@ -9934,6 +10067,7 @@
       header.appendChild(controls);
       header.addEventListener('mousedown', function (e) {
         if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+        agDragMoved = false;
         agDragging = true; const r = agPopup.getBoundingClientRect(); agDX = e.clientX - r.left; agDY = e.clientY - r.top; e.preventDefault();
       });
       agMainCol.appendChild(header);
@@ -9971,6 +10105,7 @@
     }
     window.addEventListener('mousemove', function (e) {
       if (!agDragging || !agPopup) return;
+      agDragMoved = true;
       const p = agClamp(e.clientX - agDX, e.clientY - agDY);
       agUserPos = p;
       agPopup.style.left = p.left + 'px'; agPopup.style.top = p.top + 'px';
