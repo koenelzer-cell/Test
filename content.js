@@ -4709,6 +4709,8 @@
   /*  popup  */
   let popupEl = null, observer = null, active = false, repositionTimer = null;
   let userPos = null, dragging = false, dragDX = 0, dragDY = 0, popupDragMoved = false;
+  // Stabiliteit van de standaard rechterpositie: zie defaultPopupRight() hieronder.
+  let _lastRightPanel = null, _lastRightValue = null;
   let manualUursoortAutoTimer = null;
   let pendingChoice = null, clientWaitTimer = null, activeAppointmentDurationMinutes = null, activeAppointmentStartTimeText = '', appointmentTimeGuardTimers = [];
   // Eindtijd-guard: `helperEndText` = de laatste eindtijd die de hulp zelf schreef.
@@ -8717,13 +8719,33 @@
   // toe een verkeerde tussentijdse positie ("naar links springen"). `right`
   // is onafhankelijk van de eigen breedte, dus altijd stabiel — de hulp klapt
   // zo altijd naar rechts (tegen de ONS-modal aan) in en uit.
+  //
+  // Extra robuustheid, want findModal()'s heuristiek zoekt/sorteert bij elke
+  // aanroep opnieuw en kan tijdens een korte overgang (bv. terwijl de ONS-
+  // modal zelf nog aan het open-animeren is, of een ander dialoogje even
+  // meetelt) een net iets ander paneel/rect teruggeven dan de vorige keer —
+  // dat gaf soms een plotselinge sprong ("verspringt buiten de modal").
+  // Daarom: (1) hergebruik hetzelfde gevonden paneel zolang het nog bestaat
+  // en zichtbaar is i.p.v. elke keer opnieuw te zoeken, (2) negeer kleine
+  // schommelingen (< 4px) in de berekende waarde, en (3) klem de uitkomst
+  // altijd binnen het zichtbare scherm, zodat de spine nooit echt van het
+  // scherm af kan vallen, wat er ook misgaat in de berekening.
   function defaultPopupRight() {
-    const m = findModal();
-    if (m && m.panel && rect(m.panel).width > 0) {
-      const r = rect(m.panel);
-      return Math.max(8, Math.round(window.innerWidth - r.right + 24));
+    let panel = _lastRightPanel;
+    if (!panel || !panel.isConnected || !visible(panel)) {
+      const m = findModal();
+      panel = (m && m.panel) || null;
+      _lastRightPanel = panel;
     }
-    return 24;
+    let raw = 24;
+    if (panel) {
+      const r = rect(panel);
+      if (r.width > 0) raw = Math.round(window.innerWidth - r.right + 24);
+    }
+    const clamped = Math.max(8, Math.min(raw, window.innerWidth - 40));
+    if (_lastRightValue != null && Math.abs(clamped - _lastRightValue) < 4) return _lastRightValue;
+    _lastRightValue = clamped;
+    return clamped;
   }
   // Herpositioneer na een layout-/inhoudswijziging, met verse hoogtemeting.
   function reclampToViewport() {
@@ -8748,7 +8770,11 @@
     // top+right (i.p.v. bottom+left): de hulp opent bovenaan (10% marge) en
     // tegen de ONS-modal aan; zie reposition()/popupMaxHeight() voor de
     // exacte, doorlopend herberekende waarden.
-    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', top: defaultPopupTop() + 'px', right: '24px', bottom: 'auto', maxHeight: popupMaxHeight() + 'px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+    // transition op `right` (niet `top`/`left`): die laatste twee worden ook
+    // continu bijgewerkt tijdens het slepen en zouden dan hortend aanvoelen.
+    // `right` verandert alleen via reposition() (default plek), dus een kleine
+    // resterende correctie schuift altijd vloeiend naar rechts i.p.v. te springen.
+    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', top: defaultPopupTop() + 'px', right: '24px', bottom: 'auto', maxHeight: popupMaxHeight() + 'px', transition: 'right .18s cubic-bezier(.2,.8,.2,1)', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
     // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
     // status draagt (roze werkend, grijs uitgeschakeld), het sleepgebied vormt
     // én zelf klikbaar is om het paneel zijwaarts in/uit te klappen (net als
