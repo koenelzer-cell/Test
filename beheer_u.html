@@ -19,23 +19,27 @@
   /* Zichtbare focusring voor toetsenbordgebruikers — ontbrak eerder overal. */
   :focus-visible { outline:2px solid var(--roze); outline-offset:2px; }
   body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:#222; margin:0; background:#f4f4f6; }
-  body > header { margin-left:248px; background:var(--roze); color:#fff; padding:16px 22px; }
-  header h1 { margin:0; font-size:18px; }
+  body > header { margin-left:248px; background:linear-gradient(135deg,var(--roze),#a3066a); color:#fff; padding:16px 22px; display:flex; align-items:center; gap:12px; }
+  header .header-tekst { min-width:0; }
+  header .header-logo { width:34px; height:34px; flex:0 0 auto; border-radius:8px; background:rgba(255,255,255,.16); padding:5px; box-sizing:border-box; }
+  header h1 { margin:0; font-size:20px; font-weight:800; letter-spacing:-.01em; }
   header p { margin:4px 0 0; font-size:12px; opacity:.9; }
   main { width:calc(100% - 248px); max-width:none; margin:0 0 0 248px; padding:18px 22px 90px; }
   .settings-menu { position:fixed; inset:0 auto 0 0; z-index:20; width:248px; overflow-y:auto; padding:17px 12px 90px; background:#262229; color:#fff; box-shadow:2px 0 12px rgba(0,0,0,.16); }
   .settings-menu h2 { margin:0 8px 3px; font-size:17px; }
   .settings-menu .menu-sub { display:block; margin:0 8px 18px; color:#cfc7cd; font-size:11px; }
-  .menu-groep { margin:0 0 15px; }
-  .menu-groep strong { display:block; margin:0 8px 1px; color:#dc9cc3; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
-  .menu-groep-uitleg { display:block; margin:0 8px 6px; color:#9a9099; font-size:9px; }
-  .menu-item { display:flex; align-items:center; gap:8px; width:100%; margin:2px 0; padding:8px 10px; border:0; border-radius:7px; background:transparent; color:#eee; font:600 12px/1.25 system-ui,sans-serif; text-align:left; cursor:pointer; }
+  .menu-groep { margin:0 0 17px; }
+  .menu-groep-kop { display:flex; align-items:center; gap:7px; margin:0 8px 1px; }
+  .menu-groep-icoon { width:14px; height:14px; flex:0 0 auto; color:#dc9cc3; }
+  .menu-groep-kop strong { display:block; margin:0; color:#dc9cc3; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+  .menu-groep-uitleg { display:block; margin:0 8px 7px; color:#9a9099; font-size:9px; }
+  .menu-item { display:flex; align-items:center; gap:8px; width:100%; margin:2px 0; padding:8px 10px; border:0; border-radius:7px; background:transparent; color:#eee; font:600 12px/1.25 system-ui,sans-serif; text-align:left; cursor:pointer; transition:background .12s, box-shadow .12s; }
   .menu-item:hover { background:#3b343c; }
-  .menu-item.actief { background:#cc087d; color:#fff; }
+  .menu-item.actief { background:var(--roze); color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
   .menu-item .menu-nr { display:inline-flex; width:19px; height:19px; flex:0 0 19px; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,.13); font-size:9px; }
   [data-settings-page][hidden] { display:none !important; }
-  .kaart { background:#fff; border:1px solid var(--rand); border-radius:10px; padding:14px 16px; margin:0 0 18px; }
-  .kaart h2 { font-size:15px; margin:0 0 4px; }
+  .kaart { background:#fff; border:1px solid var(--rand); border-radius:12px; padding:16px 18px; margin:0 0 18px; box-shadow:0 1px 2px rgba(20,10,16,.04), 0 10px 24px -16px rgba(20,10,16,.14); }
+  .kaart h2 { font-size:16px; font-weight:800; letter-spacing:-.01em; margin:0 0 5px; color:#1a1a1a; }
   .kaart .uitleg { font-size:12px; color:#666; margin:0 0 10px; }
   .badge { display:inline-block; font-size:10px; font-weight:700; border-radius:8px; padding:1px 7px; margin-left:8px; vertical-align:middle; }
   .badge.actief { background:var(--succes-bg); color:var(--succes); border:1px solid var(--succes-rand); }
@@ -51,10 +55,14 @@
   td input[type=text] { width:100%; border:1px solid #ddd; border-radius:6px; padding:5px 6px; font:inherit; }
   td.center { text-align:center; }
   select { border:1px solid #ddd; border-radius:6px; padding:5px 6px; font:inherit; background:#fff; }
-  .knop { appearance:none; border:1px solid var(--roze); background:#fff; color:var(--roze); border-radius:8px; padding:7px 12px; font-weight:700; font-size:12px; cursor:pointer; }
-  .knop.primair { background:var(--roze); color:#fff; }
+  .knop { appearance:none; border:1px solid var(--roze); background:#fff; color:var(--roze); border-radius:8px; padding:7px 12px; font-weight:700; font-size:12px; cursor:pointer; transition:background .12s, box-shadow .12s, transform .05s; }
+  .knop:hover:not(:disabled) { box-shadow:0 1px 5px rgba(204,8,125,.2); }
+  .knop:active:not(:disabled) { transform:translateY(1px); }
+  .knop.primair { background:var(--roze); color:#fff; box-shadow:0 1px 3px rgba(204,8,125,.3); }
+  .knop.primair:hover:not(:disabled) { box-shadow:0 3px 10px rgba(204,8,125,.38); }
   .knop.klein { padding:3px 8px; font-size:12px; }
   .knop.rood { border-color:#d33; color:#d33; }
+  .knop.rood:hover:not(:disabled) { box-shadow:0 1px 5px rgba(211,51,51,.22); }
   .knop:disabled { opacity:.5; cursor:default; }
   .rij-acties { display:inline-flex; gap:6px; align-items:center; justify-content:center; white-space:nowrap; }
   .rij-actie { width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; padding:0; border-radius:8px; border:1px solid var(--roze); background:#fff; color:var(--roze); cursor:pointer; transition:background .12s, border-color .12s, box-shadow .12s; }
@@ -102,6 +110,7 @@
   .trouble-resultaat { display:grid; grid-template-columns:22px 1fr; gap:7px; padding:9px 11px; border-bottom:1px solid #f0f0f2; }
   .trouble-resultaat:last-child { border-bottom:0; }
   .trouble-icoon { width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; }
+  .trouble-icoon svg { width:10px; height:10px; }
   .trouble-resultaat.ok .trouble-icoon { background:var(--succes-bg); color:var(--succes); }
   .trouble-resultaat.waarschuwing .trouble-icoon { background:var(--waarschuwing-bg); color:var(--waarschuwing); }
   .trouble-resultaat.fout .trouble-icoon { background:var(--fout-bg); color:var(--fout); }
@@ -185,7 +194,8 @@
   /* ===== Donkere modus ===== */
   :root[data-theme="dark"] { --rand:#39343c; --grijs:#2a262e; }
   :root[data-theme="dark"] body { background:#161418; color:#e7e4e8; }
-  :root[data-theme="dark"] .kaart { background:#221f26; border-color:#39343c; }
+  :root[data-theme="dark"] .kaart { background:#221f26; border-color:#39343c; box-shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -16px rgba(0,0,0,.5); }
+  :root[data-theme="dark"] .kaart h2 { color:#f2eff2; }
   :root[data-theme="dark"] .kaart .uitleg { color:#a79ea8; }
   :root[data-theme="dark"] th, :root[data-theme="dark"] .beheer-veld > span, :root[data-theme="dark"] .menu-groep-uitleg { color:#a79ea8; }
   :root[data-theme="dark"] th { background:#2a262e; }
@@ -226,14 +236,15 @@
   :root[data-theme="dark"] .badge.actief { background:#12351f; color:#7fd4a0; border-color:#1f5a35; }
   /* Thema-schakelaar (slider) */
   .thema-switch { position:relative; width:52px; height:26px; flex:0 0 auto; border-radius:999px; border:1px solid var(--rand); background:#e6e1e5; cursor:pointer; padding:0; transition:background .15s; }
-  .thema-switch-knob { position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:left .15s; }
+  .thema-switch-knob { position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,.28); transition:left .15s; }
+  .thema-switch-knob svg { width:12px; height:12px; }
   :root[data-theme="dark"] .thema-switch { background:var(--roze); border-color:var(--roze); }
   :root[data-theme="dark"] .thema-switch-knob { left:30px; background:#221f26; }
   @media (max-width:900px) {
     .settings-menu { position:static; width:auto; height:auto; padding:12px; box-shadow:none; }
     .settings-menu h2, .settings-menu .menu-sub { margin-left:4px; }
     .menu-groep { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
-    .menu-groep strong { width:100%; margin-left:4px; }
+    .menu-groep-kop { width:100%; margin-left:4px; }
     .menu-item { width:auto; }
     body > header { margin-left:0; }
     main { width:100%; margin-left:0; }
@@ -252,22 +263,22 @@
 <datalist id="teamOptions"></datalist>
 <nav class="settings-menu" aria-label="Instellingenmenu">
   <h2>Instellingen</h2><span class="menu-sub">ONS Agendahulp 1.6.92</span>
-  <div class="menu-groep"><strong>Basis</strong><span class="menu-groep-uitleg">Lijsten en algemeen gedrag</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="4" x2="12" y2="4"/><circle cx="5.5" cy="4" r="1.5" fill="currentColor" stroke="none"/><line x1="2" y1="7" x2="12" y2="7"/><circle cx="9" cy="7" r="1.5" fill="currentColor" stroke="none"/><line x1="2" y1="10" x2="12" y2="10"/><circle cx="4.5" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg><strong>Basis</strong></div><span class="menu-groep-uitleg">Lijsten en algemeen gedrag</span>
     <button class="menu-item" data-menu-target="algemeen" onclick="showSettingsPage('algemeen')">Algemene instellingen</button>
   </div>
-  <div class="menu-groep"><strong>Wat de hulp doet</strong><span class="menu-groep-uitleg">Afspraken en registraties</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="10" height="9.5" rx="1.5"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="1.5" x2="5" y2="4"/><line x1="9" y1="1.5" x2="9" y2="4"/></svg><strong>Wat de hulp doet</strong></div><span class="menu-groep-uitleg">Afspraken en registraties</span>
     <button class="menu-item" data-menu-target="afspraaktypes" onclick="showSettingsPage('afspraaktypes')">Afspraaktypes</button>
     <button class="menu-item" data-menu-target="registratievormen" onclick="showSettingsPage('registratievormen')">Registratievormen</button>
     <button class="menu-item" data-menu-target="vragenlijsten" onclick="showSettingsPage('vragenlijsten')">Vragenlijsten</button>
   </div>
-  <div class="menu-groep"><strong>Agendahulp</strong><span class="menu-groep-uitleg">Gekleurde dagindeling in de agenda</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="7" x2="7" y2="3.8"/><line x1="7" y1="7" x2="9.3" y2="8.6"/></svg><strong>Agendahulp</strong></div><span class="menu-groep-uitleg">Gekleurde dagindeling in de agenda</span>
     <button class="menu-item" data-menu-target="zoneprofielen" onclick="showSettingsPage('zoneprofielen')">Dagindeling per team</button>
     <button class="menu-item" data-menu-target="palet" onclick="showSettingsPage('palet')">Kleurenpalet</button>
   </div>
-  <div class="menu-groep"><strong>Teksten</strong><span class="menu-groep-uitleg">Schermteksten en links</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.8a1.6 1.6 0 0 1 1.6-1.6h6.8A1.6 1.6 0 0 1 12 3.8v4.4a1.6 1.6 0 0 1-1.6 1.6H6.2L3.4 12v-2.2H3.6A1.6 1.6 0 0 1 2 8.2V3.8z"/></svg><strong>Teksten</strong></div><span class="menu-groep-uitleg">Schermteksten en links</span>
     <button class="menu-item" data-menu-target="tekstbeheer" onclick="showSettingsPage('tekstbeheer')">Teksten en links</button>
   </div>
-  <div class="menu-groep"><strong>Testen en controle</strong><span class="menu-groep-uitleg">Vooraf controleren dat alles werkt</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.8l4.2 1.5v3.3c0 2.8-1.8 4.7-4.2 5.4-2.4-.7-4.2-2.6-4.2-5.4V3.3L7 1.8z"/><path d="M4.9 7l1.4 1.4 2.8-3.1"/></svg><strong>Testen en controle</strong></div><span class="menu-groep-uitleg">Vooraf controleren dat alles werkt</span>
     <button class="menu-item" data-menu-target="simulator" onclick="showSettingsPage('simulator')">Scenario-simulator</button>
     <button class="menu-item" data-menu-target="configcontrole" onclick="showSettingsPage('configcontrole')">Configuratiecontrole</button>
     <button class="menu-item" data-menu-target="testmatrix" onclick="showSettingsPage('testmatrix')">Testmatrix</button>
@@ -275,7 +286,7 @@
     <button class="menu-item" data-menu-target="inspectorinfo" onclick="showSettingsPage('inspectorinfo')">UI-inspector: uitleg</button>
     <button class="menu-item" data-menu-target="zelftest" onclick="showSettingsPage('zelftest')">DOM-zelftest</button>
   </div>
-  <div class="menu-groep"><strong>Beheer en uitrol</strong><span class="menu-groep-uitleg">Publiceren en beheren</span>
+  <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="2" x2="7" y2="8.5"/><path d="M4.2 4.8L7 2l2.8 2.8"/><path d="M2.5 9v1.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V9"/></svg><strong>Beheer en uitrol</strong></div><span class="menu-groep-uitleg">Publiceren en beheren</span>
     <button class="menu-item" data-menu-target="publiceren" onclick="showSettingsPage('publiceren')">Publiceren</button>
     <button class="menu-item" data-menu-target="historie" onclick="showSettingsPage('historie')">Historie</button>
     <button class="menu-item" data-menu-target="compatibiliteit" onclick="showSettingsPage('compatibiliteit')">Compatibiliteit</button>
@@ -286,8 +297,11 @@
   </div>
 </nav>
 <header>
-  <h1>ONS Agendahulp — Beheerscherm</h1>
-  <p>Pas de configuratie aan en klik <b>Opslaan</b>. Voor een snelle test exporteer je <code>config.json</code> en kies je in de extensiepopup <b>Importeer testconfig</b>; de actieve ONS-pagina wordt automatisch vernieuwd. Voor productie vervang je <code>config.json</code> in de extensiemap of laat je IT het via beleid uitrollen. Alleen voor de beheerder.</p>
+  <img class="header-logo" src="icons/icon48.png" alt="" width="48" height="48">
+  <div class="header-tekst">
+    <h1>ONS Agendahulp — Beheerscherm</h1>
+    <p>Pas de configuratie aan en klik <b>Opslaan</b>. Voor een snelle test exporteer je <code>config.json</code> en kies je in de extensiepopup <b>Importeer testconfig</b>; de actieve ONS-pagina wordt automatisch vernieuwd. Voor productie vervang je <code>config.json</code> in de extensiemap of laat je IT het via beleid uitrollen. Alleen voor de beheerder.</p>
+  </div>
 </header>
 <main>
   <div id="melding" class="melding"></div>
@@ -794,7 +808,7 @@
   <button id="btnSave" class="knop primair" onclick="save()">Opslaan</button>
   <button id="btnCancelPage" class="knop" type="button" onclick="cancelPageChanges()">Annuleer wijzigingen</button>
   <button class="knop rood" onclick="resetDefaults()">Herstel standaard</button>
-  <button class="thema-switch" type="button" id="themaKnop" role="switch" aria-checked="false" onclick="toggleThema()" title="Wissel tussen lichte en donkere modus" aria-label="Lichte of donkere modus"><span class="thema-switch-knob" id="themaIcoon">☀️</span></button>
+  <button class="thema-switch" type="button" id="themaKnop" role="switch" aria-checked="false" onclick="toggleThema()" title="Wissel tussen lichte en donkere modus" aria-label="Lichte of donkere modus"><span class="thema-switch-knob" id="themaIcoon"><svg viewBox="0 0 14 14" fill="none" stroke="#c98a00" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="3"/><line x1="7" y1="0.8" x2="7" y2="2.2"/><line x1="7" y1="11.8" x2="7" y2="13.2"/><line x1="0.8" y1="7" x2="2.2" y2="7"/><line x1="11.8" y1="7" x2="13.2" y2="7"/><line x1="2.6" y1="2.6" x2="3.6" y2="3.6"/><line x1="10.4" y1="10.4" x2="11.4" y2="11.4"/><line x1="2.6" y1="11.4" x2="3.6" y2="10.4"/><line x1="10.4" y1="3.6" x2="11.4" y2="2.6"/></svg></span></button>
   <span class="rechts"><span id="dirty" class="schoon">Opgeslagen</span></span>
   <div class="balk-rechts-acties">
     <label class="knop" style="cursor:pointer">Importeer bestand…<input id="file" type="file" accept="application/json,.json" style="display:none" onchange="importFromFile(event)"></label>
@@ -3627,6 +3641,15 @@ async function runTroubleshooter() {
   }
 }
 
+// Eén consistente icoonset (SVG, currentColor) i.p.v. losse tekstglyphs
+// (✓ ! ? i) — kleur komt mee via .trouble-resultaat.<niveau> .trouble-icoon.
+const TROUBLE_ICOON_SVG = {
+  ok: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.2l2.6 2.6L11 4"/></svg>',
+  fout: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="8"/><circle cx="7" cy="10.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+  waarschuwing: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 5.1a1.7 1.7 0 1 1 2.6 1.9c-.6.5-.9 1-.9 1.7"/><circle cx="7" cy="10.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+  info: '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="7" y1="6.2" x2="7" y2="10.4"/><circle cx="7" cy="3.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+};
+function troubleIconSvg(niveau) { return TROUBLE_ICOON_SVG[niveau] || TROUBLE_ICOON_SVG.info; }
 function renderTroubleReport(report) {
   const counts = report.functioneleSamenvatting || report.samenvatting;
   const summary = $('#troubleSummary'); summary.innerHTML = '';
@@ -3664,7 +3687,7 @@ function renderTroubleReport(report) {
     const heading = document.createElement('h3'); heading.textContent = section; group.appendChild(heading);
     rows.forEach((row) => {
       const item = document.createElement('div'); item.className = `trouble-resultaat ${row.niveau}`;
-      const icon = document.createElement('span'); icon.className = 'trouble-icoon'; icon.textContent = row.niveau === 'ok' ? '✓' : row.niveau === 'fout' ? '!' : row.niveau === 'waarschuwing' ? '?' : 'i';
+      const icon = document.createElement('span'); icon.className = 'trouble-icoon'; icon.setAttribute('aria-hidden', 'true'); icon.innerHTML = troubleIconSvg(row.niveau);
       const content = document.createElement('div');
       const title = document.createElement('strong'); title.textContent = row.titel + (row.bron ? ` — ${row.bron}` : '');
       const detail = document.createElement('p'); detail.textContent = row.uitleg;
@@ -3722,11 +3745,16 @@ document.addEventListener('input',(event)=>{if(event.target&&event.target.closes
 document.addEventListener('change',(event)=>{if(event.target&&event.target.closest&&event.target.closest('#richLinkDialog'))return;scheduleConfigAudit();setTimeout(runSimulator,0);});
 // ===== Licht/donker thema =====
 const THEME_KEY = 'onsBeheerThema';
+// Consistente SVG i.p.v. emoji (☀️/🌙) — zelfde iconenstijl als de rest van de UI.
+const THEMA_ICOON_SVG = {
+  light: '<svg viewBox="0 0 14 14" fill="none" stroke="#c98a00" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="3"/><line x1="7" y1="0.8" x2="7" y2="2.2"/><line x1="7" y1="11.8" x2="7" y2="13.2"/><line x1="0.8" y1="7" x2="2.2" y2="7"/><line x1="11.8" y1="7" x2="13.2" y2="7"/><line x1="2.6" y1="2.6" x2="3.6" y2="3.6"/><line x1="10.4" y1="10.4" x2="11.4" y2="11.4"/><line x1="2.6" y1="11.4" x2="3.6" y2="10.4"/><line x1="10.4" y1="3.6" x2="11.4" y2="2.6"/></svg>',
+  dark: '<svg viewBox="0 0 14 14" fill="#8891a5" stroke="none"><path d="M11.4 8.9A5 5 0 1 1 5.6 3.1a4 4 0 0 0 5.8 5.8z"/></svg>',
+};
 function applyThema(mode) {
   document.documentElement.setAttribute('data-theme', mode);
   const donker = mode === 'dark';
   const ic = $('#themaIcoon'), sw = $('#themaKnop');
-  if (ic) ic.textContent = donker ? '🌙' : '☀️';
+  if (ic) ic.innerHTML = donker ? THEMA_ICOON_SVG.dark : THEMA_ICOON_SVG.light;
   if (sw) sw.setAttribute('aria-checked', donker ? 'true' : 'false');
 }
 function initThema() {
