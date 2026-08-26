@@ -5,50 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ONS Agendahulp</title>
   <style>
-    :root { color-scheme: light; }
+    :root {
+      color-scheme: light;
+      /* Design-tokens: één bron van waarheid voor de merkkleur en de
+         basismaten, ook gebruikt in beheer_u.html (--roze). */
+      --roze: #cc087d;
+      --roze-zacht: #fbeaf3;
+      --tekst: #222;
+      --tekst-zacht: #666;
+      --rand: #e5e5e5;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
     body {
       width: 380px; margin: 0; font: 14px/1.4 system-ui, sans-serif;
-      background: #fff; color: #222;
+      background: #fff; color: var(--tekst);
     }
     header {
-      background: #cc087d; color: #fff; padding: 12px 14px; font-weight: 700;
+      background: var(--roze); color: #fff; padding: 12px 14px; font-weight: 700;
     }
     main { padding: 14px; }
     h2 { font-size: 13px; margin: 0 0 10px; color: #333; }
     button.choice {
       display: block; width: 100%; margin: 0 0 8px; padding: 11px 12px;
-      border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
-      border: 1px solid #cc087d; background: #fff; color: #cc087d; text-align: left;
+      border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--roze); background: #fff; color: var(--roze); text-align: left;
     }
-    button.choice:hover { background: #fbeaf3; }
-    button.choice.selected { background: #cc087d; color: #fff; }
+    button.choice:hover { background: var(--roze-zacht); }
+    button.choice.selected { background: var(--roze); color: #fff; }
     button.choice.disabled { opacity: .55; cursor: default; }
     .back {
       display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 10px;
-      padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 12px;
-      border: 1px solid #cc087d; background: #fff; color: #cc087d; font-weight: 600;
+      padding: 6px 8px; border-radius: var(--radius); cursor: pointer; font-size: 12px;
+      border: 1px solid var(--roze); background: #fff; color: var(--roze); font-weight: 600;
     }
-    .status { font-size: 12px; color: #666; margin-top: 8px; }
-    .test-config-help { margin: 0 0 8px; font-size: 11px; color: #666; }
-    .diagnose-wrap { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e5e5e5; }
-    .diagnose-button {
-      width: 100%; padding: 10px 12px; border: 0; border-radius: 8px;
-      background: #333; color: #fff; font-weight: 700; cursor: pointer;
-    }
-    .diagnose-button:disabled { opacity: .55; cursor: wait; }
-    .diagnose-copy {
-      display: none; margin-top: 8px; padding: 7px 10px; border: 1px solid #666;
-      border-radius: 7px; background: #fff; color: #333; cursor: pointer;
-    }
-    .diagnose-report {
-      display: none; box-sizing: border-box; width: 100%; max-height: 330px;
-      margin: 9px 0 0; padding: 9px; overflow: auto; white-space: pre-wrap;
-      overflow-wrap: anywhere; border: 1px solid #ccc; border-radius: 7px;
-      background: #f7f7f7; color: #111; font: 11px/1.35 Consolas, monospace;
-    }
+    .back:hover { background: var(--roze-zacht); }
+    .status { font-size: 12px; color: var(--tekst-zacht); margin-top: 8px; }
+    :focus-visible { outline: 2px solid var(--roze); outline-offset: 2px; }
     .brand-footer {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 8px 14px; border-top: 1px solid #ededed; background: #fafafa;
+      padding: 8px 14px; border-top: 1px solid var(--rand); background: #fafafa;
     }
     .brand-logo {
       display: block; width: 92px; max-height: 48px; object-fit: contain;

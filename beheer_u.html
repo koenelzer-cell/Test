@@ -5,8 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ONS Agendahulp — Beheerscherm</title>
 <style>
-  :root { --roze:#cc087d; --rand:#e3e3e3; --grijs:#faf7f9; }
+  :root {
+    --roze:#cc087d; --rand:#e3e3e3; --grijs:#faf7f9;
+    /* Semantische statuskleuren: één bron van waarheid i.p.v. de losse,
+       net-iets-andere tinten die voorheen per onderdeel (melding/badge/
+       beheer-resultaat/audit-niveau/trouble-icoon) apart stonden. */
+    --succes:#166a37; --succes-bg:#e6f4ea; --succes-rand:#bfe3cd;
+    --fout:#9b1c1c; --fout-bg:#fde8e8; --fout-rand:#f0b0b0;
+    --waarschuwing:#8a5a00; --waarschuwing-bg:#fff4d6; --waarschuwing-rand:#f0c040;
+    --info:#245a91; --info-bg:#e9f1fb; --info-rand:#b8d3f0;
+  }
   * { box-sizing: border-box; }
+  /* Zichtbare focusring voor toetsenbordgebruikers — ontbrak eerder overal. */
+  :focus-visible { outline:2px solid var(--roze); outline-offset:2px; }
   body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:#222; margin:0; background:#f4f4f6; }
   body > header { margin-left:248px; background:var(--roze); color:#fff; padding:16px 22px; }
   header h1 { margin:0; font-size:18px; }
@@ -27,9 +38,15 @@
   .kaart h2 { font-size:15px; margin:0 0 4px; }
   .kaart .uitleg { font-size:12px; color:#666; margin:0 0 10px; }
   .badge { display:inline-block; font-size:10px; font-weight:700; border-radius:8px; padding:1px 7px; margin-left:8px; vertical-align:middle; }
-  .badge.actief { background:#e6f4ea; color:#166a37; border:1px solid #bfe3cd; }
+  .badge.actief { background:var(--succes-bg); color:var(--succes); border:1px solid var(--succes-rand); }
   table { border-collapse:collapse; width:100%; font-size:13px; }
   th, td { border:1px solid #ececec; padding:5px 7px; text-align:left; vertical-align:middle; }
+  /* Zebra + rij-hover: eerder ontbrak dit op alle tabellen, waardoor lange
+     lijsten (bv. de vragenlijst-tabel) lastig te scannen waren. */
+  tbody tr:nth-child(even) > td { background:rgba(0,0,0,.025); }
+  tbody tr:hover > td { background:rgba(204,8,125,.06); }
+  :root[data-theme="dark"] tbody tr:nth-child(even) > td { background:rgba(255,255,255,.035); }
+  :root[data-theme="dark"] tbody tr:hover > td { background:rgba(204,8,125,.12); }
   th { background:var(--grijs); font-size:11px; text-transform:uppercase; letter-spacing:.02em; color:#666; }
   td input[type=text] { width:100%; border:1px solid #ddd; border-radius:6px; padding:5px 6px; font:inherit; }
   td.center { text-align:center; }
@@ -66,11 +83,11 @@
   details { margin-top:10px; }
   summary { cursor:pointer; font-size:12px; color:var(--roze); font-weight:700; }
   .melding { font-size:12px; padding:8px 10px; border-radius:8px; margin:0 0 12px; display:none; }
-  .melding.ok { background:#e6f4ea; color:#166a37; border:1px solid #bfe3cd; display:block; }
-  .melding.fout { background:#fde8e8; color:#9b1c1c; border:1px solid #f0b0b0; display:block; }
+  .melding.ok { background:var(--succes-bg); color:var(--succes); border:1px solid var(--succes-rand); display:block; }
+  .melding.fout { background:var(--fout-bg); color:var(--fout); border:1px solid var(--fout-rand); display:block; }
   #dirty { font-weight:700; }
-  #dirty.vies { color:#b45309; }
-  #dirty.schoon { color:#166a37; }
+  #dirty.vies { color:var(--waarschuwing); }
+  #dirty.schoon { color:var(--succes); }
   .trouble-invoer { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:12px 0; }
   .trouble-bestand { display:flex; flex-direction:column; gap:7px; min-height:112px; padding:12px; border:1px dashed #c9c9cf; border-radius:9px; background:#fcfcfd; }
   .trouble-bestand strong { font-size:12px; }
@@ -85,10 +102,10 @@
   .trouble-resultaat { display:grid; grid-template-columns:22px 1fr; gap:7px; padding:9px 11px; border-bottom:1px solid #f0f0f2; }
   .trouble-resultaat:last-child { border-bottom:0; }
   .trouble-icoon { width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; }
-  .trouble-resultaat.ok .trouble-icoon { background:#e6f4ea; color:#166a37; }
-  .trouble-resultaat.waarschuwing .trouble-icoon { background:#fff4d6; color:#8a5a00; }
-  .trouble-resultaat.fout .trouble-icoon { background:#fde8e8; color:#9b1c1c; }
-  .trouble-resultaat.info .trouble-icoon { background:#e9f1fb; color:#245a91; }
+  .trouble-resultaat.ok .trouble-icoon { background:var(--succes-bg); color:var(--succes); }
+  .trouble-resultaat.waarschuwing .trouble-icoon { background:var(--waarschuwing-bg); color:var(--waarschuwing); }
+  .trouble-resultaat.fout .trouble-icoon { background:var(--fout-bg); color:var(--fout); }
+  .trouble-resultaat.info .trouble-icoon { background:var(--info-bg); color:var(--info); }
   .trouble-resultaat strong { display:block; font-size:12px; }
   .trouble-resultaat p { margin:2px 0 0; color:#5b5b62; font-size:11px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .trouble-leeg { color:#666; font-size:12px; padding:12px 0 2px; }
@@ -131,13 +148,13 @@
   .beheer-resultaat { margin-top:10px; padding:11px 13px; border:1px solid #e4e4e8; border-radius:9px; background:#fbfbfc; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .beheer-code { margin:0 0 4px; padding:9px 11px; border:1px solid #e4e4e8; border-radius:8px; background:#f7f7f9; color:#222; font:11px/1.45 Consolas, "SF Mono", Menlo, monospace; overflow-x:auto; white-space:pre; }
   :root[data-theme="dark"] .beheer-code { background:#1d1b1e; color:#e7e2e8; border-color:#3a343b; }
-  .beheer-resultaat.ok { border-left:5px solid #25834b; background:#f5fbf7; }
-  .beheer-resultaat.fout { border-left:5px solid #b42318; background:#fff7f6; }
-  .beheer-resultaat.waarschuwing { border-left:5px solid #d18b00; background:#fffaf0; }
+  .beheer-resultaat.ok { border-left:5px solid var(--succes); background:var(--succes-bg); }
+  .beheer-resultaat.fout { border-left:5px solid var(--fout); background:var(--fout-bg); }
+  .beheer-resultaat.waarschuwing { border-left:5px solid var(--waarschuwing); background:var(--waarschuwing-bg); }
   .audit-regel { display:grid; grid-template-columns:92px 1fr; gap:9px; padding:8px 0; border-bottom:1px solid #ededf0; }
   .audit-regel:last-child { border-bottom:0; }
   .audit-niveau { font-size:10px; font-weight:800; text-transform:uppercase; }
-  .audit-niveau.fout { color:#b42318; }.audit-niveau.waarschuwing { color:#986600; }.audit-niveau.info { color:#245a91; }
+  .audit-niveau.fout { color:var(--fout); } .audit-niveau.waarschuwing { color:var(--waarschuwing); } .audit-niveau.info { color:var(--info); }
   .feature-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 16px; }
   .feature-grid label { display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid #ececef; border-radius:8px; background:#fcfcfd; font-size:12px; }
   .sector-kaart { border:1px solid #e3e3e7; border-radius:9px; margin:9px 0; overflow:hidden; }
@@ -335,8 +352,7 @@
         <div>
           <strong>Uursoorten</strong>
           <div class="rijknoppen" style="margin:6px 0">
-            <span class="knop klein" onclick="document.getElementById('uursoortImport').click()">Importeer CSV/XLSX…</span>
-            <input id="uursoortImport" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv" style="display:none" onchange="importOnsList('uursoort',event)">
+            <label class="knop klein" style="cursor:pointer">Importeer CSV/XLSX…<input id="uursoortImport" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv" style="display:none" onchange="importOnsList('uursoort',event)"></label>
             <button class="knop klein" type="button" onclick="clearOnsList('uursoort')">Wis</button>
           </div>
           <small id="uursoortListInfo" style="color:#567">nog geen uursoorten geïmporteerd</small>
@@ -344,8 +360,7 @@
         <div>
           <strong>Labels</strong>
           <div class="rijknoppen" style="margin:6px 0">
-            <span class="knop klein" onclick="document.getElementById('labelImport').click()">Importeer CSV/XLSX…</span>
-            <input id="labelImport" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv" style="display:none" onchange="importOnsList('label',event)">
+            <label class="knop klein" style="cursor:pointer">Importeer CSV/XLSX…<input id="labelImport" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv" style="display:none" onchange="importOnsList('label',event)"></label>
             <button class="knop klein" type="button" onclick="clearOnsList('label')">Wis</button>
           </div>
           <small id="labelListInfo" style="color:#567">nog geen labels geïmporteerd</small>
@@ -590,8 +605,7 @@
         <strong>Centraal herstel importeren</strong>
         <p class="uitleg" style="margin:4px 0 8px">Heb je in de inspector velden opnieuw aangewezen en <b>ui-selectors.json</b> geëxporteerd? Laad dat hier in; de selectors worden meegepubliceerd in config.json en gelden dan voor iedereen.</p>
         <div class="rijknoppen">
-          <span class="knop klein" onclick="document.getElementById('uiSelImport').click()">Importeer ui-selectors.json…</span>
-          <input id="uiSelImport" type="file" accept=".json,application/json" style="display:none" onchange="importUiSelectors(event)">
+          <label class="knop klein" style="cursor:pointer">Importeer ui-selectors.json…<input id="uiSelImport" type="file" accept=".json,application/json" style="display:none" onchange="importUiSelectors(event)"></label>
           <button class="knop" type="button" onclick="clearUiSelectors()">Wis alle centrale herstellingen</button>
         </div>
         <div id="uiSelList" style="margin-top:8px"></div>
@@ -1392,7 +1406,7 @@ function confirmMultiPicker() {
   closeMultiPicker();
 }
 function chk(val) { const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!val; i.addEventListener('change', markDirty); return i; }
-function delBtn(fn) { const b = document.createElement('button'); b.className = 'knop klein rood'; b.textContent = '×'; b.title = 'Verwijder'; b.onclick = () => { fn(); markDirty(); }; return b; }
+function delBtn(fn) { const b = document.createElement('button'); b.className = 'knop klein rood'; b.textContent = '×'; b.title = 'Verwijder'; b.setAttribute('aria-label', 'Verwijder'); b.onclick = () => { fn(); markDirty(); }; return b; }
 const SVG_DUP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 const SVG_DEL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 function dupBtn(fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'rij-actie'; b.innerHTML = SVG_DUP; b.title = 'Dupliceer'; b.setAttribute('aria-label', 'Dupliceer'); b.onclick = () => { fn(); markDirty(); }; return b; }
@@ -1443,7 +1457,7 @@ function renderNcCategories() {
     // Alleen de map bijwerken (niet herrenderen -> focus blijft in het veld).
     volg.addEventListener('input', () => { const v = String(volg.value || '').trim(); const n = parseInt(v, 10); _ncCategoryVolg[name] = (v === '' || !(Number.isFinite(n) && n >= 0)) ? null : n; markDirty(); });
     const label = document.createElement('span'); label.textContent = name;
-    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'Verwijder categorie';
+    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'Verwijder categorie'; x.setAttribute('aria-label', 'Verwijder categorie ' + name);
     x.onclick = () => { _ncCategories = _ncCategories.filter((n) => n !== name); delete _ncCategoryVolg[name]; renderNcCategories(); refreshNcCategoryDropdowns(); markDirty(); };
     chip.append(volg, label, x); box.appendChild(chip);
   });
@@ -2246,7 +2260,7 @@ function removeRichLink() {
 }
 function richToolButton(label, title, command, editor, value) {
   const button = document.createElement('button'); button.type = 'button'; button.className = 'rich-tool';
-  button.textContent = label; button.title = title; button.dataset.cmd = command + (value ? '-' + value : '');
+  button.textContent = label; button.title = title; button.setAttribute('aria-label', title); button.dataset.cmd = command + (value ? '-' + value : '');
   button.addEventListener('mousedown', (event) => {
     event.preventDefault(); editor.focus(); richRestoreSelection(editor);
     let commandValue = value || null;
@@ -2317,11 +2331,11 @@ function insertRichTag(editor,tag) {
 function richTagBar(editor) {
   const bar=document.createElement('div');bar.className='rich-tagbar';const label=document.createElement('span');label.className='rich-tagbar-label';label.textContent='Tags invoegen:';bar.appendChild(label);
   const tags=editor&&editor.dataset.key==='survey_signal'?RICH_TEXT_TAGS.concat([['{vraag}','Vraagtekst']]):RICH_TEXT_TAGS;
-  tags.forEach(([tag,name])=>{const button=document.createElement('button');button.type='button';button.className='rich-tag';button.textContent=tag;button.title=`${name} invoegen op de cursorpositie`;button.addEventListener('mousedown',(event)=>{event.preventDefault();insertRichTag(editor,tag);});bar.appendChild(button);});return bar;
+  tags.forEach(([tag,name])=>{const button=document.createElement('button');button.type='button';button.className='rich-tag';button.textContent=tag;const lbl=`${name} invoegen op de cursorpositie`;button.title=lbl;button.setAttribute('aria-label',lbl);button.addEventListener('mousedown',(event)=>{event.preventDefault();insertRichTag(editor,tag);});bar.appendChild(button);});return bar;
 }
 function plainTextTagBar(control) {
   const bar=document.createElement('div');bar.className='rich-tagbar';const label=document.createElement('span');label.className='rich-tagbar-label';label.textContent='Tag invoegen:';bar.appendChild(label);
-  RICH_TEXT_TAGS.forEach(([tag,name])=>{const button=document.createElement('button');button.type='button';button.className='rich-tag';button.textContent=tag;button.title=`${name} invoegen`;button.addEventListener('click',()=>{const start=Number.isInteger(control.selectionStart)?control.selectionStart:control.value.length,end=Number.isInteger(control.selectionEnd)?control.selectionEnd:start;control.value=control.value.slice(0,start)+tag+control.value.slice(end);control.focus();control.setSelectionRange(start+tag.length,start+tag.length);control.dispatchEvent(new Event('input',{bubbles:true}));});bar.appendChild(button);});return bar;
+  RICH_TEXT_TAGS.forEach(([tag,name])=>{const button=document.createElement('button');button.type='button';button.className='rich-tag';button.textContent=tag;const lbl=`${name} invoegen`;button.title=lbl;button.setAttribute('aria-label',lbl);button.addEventListener('click',()=>{const start=Number.isInteger(control.selectionStart)?control.selectionStart:control.value.length,end=Number.isInteger(control.selectionEnd)?control.selectionEnd:start;control.value=control.value.slice(0,start)+tag+control.value.slice(end);control.focus();control.setSelectionRange(start+tag.length,start+tag.length);control.dispatchEvent(new Event('input',{bubbles:true}));});bar.appendChild(button);});return bar;
 }
 function textEditor(key, t, onChange) {
   const changed = typeof onChange === 'function' ? onChange : markDirty;
