@@ -33,12 +33,36 @@
   .menu-groep-icoon { width:14px; height:14px; flex:0 0 auto; color:#dc9cc3; }
   .menu-groep-kop strong { display:block; margin:0; color:#dc9cc3; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
   .menu-groep-uitleg { display:block; margin:0 8px 7px; color:#9a9099; font-size:9px; }
-  .menu-item { display:flex; align-items:center; gap:8px; width:100%; margin:2px 0; padding:8px 10px; border:0; border-radius:7px; background:transparent; color:#eee; font:600 12px/1.25 system-ui,sans-serif; text-align:left; cursor:pointer; transition:background .12s, box-shadow .12s; }
+  .menu-item { position:relative; display:flex; align-items:center; gap:8px; width:100%; margin:2px 0; padding:8px 10px 8px 13px; border:0; border-radius:7px; background:transparent; color:#eee; font:600 12px/1.25 system-ui,sans-serif; text-align:left; cursor:pointer; transition:background .12s; }
   .menu-item:hover { background:#3b343c; }
-  .menu-item.actief { background:var(--roze); color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
+  .menu-item.actief { background:rgba(204,8,125,.16); color:#fff; }
+  .menu-item.actief::before { content:''; position:absolute; left:0; top:5px; bottom:5px; width:3px; border-radius:3px; background:var(--roze); }
   .menu-item .menu-nr { display:inline-flex; width:19px; height:19px; flex:0 0 19px; align-items:center; justify-content:center; border-radius:50%; background:rgba(255,255,255,.13); font-size:9px; }
   [data-settings-page][hidden] { display:none !important; }
-  .kaart { background:#fff; border:1px solid var(--rand); border-radius:12px; padding:16px 18px; margin:0 0 18px; box-shadow:0 1px 2px rgba(20,10,16,.04), 0 10px 24px -16px rgba(20,10,16,.14); }
+  .kaart { position:relative; background:#fff; border:1px solid var(--rand); border-radius:12px; padding:16px 18px 16px 21px; margin:0 0 18px; box-shadow:0 1px 2px rgba(20,10,16,.04), 0 10px 24px -16px rgba(20,10,16,.14); }
+  /* Spine-tik: dezelfde herkenningstaal als de assistent-panelen op de
+     agendapagina, hier als kleuraccent per functionele sectie (zie de
+     data-settings-page-groepen in de sidebar hierboven). */
+  .kaart::before { content:''; position:absolute; left:0; top:12px; bottom:12px; width:4px; border-radius:0 3px 3px 0; background:var(--roze); opacity:.7; }
+  #afspraaktypes.kaart::before, #afspraaktypes .kaart::before,
+  #registratievormen.kaart::before, #registratievormen .kaart::before,
+  #vragenlijsten.kaart::before, #vragenlijsten .kaart::before { background:#c94a3f; }
+  #zoneprofielen.kaart::before, #zoneprofielen .kaart::before,
+  #palet.kaart::before, #palet .kaart::before { background:#3572b0; }
+  #tekstbeheer.kaart::before, #tekstbeheer .kaart::before { background:#8b5fae; }
+  #simulator.kaart::before, #simulator .kaart::before,
+  #configcontrole.kaart::before, #configcontrole .kaart::before,
+  #testmatrix.kaart::before, #testmatrix .kaart::before,
+  #troubleshooting.kaart::before, #troubleshooting .kaart::before,
+  #inspectorinfo.kaart::before, #inspectorinfo .kaart::before,
+  #zelftest.kaart::before, #zelftest .kaart::before { background:#2f8f57; }
+  #publiceren.kaart::before, #publiceren .kaart::before,
+  #historie.kaart::before, #historie .kaart::before,
+  #compatibiliteit.kaart::before, #compatibiliteit .kaart::before,
+  #functies.kaart::before, #functies .kaart::before,
+  #sectorinstellingen.kaart::before, #sectorinstellingen .kaart::before,
+  #supportpakket.kaart::before, #supportpakket .kaart::before,
+  #rawjson.kaart::before, #rawjson .kaart::before { background:#b8862a; }
   .kaart h2 { font-size:16px; font-weight:800; letter-spacing:-.01em; margin:0 0 5px; color:#1a1a1a; }
   .kaart .uitleg { font-size:12px; color:#666; margin:0 0 10px; }
   .badge { display:inline-block; font-size:10px; font-weight:700; border-radius:8px; padding:1px 7px; margin-left:8px; vertical-align:middle; }
@@ -58,8 +82,10 @@
   .knop { appearance:none; border:1px solid var(--roze); background:#fff; color:var(--roze); border-radius:8px; padding:7px 12px; font-weight:700; font-size:12px; cursor:pointer; transition:background .12s, box-shadow .12s, transform .05s; }
   .knop:hover:not(:disabled) { box-shadow:0 1px 5px rgba(204,8,125,.2); }
   .knop:active:not(:disabled) { transform:translateY(1px); }
-  .knop.primair { background:var(--roze); color:#fff; box-shadow:0 1px 3px rgba(204,8,125,.3); }
-  .knop.primair:hover:not(:disabled) { box-shadow:0 3px 10px rgba(204,8,125,.38); }
+  /* Pil-vorm voor primaire acties: vorm ís hiërarchie, net als in de
+     assistent-panelen (tegels/knoppen = kiezen, pil = bevestigen). */
+  .knop.primair { background:linear-gradient(180deg,var(--roze),#8c0a58); color:#fff; border-radius:999px; padding:8px 16px; box-shadow:0 4px 12px -5px rgba(204,8,125,.5); }
+  .knop.primair:hover:not(:disabled) { box-shadow:0 6px 16px -5px rgba(204,8,125,.6); }
   .knop.klein { padding:3px 8px; font-size:12px; }
   .knop.rood { border-color:#d33; color:#d33; }
   .knop.rood:hover:not(:disabled) { box-shadow:0 1px 5px rgba(211,51,51,.22); }
