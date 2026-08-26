@@ -163,6 +163,12 @@
       "legend": "rgba(150,50,200,0.50)"
     }
   },
+  "categoryDotColors": {
+    "visit": "rood",
+    "rest": "blauw",
+    "admin": "geel",
+    "meet": "groen"
+  },
   "profileSectors": {
     "JGGZ": "Jeugd & Gezin",
     "J&O/JBG": "Jeugd & Gezin",

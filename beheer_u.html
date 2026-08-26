@@ -343,6 +343,9 @@
       <div class="rijknoppen"><button class="knop klein" onclick="addChoice()">+ Regel</button></div>
       <label class="beheer-veld" style="margin-top:14px;max-width:640px"><span>Extra bekende labels (komma-gescheiden)</span><input id="extraLabels" type="text" placeholder="bijv. JG Overig" onchange="markDirty()"></label>
       <p class="uitleg" style="margin-top:4px">Labels die de hulp herkent naast de afspraaktypes hierboven (bijv. bij het opschonen van labels). Standaard: <b>JG Overig</b>.</p>
+      <h3 style="font-size:13px;margin:16px 0 6px">Categoriekleuren van de stipjes</h3>
+      <p class="uitleg">Elke keuze in de hulp (Huisbezoek, Digitaal, …) toont een klein gekleurd stipje. Kies hier welke kleur uit het <b>Kleurenpalet</b> (zie Agendahulp → Kleurenpalet) bij elke stip-variant hoort. Cliëntgebonden keuzes wisselen om en om tussen de eerste twee; niet-cliëntgebonden keuzes tussen de laatste twee.</p>
+      <div class="beheer-grid" id="categorieKleuren" style="max-width:520px"></div>
     </div>
     <div class="kaart">
       <h2>Niet-cliëntgebonden afspraaktypes <span class="badge actief">actief</span></h2>
@@ -996,6 +999,11 @@ const DEFAULTS = {
     groen: { naam:'Groen', fill:'rgba(60,170,90,0.18)',  legend:'rgba(60,170,90,0.50)' },
     nieuwe_kleur_6rwf: { naam:'Paars', fill:'rgba(150,50,200,0.18)', legend:'rgba(150,50,200,0.50)' },
   },
+  // Kleur van de stipjes vóór elke keuze in de Afspraakhulp (Huisbezoek,
+  // Digitaal, ...) — verwijst naar een kleur uit het palet hierboven, net als
+  // een dagindeling-zone. 'visit'/'rest' = cliëntgebonden keuzes (om en om),
+  // 'admin'/'meet' = niet-cliëntgebonden keuzes (om en om).
+  categoryDotColors: { visit:'rood', rest:'blauw', admin:'geel', meet:'groen' },
   profileSectors: { 'JGGZ':'Jeugd & Gezin', 'J&O/JBG':'Jeugd & Gezin', 'Begeleiding':'Begeleiding' },
   zoneProfiles: {
     'JGGZ': [
@@ -1373,7 +1381,7 @@ function mergeWithDefaults(value, defaults) {
 }
 function normalizeConfig(value) {
   const source=value&&value.helperConfig?value.helperConfig:value,out=mergeWithDefaults(source,DEFAULTS);
-  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
+  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout','categoryDotColors'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
   out.compatibility=Object.assign({},out.compatibility||{});
   out.compatibility.schemaVersion=Math.max(DEFAULTS.compatibility.schemaVersion,parseInt(out.compatibility.schemaVersion,10)||0);
   if(compareSemver(out.compatibility.minimumExtensionVersion,DEFAULTS.compatibility.minimumExtensionVersion)!==1)out.compatibility.minimumExtensionVersion=DEFAULTS.compatibility.minimumExtensionVersion;
@@ -2103,7 +2111,7 @@ function readPalette() {
 // Herbouw _palette en ververs alle zone-kleur-dropdowns (behoud gekozen waarde).
 function refreshPaletteEverywhere() {
   _palette = readPalette();
-  [...document.querySelectorAll('#zones select[data-kleur]')].forEach((sel) => {
+  [...document.querySelectorAll('#zones select[data-kleur], #categorieKleuren select[data-kleur]')].forEach((sel) => {
     const cur = sel.value;
     fillColorOptions(sel);
     sel.value = _palette[cur] ? cur : (Object.keys(_palette)[0] || '');
@@ -2120,6 +2128,31 @@ function fillColorOptions(sel) {
 function paintColorSelect(sel) {
   const sw = sel.parentNode.querySelector('.swatch'); if (!sw) return;
   const p = _palette[sel.value]; sw.style.background = p ? p.fill : '#fff';
+}
+// ----- Categoriekleuren van de stipjes in Afspraakhulp (verwijst naar het palet) -----
+const CATEGORY_DOT_KEYS = [
+  ['visit', 'Cliëntcontact (1)'],
+  ['rest', 'Cliëntcontact (2)'],
+  ['admin', 'Niet-cliëntgebonden (1)'],
+  ['meet', 'Niet-cliëntgebonden (2)'],
+];
+function renderCategoryDotColors(map) {
+  map = Object.assign({}, DEFAULTS.categoryDotColors, map || {});
+  const wrap = $('#categorieKleuren'); if (!wrap) return;
+  wrap.innerHTML = '';
+  CATEGORY_DOT_KEYS.forEach(([key, label]) => {
+    const field = document.createElement('label'); field.className = 'beheer-veld';
+    const cap = document.createElement('span'); cap.textContent = label;
+    const picker = colorSelect(map[key]);
+    picker._select.dataset.categorie = key;
+    field.append(cap, picker);
+    wrap.appendChild(field);
+  });
+}
+function readCategoryDotColors() {
+  const out = {};
+  document.querySelectorAll('#categorieKleuren select[data-categorie]').forEach((sel) => { out[sel.dataset.categorie] = sel.value; });
+  return out;
 }
 
 // ----- 4. Zone-profielen -----
@@ -2714,7 +2747,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), categoryDotColors:readCategoryDotColors(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2733,6 +2766,7 @@ function renderAll(cfg) {
   $('#tblForms tbody').innerHTML = ''; sortByVolgorde(cfg.registrationForms || []).forEach(addForm);
   renderSurveys(cfg.surveys);
   $('#tblPalette tbody').innerHTML = ''; Object.keys(_palette).forEach((k) => addColor(k, _palette[k]));
+  renderCategoryDotColors(cfg.categoryDotColors);
   $('#zones').innerHTML = '';
   const secs = cfg.profileSectors || {};
   Object.keys(cfg.zoneProfiles || {}).forEach((k) => addProfile(k, cfg.zoneProfiles[k], secs[k]));

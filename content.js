@@ -64,6 +64,11 @@
       blauw: { naam: 'Blauw', fill: 'rgba(70,130,210,0.16)', legend: 'rgba(70,130,210,0.45)' },
       groen: { naam: 'Groen', fill: 'rgba(60,170,90,0.18)',  legend: 'rgba(60,170,90,0.50)' },
     },
+    // Kleur van de stipjes vóór elke keuze in de Afspraakhulp — verwijst naar
+    // een kleur-key uit het palet hierboven (instelbaar in het beheerscherm,
+    // bij Afspraaktypes). 'visit'/'rest' wisselen om en om voor cliëntgebonden
+    // keuzes, 'admin'/'meet' voor niet-cliëntgebonden keuzes.
+    categoryDotColors: { visit: 'rood', rest: 'blauw', admin: 'geel', meet: 'groen' },
     profileSectors: { 'JGGZ': 'Jeugd & Gezin', 'J&O/JBG': 'Jeugd & Gezin', 'Begeleiding': 'Begeleiding' },
     // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
     zoneProfiles: {
@@ -886,11 +891,10 @@
     if (overigRows.length) box.appendChild(_agCollapsibleOverig(overigRows));
 
     // 5) Knop: "Hoe is dit berekend?" -> apart scherm met de daadwerkelijke cijfers.
-    var calcBtn = document.createElement('button');
-    calcBtn.type = 'button';
-    calcBtn.textContent = 'Verhouding per uursoort';
-    calcBtn.style.cssText = 'display:block;width:100%;margin-top:10px;padding:7px 10px;border:1px solid #cc087d;border-radius:8px;background:#fff;color:#cc087d;font-weight:700;font-size:12px;cursor:pointer';
-    calcBtn.addEventListener('click', function () { try { showAgendaCalcModal(s, opts); } catch (e) {} });
+    // mkButton (zelfde tegel-stijl/hover-lift/focus-ring als de andere knoppen
+    // in de hulp — voorheen een losse, ongeanimeerde knop met roze tekst).
+    var calcBtn = mkButton('Verhouding per uursoort', function () { try { showAgendaCalcModal(s, opts); } catch (e) {} }, { tick: false });
+    calcBtn.style.marginTop = '10px';
     box.appendChild(calcBtn);
 
     // 6) Link naar de declarabiliteit-berekening (op de /registrations-pagina).
@@ -4959,14 +4963,22 @@
     b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(e); });
     return b;
   }
-  // Vier categoriekleuren, dezelfde familie als het dagindeling-palet
-  // (rood/blauw/geel/groen), nu ook op de keuzetegels: warme helft (rood/blauw)
-  // voor cliëntgebonden keuzes, koele helft (geel/groen) voor de rest. Zo rijmt
-  // de kleur die je kiest met de kleur die de afspraak straks in de agenda krijgt.
-  const ONSAH_CATEGORY_COLORS = { visit: '#c94a3f', rest: '#3572b0', admin: '#b8862a', meet: '#2f8f57' };
+  // Vier categoriekleuren voor de keuzetegels, elk een verwijzing naar een
+  // kleur-key uit APP_CONFIG.palette (hetzelfde palet als de dagindeling-
+  // zones, instelbaar in het beheerscherm bij Afspraaktypes). Zo rijmt de
+  // kleur die je kiest met de kleur die de afspraak straks in de agenda krijgt,
+  // en is er één bron van waarheid voor kleuren in plaats van een losse,
+  // hardgecodeerde set.
+  function onsahPaletteSolidColor(key) {
+    const def = APP_CONFIG.palette && APP_CONFIG.palette[key];
+    const raw = String((def && (def.legend || def.fill)) || '').trim();
+    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    return m ? ('rgb(' + m[1] + ',' + m[2] + ',' + m[3] + ')') : '#999';
+  }
   function onsahCategoryColor(clientPresent, index) {
-    const pair = clientPresent ? [ONSAH_CATEGORY_COLORS.visit, ONSAH_CATEGORY_COLORS.rest] : [ONSAH_CATEGORY_COLORS.admin, ONSAH_CATEGORY_COLORS.meet];
-    return pair[(index || 0) % 2];
+    const map = APP_CONFIG.categoryDotColors || {};
+    const pair = clientPresent ? [map.visit || 'rood', map.rest || 'blauw'] : [map.admin || 'geel', map.meet || 'groen'];
+    return onsahPaletteSolidColor(pair[(index || 0) % 2]);
   }
   // Registratievormen hebben geen clientPresent-veld, maar wel een
   // direct/indirect-verdeling (zelfde onderliggende onderscheid).
@@ -5139,6 +5151,7 @@
     const lab = mkText(labelKey, fallbackLabel, { fontSize: '13px', color: T.ink, fontWeight: '600', lineHeight: '1.3' });
     lab.style.flex = '1';
     lab.style.fontWeight = '600'; // zelfde dikte als de Opslaan-knop (mkButton), ongeacht managed 'bold'
+    lab.style.color = T.ink; // idem voor kleur: mkText past de beheerbare tekstkleur ná defaultStyle toe (bv. #cc087d), dus hier expliciet terugzetten naar inkt zodat dit label dezelfde neutrale tekstkleur heeft als de andere tegels/knoppen
     const sw = mkSwitch(initial, onChange);
     box.appendChild(lab);
     box.appendChild(sw);
@@ -8648,38 +8661,52 @@
       top: Math.min(Math.max(8, top), maxTop),
     };
   }
-  function onsHeaderBottom() {
-    const selectors = [
-      'uw-hub',
-      '.hub-container',
-      'header',
-      '[role="banner"]',
-      '[class*="topbar" i]',
-      '[class*="navbar" i]',
-      '[class*="header" i]'
-    ];
-    let best = 0;
-    for (const el of deepQueryAll(selectors.join(','))) {
-      if (!visible(el) || isOwnPopup(el)) continue;
-      const r = rect(el);
-      if (r.width < Math.min(320, window.innerWidth * 0.5)) continue;
-      if (r.height < 28 || r.height > 140) continue;
-      if (r.top > 24 || r.bottom < 32) continue;
-      best = Math.max(best, r.bottom);
-    }
-    return best || 64;
+  // Zichtbare grenzen van de ONS-agenda (dagkolommen) — gebruikt om de hulp
+  // nooit hoger te laten worden dan de agenda zelf, anders overlapt hij
+  // knoppen erboven.
+  function agendaGridBounds() {
+    try {
+      const cols = deepQueryAll(ONS.dayColumn).filter(visible);
+      if (!cols.length) return null;
+      let top = Infinity, bottom = -Infinity;
+      cols.forEach((el) => {
+        const r = rect(el);
+        if (r.height <= 0) return;
+        if (r.top < top) top = r.top;
+        if (r.bottom > bottom) bottom = r.bottom;
+      });
+      if (!isFinite(top) || !isFinite(bottom) || bottom <= top) return null;
+      return { top: top, bottom: bottom };
+    } catch (e) { return null; }
   }
-  function defaultPopupTop() {
-    return Math.round(onsHeaderBottom() + 10);
+  // Vaste afstand tot de onderkant van het scherm (net als de Agendahulp-
+  // widget): de hulp "groeit" nooit mee met een hoger scherm — een groter
+  // scherm levert meer toegestane maximumhoogte op (zie popupMaxHeight),
+  // niet een lager zakkende onderkant.
+  function defaultPopupBottom() { return 24; }
+  // Maximale hoogte: nooit meer dan de ruimte tot de onderkant van het scherm
+  // én nooit hoger dan de zichtbare ONS-agenda zelf. Past de inhoud niet, dan
+  // scrollt de hulp intern (zie de body-stijl in buildPopup).
+  function popupMaxHeight() {
+    const viewportCap = window.innerHeight - defaultPopupBottom() - 16;
+    const bounds = agendaGridBounds();
+    const agendaCap = bounds ? (bounds.bottom - bounds.top) : viewportCap;
+    return Math.max(160, Math.min(viewportCap, agendaCap));
   }
-  function defaultPopupLeft() {
-    const w = (popupEl && popupEl.offsetWidth) || 280;
+  // Berekend als CSS `right` (afstand tot de rechterkant van het venster) —
+  // bewust NIET via `left` + de eigen breedte: die breedte verandert continu
+  // tijdens het zijwaarts in-/uitklappen, en `reposition()` draait zeer vaak
+  // (elke mutatie/scroll). Een op-breedte-gebaseerde `left` gaf daardoor af en
+  // toe een verkeerde tussentijdse positie ("naar links springen"). `right`
+  // is onafhankelijk van de eigen breedte, dus altijd stabiel — de hulp klapt
+  // zo altijd naar rechts (tegen de ONS-modal aan) in en uit.
+  function defaultPopupRight() {
     const m = findModal();
     if (m && m.panel && rect(m.panel).width > 0) {
       const r = rect(m.panel);
-      return r.right - w - 24;
+      return Math.max(8, Math.round(window.innerWidth - r.right + 24));
     }
-    return window.innerWidth - w - 20;
+    return 24;
   }
   // Herpositioneer na een layout-/inhoudswijziging, met verse hoogtemeting.
   function reclampToViewport() {
@@ -8695,12 +8722,16 @@
     popupEl.style.top = p.top + 'px';
     popupEl.style.right = 'auto';
     popupEl.style.bottom = 'auto';
+    popupEl.style.maxHeight = popupMaxHeight() + 'px';
     if (userPos) userPos = p;
   }
   function buildPopup() {
     ensureOnsAhBaseStyles();
     popupEl = document.createElement('div');
-    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', top: '74px', right: '24px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+    // bottom+right (i.p.v. top+left): de hulp hangt aan de onderkant van het
+    // scherm en tegen de ONS-modal aan; zie reposition()/popupMaxHeight()
+    // voor de exacte, doorlopend herberekende waarden.
+    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', bottom: '24px', right: '24px', maxHeight: '70vh', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
     // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
     // status draagt (roze werkend, grijs uitgeschakeld), het sleepgebied vormt
     // én zelf klikbaar is om het paneel zijwaarts in/uit te klappen (net als
@@ -8854,7 +8885,10 @@
     mainCol.appendChild(header);
     const body = document.createElement('div');
     body.setAttribute('data-body', '');
-    Object.assign(body.style, { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' });
+    // flex:1 + minHeight:0 i.p.v. een vaste calc(100vh - ...): de body krimpt
+    // mee binnen de door popupMaxHeight() begrensde hoogte (header/status
+    // blijven op hun natuurlijke grootte) en scrollt zelf als de inhoud niet past.
+    Object.assign(body.style, { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', flex: '1 1 auto', minHeight: '0', overflowY: 'auto' });
     mainCol.appendChild(body);
     const status = document.createElement('div');
     status.setAttribute('data-status', '');
@@ -8899,12 +8933,14 @@
   }
   function reposition() {
     if (!popupEl) return;
+    popupEl.style.maxHeight = popupMaxHeight() + 'px';
     if (userPos) { const p = clampPos(userPos.left, userPos.top); popupEl.style.left = p.left + 'px'; popupEl.style.top = p.top + 'px'; popupEl.style.right = 'auto'; popupEl.style.bottom = 'auto'; return; }
-    const left = defaultPopupLeft();
-    const top = defaultPopupTop();
-    const p = clampPos(left, top);
-    popupEl.style.left = p.left + 'px'; popupEl.style.top = p.top + 'px';
-    popupEl.style.right = 'auto'; popupEl.style.bottom = 'auto';
+    // Standaardplek: rechts tegen de ONS-modal, onderkant op een vaste
+    // afstand van de vensteronderkant (zie defaultPopupRight/-Bottom hierboven).
+    popupEl.style.right = defaultPopupRight() + 'px';
+    popupEl.style.left = 'auto';
+    popupEl.style.bottom = defaultPopupBottom() + 'px';
+    popupEl.style.top = 'auto';
   }
   function ensureMounted() {
     if (!active) return;
