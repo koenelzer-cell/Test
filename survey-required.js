@@ -730,22 +730,29 @@
       Object.assign(bannerEl.style, {
         position: 'fixed', zIndex: '2147483647', right: '16px', top: '80px', left: 'auto', bottom: 'auto', transform: 'none',
         width: PANEL_W + 'px', minWidth: PANEL_W + 'px', maxWidth: PANEL_W + 'px', maxHeight: 'calc(100vh - 100px)',
-        background: '#ffffff', color: '#222', border: '1px solid #e3e3e3', borderRadius: '12px', overflow: 'hidden',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.22)', font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-        display: 'none', flexDirection: 'column', pointerEvents: 'auto',
+        background: '#ffffff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '14px', overflow: 'hidden',
+        boxShadow: '0 14px 36px rgba(32,20,15,.24)', font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        display: 'none', flexDirection: 'row', alignItems: 'stretch', pointerEvents: 'auto',
       });
-      // Kop in dezelfde roze tint als Afspraak-/Registratiehulp.
-      const header = document.createElement('div');
-      header.setAttribute('data-survey-header', '');
-      Object.assign(header.style, {
-        display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto',
-        background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', userSelect: 'none',
-      });
+      // Spine: zelfde herkenningsbalk als Afspraak-/Registratiehulp en
+      // Agendahulp, draagt hier ook de status (roze/amber/groen).
+      const spine = document.createElement('div');
+      spine.setAttribute('data-survey-spine', '');
+      Object.assign(spine.style, { width: '14px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', background: 'linear-gradient(180deg,#cc087d,#8c0a58)' });
       const icon = document.createElement('span');
       icon.innerHTML = SURVEY_ICON_SVG.warn;
       icon.setAttribute('data-survey-drag-handle', '');
       icon.title = 'Sleep de melding';
-      Object.assign(icon.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', flex: '0 0 auto' });
+      Object.assign(icon.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', flex: '0 0 auto', color: '#fff' });
+      spine.appendChild(icon);
+      const mainCol = document.createElement('div');
+      Object.assign(mainCol.style, { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column' });
+      const header = document.createElement('div');
+      header.setAttribute('data-survey-header', '');
+      Object.assign(header.style, {
+        display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto',
+        background: '#fff', color: '#201d1f', padding: '10px 12px', userSelect: 'none', borderBottom: '1px solid #f1ecea',
+      });
       const title = document.createElement('span');
       title.setAttribute('data-survey-title', '');
       Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', fontSize: '13px', fontWeight: '700' });
@@ -753,13 +760,13 @@
       version.setAttribute('data-survey-version', '');
       version.textContent = 'v' + SCRIPT_VERSION;
       version.title = 'Geladen versie van de vragenlijstcontrole';
-      Object.assign(version.style, { flex: '0 0 auto', fontSize: '10px', fontWeight: '700', opacity: '.82' });
-      const ctrlStyle = { flex: '0 0 auto', width: '26px', height: '26px', padding: '0', border: '1px solid rgba(255,255,255,.35)', borderRadius: '7px', background: 'rgba(255,255,255,0.16)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+      Object.assign(version.style, { flex: '0 0 auto', fontSize: '10px', fontWeight: '700', color: '#a49a9d' });
+      const ctrlStyle = { flex: '0 0 auto', width: '24px', height: '24px', padding: '0', border: '1px solid #ece7e5', borderRadius: '7px', background: '#f6f2f0', color: '#6b6367', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
       const collapse = document.createElement('button');
       collapse.type = 'button';
       collapse.setAttribute('data-survey-collapse', '');
       collapse.setAttribute('aria-label', 'Melding inklappen');
-      Object.assign(collapse.style, ctrlStyle, { font: '700 16px/1 system-ui, sans-serif' });
+      Object.assign(collapse.style, ctrlStyle, { font: '700 15px/1 system-ui, sans-serif' });
       const close = document.createElement('button');
       close.type = 'button';
       close.innerHTML = SURVEY_ICON_SVG.sluiten;
@@ -774,7 +781,6 @@
         renderChecklist(state);
       });
       close.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); clearChecklist(); hideBanner(); });
-      header.appendChild(icon);
       header.appendChild(title);
       header.appendChild(version);
       header.appendChild(collapse);
@@ -783,8 +789,10 @@
       const msg = document.createElement('div');
       msg.setAttribute('data-survey-msg', '');
       Object.assign(msg.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '10px 12px 12px' });
-      bannerEl.appendChild(header);
-      bannerEl.appendChild(msg);
+      mainCol.appendChild(header);
+      mainCol.appendChild(msg);
+      bannerEl.appendChild(spine);
+      bannerEl.appendChild(mainCol);
       (document.body || document.documentElement).appendChild(bannerEl);
       let moving = false, dragDX = 0, dragDY = 0, prevUserSelect = '';
       bannerEl.addEventListener('mousedown', (e) => {
@@ -940,11 +948,11 @@
     }
     function showBanner(text) {
       const b = ensureBanner();
-      const header = b.querySelector('[data-survey-header]');
+      const spine = b.querySelector('[data-survey-spine]');
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (header) header.style.background = 'linear-gradient(135deg,#cc087d,#a3066a)';
+      if (spine) spine.style.background = 'linear-gradient(180deg,#cc087d,#8c0a58)';
       if (icon) icon.innerHTML = SURVEY_ICON_SVG.info;
       if (title) title.textContent = text;
       if (msg) { msg.textContent = ''; msg.style.display = 'none'; }
@@ -956,12 +964,13 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = label;
-      const bg = kind === 'primary' ? '#cc087d' : (kind === 'warn' ? '#b45309' : '#eee');
-      const fg = kind === 'ghost' ? '#333' : '#fff';
+      const bg = kind === 'primary' ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : (kind === 'warn' ? 'linear-gradient(180deg,#b45309,#8a3d05)' : '#f6f2f0');
+      const fg = kind === 'ghost' ? '#4a4448' : '#fff';
       Object.assign(btn.style, {
-        appearance: 'none', border: '1px solid rgba(0,0,0,.12)', borderRadius: '7px',
-        padding: '8px 12px', fontWeight: '700', cursor: 'pointer',
-        background: bg, color: fg, font: '700 13px/1 system-ui, sans-serif'
+        appearance: 'none', border: kind === 'ghost' ? '1px solid #ece7e5' : '0', borderRadius: '999px',
+        padding: '9px 16px', fontWeight: '700', cursor: 'pointer',
+        background: bg, color: fg, font: '700 13px/1 system-ui, sans-serif',
+        boxShadow: kind === 'ghost' ? 'none' : '0 4px 12px -5px rgba(0,0,0,.4)'
       });
       btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(e); });
       return btn;
@@ -974,11 +983,11 @@
       _awaitingAgeChoice = true;
       const pick = (age) => { _awaitingAgeChoice = false; onPick(age); };
       const b = ensureBanner();
-      const header = b.querySelector('[data-survey-header]');
+      const spine = b.querySelector('[data-survey-spine]');
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (header) header.style.background = 'linear-gradient(135deg,#b45309,#8a3d05)';
+      if (spine) spine.style.background = 'linear-gradient(180deg,#b45309,#8a3d05)';
       if (icon) icon.innerHTML = SURVEY_ICON_SVG.vraag;
       if (title) title.textContent = 'Leeftijd van de cliënt bevestigen';
       setDock(false);
@@ -1165,7 +1174,7 @@
     }
     function renderChecklist(state) {
       const b = ensureBanner();
-      const header = b.querySelector('[data-survey-header]');
+      const spine = b.querySelector('[data-survey-spine]');
       const titleEl = b.querySelector('[data-survey-title]');
       const iconEl = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
@@ -1179,8 +1188,9 @@
       const hasSignals = signals.length > 0;
       // (#7) Badge op het extensie-icoon: openstaande verplichte vragen.
       sendBadge(remaining);
-      // Roze kop (huisstijl) als er nog vragen open staan, groen als alles klaar is.
-      if (header) header.style.background = remaining ? 'linear-gradient(135deg,#cc087d,#a3066a)' : ((hasRespondentWarning || hasSignals) ? 'linear-gradient(135deg,#b45309,#8a3d05)' : 'linear-gradient(135deg,#1b7f3b,#146430)');
+      // Spine in huisstijlroze als er nog vragen open staan, amber bij een
+      // signaal/waarschuwing, groen als alles klaar is.
+      if (spine) spine.style.background = remaining ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : ((hasRespondentWarning || hasSignals) ? 'linear-gradient(180deg,#b45309,#8a3d05)' : 'linear-gradient(180deg,#1b7f3b,#146430)');
       if (iconEl) iconEl.innerHTML = (remaining || hasRespondentWarning || hasSignals) ? SURVEY_ICON_SVG.warn : SURVEY_ICON_SVG.ok;
       if (titleEl) titleEl.textContent = remaining
         ? ('Nog ' + remaining + ' van ' + state.items.length + ' verplichte ' + (state.items.length === 1 ? 'vraag' : 'vragen'))
