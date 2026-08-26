@@ -5163,27 +5163,94 @@
   // Boven de PICKER_CHIP_LIMIT is een chipgrid weer net zo'n lange lijst als
   // de oude volle-breedte-knoppen, alleen met kleinere blokjes.
   const PICKER_CHIP_LIMIT = 16;
-  function mkChipGrid(values, onPick) {
+  // Gedeelde chip-stijl (tegel uit een rooster): gebruikt door mkChipGrid en
+  // mkHourMinutePicker, zodat beide er identiek uitzien.
+  function styleChipButton(chip) {
     const T = ONSAH_TOKENS;
+    Object.assign(chip.style, {
+      padding: '9px 6px', borderRadius: '10px', border: '1px solid ' + T.line, background: '#fff',
+      font: '600 13px/1 system-ui,-apple-system,sans-serif', color: T.ink, cursor: 'pointer',
+      fontVariantNumeric: 'tabular-nums', textAlign: 'center', boxSizing: 'border-box',
+      transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
+    });
+    chip.addEventListener('mouseenter', () => { chip.style.transform = 'translateY(-1px)'; chip.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.28)'; chip.style.background = T.brandWash; chip.style.borderColor = 'transparent'; });
+    chip.addEventListener('mouseleave', () => { chip.style.transform = 'none'; chip.style.boxShadow = 'none'; chip.style.background = '#fff'; chip.style.borderColor = T.line; });
+    onsahFocusRing(chip);
+  }
+  function mkChipGrid(values, onPick) {
     const grid = document.createElement('div');
     Object.assign(grid.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '7px' });
     values.forEach((m) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.textContent = registrationDurationLabel(m);
-      Object.assign(chip.style, {
-        padding: '9px 6px', borderRadius: '10px', border: '1px solid ' + T.line, background: '#fff',
-        font: '600 13px/1 system-ui,-apple-system,sans-serif', color: T.ink, cursor: 'pointer',
-        fontVariantNumeric: 'tabular-nums', textAlign: 'center', boxSizing: 'border-box',
-        transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
-      });
-      chip.addEventListener('mouseenter', () => { chip.style.transform = 'translateY(-1px)'; chip.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.28)'; chip.style.background = T.brandWash; chip.style.borderColor = 'transparent'; });
-      chip.addEventListener('mouseleave', () => { chip.style.transform = 'none'; chip.style.boxShadow = 'none'; chip.style.background = '#fff'; chip.style.borderColor = T.line; });
-      onsahFocusRing(chip);
+      styleChipButton(chip);
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPick(m); });
       grid.appendChild(chip);
     });
     return grid;
+  }
+  // Duur eerst op hele uren kiezen, dan (indien dat uur meerdere minuutwaardes
+  // bevat) de minuten binnen dat uur — twee korte chipsroosters i.p.v. één
+  // lange lijst of een schuifregelaar. Alternatieve fallback voor afspraakduur
+  // naast mkTimePicker; werkt voor elke stapgrootte, ook als die geen mooie
+  // deler van 60 is (dan wisselt het aantal minuutopties per uur gewoon mee).
+  function mkHourMinutePicker(values, onPick) {
+    const byHour = new Map();
+    values.forEach((v) => {
+      const h = Math.floor(v / 60);
+      if (!byHour.has(h)) byHour.set(h, []);
+      byHour.get(h).push(v % 60);
+    });
+    const hours = [...byHour.keys()].sort((a, b) => a - b);
+    const wrap = document.createElement('div');
+    const cap = document.createElement('div');
+    Object.assign(cap.style, { fontSize: '12px', fontWeight: '700', color: ONSAH_TOKENS.inkSoft, margin: '0 0 7px' });
+    const stage = document.createElement('div');
+    wrap.append(cap, stage);
+    function mkGrid() {
+      const grid = document.createElement('div');
+      Object.assign(grid.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: '7px' });
+      return grid;
+    }
+    function renderHours() {
+      cap.textContent = 'Aantal uren:';
+      stage.innerHTML = '';
+      const grid = mkGrid();
+      hours.forEach((h) => {
+        const mins = byHour.get(h);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = h + ' uur';
+        styleChipButton(btn);
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          if (mins.length === 1) onPick(h * 60 + mins[0]);
+          else renderMinutes(h, mins);
+        });
+        grid.appendChild(btn);
+      });
+      stage.appendChild(grid);
+    }
+    function renderMinutes(h, mins) {
+      cap.textContent = h + ' uur — aantal minuten:';
+      stage.innerHTML = '';
+      const back = document.createElement('button');
+      back.type = 'button'; back.textContent = '‹ Ander aantal uren';
+      Object.assign(back.style, { border: '0', background: 'none', color: ONSAH_TOKENS.inkSoft, font: '600 12px system-ui,-apple-system,sans-serif', cursor: 'pointer', padding: '0 0 8px', display: 'block' });
+      back.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); renderHours(); });
+      const grid = mkGrid();
+      mins.slice().sort((a, b) => a - b).forEach((m) => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.textContent = m + ' min.';
+        styleChipButton(btn);
+        btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPick(h * 60 + m); });
+        grid.appendChild(btn);
+      });
+      stage.append(back, grid);
+    }
+    renderHours();
+    return wrap;
   }
   function mkTimePicker(values, initial, onPick) {
     const T = ONSAH_TOKENS;
@@ -5224,6 +5291,12 @@
   }
   function mkValuePicker(values, initial, onPick) {
     return values.length > PICKER_CHIP_LIMIT ? mkTimePicker(values, initial, onPick) : mkChipGrid(values, onPick);
+  }
+  // Voor afspraakduur specifiek: boven de PICKER_CHIP_LIMIT eerst het aantal
+  // hele uren laten kiezen en pas daarna (indien nodig) de minuten, i.p.v. de
+  // schuifregelaar van mkTimePicker.
+  function mkDurationPicker(values, onPick) {
+    return values.length > PICKER_CHIP_LIMIT ? mkHourMinutePicker(values, onPick) : mkChipGrid(values, onPick);
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
@@ -6282,7 +6355,7 @@
     const durStep = opt.durationStep > 0 ? opt.durationStep : gsNum('durationStepMin', 15);
     const durMax = opt.maxDuration > 0 ? opt.maxDuration : gsNum('appointmentMaxMin', 480);
     const durValues = []; for (let m = durStep; m <= durMax; m += durStep) durValues.push(m);
-    body.appendChild(mkValuePicker(durValues, durValues[0], function (m) { return safe(function () {
+    body.appendChild(mkDurationPicker(durValues, function (m) { return safe(function () {
       // Zelfde opzet als de cliëntflow: eerst eindtijd zetten + plannen, dan
       // na 80ms de uursoort/label-stappen (die elk de eindtijd opnieuw afdwingen).
       const endOk = applyNonClientEndTime(m);
@@ -6475,7 +6548,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum('durationStepMin',15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum('registrationMaxMin',180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkValuePicker(_durValues, _durValues[0], (minutes) => safe(() => applyAppointmentDuration(choice, minutes))));
+    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes))));
   }
   function showAppointmentTravelSelection(choice) {
     const body = $body(); if (!body) return;
@@ -7303,7 +7376,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkValuePicker(_durValues, _durValues[0], (minutes) => safe(() => {
+    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => {
       const endOk = setRegistrationEndTimePlusMinutes(minutes);
       // verdeling opnieuw toepassen op de nieuwe (nu bekende) duur
       applyRegistrationSplitForChoice(choice);
@@ -7472,7 +7545,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkValuePicker(_durValues, _durValues[0], (minutes) => safe(() => {
+    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => {
       activeRegistrationChoice = choice;
       const endOk = setRegistrationEndTimePlusMinutes(minutes);
       const splitOk = applyRegistrationSplitForChoice(choice);
