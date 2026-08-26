@@ -4767,7 +4767,15 @@
   function setStatus(text, ok) {
     if (!popupEl) return;
     const s = popupEl.querySelector('[data-status]');
-    s.textContent = text || ''; s.style.color = ok === false ? '#b3261e' : '#1b7f3b';
+    if (!s) return;
+    s.innerHTML = '';
+    if (!text) return;
+    const chip = document.createElement('div');
+    chip.className = 'onsah-chip ' + (ok === false ? 'bad' : 'ok');
+    chip.appendChild(ok === false ? svgSpinePause() : svgSpineCheck());
+    const lbl = document.createElement('span'); lbl.textContent = text;
+    chip.appendChild(lbl);
+    s.appendChild(chip);
   }
   function showLoadingState(text) {
     const body = $body(); if (!body) return;
@@ -4833,13 +4841,58 @@
     const style = document.createElement('style');
     style.id = 'ons-helper-base-style';
     style.textContent =
-      '.onsah-btn{transition:background .12s ease,box-shadow .12s ease,transform .05s ease;}' +
-      '.onsah-btn:hover:not(:disabled){box-shadow:0 1px 6px rgba(0,0,0,.18);}' +
-      '.onsah-btn:active:not(:disabled){transform:translateY(1px);}' +
-      '.onsah-btn:focus-visible{outline:2px solid #cc087d;outline-offset:2px;}' +
-      '.onsah-switch:focus-visible{outline:2px solid #cc087d;outline-offset:2px;}' +
-      '[data-popup-control]:focus-visible{outline:2px solid #fff;outline-offset:2px;}';
+      // Design-tokens voor de "spine"-vormtaal: gedeeld door alle panelen
+      // (Afspraakhulp/Registratiehulp, Agendahulp, Declarabiliteit).
+      ':root{--onsah-ink:#201d1f;--onsah-ink-soft:#6b6367;--onsah-line:#ece7e5;--onsah-line-soft:#f6f2f0;' +
+      '--onsah-brand:#cc087d;--onsah-brand-deep:#8c0a58;--onsah-brand-wash:#fdf1f8;' +
+      '--onsah-ok:#1b7f3b;--onsah-ok-wash:#eaf6ee;--onsah-bad:#a3241f;--onsah-bad-wash:#fbeceb;}' +
+      // Tegel: vervangt de vlak-omgekeerde knop door een kaart die optilt op
+      // hover, met optionele kleurstip (categorie) en chevron (navigatie-cue).
+      '.onsah-tile{display:flex;align-items:center;gap:10px;width:100%;padding:10px 11px;border-radius:11px;border:1px solid var(--onsah-line);background:#fff;color:var(--onsah-ink);font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;text-align:left;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background .12s ease,border-color .12s ease;}' +
+      '.onsah-tile:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(32,20,15,.28);background:var(--onsah-tile-hover,var(--onsah-brand-wash));border-color:transparent;}' +
+      '.onsah-tile:active:not(:disabled){transform:translateY(0);box-shadow:none;}' +
+      '.onsah-tile:disabled{opacity:.5;cursor:default;}' +
+      '.onsah-tile:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}' +
+      '.onsah-tile .onsah-tick{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}' +
+      '.onsah-tile .onsah-lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      '.onsah-tile .onsah-chev{width:14px;height:14px;color:#c7bfbc;flex:0 0 auto;transition:color .12s ease;}' +
+      '.onsah-tile:hover:not(:disabled) .onsah-chev{color:var(--onsah-tile-chev,var(--onsah-brand));}' +
+      // Pil: primaire/bevestigende acties. Andere vorm dan de tegel = andere
+      // betekenis (kiezen vs. bevestigen), i.p.v. overal dezelfde rechthoek.
+      '.onsah-pill{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:999px;padding:10px 18px;font:700 13px/1 system-ui,-apple-system,sans-serif;color:#fff;background:linear-gradient(180deg,var(--onsah-brand),var(--onsah-brand-deep));cursor:pointer;box-shadow:0 6px 16px -7px rgba(204,8,125,.6);transition:transform .08s ease,box-shadow .12s ease;}' +
+      '.onsah-pill:hover:not(:disabled){box-shadow:0 8px 20px -6px rgba(204,8,125,.7);}' +
+      '.onsah-pill:active:not(:disabled){transform:translateY(1px);}' +
+      '.onsah-pill:disabled{opacity:.5;cursor:default;}' +
+      '.onsah-pill:focus-visible{outline:2px solid var(--onsah-brand-deep);outline-offset:2px;}' +
+      '.onsah-pill-ghost{background:transparent;color:var(--onsah-ink-soft);border:1px solid var(--onsah-line);box-shadow:none;}' +
+      '.onsah-pill-ghost:hover:not(:disabled){background:var(--onsah-line-soft);color:var(--onsah-ink);box-shadow:none;}' +
+      // Statuschip: vervangt de kale kleurtekst onderin door een compact label
+      // met icoon + gekleurde linkerrand.
+      '.onsah-chip{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9px;font-size:11.5px;font-weight:700;border-left:3px solid transparent;}' +
+      '.onsah-chip.ok{background:var(--onsah-ok-wash);border-left-color:var(--onsah-ok);color:var(--onsah-ok);}' +
+      '.onsah-chip.bad{background:var(--onsah-bad-wash);border-left-color:var(--onsah-bad);color:var(--onsah-bad);}' +
+      '.onsah-chip svg{width:12px;height:12px;flex:0 0 auto;}' +
+      '.onsah-switch:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}' +
+      '[data-popup-control]:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}';
     document.head.appendChild(style);
+  }
+  // Vier categoriekleuren, dezelfde familie als het dagindeling-palet
+  // (rood/blauw/geel/groen), nu ook op de keuzetegels: warme helft (rood/blauw)
+  // voor cliëntgebonden keuzes, koele helft (geel/groen) voor de rest. Zo rijmt
+  // de kleur die je kiest met de kleur die de afspraak straks in de agenda krijgt.
+  const ONSAH_CATEGORY_COLORS = { visit: '#c94a3f', rest: '#3572b0', admin: '#b8862a', meet: '#2f8f57' };
+  function onsahCategoryColor(clientPresent, index) {
+    const pair = clientPresent ? [ONSAH_CATEGORY_COLORS.visit, ONSAH_CATEGORY_COLORS.rest] : [ONSAH_CATEGORY_COLORS.admin, ONSAH_CATEGORY_COLORS.meet];
+    return pair[(index || 0) % 2];
+  }
+  // Registratievormen hebben geen clientPresent-veld, maar wel een
+  // direct/indirect-verdeling (zelfde onderliggende onderscheid).
+  function onsahRegistrationIsDirect(choice) {
+    if (!choice) return true;
+    if (choice.directFullDuration) return true;
+    if (choice.indirectFullDuration) return false;
+    if (choice.startSplit) return choice.startSplit.directPct >= choice.startSplit.indirectPct;
+    return true;
   }
   // Klein, consistent SVG-icoon (lijn + stip) i.p.v. een cursieve Georgia-"i" —
   // zelfde stijl als de andere iconen in de extensie (svgIcon hieronder).
@@ -4864,15 +4917,56 @@
     svg.appendChild(l1); svg.appendChild(l2);
     return svg;
   }
-  function mkButton(label, onClick) {
+  // Spine-statusicoon: vinkje (hulp aan) of pauzeteken (uitgeschakeld).
+  function svgSpineCheck() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 14 14'); svg.setAttribute('width', '11'); svg.setAttribute('height', '11'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+    const path = document.createElementNS(svgNS, 'path'); path.setAttribute('d', 'M3 7.2l2.6 2.6L11 4');
+    svg.appendChild(path);
+    return svg;
+  }
+  function svgSpinePause() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 14 14'); svg.setAttribute('width', '11'); svg.setAttribute('height', '11'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('stroke-linecap', 'round');
+    const l1 = document.createElementNS(svgNS, 'line'); l1.setAttribute('x1', '5'); l1.setAttribute('y1', '3.5'); l1.setAttribute('x2', '5'); l1.setAttribute('y2', '10.5');
+    const l2 = document.createElementNS(svgNS, 'line'); l2.setAttribute('x1', '9'); l2.setAttribute('y1', '3.5'); l2.setAttribute('x2', '9'); l2.setAttribute('y2', '10.5');
+    svg.appendChild(l1); svg.appendChild(l2);
+    return svg;
+  }
+  // `opts.tick` (hex) zet een kleine categoriekleur-stip vooraan (voor
+  // type-keuzes); zonder tick is de tegel neutraal (voor Ja/Nee/Terug e.d.).
+  // `opts.chevron` (default aan) toont een navigatie-chevron rechts.
+  // `opts.accent` (hex) kleurt rand/tekst/hover voor destructieve varianten.
+  function mkButton(label, onClick, opts) {
+    opts = opts || {};
     ensureOnsAhBaseStyles();
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'onsah-btn';
-    b.textContent = label;
-    Object.assign(b.style, { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#fff', color: '#cc087d', fontWeight: '600', fontSize: '13px', textAlign: 'left' });
-    b.addEventListener('mouseenter', () => { b.style.background = '#cc087d'; b.style.color = '#fff'; });
-    b.addEventListener('mouseleave', () => { b.style.background = '#fff'; b.style.color = '#cc087d'; });
+    b.className = 'onsah-tile';
+    if (opts.tick) {
+      const tick = document.createElement('span');
+      tick.className = 'onsah-tick';
+      tick.style.background = opts.tick;
+      b.appendChild(tick);
+    }
+    const lbl = document.createElement('span');
+    lbl.className = 'onsah-lbl';
+    lbl.textContent = label;
+    b.appendChild(lbl);
+    if (opts.chevron !== false) {
+      b.appendChild(svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
+      b.lastChild.classList.add('onsah-chev');
+      b.lastChild.removeAttribute('width'); b.lastChild.removeAttribute('height');
+    }
+    if (opts.accent) {
+      b.style.color = opts.accent;
+      b.style.setProperty('--onsah-tile-hover', opts.accentWash || opts.accent + '14');
+      b.style.setProperty('--onsah-tile-chev', opts.accent);
+    }
     b.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -5056,11 +5150,7 @@
     if (statusEl) { statusEl.textContent = ''; }
   }
   function addResetButton(body) {
-    const reset = mkButton('Verwijder instellingen', () => safe(clearSettings));
-    reset.style.borderColor = '#b3261e';
-    reset.style.color = '#b3261e';
-    reset.addEventListener('mouseenter', () => { reset.style.background = '#b3261e'; reset.style.color = '#fff'; });
-    reset.addEventListener('mouseleave', () => { reset.style.background = '#fff'; reset.style.color = '#b3261e'; });
+    const reset = mkButton('Verwijder instellingen', () => safe(clearSettings), { tick: false, chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     body.appendChild(reset);
   }
   function showAvailabilityWarning() {
@@ -5266,10 +5356,10 @@
       body.appendChild(mkProblemBanner(_missingHooks));
       logStep('zelftest: hooks niet herkend', false, _missingHooks.join(', '));
     }
-    CONFIG.choices.forEach((choice) => body.appendChild(mkButton(choice.label, () => safe(() => {
+    CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
       pendingChoice = choice;
       prepareClientAndHandleChoice(choice);
-    }))));
+    }), { tick: onsahCategoryColor(choice.clientPresent, i) })));
     addResetButton(body);
     setStatus('');
   }
@@ -5278,8 +5368,8 @@
     note.textContent = 'Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.';
     Object.assign(note.style, { fontSize: '13px', color: '#b3261e', lineHeight: '1.35', padding: '4px 0 8px' });
     body.appendChild(note);
-    CONFIG.choices.forEach((choice) => {
-      const b = mkButton(choice.label, () => {});
+    CONFIG.choices.forEach((choice, i) => {
+      const b = mkButton(choice.label, () => {}, { tick: onsahCategoryColor(choice.clientPresent, i) });
       try { b.disabled = true; } catch (e) {}
       b.setAttribute('aria-disabled', 'true');
       Object.assign(b.style, { opacity: '0.45', cursor: 'not-allowed' });
@@ -5451,8 +5541,8 @@
     ensureOnsAhBaseStyles();
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'onsah-btn';
-    Object.assign(b.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#cc087d', color: '#fff', fontWeight: '700', fontSize: '13px', width: '100%', marginBottom: '8px' });
+    b.className = 'onsah-pill';
+    Object.assign(b.style, { width: '100%', marginBottom: '8px' });
     // add-icoon (zelfde pad als ONS)
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
@@ -5502,12 +5592,8 @@
     setStatus('Kies een categorie of voeg een cliënt toe');
   }
   function addNonClientResetButton(body) {
-    const reset = mkButton('Verwijder instellingen', function () { return safe(clearNonClientSettings); });
+    const reset = mkButton('Verwijder instellingen', function () { return safe(clearNonClientSettings); }, { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     reset.style.marginTop = '6px';
-    reset.style.borderColor = '#b3261e';
-    reset.style.color = '#b3261e';
-    reset.addEventListener('mouseenter', function () { reset.style.background = '#b3261e'; reset.style.color = '#fff'; });
-    reset.addEventListener('mouseleave', function () { reset.style.background = '#fff'; reset.style.color = '#b3261e'; });
     body.appendChild(reset);
   }
   function findNonClientUursoortTrigger() {
@@ -5972,11 +6058,7 @@
     body.appendChild(sub);
     const setTitelBtn = mkButton('Zet titel', function () { return safe(function () {
       ensureNonClientFreeTitlePrefix(opt);
-    }); });
-    setTitelBtn.style.borderColor = '#1a7f37';
-    setTitelBtn.style.color = '#1a7f37';
-    setTitelBtn.addEventListener('mouseenter', () => { setTitelBtn.style.background = '#1a7f37'; setTitelBtn.style.color = '#fff'; });
-    setTitelBtn.addEventListener('mouseleave', () => { setTitelBtn.style.background = '#fff'; setTitelBtn.style.color = '#1a7f37'; });
+    }); }, { chevron: false, accent: '#1a7f37', accentWash: '#eaf6ee' });
     body.appendChild(setTitelBtn);
     updateSubmitGuard();
     // Geen Opslaan-knop hier: zodra er inhoud na de prefix staat, leidt
@@ -6827,7 +6909,9 @@
     body.appendChild(groupNote);
     body.appendChild(document.createElement('br'));
     appendRegistrationCompleteness(body);
-    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper));
+    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper), { chevron: false });
+    submit.className = 'onsah-pill';
+    submit.style.width = '100%';
     submit.setAttribute('data-registration-helper-submit', '');
     body.appendChild(submit);
     updateRegistrationReportSubmitButton();
@@ -6844,7 +6928,9 @@
     const body = $body(); if (!body) return;
     body.innerHTML = '';
     appendRegistrationCompleteness(body);
-    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper));
+    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper), { chevron: false });
+    submit.className = 'onsah-pill';
+    submit.style.width = '100%';
     submit.setAttribute('data-registration-helper-submit', '');
     body.appendChild(submit);
     updateRegistrationReportSubmitButton();
@@ -7053,10 +7139,7 @@
     if (registrationFromAppointment) {
       const ns = REGISTRATION_CHOICES.find((x) => x.label === 'No show');
       if (ns) {
-        const nsBtn = mkButton('No show', () => safe(() => applyRegistrationChoice(ns)));
-        nsBtn.style.borderColor = '#b3261e'; nsBtn.style.color = '#b3261e';
-        nsBtn.addEventListener('mouseenter', () => { nsBtn.style.background = '#b3261e'; nsBtn.style.color = '#fff'; });
-        nsBtn.addEventListener('mouseleave', () => { nsBtn.style.background = '#fff'; nsBtn.style.color = '#b3261e'; });
+        const nsBtn = mkButton('No show', () => safe(() => applyRegistrationChoice(ns)), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
         body.appendChild(nsBtn);
       }
     }
@@ -7921,17 +8004,12 @@
     const btn = popupEl && popupEl.querySelector('[data-registration-helper-submit]');
     if (!btn) return;
     const blocked = registrationReportNeedsContent();
-    const hovered = !!(btn.matches && btn.matches(':hover'));
-    const color = blocked ? '#b3261e' : '#1b7f3b';
     btn.textContent = blocked ? 'Rapportage' : 'Indienen';
     btn.title = blocked ? 'Schrijf de rapportage' : 'Registratie indienen';
-    btn.style.borderColor = blocked ? '#b3261e' : '#1b7f3b';
-    btn.style.background = hovered ? color : '#fff';
-    btn.style.color = hovered ? '#fff' : color;
-    btn.style.opacity = blocked ? '0.72' : '1';
+    btn.style.background = blocked ? 'linear-gradient(180deg,#c1443c,#8f231d)' : 'linear-gradient(180deg,#28b76b,#168a4f)';
+    btn.style.boxShadow = blocked ? '0 6px 16px -7px rgba(163,36,31,.55)' : '0 6px 16px -7px rgba(27,127,59,.55)';
+    btn.style.opacity = blocked ? '0.85' : '1';
     btn.style.cursor = blocked ? 'not-allowed' : 'pointer';
-    btn.onmouseenter = () => { btn.style.background = color; btn.style.color = '#fff'; };
-    btn.onmouseleave = () => { btn.style.background = '#fff'; btn.style.color = color; };
   }
   function submitRegistrationFromHelper() {
     ensureActiveRegistrationReportPrefix();
@@ -8383,14 +8461,10 @@
       showRegistrationReportPrompt(activeRegistrationChoice);
       return;
     }
-    for (const choice of REGISTRATION_CHOICES) {
-      body.appendChild(mkButton(choice.label, () => safe(() => applyRegistrationChoice(choice))));
-    }
-    const reset = mkButton('Instellingen verwijderen', () => safe(clearRegistrationSettings));
-    reset.style.borderColor = '#b3261e';
-    reset.style.color = '#b3261e';
-    reset.addEventListener('mouseenter', () => { reset.style.background = '#b3261e'; reset.style.color = '#fff'; });
-    reset.addEventListener('mouseleave', () => { reset.style.background = '#fff'; reset.style.color = '#b3261e'; });
+    REGISTRATION_CHOICES.forEach((choice, i) => {
+      body.appendChild(mkButton(choice.label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i) }));
+    });
+    const reset = mkButton('Instellingen verwijderen', () => safe(clearRegistrationSettings), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     body.appendChild(reset);
     setStatus('');
   }
@@ -8471,9 +8545,25 @@
   function buildPopup() {
     ensureOnsAhBaseStyles();
     popupEl = document.createElement('div');
-    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', width: '280px', top: '74px', right: '24px', background: '#fff', color: '#222', pointerEvents: 'auto', border: '1px solid #e3e3e3', borderRadius: '12px', boxShadow: '0 8px 28px rgba(0,0,0,.28)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'column' });
+    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', width: '296px', top: '74px', right: '24px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+    // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
+    // status draagt (roze werkend, grijs uitgeschakeld) en samen met de
+    // kopregel het sleepgebied vormt.
+    const spine = document.createElement('div');
+    spine.setAttribute('data-popup-spine', '');
+    Object.assign(spine.style, { width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', cursor: 'move', userSelect: 'none' });
+    const spineChip = document.createElement('span');
+    Object.assign(spineChip.style, { width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flex: '0 0 auto' });
+    spine.appendChild(spineChip);
+    const onSpineMousedown = (e) => {
+      if (e.target.closest && e.target.closest('[data-popup-control]')) return;
+      dragging = true; const r = rect(popupEl); dragDX = e.clientX - r.left; dragDY = e.clientY - r.top; e.preventDefault();
+    };
+    spine.addEventListener('mousedown', onSpineMousedown);
+    const mainCol = document.createElement('div');
+    Object.assign(mainCol.style, { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column' });
     const header = document.createElement('div');
-    Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', fontWeight: '600', cursor: 'move', userSelect: 'none' });
+    Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', color: '#201d1f', padding: '11px 12px', fontWeight: '700', cursor: 'move', userSelect: 'none', borderBottom: '1px solid #f1ecea' });
     const title = document.createElement('span');
     title.textContent = activeMode === 'registrations' ? 'Registratiehulp' : 'Afspraakhulp';
     Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
@@ -8502,6 +8592,9 @@
       enabledToggle.setAttribute('aria-label', helperEnabled ? 'Hulp uitschakelen' : 'Hulp inschakelen');
       enabledToggle.setAttribute('aria-pressed', helperEnabled ? 'true' : 'false');
       enabledToggle.title = helperEnabled ? 'Aan' : 'Uit';
+      spine.style.background = helperEnabled ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : 'linear-gradient(180deg,#9a9296,#6b6367)';
+      spineChip.innerHTML = '';
+      spineChip.appendChild(helperEnabled ? svgSpineCheck() : svgSpinePause());
     };
     updateEnabledToggle();
     enabledToggle.addEventListener('click', (e) => {
@@ -8549,7 +8642,7 @@
     infoBtn.setAttribute('aria-label', `Info en versie ${SCRIPT_VERSION}`);
     infoBtn.title = `Info en versie ${SCRIPT_VERSION}`;
     infoBtn.appendChild(svgInfoIcon());
-    Object.assign(infoBtn.style, { background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.28)', borderRadius: '8px', color: '#fff', cursor: 'pointer', lineHeight: '1', padding: '5px 7px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+    Object.assign(infoBtn.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', lineHeight: '1', padding: '5px 7px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
     infoBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -8560,7 +8653,7 @@
     close.setAttribute('data-collapse-toggle', '');
     close.setAttribute('data-popup-control', '');
     close.setAttribute('aria-label', popupCollapsed ? 'Hulp uitklappen' : 'Hulp inklappen');
-    Object.assign(close.style, { background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.28)', borderRadius: '8px', color: '#fff', cursor: 'pointer', lineHeight: '1', padding: '3px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+    Object.assign(close.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', lineHeight: '1', padding: '3px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
     setChevronIcon(close, popupCollapsed);
     close.addEventListener('click', () => setPopupCollapsed(!popupCollapsed));
     const controls = document.createElement('div');
@@ -8574,15 +8667,17 @@
       if (e.target.closest && e.target.closest('[data-popup-control]')) return;
       dragging = true; const r = rect(popupEl); dragDX = e.clientX - r.left; dragDY = e.clientY - r.top; e.preventDefault();
     });
-    popupEl.appendChild(header);
+    mainCol.appendChild(header);
     const body = document.createElement('div');
     body.setAttribute('data-body', '');
     Object.assign(body.style, { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' });
-    popupEl.appendChild(body);
+    mainCol.appendChild(body);
     const status = document.createElement('div');
     status.setAttribute('data-status', '');
-    Object.assign(status.style, { minHeight: '16px', fontSize: '12px', padding: '0 12px 10px' });
-    popupEl.appendChild(status);
+    Object.assign(status.style, { padding: '0 12px 12px' });
+    mainCol.appendChild(status);
+    popupEl.appendChild(spine);
+    popupEl.appendChild(mainCol);
     refreshMainScreen();
     setPopupCollapsed(popupCollapsed);
     // Houd de popup volledig in beeld zodra de inhoud (en dus de hoogte) verandert.
