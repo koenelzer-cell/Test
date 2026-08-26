@@ -8700,55 +8700,15 @@
       top: Math.min(Math.max(8, top), maxTop),
     };
   }
-  // Zichtbare grenzen van de ONS-agenda (dagkolommen) — gebruikt om de hulp
-  // nooit hoger te laten worden dan de agenda zelf, anders overlapt hij
-  // knoppen erboven.
-  function agendaGridBounds() {
-    try {
-      const cols = deepQueryAll(ONS.dayColumn).filter(visible);
-      if (!cols.length) return null;
-      let top = Infinity, bottom = -Infinity;
-      cols.forEach((el) => {
-        const r = rect(el);
-        if (r.height <= 0) return;
-        if (r.top < top) top = r.top;
-        if (r.bottom > bottom) bottom = r.bottom;
-      });
-      if (!isFinite(top) || !isFinite(bottom) || bottom <= top) return null;
-      return { top: top, bottom: bottom };
-    } catch (e) { return null; }
-  }
-  // Vaste afstand tot de onderkant van het scherm (net als de Agendahulp-
-  // widget): de hulp "groeit" nooit mee met een hoger scherm — een groter
-  // scherm levert meer toegestane maximumhoogte op (zie popupMaxHeight),
-  // niet een lager zakkende onderkant.
-  function defaultPopupBottom() { return 24; }
-  // Maximale hoogte: nooit meer dan de ruimte tot de onderkant van het scherm
-  // én nooit hoger dan de zichtbare ONS-agenda zelf. Past de inhoud niet, dan
-  // scrollt de hulp intern (zie de body-stijl in buildPopup).
-  // De hulp is onderaan verankerd (defaultPopupBottom); hij mag daarom nooit
-  // zo hoog worden dat zijn bovenkant over de échte ONS-opslaanknop heen valt
-  // en die blokkeert. submitButtons() geeft die knop zelf (dezelfde die ook
-  // voor setSubmitBlocked() gebruikt wordt), dus dit volgt automatisch mee
-  // als ONS' layout verandert i.p.v. op een gok/vaste marge te vertrouwen.
-  function submitButtonClearanceTop() {
-    try {
-      const btns = submitButtons();
-      let top = Infinity;
-      btns.forEach((b) => { const r = rect(b); if (r.height > 0 && r.top < top) top = r.top; });
-      return isFinite(top) ? top : null;
-    } catch (e) { return null; }
-  }
+  // Vaste afstand tot de bovenkant van het scherm: de hulp opent bovenaan
+  // (10% van de vensterhoogte), niet onderaan — zo is er maximale ruimte
+  // voor de inhoud (bv. alle afspraaktypes in één keer zichtbaar).
+  function defaultPopupTop() { return Math.round(window.innerHeight * 0.10); }
+  // Maximale hoogte: de onderkant van de hulp komt nooit lager dan 90% van
+  // de vensterhoogte (dus 10% marge boven én onder). Past de inhoud niet
+  // binnen die 80%, dan scrollt de hulp intern (zie de body-stijl in buildPopup).
   function popupMaxHeight() {
-    const viewportCap = window.innerHeight - defaultPopupBottom() - 16;
-    const bounds = agendaGridBounds();
-    let cap = bounds ? Math.min(viewportCap, bounds.bottom - bounds.top) : viewportCap;
-    const submitTop = submitButtonClearanceTop();
-    if (submitTop != null) {
-      const submitCap = window.innerHeight - defaultPopupBottom() - submitTop - 12;
-      if (submitCap > 0) cap = Math.min(cap, submitCap);
-    }
-    return Math.max(160, cap);
+    return Math.max(160, Math.round(window.innerHeight * 0.90) - defaultPopupTop());
   }
   // Berekend als CSS `right` (afstand tot de rechterkant van het venster) —
   // bewust NIET via `left` + de eigen breedte: die breedte verandert continu
@@ -8785,10 +8745,10 @@
   function buildPopup() {
     ensureOnsAhBaseStyles();
     popupEl = document.createElement('div');
-    // bottom+right (i.p.v. top+left): de hulp hangt aan de onderkant van het
-    // scherm en tegen de ONS-modal aan; zie reposition()/popupMaxHeight()
-    // voor de exacte, doorlopend herberekende waarden.
-    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', bottom: '24px', right: '24px', maxHeight: '70vh', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+    // top+right (i.p.v. bottom+left): de hulp opent bovenaan (10% marge) en
+    // tegen de ONS-modal aan; zie reposition()/popupMaxHeight() voor de
+    // exacte, doorlopend herberekende waarden.
+    Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', top: defaultPopupTop() + 'px', right: '24px', bottom: 'auto', maxHeight: popupMaxHeight() + 'px', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
     // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
     // status draagt (roze werkend, grijs uitgeschakeld), het sleepgebied vormt
     // én zelf klikbaar is om het paneel zijwaarts in/uit te klappen (net als
@@ -8997,12 +8957,12 @@
     if (!popupEl) return;
     popupEl.style.maxHeight = popupMaxHeight() + 'px';
     if (userPos) { const p = clampPos(userPos.left, userPos.top); popupEl.style.left = p.left + 'px'; popupEl.style.top = p.top + 'px'; popupEl.style.right = 'auto'; popupEl.style.bottom = 'auto'; return; }
-    // Standaardplek: rechts tegen de ONS-modal, onderkant op een vaste
-    // afstand van de vensteronderkant (zie defaultPopupRight/-Bottom hierboven).
+    // Standaardplek: rechts tegen de ONS-modal, bovenkant op een vaste
+    // afstand van de vensterbovenkant (zie defaultPopupRight/-Top hierboven).
     popupEl.style.right = defaultPopupRight() + 'px';
     popupEl.style.left = 'auto';
-    popupEl.style.bottom = defaultPopupBottom() + 'px';
-    popupEl.style.top = 'auto';
+    popupEl.style.top = defaultPopupTop() + 'px';
+    popupEl.style.bottom = 'auto';
   }
   function ensureMounted() {
     if (!active) return;
