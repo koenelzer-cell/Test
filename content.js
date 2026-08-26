@@ -930,6 +930,7 @@
     close.setAttribute('aria-label', 'Sluiten');
     close.style.cssText = 'border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex:0 0 auto';
     close.appendChild(svgCloseIcon());
+    onsahFocusRing(close);
     head.append(htitle, close); mainCol.appendChild(head);
     var body = document.createElement('div'); body.style.cssText = 'padding:14px 16px'; mainCol.appendChild(body);
     card.appendChild(spine); card.appendChild(mainCol);
@@ -4763,9 +4764,17 @@
     if (!s) return;
     s.innerHTML = '';
     if (!text) return;
+    const bad = ok === false;
     const chip = document.createElement('div');
-    chip.className = 'onsah-chip ' + (ok === false ? 'bad' : 'ok');
-    chip.appendChild(ok === false ? svgSpinePause() : svgSpineCheck());
+    Object.assign(chip.style, {
+      display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 9px', borderRadius: '9px',
+      fontSize: '11.5px', fontWeight: '700', borderLeft: '3px solid ' + (bad ? ONSAH_TOKENS.bad : ONSAH_TOKENS.ok),
+      background: bad ? ONSAH_TOKENS.badWash : ONSAH_TOKENS.okWash, color: bad ? ONSAH_TOKENS.bad : ONSAH_TOKENS.ok,
+    });
+    const icon = bad ? svgSpinePause() : svgSpineCheck();
+    icon.setAttribute('width', '12'); icon.setAttribute('height', '12');
+    Object.assign(icon.style, { width: '12px', height: '12px', flex: '0 0 auto' });
+    chip.appendChild(icon);
     const lbl = document.createElement('span'); lbl.textContent = text;
     chip.appendChild(lbl);
     s.appendChild(chip);
@@ -4829,45 +4838,57 @@
   // Eén gedeeld, klein stijlblok (focus-states + tactiele hover/active-feedback)
   // voor alle knoppen/koppen van de extensie op deze pagina. Eenmalig
   // geïnjecteerd, net als de bestaande spinner-stijl hierboven.
-  function ensureOnsAhBaseStyles() {
-    if (document.getElementById('ons-helper-base-style')) return;
-    const style = document.createElement('style');
-    style.id = 'ons-helper-base-style';
-    style.textContent =
-      // Design-tokens voor de "spine"-vormtaal: gedeeld door alle panelen
-      // (Afspraakhulp/Registratiehulp, Agendahulp, Declarabiliteit).
-      ':root{--onsah-ink:#201d1f;--onsah-ink-soft:#6b6367;--onsah-line:#ece7e5;--onsah-line-soft:#f6f2f0;' +
-      '--onsah-brand:#cc087d;--onsah-brand-deep:#8c0a58;--onsah-brand-wash:#fdf1f8;' +
-      '--onsah-ok:#1b7f3b;--onsah-ok-wash:#eaf6ee;--onsah-bad:#a3241f;--onsah-bad-wash:#fbeceb;}' +
-      // Tegel: vervangt de vlak-omgekeerde knop door een kaart die optilt op
-      // hover, met optionele kleurstip (categorie) en chevron (navigatie-cue).
-      '.onsah-tile{display:flex;align-items:center;gap:10px;width:100%;padding:10px 11px;border-radius:11px;border:1px solid var(--onsah-line);background:#fff;color:var(--onsah-ink);font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;text-align:left;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background .12s ease,border-color .12s ease;}' +
-      '.onsah-tile:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 14px -6px rgba(32,20,15,.28);background:var(--onsah-tile-hover,var(--onsah-brand-wash));border-color:transparent;}' +
-      '.onsah-tile:active:not(:disabled){transform:translateY(0);box-shadow:none;}' +
-      '.onsah-tile:disabled{opacity:.5;cursor:default;}' +
-      '.onsah-tile:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}' +
-      '.onsah-tile .onsah-tick{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}' +
-      '.onsah-tile .onsah-lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-      '.onsah-tile .onsah-chev{width:14px;height:14px;color:#c7bfbc;flex:0 0 auto;transition:color .12s ease;}' +
-      '.onsah-tile:hover:not(:disabled) .onsah-chev{color:var(--onsah-tile-chev,var(--onsah-brand));}' +
-      // Pil: primaire/bevestigende acties. Andere vorm dan de tegel = andere
-      // betekenis (kiezen vs. bevestigen), i.p.v. overal dezelfde rechthoek.
-      '.onsah-pill{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:999px;padding:10px 18px;font:700 13px/1 system-ui,-apple-system,sans-serif;color:#fff;background:linear-gradient(180deg,var(--onsah-brand),var(--onsah-brand-deep));cursor:pointer;box-shadow:0 6px 16px -7px rgba(204,8,125,.6);transition:transform .08s ease,box-shadow .12s ease;}' +
-      '.onsah-pill:hover:not(:disabled){box-shadow:0 8px 20px -6px rgba(204,8,125,.7);}' +
-      '.onsah-pill:active:not(:disabled){transform:translateY(1px);}' +
-      '.onsah-pill:disabled{opacity:.5;cursor:default;}' +
-      '.onsah-pill:focus-visible{outline:2px solid var(--onsah-brand-deep);outline-offset:2px;}' +
-      '.onsah-pill-ghost{background:transparent;color:var(--onsah-ink-soft);border:1px solid var(--onsah-line);box-shadow:none;}' +
-      '.onsah-pill-ghost:hover:not(:disabled){background:var(--onsah-line-soft);color:var(--onsah-ink);box-shadow:none;}' +
-      // Statuschip: vervangt de kale kleurtekst onderin door een compact label
-      // met icoon + gekleurde linkerrand.
-      '.onsah-chip{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9px;font-size:11.5px;font-weight:700;border-left:3px solid transparent;}' +
-      '.onsah-chip.ok{background:var(--onsah-ok-wash);border-left-color:var(--onsah-ok);color:var(--onsah-ok);}' +
-      '.onsah-chip.bad{background:var(--onsah-bad-wash);border-left-color:var(--onsah-bad);color:var(--onsah-bad);}' +
-      '.onsah-chip svg{width:12px;height:12px;flex:0 0 auto;}' +
-      '.onsah-switch:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}' +
-      '[data-popup-control]:focus-visible{outline:2px solid var(--onsah-brand);outline-offset:2px;}';
-    document.head.appendChild(style);
+  //
+  // LET OP — bewust GEEN <style>-tag met classes voor de knop-/tegel-opmaak
+  // (dat gaf in productie kale, ongestylede knoppen en enorme SVG-iconen: de
+  // host-pagina's eigen CSS/CSP kan een geïnjecteerde stylesheet negeren of
+  // overschrijven). Precies zoals de rest van dit bestand wordt alle styling
+  // daarom via directe inline element.style-properties gezet; die winnen
+  // altijd (hoogste specificiteit) en zijn nooit afhankelijk van een
+  // <style>-element. Interactie-states (hover/active/focus) gaan via JS-
+  // event-listeners i.p.v. CSS-pseudo-classes. Deze functie blijft bestaan
+  // (no-op) zodat bestaande aanroepen elders niet hoeven te wijzigen.
+  function ensureOnsAhBaseStyles() {}
+  const ONSAH_TOKENS = {
+    ink: '#201d1f', inkSoft: '#6b6367', line: '#ece7e5', lineSoft: '#f6f2f0',
+    brand: '#cc087d', brandDeep: '#8c0a58', brandWash: '#fdf1f8',
+    ok: '#1b7f3b', okWash: '#eaf6ee', bad: '#a3241f', badWash: '#fbeceb',
+  };
+  // Focus-ring via JS (i.p.v. CSS :focus-visible) — werkt identiek, maar kan
+  // nooit door een externe stylesheet worden geblokkeerd of overschreven.
+  function onsahFocusRing(el, color) {
+    el.addEventListener('focus', () => { el.style.outline = '2px solid ' + (color || ONSAH_TOKENS.brand); el.style.outlineOffset = '2px'; });
+    el.addEventListener('blur', () => { el.style.outline = 'none'; });
+  }
+  // Pil: primaire/bevestigende actie. Volledig inline (zie toelichting hierboven)
+  // + JS-gedreven hover/active, zodat de vorm nooit van een <style>-tag afhangt.
+  function applyOnsahPillStyle(el, opts) {
+    opts = opts || {};
+    const from = opts.from || ONSAH_TOKENS.brand;
+    const to = opts.to || ONSAH_TOKENS.brandDeep;
+    const shadowRgb = opts.shadowRgb || '204,8,125';
+    Object.assign(el.style, {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+      border: '0', borderRadius: '999px', padding: '10px 18px',
+      font: '700 13px/1 system-ui,-apple-system,sans-serif', color: '#fff',
+      background: 'linear-gradient(180deg,' + from + ',' + to + ')', cursor: 'pointer',
+      boxShadow: '0 6px 16px -7px rgba(' + shadowRgb + ',.6)',
+      transition: 'transform .08s ease, box-shadow .12s ease', boxSizing: 'border-box',
+    });
+    el.addEventListener('mouseenter', () => { if (!el.disabled) el.style.boxShadow = '0 8px 20px -6px rgba(' + shadowRgb + ',.7)'; });
+    el.addEventListener('mouseleave', () => { el.style.boxShadow = '0 6px 16px -7px rgba(' + shadowRgb + ',.6)'; });
+    el.addEventListener('mousedown', () => { if (!el.disabled) el.style.transform = 'translateY(1px)'; });
+    el.addEventListener('mouseup', () => { el.style.transform = 'none'; });
+    onsahFocusRing(el, to);
+  }
+  // Kant-en-klare pil-knop met klik-handler (bevestigende acties, bv. Indienen).
+  function mkPillButton(label, onClick, opts) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    applyOnsahPillStyle(b, opts);
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(e); });
+    return b;
   }
   // Vier categoriekleuren, dezelfde familie als het dagindeling-palet
   // (rood/blauw/geel/groen), nu ook op de keuzetegels: warme helft (rood/blauw)
@@ -4936,30 +4957,56 @@
   // `opts.accent` (hex) kleurt rand/tekst/hover voor destructieve varianten.
   function mkButton(label, onClick, opts) {
     opts = opts || {};
-    ensureOnsAhBaseStyles();
+    const T = ONSAH_TOKENS;
+    const hoverBg = opts.accentWash || (opts.accent ? opts.accent + '14' : T.brandWash);
+    const chevColorHover = opts.accent || T.brand;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'onsah-tile';
+    Object.assign(b.style, {
+      display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
+      padding: '10px 11px', borderRadius: '11px', border: '1px solid ' + T.line,
+      background: '#fff', color: opts.accent || T.ink,
+      font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif', textAlign: 'left', cursor: 'pointer',
+      transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
+      boxSizing: 'border-box',
+    });
     if (opts.tick) {
       const tick = document.createElement('span');
-      tick.className = 'onsah-tick';
-      tick.style.background = opts.tick;
+      Object.assign(tick.style, { width: '7px', height: '7px', borderRadius: '50%', flex: '0 0 auto', background: opts.tick });
       b.appendChild(tick);
     }
     const lbl = document.createElement('span');
-    lbl.className = 'onsah-lbl';
+    Object.assign(lbl.style, { flex: '1', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
     lbl.textContent = label;
     b.appendChild(lbl);
+    let chev = null;
     if (opts.chevron !== false) {
-      b.appendChild(svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
-      b.lastChild.classList.add('onsah-chev');
-      b.lastChild.removeAttribute('width'); b.lastChild.removeAttribute('height');
+      chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
+      // Expliciete afmetingen op het element zelf: een SVG zonder width/height
+      // valt terug op zijn (grote) intrinsieke default als er geen stylesheet
+      // is die de maat overneemt — vandaar hier nooit alleen op CSS leunen.
+      chev.setAttribute('width', '14'); chev.setAttribute('height', '14');
+      Object.assign(chev.style, { width: '14px', height: '14px', color: '#c7bfbc', flex: '0 0 auto', transition: 'color .12s ease' });
+      b.appendChild(chev);
     }
-    if (opts.accent) {
-      b.style.color = opts.accent;
-      b.style.setProperty('--onsah-tile-hover', opts.accentWash || opts.accent + '14');
-      b.style.setProperty('--onsah-tile-chev', opts.accent);
-    }
+    b.addEventListener('mouseenter', () => {
+      if (b.disabled) return;
+      b.style.transform = 'translateY(-1px)';
+      b.style.boxShadow = '0 4px 14px -6px rgba(32,20,15,.28)';
+      b.style.background = hoverBg;
+      b.style.borderColor = 'transparent';
+      if (chev) chev.style.color = chevColorHover;
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.transform = 'none';
+      b.style.boxShadow = 'none';
+      b.style.background = '#fff';
+      b.style.borderColor = T.line;
+      if (chev) chev.style.color = '#c7bfbc';
+    });
+    b.addEventListener('mousedown', () => { if (!b.disabled) b.style.transform = 'translateY(0)'; });
+    b.addEventListener('mouseup', () => { if (!b.disabled) b.style.transform = 'translateY(-1px)'; });
+    onsahFocusRing(b, opts.accent || T.brand);
     b.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -4970,10 +5017,8 @@
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
   function mkSwitch(initial, onChange) {
-    ensureOnsAhBaseStyles();
     const sw = document.createElement('button');
     sw.type = 'button';
-    sw.className = 'onsah-switch';
     sw.setAttribute('role', 'switch');
     let on = !!initial;
     Object.assign(sw.style, { position: 'relative', width: '40px', height: '22px', borderRadius: '999px', border: '1px solid #cc087d', background: on ? '#cc087d' : '#fff', cursor: 'pointer', flex: '0 0 auto', padding: '0', transition: 'background .15s' });
@@ -4989,6 +5034,7 @@
     render();
     sw.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); on = !on; render(); try { onChange && onChange(on); } catch (err) {} });
     sw.setChecked = (v) => { on = !!v; render(); };
+    onsahFocusRing(sw);
     return sw;
   }
   // Kader (zoals de opslaanknop) met een vraagtekst links en een aan/uit-knop
@@ -5531,10 +5577,9 @@
     }
   }
   function mkAddClientButton() {
-    ensureOnsAhBaseStyles();
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'onsah-pill';
+    applyOnsahPillStyle(b);
     Object.assign(b.style, { width: '100%', marginBottom: '8px' });
     // add-icoon (zelfde pad als ONS)
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -6902,8 +6947,7 @@
     body.appendChild(groupNote);
     body.appendChild(document.createElement('br'));
     appendRegistrationCompleteness(body);
-    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper), { chevron: false });
-    submit.className = 'onsah-pill';
+    const submit = mkPillButton('Indienen', () => safe(submitRegistrationFromHelper));
     submit.style.width = '100%';
     submit.setAttribute('data-registration-helper-submit', '');
     body.appendChild(submit);
@@ -6921,8 +6965,7 @@
     const body = $body(); if (!body) return;
     body.innerHTML = '';
     appendRegistrationCompleteness(body);
-    const submit = mkButton('Indienen', () => safe(submitRegistrationFromHelper), { chevron: false });
-    submit.className = 'onsah-pill';
+    const submit = mkPillButton('Indienen', () => safe(submitRegistrationFromHelper));
     submit.style.width = '100%';
     submit.setAttribute('data-registration-helper-submit', '');
     body.appendChild(submit);
@@ -8574,6 +8617,7 @@
     enabledToggle.appendChild(switchTrack);
     enabledToggle.appendChild(switchText);
     enabledToggle.appendChild(switchKnob);
+    onsahFocusRing(enabledToggle);
     const updateEnabledToggle = () => {
       switchText.textContent = helperEnabled ? 'Aan' : 'Uit';
       switchTrack.style.background = helperEnabled ? 'linear-gradient(180deg, #28b76b, #168a4f)' : 'linear-gradient(180deg, #a82a48, #7d142f)';
@@ -8642,6 +8686,7 @@
       if (popupCollapsed) setPopupCollapsed(false);
       safe(toggleInfoPanel);
     });
+    onsahFocusRing(infoBtn);
     const close = document.createElement('button');
     close.setAttribute('data-collapse-toggle', '');
     close.setAttribute('data-popup-control', '');
@@ -8649,6 +8694,7 @@
     Object.assign(close.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', lineHeight: '1', padding: '3px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
     setChevronIcon(close, popupCollapsed);
     close.addEventListener('click', () => setPopupCollapsed(!popupCollapsed));
+    onsahFocusRing(close);
     const controls = document.createElement('div');
     controls.setAttribute('data-popup-control', '');
     Object.assign(controls.style, { display: 'inline-flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginLeft: '8px' });
@@ -8900,6 +8946,7 @@
     x.title = 'Sluiten'; x.setAttribute('aria-label', 'Sluiten'); x.style.cssText = 'border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px';
     x.appendChild(svgCloseIcon());
     x.addEventListener('click', function () { removeRegistrationsOverviewPanel(); });
+    onsahFocusRing(x);
     header.append(t, x); mainCol.appendChild(header);
     const body = document.createElement('div'); body.setAttribute('data-reg-ov-body', ''); body.style.cssText = 'padding:10px 12px';
     mainCol.appendChild(body);
@@ -9808,12 +9855,14 @@
       };
       updOnoff();
       onoff.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); greyEnabled = !greyEnabled; storageSet(STORE_GREY_ENABLED, greyEnabled ? '1' : '0'); updOnoff(); schedule(); if (!agInfoOpen) agRenderMain(); });
+      onsahFocusRing(onoff);
       const info = document.createElement('button');
       info.type = 'button';
       info.setAttribute('data-popup-control', '');
       info.appendChild(svgInfoIcon());
       Object.assign(info.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
       info.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (agCollapsed) agSetCollapsed(false); agInfoOpen = !agInfoOpen; if (agInfoOpen) agRenderInfo(); else agRenderMain(); });
+      onsahFocusRing(info);
       const chev = document.createElement('button');
       chev.type = 'button';
       chev.setAttribute('data-ag-collapse', '');
@@ -9821,6 +9870,7 @@
       Object.assign(chev.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
       agSetChevron(chev);
       chev.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); agSetCollapsed(!agCollapsed); });
+      onsahFocusRing(chev);
       controls.appendChild(onoff); controls.appendChild(info); controls.appendChild(chev);
       header.appendChild(controls);
       header.addEventListener('mousedown', function (e) {
