@@ -919,7 +919,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;color:#201d1f;max-width:' + (opts.maxWidth || '420px') + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui,sans-serif;overflow:hidden;display:flex';
     var spine = document.createElement('div');
-    spine.style.cssText = 'width:14px;flex:0 0 auto;background:linear-gradient(180deg,' + (opts.spineColor || '#cc087d') + ',' + (opts.spineColorDeep || '#8c0a58') + ')';
+    spine.style.cssText = 'width:14px;flex:0 0 auto;background:' + (opts.spineColor || '#cc087d') + ';';
     var mainCol = document.createElement('div');
     mainCol.style.cssText = 'flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto';
     var head = document.createElement('div');
@@ -4767,15 +4767,20 @@
     const bad = ok === false;
     const chip = document.createElement('div');
     Object.assign(chip.style, {
-      display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 9px', borderRadius: '9px',
-      fontSize: '11.5px', fontWeight: '700', borderLeft: '3px solid ' + (bad ? ONSAH_TOKENS.bad : ONSAH_TOKENS.ok),
+      // inline-flex i.p.v. flex: anders vult een block-level div altijd de
+      // volledige breedte van het paneel en oogt de melding als een grote balk
+      // in plaats van een compact label.
+      display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '7px',
+      fontSize: '11px', fontWeight: '700', maxWidth: '100%', boxSizing: 'border-box',
       background: bad ? ONSAH_TOKENS.badWash : ONSAH_TOKENS.okWash, color: bad ? ONSAH_TOKENS.bad : ONSAH_TOKENS.ok,
     });
     const icon = bad ? svgSpinePause() : svgSpineCheck();
-    icon.setAttribute('width', '12'); icon.setAttribute('height', '12');
-    Object.assign(icon.style, { width: '12px', height: '12px', flex: '0 0 auto' });
+    icon.setAttribute('width', '10'); icon.setAttribute('height', '10');
+    Object.assign(icon.style, { width: '10px', height: '10px', flex: '0 0 auto' });
     chip.appendChild(icon);
-    const lbl = document.createElement('span'); lbl.textContent = text;
+    const lbl = document.createElement('span');
+    Object.assign(lbl.style, { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+    lbl.textContent = text;
     chip.appendChild(lbl);
     s.appendChild(chip);
   }
@@ -4860,8 +4865,9 @@
     el.addEventListener('focus', () => { el.style.outline = '2px solid ' + (color || ONSAH_TOKENS.brand); el.style.outlineOffset = '2px'; });
     el.addEventListener('blur', () => { el.style.outline = 'none'; });
   }
-  // Pil: primaire/bevestigende actie. Volledig inline (zie toelichting hierboven)
-  // + JS-gedreven hover/active, zodat de vorm nooit van een <style>-tag afhangt.
+  // Pil: primaire/bevestigende actie. Vlakke kleur (geen gradient - dat oogde
+  // gedateerd) + JS-gedreven hover/active, zodat de vorm nooit van een
+  // <style>-tag afhangt. `to` fungeert als iets donkerdere druk-tint.
   function applyOnsahPillStyle(el, opts) {
     opts = opts || {};
     const from = opts.from || ONSAH_TOKENS.brand;
@@ -4871,14 +4877,14 @@
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
       border: '0', borderRadius: '999px', padding: '10px 18px',
       font: '700 13px/1 system-ui,-apple-system,sans-serif', color: '#fff',
-      background: 'linear-gradient(180deg,' + from + ',' + to + ')', cursor: 'pointer',
-      boxShadow: '0 6px 16px -7px rgba(' + shadowRgb + ',.6)',
-      transition: 'transform .08s ease, box-shadow .12s ease', boxSizing: 'border-box',
+      background: from, cursor: 'pointer',
+      boxShadow: '0 4px 12px -6px rgba(' + shadowRgb + ',.55)',
+      transition: 'transform .08s ease, box-shadow .12s ease, background .1s ease', boxSizing: 'border-box',
     });
-    el.addEventListener('mouseenter', () => { if (!el.disabled) el.style.boxShadow = '0 8px 20px -6px rgba(' + shadowRgb + ',.7)'; });
-    el.addEventListener('mouseleave', () => { el.style.boxShadow = '0 6px 16px -7px rgba(' + shadowRgb + ',.6)'; });
-    el.addEventListener('mousedown', () => { if (!el.disabled) el.style.transform = 'translateY(1px)'; });
-    el.addEventListener('mouseup', () => { el.style.transform = 'none'; });
+    el.addEventListener('mouseenter', () => { if (!el.disabled) el.style.boxShadow = '0 6px 16px -5px rgba(' + shadowRgb + ',.6)'; });
+    el.addEventListener('mouseleave', () => { el.style.boxShadow = '0 4px 12px -6px rgba(' + shadowRgb + ',.55)'; el.style.background = from; });
+    el.addEventListener('mousedown', () => { if (!el.disabled) { el.style.transform = 'translateY(1px)'; el.style.background = to; } });
+    el.addEventListener('mouseup', () => { el.style.transform = 'none'; el.style.background = from; });
     onsahFocusRing(el, to);
   }
   // Kant-en-klare pil-knop met klik-handler (bevestigende acties, bv. Indienen).
@@ -4964,7 +4970,7 @@
     b.type = 'button';
     Object.assign(b.style, {
       display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-      padding: '10px 11px', borderRadius: '11px', border: '1px solid ' + T.line,
+      padding: '10px 11px', borderRadius: '11px', border: '1px solid ' + T.brand,
       background: '#fff', color: opts.accent || T.ink,
       font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif', textAlign: 'left', cursor: 'pointer',
       transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
@@ -5001,7 +5007,7 @@
       b.style.transform = 'none';
       b.style.boxShadow = 'none';
       b.style.background = '#fff';
-      b.style.borderColor = T.line;
+      b.style.borderColor = T.brand;
       if (chev) chev.style.color = '#c7bfbc';
     });
     b.addEventListener('mousedown', () => { if (!b.disabled) b.style.transform = 'translateY(0)'; });
@@ -8042,7 +8048,7 @@
     const blocked = registrationReportNeedsContent();
     btn.textContent = blocked ? 'Rapportage' : 'Indienen';
     btn.title = blocked ? 'Schrijf de rapportage' : 'Registratie indienen';
-    btn.style.background = blocked ? 'linear-gradient(180deg,#c1443c,#8f231d)' : 'linear-gradient(180deg,#28b76b,#168a4f)';
+    btn.style.background = blocked ? '#a3241f' : '#1b7f3b';
     btn.style.boxShadow = blocked ? '0 6px 16px -7px rgba(163,36,31,.55)' : '0 6px 16px -7px rgba(27,127,59,.55)';
     btn.style.opacity = blocked ? '0.85' : '1';
     btn.style.cursor = blocked ? 'not-allowed' : 'pointer';
@@ -8620,7 +8626,7 @@
     onsahFocusRing(enabledToggle);
     const updateEnabledToggle = () => {
       switchText.textContent = helperEnabled ? 'Aan' : 'Uit';
-      switchTrack.style.background = helperEnabled ? 'linear-gradient(180deg, #28b76b, #168a4f)' : 'linear-gradient(180deg, #a82a48, #7d142f)';
+      switchTrack.style.background = helperEnabled ? '#1b7f3b' : '#a3241f';
       switchTrack.style.boxShadow = helperEnabled ? 'inset 0 0 0 1px rgba(255,255,255,.12)' : 'inset 0 0 0 1px rgba(255,255,255,.10)';
       switchTrack.style.opacity = helperEnabled ? '1' : '.82';
       switchKnob.style.left = helperEnabled ? '37px' : '3px';
@@ -8629,7 +8635,7 @@
       enabledToggle.setAttribute('aria-label', helperEnabled ? 'Hulp uitschakelen' : 'Hulp inschakelen');
       enabledToggle.setAttribute('aria-pressed', helperEnabled ? 'true' : 'false');
       enabledToggle.title = helperEnabled ? 'Aan' : 'Uit';
-      spine.style.background = helperEnabled ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : 'linear-gradient(180deg,#9a9296,#6b6367)';
+      spine.style.background = helperEnabled ? '#cc087d' : '#9a9296';
       spineChip.innerHTML = '';
       spineChip.appendChild(helperEnabled ? svgSpineCheck() : svgSpinePause());
     };
@@ -8936,7 +8942,7 @@
     const p = document.createElement('div'); _regOvPanel = p; p.setAttribute('data-ons-reg-overview', '1');
     p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch';
     const spine = document.createElement('div');
-    spine.style.cssText = 'width:14px;flex:0 0 auto;background:linear-gradient(180deg,#cc087d,#8c0a58)';
+    spine.style.cssText = 'width:14px;flex:0 0 auto;background:#cc087d';
     const mainCol = document.createElement('div');
     mainCol.style.cssText = 'flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto';
     const header = document.createElement('div');
@@ -9840,7 +9846,7 @@
       onoff.appendChild(swTrack); onoff.appendChild(swText); onoff.appendChild(swKnob);
       const updOnoff = function () {
         swText.textContent = greyEnabled ? 'Aan' : 'Uit';
-        swTrack.style.background = greyEnabled ? 'linear-gradient(180deg, #28b76b, #168a4f)' : 'linear-gradient(180deg, #a82a48, #7d142f)';
+        swTrack.style.background = greyEnabled ? '#1b7f3b' : '#a3241f';
         swTrack.style.boxShadow = greyEnabled ? 'inset 0 0 0 1px rgba(255,255,255,.12)' : 'inset 0 0 0 1px rgba(255,255,255,.10)';
         swTrack.style.opacity = greyEnabled ? '1' : '.82';
         swKnob.style.left = greyEnabled ? '37px' : '3px';
@@ -9849,7 +9855,7 @@
         onoff.setAttribute('aria-label', greyEnabled ? 'Agendahulp uitschakelen' : 'Agendahulp inschakelen');
         onoff.setAttribute('aria-pressed', greyEnabled ? 'true' : 'false');
         onoff.title = greyEnabled ? 'Aan' : 'Uit';
-        agSpine.style.background = greyEnabled ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : 'linear-gradient(180deg,#9a9296,#6b6367)';
+        agSpine.style.background = greyEnabled ? '#cc087d' : '#9a9296';
         agSpineChip.innerHTML = '';
         agSpineChip.appendChild(greyEnabled ? svgSpineCheck() : svgSpinePause());
       };

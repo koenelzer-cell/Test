@@ -738,7 +738,7 @@
       // Agendahulp, draagt hier ook de status (roze/amber/groen).
       const spine = document.createElement('div');
       spine.setAttribute('data-survey-spine', '');
-      Object.assign(spine.style, { width: '14px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', background: 'linear-gradient(180deg,#cc087d,#8c0a58)' });
+      Object.assign(spine.style, { width: '14px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', background: '#cc087d' });
       const icon = document.createElement('span');
       icon.innerHTML = SURVEY_ICON_SVG.warn;
       icon.setAttribute('data-survey-drag-handle', '');
@@ -952,7 +952,7 @@
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (spine) spine.style.background = 'linear-gradient(180deg,#cc087d,#8c0a58)';
+      if (spine) spine.style.background = '#cc087d';
       if (icon) icon.innerHTML = SURVEY_ICON_SVG.info;
       if (title) title.textContent = text;
       if (msg) { msg.textContent = ''; msg.style.display = 'none'; }
@@ -964,7 +964,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = label;
-      const bg = kind === 'primary' ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : (kind === 'warn' ? 'linear-gradient(180deg,#b45309,#8a3d05)' : '#f6f2f0');
+      const bg = kind === 'primary' ? '#cc087d' : (kind === 'warn' ? '#b45309' : '#f6f2f0');
       const fg = kind === 'ghost' ? '#4a4448' : '#fff';
       Object.assign(btn.style, {
         appearance: 'none', border: kind === 'ghost' ? '1px solid #ece7e5' : '0', borderRadius: '999px',
@@ -987,7 +987,7 @@
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (spine) spine.style.background = 'linear-gradient(180deg,#b45309,#8a3d05)';
+      if (spine) spine.style.background = '#b45309';
       if (icon) icon.innerHTML = SURVEY_ICON_SVG.vraag;
       if (title) title.textContent = 'Leeftijd van de cliënt bevestigen';
       setDock(false);
@@ -1190,7 +1190,7 @@
       sendBadge(remaining);
       // Spine in huisstijlroze als er nog vragen open staan, amber bij een
       // signaal/waarschuwing, groen als alles klaar is.
-      if (spine) spine.style.background = remaining ? 'linear-gradient(180deg,#cc087d,#8c0a58)' : ((hasRespondentWarning || hasSignals) ? 'linear-gradient(180deg,#b45309,#8a3d05)' : 'linear-gradient(180deg,#1b7f3b,#146430)');
+      if (spine) spine.style.background = remaining ? '#cc087d' : ((hasRespondentWarning || hasSignals) ? '#b45309' : '#1b7f3b');
       if (iconEl) iconEl.innerHTML = (remaining || hasRespondentWarning || hasSignals) ? SURVEY_ICON_SVG.warn : SURVEY_ICON_SVG.ok;
       if (titleEl) titleEl.textContent = remaining
         ? ('Nog ' + remaining + ' van ' + state.items.length + ' verplichte ' + (state.items.length === 1 ? 'vraag' : 'vragen'))
