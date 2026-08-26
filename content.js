@@ -5292,13 +5292,83 @@
   function mkValuePicker(values, initial, onPick) {
     return values.length > PICKER_CHIP_LIMIT ? mkTimePicker(values, initial, onPick) : mkChipGrid(values, onPick);
   }
+  // Uren en minuten als twee kolommen náást elkaar (i.p.v. na elkaar zoals
+  // mkHourMinutePicker): je ziet meteen het hele bereik van beide, kiest in
+  // beide kolommen één waarde (in willekeurige volgorde) en zodra dat een
+  // geldige combinatie oplevert past hij 'm meteen toe — één klik extra
+  // t.o.v. een chip, maar in één oogopslag overzichtelijk. Combinaties die
+  // buiten het toegestane bereik vallen (bv. 3 uur 45 min. bij een max van
+  // 3 uur 15 min.) worden uitgegrijsd zodra de andere kolom al gekozen is.
+  function mkTwoColumnDurationPicker(values, onPick) {
+    const T = ONSAH_TOKENS;
+    const set = new Set(values);
+    const hours = [...new Set(values.map((v) => Math.floor(v / 60)))].sort((a, b) => a - b);
+    const mins = [...new Set(values.map((v) => v % 60))].sort((a, b) => a - b);
+    let selHour = null, selMin = null;
+    function comboValid(h, m) { return h != null && m != null && set.has(h * 60 + m); }
+    function mkItemBtn(label, onClick) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.dataset.sel = '0';
+      Object.assign(b.style, {
+        padding: '7px 6px', borderRadius: '9px', border: '1px solid ' + T.line, background: '#fff',
+        font: '600 13px/1 system-ui,-apple-system,sans-serif', color: T.ink, cursor: 'pointer',
+        fontVariantNumeric: 'tabular-nums', textAlign: 'center', boxSizing: 'border-box',
+        transition: 'background .12s ease, border-color .12s ease, opacity .12s ease, color .12s ease',
+      });
+      b.addEventListener('mouseenter', () => { if (!b.disabled && b.dataset.sel !== '1') { b.style.background = T.brandWash; b.style.borderColor = 'transparent'; } });
+      b.addEventListener('mouseleave', () => { if (b.dataset.sel !== '1') { b.style.background = '#fff'; b.style.borderColor = T.line; } });
+      onsahFocusRing(b);
+      b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (!b.disabled) onClick(); });
+      return b;
+    }
+    function mkColumn(title) {
+      const col = document.createElement('div');
+      Object.assign(col.style, { flex: '1 1 0', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '5px' });
+      const h = document.createElement('div');
+      h.textContent = title;
+      Object.assign(h.style, { fontSize: '10.5px', fontWeight: '700', color: T.inkSoft, textTransform: 'uppercase', letterSpacing: '.03em', textAlign: 'center', marginBottom: '2px' });
+      col.appendChild(h);
+      return col;
+    }
+    const hourCol = mkColumn('Uren');
+    const minCol = mkColumn('Minuten');
+    const hourBtns = new Map(), minBtns = new Map();
+    hours.forEach((h) => { const b = mkItemBtn(h + ' uur', () => { selHour = h; renderState(); tryApply(); }); hourBtns.set(h, b); hourCol.appendChild(b); });
+    mins.forEach((m) => { const b = mkItemBtn(m + ' min.', () => { selMin = m; renderState(); tryApply(); }); minBtns.set(m, b); minCol.appendChild(b); });
+    function paint(b, isSel, invalid) {
+      b.dataset.sel = isSel ? '1' : '0';
+      b.disabled = invalid;
+      b.style.cursor = invalid ? 'not-allowed' : 'pointer';
+      b.style.opacity = invalid ? '.35' : '1';
+      b.style.background = isSel ? T.brand : '#fff';
+      b.style.color = isSel ? '#fff' : T.ink;
+      b.style.borderColor = isSel ? T.brand : T.line;
+    }
+    function renderState() {
+      hourBtns.forEach((b, h) => paint(b, selHour === h, selMin != null && !comboValid(h, selMin)));
+      minBtns.forEach((b, m) => paint(b, selMin === m, selHour != null && !comboValid(selHour, m)));
+    }
+    function tryApply() { if (comboValid(selHour, selMin)) onPick(selHour * 60 + selMin); }
+    const wrap = document.createElement('div');
+    const cap = document.createElement('div');
+    cap.textContent = 'Kies uren én minuten:';
+    Object.assign(cap.style, { fontSize: '12px', fontWeight: '700', color: T.inkSoft, margin: '0 0 8px' });
+    const cols = document.createElement('div');
+    Object.assign(cols.style, { display: 'flex', gap: '10px' });
+    cols.append(hourCol, minCol);
+    wrap.append(cap, cols);
+    renderState();
+    return wrap;
+  }
   // Voor afspraakduur specifiek: boven de PICKER_CHIP_LIMIT eerst het aantal
   // hele uren laten kiezen en pas daarna (indien nodig) de minuten, óf (als
   // dat per afspraaktype zo ingesteld is via Overige -> Duurkeuze bij veel
-  // opties) de schuifregelaar van mkTimePicker.
+  // opties) de schuifregelaar of de twee-koloms-weergave.
   function mkDurationPicker(values, onPick, style) {
     if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
-    return style === 'slider' ? mkTimePicker(values, values[0], onPick) : mkHourMinutePicker(values, onPick);
+    if (style === 'slider') return mkTimePicker(values, values[0], onPick);
+    if (style === 'columns') return mkTwoColumnDurationPicker(values, onPick);
+    return mkHourMinutePicker(values, onPick);
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
