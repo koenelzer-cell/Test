@@ -35,12 +35,12 @@
   const DEFAULT_APP_CONFIG = {
     // Tabel 1: keuze in de helper -> ONS-label + gedrag.
     choices: [
-      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true,  kleur: 'rood' },
-      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
-      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
-      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
-      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
-      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'groen' },
+      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true },
+      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false },
+      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false },
+      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false },
+      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false },
+      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false },
     ],
     // Extra bekende labels (naast de etiketten uit choices) die de opschoning kent.
     extraKnownLabels: [],
@@ -63,6 +63,18 @@
       geel:  { naam: 'Geel',  fill: 'rgba(235,205,70,0.20)', legend: 'rgba(235,205,70,0.65)' },
       blauw: { naam: 'Blauw', fill: 'rgba(70,130,210,0.16)', legend: 'rgba(70,130,210,0.45)' },
       groen: { naam: 'Groen', fill: 'rgba(60,170,90,0.18)',  legend: 'rgba(60,170,90,0.50)' },
+    },
+    // Kleur van het stipje vóór een keuze in de Afspraakhulp, per ONS-label
+    // (instelbaar in het beheerscherm, in de modal "Labels in ONS") —
+    // verwijst naar een kleur-key uit het palet hierboven. Onbekend label ->
+    // vaste afwisseling (zie onsahCategoryColor).
+    labelColors: {
+      'JG Huisbezoek': 'rood',
+      'ALL Beeldbellen': 'blauw',
+      'JG MDO': 'geel',
+      'JG Face to face kantoor': 'blauw',
+      'JG Verslaglegging': 'geel',
+      'JG Zorgcoördinatie': 'groen',
     },
     profileSectors: { 'JGGZ': 'Jeugd & Gezin', 'J&O/JBG': 'Jeugd & Gezin', 'Begeleiding': 'Begeleiding' },
     // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
@@ -1122,6 +1134,7 @@
     if (hc.zoneProfiles && typeof hc.zoneProfiles === 'object') APP_CONFIG.zoneProfiles = hc.zoneProfiles;
     if (hc.profileSectors && typeof hc.profileSectors === 'object') APP_CONFIG.profileSectors = hc.profileSectors;
     if (hc.palette && typeof hc.palette === 'object') APP_CONFIG.palette = hc.palette;
+    if (hc.labelColors && typeof hc.labelColors === 'object') APP_CONFIG.labelColors = hc.labelColors;
     if (hc.texts && typeof hc.texts === 'object') APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
     if (hc.compatibility && typeof hc.compatibility === 'object') APP_CONFIG.compatibility = hc.compatibility;
     if (hc.features && typeof hc.features === 'object') APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
@@ -1495,6 +1508,16 @@
     return out;
   }
 
+  // Knoptekst-label o.b.v. een startverdeling "N% direct/indirect": bij 100%
+  // enkel het woord, anders het hoofdwoord eerst met het andere erachter
+  // (bv. "80% direct" -> "direct/indirect", "80% indirect" -> "indirect/direct").
+  function directIndirectLabel(sv) {
+    const m = String(sv == null ? '' : sv).match(/(\d+)\s*%\s*(direct|indirect)/i);
+    if (!m) return '';
+    const pct = Math.max(0, Math.min(100, parseInt(m[1], 10) || 0));
+    const word = m[2].toLowerCase();
+    return pct >= 100 ? word : (word === 'direct' ? 'direct/indirect' : 'indirect/direct');
+  }
   // REGISTRATION_CHOICES wordt uit de beheerbare config gebouwd (tabel 3).
   function buildRegistrationChoices() {
     return effectiveRegistrationForms().map(function (f) {
@@ -1511,9 +1534,7 @@
         if (directPct === 100) o.directFullDuration = true;
         else if (directPct === 0) o.indirectFullDuration = true;
         else o.startSplit = { directPct: directPct, indirectPct: 100 - directPct };
-        // Knoptekst-label o.b.v. de ingestelde verdeling: 100% -> enkel het woord,
-        // anders het hoofdwoord eerst met het andere erachter (bv. "80% direct" -> "direct/indirect").
-        o.directIndirectLabel = pct >= 100 ? word : (word === 'direct' ? 'direct/indirect' : 'indirect/direct');
+        o.directIndirectLabel = directIndirectLabel(f.startVerdeling);
       }
       if (f.vraagDirecteTijd) o.askDirectPortion = true;
       if (f.vraagIndirecteTijd) o.askIndirectPortion = true;
@@ -4978,14 +4999,33 @@
     const pair = clientPresent ? ['rood', 'blauw'] : ['geel', 'groen'];
     return onsahPaletteSolidColor(pair[(index || 0) % 2]);
   }
-  // Stipkleur per afspraaktype-keuze: leest het per-rij 'kleur'-veld (instelbaar
-  // in het beheerscherm, bij Afspraaktypes -> vlak onder Labels in ONS, zodat
-  // je 'm kunt matchen met de labelkleur die ONS zelf toont). Ontbreekt dat
-  // veld (bv. een oudere config), dan valt dit terug op de vaste afwisseling.
+  // Stipkleur per afspraaktype-keuze: leest de kleur op van het (eerste)
+  // gekoppelde ONS-label uit APP_CONFIG.labelColors (instelbaar in het
+  // beheerscherm, in de modal "Labels in ONS", zodat je 'm daar direct kunt
+  // matchen met de labelkleur die ONS zelf toont). Onbekend/ontbrekend label
+  // (bv. een oudere config), dan valt dit terug op de vaste afwisseling.
   function onsahChoiceDotColor(choice, index) {
-    const key = choice && choice.kleur;
-    if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
+    const labels = (choice && choice.etiketten && choice.etiketten.length) ? choice.etiketten : (choice && choice.etiket ? [choice.etiket] : []);
+    const map = (APP_CONFIG && APP_CONFIG.labelColors) || {};
+    for (let i = 0; i < labels.length; i++) {
+      const key = map[labels[i]];
+      if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
+    }
     return onsahCategoryColor(choice && choice.clientPresent, index);
+  }
+  // Zoekt de registratievorm die bij deze afspraaktype-keuze hoort (via de
+  // gekoppelde ONS-labels) en geeft het bijbehorende direct/indirect-label,
+  // zodat de keuzetegel in Afspraakhulp dezelfde badge toont als straks de
+  // Registratiehulp.
+  function onsahChoiceDirectIndirectLabel(choice) {
+    const forms = (APP_CONFIG && APP_CONFIG.registrationForms) || [];
+    const labels = (choice && choice.etiketten && choice.etiketten.length) ? choice.etiketten : (choice && choice.etiket ? [choice.etiket] : []);
+    if (!labels.length) return '';
+    for (let i = 0; i < forms.length; i++) {
+      const f = forms[i];
+      if (f.labels && f.labels.some((l) => labels.indexOf(l) !== -1)) return directIndirectLabel(f.startVerdeling);
+    }
+    return '';
   }
   // Registratievormen hebben geen clientPresent-veld, maar wel een
   // direct/indirect-verdeling (zelfde onderliggende onderscheid).
@@ -5089,6 +5129,14 @@
     Object.assign(lbl.style, { flex: '1', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
     lbl.textContent = label;
     b.appendChild(lbl);
+    // Kleine, gedempte meta-badge (bv. "direct"/"indirect") — los van het
+    // label, monospace, geen pil/rand, zoals .tile .meta in het Spine-concept.
+    if (opts.meta) {
+      const meta = document.createElement('span');
+      Object.assign(meta.style, { flex: '0 0 auto', fontSize: '10.5px', color: T.inkSoft, fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace' });
+      meta.textContent = opts.meta;
+      b.appendChild(meta);
+    }
     let chev = null;
     if (opts.chevron !== false) {
       chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
@@ -5155,9 +5203,10 @@
     const T = ONSAH_TOKENS;
     const box = document.createElement('div');
     Object.assign(box.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: '1px solid ' + T.brand, borderRadius: '11px', padding: '10px 11px', background: '#fff' });
-    const lab = mkText(labelKey, fallbackLabel, { fontSize: '13px', color: T.ink, fontWeight: '600', lineHeight: '1.3' });
+    const lab = mkText(labelKey, fallbackLabel, { fontSize: '13.5px', color: T.ink, fontWeight: '600', lineHeight: '1.3' });
     lab.style.flex = '1';
     lab.style.fontWeight = '600'; // zelfde dikte als de Opslaan-knop (mkButton), ongeacht managed 'bold'
+    lab.style.fontSize = '13.5px'; // idem voor grootte: mkText past de beheerbare 'sizePx' ná defaultStyle toe, dus ook dit expliciet terugzetten zodat dit label exact dezelfde tekstgrootte heeft als de andere tegels/knoppen (mkButton)
     lab.style.color = T.ink; // idem voor kleur: mkText past de beheerbare tekstkleur ná defaultStyle toe (bv. #cc087d), dus hier expliciet terugzetten naar inkt zodat dit label dezelfde neutrale tekstkleur heeft als de andere tegels/knoppen
     const sw = mkSwitch(initial, onChange);
     box.appendChild(lab);
@@ -5178,13 +5227,11 @@
     return svg;
   }
   // Zijwaartse chevron: het paneel klapt in de spine (opzij), niet meer
-  // verticaal samen. De spine zit vast tegen de rechterkant; het paneel
-  // vouwt daarvandaan naar links open. Rechts = "klap uit (naar links open)",
-  // links = "klap in (terug naar de spine)".
+  // verticaal samen. Links = "klap in (richting de spine)", rechts = "klap uit".
   function setChevronIcon(button, collapsed) {
     if (!button) return;
     button.textContent = '';
-    button.appendChild(svgIcon(collapsed ? 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z' : 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
+    button.appendChild(svgIcon(collapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
   }
   function mkBackButton(onClick, label) {
     // Elke Terug-klik geeft ~1,2s rust aan de auto-refresh, zodat de navigatie
@@ -5529,7 +5576,7 @@
     CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
       pendingChoice = choice;
       prepareClientAndHandleChoice(choice);
-    }), { tick: onsahChoiceDotColor(choice, i) })));
+    }), { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) })));
     addResetButton(body);
     setStatus('');
   }
@@ -5539,7 +5586,7 @@
     Object.assign(note.style, { fontSize: '13px', color: '#b3261e', lineHeight: '1.35', padding: '4px 0 8px' });
     body.appendChild(note);
     CONFIG.choices.forEach((choice, i) => {
-      const b = mkButton(choice.label, () => {}, { tick: onsahChoiceDotColor(choice, i) });
+      const b = mkButton(choice.label, () => {}, { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) });
       try { b.disabled = true; } catch (e) {}
       b.setAttribute('aria-disabled', 'true');
       Object.assign(b.style, { opacity: '0.45', cursor: 'not-allowed' });
@@ -8629,8 +8676,7 @@
       return;
     }
     REGISTRATION_CHOICES.forEach((choice, i) => {
-      const label = choice.label + (choice.directIndirectLabel ? ' (' + choice.directIndirectLabel + ')' : '');
-      body.appendChild(mkButton(label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i) }));
+      body.appendChild(mkButton(choice.label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i), meta: choice.directIndirectLabel }));
     });
     const reset = mkButton('Instellingen verwijderen', () => safe(clearRegistrationSettings), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     body.appendChild(reset);
@@ -8697,11 +8743,29 @@
   // Maximale hoogte: nooit meer dan de ruimte tot de onderkant van het scherm
   // én nooit hoger dan de zichtbare ONS-agenda zelf. Past de inhoud niet, dan
   // scrollt de hulp intern (zie de body-stijl in buildPopup).
+  // De hulp is onderaan verankerd (defaultPopupBottom); hij mag daarom nooit
+  // zo hoog worden dat zijn bovenkant over de échte ONS-opslaanknop heen valt
+  // en die blokkeert. submitButtons() geeft die knop zelf (dezelfde die ook
+  // voor setSubmitBlocked() gebruikt wordt), dus dit volgt automatisch mee
+  // als ONS' layout verandert i.p.v. op een gok/vaste marge te vertrouwen.
+  function submitButtonClearanceTop() {
+    try {
+      const btns = submitButtons();
+      let top = Infinity;
+      btns.forEach((b) => { const r = rect(b); if (r.height > 0 && r.top < top) top = r.top; });
+      return isFinite(top) ? top : null;
+    } catch (e) { return null; }
+  }
   function popupMaxHeight() {
     const viewportCap = window.innerHeight - defaultPopupBottom() - 16;
     const bounds = agendaGridBounds();
-    const agendaCap = bounds ? (bounds.bottom - bounds.top) : viewportCap;
-    return Math.max(160, Math.min(viewportCap, agendaCap));
+    let cap = bounds ? Math.min(viewportCap, bounds.bottom - bounds.top) : viewportCap;
+    const submitTop = submitButtonClearanceTop();
+    if (submitTop != null) {
+      const submitCap = window.innerHeight - defaultPopupBottom() - submitTop - 12;
+      if (submitCap > 0) cap = Math.min(cap, submitCap);
+    }
+    return Math.max(160, cap);
   }
   // Berekend als CSS `right` (afstand tot de rechterkant van het venster) —
   // bewust NIET via `left` + de eigen breedte: die breedte verandert continu
@@ -8904,12 +8968,13 @@
     status.setAttribute('data-status', '');
     Object.assign(status.style, { padding: '0 12px 12px' });
     mainCol.appendChild(status);
-    // mainCol vóór de spine: zo blijft de spine (het klikbare handvat) altijd
-    // exact op dezelfde plek tegen de rechterkant, ook tijdens het animeren
-    // van de breedte — het paneel vouwt daarvandaan naar links open in plaats
-    // van dat de spine zelf wegschuift van de rand.
-    popupEl.appendChild(mainCol);
+    // De spine zit links (herkenbaar, vast onderdeel van het concept); het
+    // paneel klapt ernaast open. Bij inklappen verdwijnt mainCol (breedte 0)
+    // en schuift de spine, omdat de hele popup rechts verankerd is (zie
+    // defaultPopupRight hierboven), vanzelf mee tot tegen de rechterrand aan
+    // — precies zoals bedoeld: het roze lipje blijft altijd rechts liggen.
     popupEl.appendChild(spine);
+    popupEl.appendChild(mainCol);
     refreshMainScreen();
     setPopupCollapsed(popupCollapsed);
     // Houd de popup volledig in beeld zodra de inhoud (en dus de hoogte) verandert.
@@ -9667,7 +9732,7 @@
     // Zijwaartse chevron, zelfde richting-logica als de Afspraakhulp-popup.
     function agSetChevron(btn) {
       btn.textContent = '';
-      btn.appendChild(agSvgIcon(agCollapsed ? 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z' : 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
+      btn.appendChild(agSvgIcon(agCollapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
     }
     function agBody() { return agPopup && agPopup.querySelector('[data-ag-body]'); }
     // Klapt ZIJWAARTS in/uit (breedte naar 0, spine blijft zichtbaar), net als
@@ -10137,10 +10202,8 @@
       weekBox.setAttribute('data-ag-week', '');
       Object.assign(weekBox.style, { padding: '0 12px 12px' });
       agMainCol.appendChild(weekBox);
-      // mainCol vóór de spine: zelfde reden als bij de Afspraakhulp-popup —
-      // de spine blijft zo altijd op dezelfde plek tegen de rechterkant staan.
-      agPopup.appendChild(agMainCol);
       agPopup.appendChild(agSpine);
+      agPopup.appendChild(agMainCol);
       document.body.appendChild(agPopup);
       // Standaard rechtsonder in beeld (via CSS right/bottom); alleen als de
       // gebruiker het paneel zelf heeft versleept, gebruiken we die positie.
