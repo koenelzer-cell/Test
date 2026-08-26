@@ -4825,9 +4825,50 @@
       setStatus(expanded ? 'Clientkaarten open' : 'Clientkaarten openen...', expanded);
     });
   }
+  // Eén gedeeld, klein stijlblok (focus-states + tactiele hover/active-feedback)
+  // voor alle knoppen/koppen van de extensie op deze pagina. Eenmalig
+  // geïnjecteerd, net als de bestaande spinner-stijl hierboven.
+  function ensureOnsAhBaseStyles() {
+    if (document.getElementById('ons-helper-base-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ons-helper-base-style';
+    style.textContent =
+      '.onsah-btn{transition:background .12s ease,box-shadow .12s ease,transform .05s ease;}' +
+      '.onsah-btn:hover:not(:disabled){box-shadow:0 1px 6px rgba(0,0,0,.18);}' +
+      '.onsah-btn:active:not(:disabled){transform:translateY(1px);}' +
+      '.onsah-btn:focus-visible{outline:2px solid #cc087d;outline-offset:2px;}' +
+      '.onsah-switch:focus-visible{outline:2px solid #cc087d;outline-offset:2px;}' +
+      '[data-popup-control]:focus-visible{outline:2px solid #fff;outline-offset:2px;}';
+    document.head.appendChild(style);
+  }
+  // Klein, consistent SVG-icoon (lijn + stip) i.p.v. een cursieve Georgia-"i" —
+  // zelfde stijl als de andere iconen in de extensie (svgIcon hieronder).
+  function svgInfoIcon() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 14 14'); svg.setAttribute('width', '14'); svg.setAttribute('height', '14'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.6'); svg.setAttribute('stroke-linecap', 'round');
+    const line = document.createElementNS(svgNS, 'line'); line.setAttribute('x1', '7'); line.setAttribute('y1', '6.2'); line.setAttribute('x2', '7'); line.setAttribute('y2', '10.4');
+    const dot = document.createElementNS(svgNS, 'circle'); dot.setAttribute('cx', '7'); dot.setAttribute('cy', '3.6'); dot.setAttribute('r', '.9'); dot.setAttribute('fill', 'currentColor'); dot.setAttribute('stroke', 'none');
+    svg.appendChild(line); svg.appendChild(dot);
+    return svg;
+  }
+  // Consistent sluit-kruisje (twee lijnen) i.p.v. een los "×"-teken.
+  function svgCloseIcon() {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 14 14'); svg.setAttribute('width', '13'); svg.setAttribute('height', '13'); svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('stroke-linecap', 'round');
+    const l1 = document.createElementNS(svgNS, 'line'); l1.setAttribute('x1', '3'); l1.setAttribute('y1', '3'); l1.setAttribute('x2', '11'); l1.setAttribute('y2', '11');
+    const l2 = document.createElementNS(svgNS, 'line'); l2.setAttribute('x1', '11'); l2.setAttribute('y1', '3'); l2.setAttribute('x2', '3'); l2.setAttribute('y2', '11');
+    svg.appendChild(l1); svg.appendChild(l2);
+    return svg;
+  }
   function mkButton(label, onClick) {
+    ensureOnsAhBaseStyles();
     const b = document.createElement('button');
     b.type = 'button';
+    b.className = 'onsah-btn';
     b.textContent = label;
     Object.assign(b.style, { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#fff', color: '#cc087d', fontWeight: '600', fontSize: '13px', textAlign: 'left' });
     b.addEventListener('mouseenter', () => { b.style.background = '#cc087d'; b.style.color = '#fff'; });
@@ -4842,8 +4883,10 @@
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
   function mkSwitch(initial, onChange) {
+    ensureOnsAhBaseStyles();
     const sw = document.createElement('button');
     sw.type = 'button';
+    sw.className = 'onsah-switch';
     sw.setAttribute('role', 'switch');
     let on = !!initial;
     Object.assign(sw.style, { position: 'relative', width: '40px', height: '22px', borderRadius: '999px', border: '1px solid #cc087d', background: on ? '#cc087d' : '#fff', cursor: 'pointer', flex: '0 0 auto', padding: '0', transition: 'background .15s' });
@@ -5405,8 +5448,10 @@
     }
   }
   function mkAddClientButton() {
+    ensureOnsAhBaseStyles();
     const b = document.createElement('button');
     b.type = 'button';
+    b.className = 'onsah-btn';
     Object.assign(b.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#cc087d', color: '#fff', fontWeight: '700', fontSize: '13px', width: '100%', marginBottom: '8px' });
     // add-icoon (zelfde pad als ONS)
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -8424,10 +8469,11 @@
     if (userPos) userPos = p;
   }
   function buildPopup() {
+    ensureOnsAhBaseStyles();
     popupEl = document.createElement('div');
     Object.assign(popupEl.style, { position: 'fixed', zIndex: '2147483647', width: '280px', top: '74px', right: '24px', background: '#fff', color: '#222', pointerEvents: 'auto', border: '1px solid #e3e3e3', borderRadius: '12px', boxShadow: '0 8px 28px rgba(0,0,0,.28)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'column' });
     const header = document.createElement('div');
-    Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#cc087d', color: '#fff', padding: '10px 12px', fontWeight: '600', cursor: 'move', userSelect: 'none' });
+    Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', fontWeight: '600', cursor: 'move', userSelect: 'none' });
     const title = document.createElement('span');
     title.textContent = activeMode === 'registrations' ? 'Registratiehulp' : 'Afspraakhulp';
     Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
@@ -8502,8 +8548,8 @@
     infoBtn.setAttribute('data-popup-control', '');
     infoBtn.setAttribute('aria-label', `Info en versie ${SCRIPT_VERSION}`);
     infoBtn.title = `Info en versie ${SCRIPT_VERSION}`;
-    infoBtn.textContent = 'i';
-    Object.assign(infoBtn.style, { background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.28)', borderRadius: '8px', color: '#fff', cursor: 'pointer', lineHeight: '1', padding: '5px 7px', width: '28px', height: '28px', fontWeight: '800', fontFamily: 'Georgia, serif', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+    infoBtn.appendChild(svgInfoIcon());
+    Object.assign(infoBtn.style, { background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.28)', borderRadius: '8px', color: '#fff', cursor: 'pointer', lineHeight: '1', padding: '5px 7px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
     infoBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -8752,13 +8798,15 @@
   function removeRegistrationsOverviewPanel() { if (_regOvPanel) { try { _regOvPanel.remove(); } catch (e) {} _regOvPanel = null; } _regOvKey = null; }
   function buildRegistrationsOverviewPanel() {
     if (_regOvPanel) return _regOvPanel;
+    ensureOnsAhBaseStyles();
     const p = document.createElement('div'); _regOvPanel = p; p.setAttribute('data-ons-reg-overview', '1');
     p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:300px;max-height:75vh;overflow:auto;background:#fff;color:#222;border:1px solid #e0cdd9;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);font:13px/1.4 system-ui,sans-serif';
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#cc087d;color:#fff;padding:9px 12px;font-weight:700;border-radius:12px 12px 0 0';
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#cc087d,#a3066a);color:#fff;padding:9px 12px;font-weight:700;border-radius:12px 12px 0 0';
     const t = document.createElement('span'); t.textContent = 'Declarabiliteit';
-    const x = document.createElement('button'); x.type = 'button'; x.textContent = '×';
-    x.title = 'Sluiten'; x.style.cssText = 'border:0;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer';
+    const x = document.createElement('button'); x.type = 'button'; x.setAttribute('data-popup-control', '');
+    x.title = 'Sluiten'; x.setAttribute('aria-label', 'Sluiten'); x.style.cssText = 'border:0;background:transparent;color:#fff;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px';
+    x.appendChild(svgCloseIcon());
     x.addEventListener('click', function () { removeRegistrationsOverviewPanel(); });
     header.append(t, x); p.appendChild(header);
     const body = document.createElement('div'); body.setAttribute('data-reg-ov-body', ''); body.style.cssText = 'padding:10px 12px';
@@ -9617,10 +9665,11 @@
     }
     function buildAgPopup() {
       if (agPopup) return;
+      ensureOnsAhBaseStyles();
       agPopup = document.createElement('div');
       Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', width: '260px', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#222', border: '1px solid #e3e3e3', borderRadius: '12px', boxShadow: '0 8px 28px rgba(0,0,0,.28)', font: '14px/1.4 system-ui, sans-serif', overflowY: 'auto', overflowX: 'hidden' });
       const header = document.createElement('div');
-      Object.assign(header.style, { display: 'flex', alignItems: 'center', background: '#cc087d', color: '#fff', padding: '10px 12px', fontWeight: '600', userSelect: 'none', cursor: 'move' });
+      Object.assign(header.style, { display: 'flex', alignItems: 'center', background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', fontWeight: '600', userSelect: 'none', cursor: 'move' });
       const title = document.createElement('span');
       title.textContent = 'Agendahulp';
       Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
@@ -9655,8 +9704,8 @@
       const info = document.createElement('button');
       info.type = 'button';
       info.setAttribute('data-popup-control', '');
-      info.textContent = 'i';
-      Object.assign(info.style, { background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', borderRadius: '8px', color: '#fff', cursor: 'pointer', width: '28px', height: '28px', fontWeight: '800', fontFamily: 'Georgia, serif', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
+      info.appendChild(svgInfoIcon());
+      Object.assign(info.style, { background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', borderRadius: '8px', color: '#fff', cursor: 'pointer', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
       info.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (agCollapsed) agSetCollapsed(false); agInfoOpen = !agInfoOpen; if (agInfoOpen) agRenderInfo(); else agRenderMain(); });
       const chev = document.createElement('button');
       chev.type = 'button';
