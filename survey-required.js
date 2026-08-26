@@ -715,13 +715,22 @@
       }
       return lines.join('\n');
     }
+    // Consistente SVG-iconen (lijn/stip/vinkje) i.p.v. emoji (⚠ℹ✕) en tekstglyphs
+    // (?/✓) — zelfde vormtaal als de andere onderdelen van de extensie.
+    const SURVEY_ICON_SVG = {
+      warn: '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="8"/><circle cx="7" cy="10.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+      info: '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="7" y1="6.2" x2="7" y2="10.4"/><circle cx="7" cy="3.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+      vraag: '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.3 5.1a1.7 1.7 0 1 1 2.6 1.9c-.6.5-.9 1-.9 1.7"/><circle cx="7" cy="10.6" r=".9" fill="currentColor" stroke="none"/></svg>',
+      ok: '<svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.2l2.6 2.6L11 4"/></svg>',
+      sluiten: '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>',
+    };
     function ensureBanner() {
       if (bannerEl && document.body.contains(bannerEl)) return bannerEl;
       bannerEl = document.createElement('div');
       Object.assign(bannerEl.style, {
         position: 'fixed', zIndex: '2147483647', right: '16px', top: '80px', left: 'auto', bottom: 'auto', transform: 'none',
         width: PANEL_W + 'px', minWidth: PANEL_W + 'px', maxWidth: PANEL_W + 'px', maxHeight: 'calc(100vh - 100px)',
-        background: '#ffffff', color: '#222', border: '1px solid #e3e3e3', borderRadius: '10px', overflow: 'hidden',
+        background: '#ffffff', color: '#222', border: '1px solid #e3e3e3', borderRadius: '12px', overflow: 'hidden',
         boxShadow: '0 10px 30px rgba(0,0,0,0.22)', font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         display: 'none', flexDirection: 'column', pointerEvents: 'auto',
       });
@@ -730,13 +739,13 @@
       header.setAttribute('data-survey-header', '');
       Object.assign(header.style, {
         display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto',
-        background: '#cc087d', color: '#fff', padding: '10px 12px', userSelect: 'none',
+        background: 'linear-gradient(135deg,#cc087d,#a3066a)', color: '#fff', padding: '10px 12px', userSelect: 'none',
       });
       const icon = document.createElement('span');
-      icon.textContent = '⚠';
+      icon.innerHTML = SURVEY_ICON_SVG.warn;
       icon.setAttribute('data-survey-drag-handle', '');
       icon.title = 'Sleep de melding';
-      Object.assign(icon.style, { fontSize: '16px', lineHeight: '1', flex: '0 0 auto' });
+      Object.assign(icon.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', flex: '0 0 auto' });
       const title = document.createElement('span');
       title.setAttribute('data-survey-title', '');
       Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', fontSize: '13px', fontWeight: '700' });
@@ -753,9 +762,9 @@
       Object.assign(collapse.style, ctrlStyle, { font: '700 16px/1 system-ui, sans-serif' });
       const close = document.createElement('button');
       close.type = 'button';
-      close.textContent = '✕';
+      close.innerHTML = SURVEY_ICON_SVG.sluiten;
       close.setAttribute('aria-label', 'Melding sluiten');
-      Object.assign(close.style, ctrlStyle, { font: '700 13px/1 system-ui, sans-serif' });
+      Object.assign(close.style, ctrlStyle);
       collapse.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
         const state = loadChecklist();
@@ -935,8 +944,8 @@
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (header) header.style.background = '#cc087d';
-      if (icon) icon.textContent = 'ℹ';
+      if (header) header.style.background = 'linear-gradient(135deg,#cc087d,#a3066a)';
+      if (icon) icon.innerHTML = SURVEY_ICON_SVG.info;
       if (title) title.textContent = text;
       if (msg) { msg.textContent = ''; msg.style.display = 'none'; }
       setDock(false);
@@ -969,8 +978,8 @@
       const title = b.querySelector('[data-survey-title]');
       const icon = b.querySelector('[data-survey-drag-handle]');
       const msg = b.querySelector('[data-survey-msg]');
-      if (header) header.style.background = '#b45309';
-      if (icon) icon.textContent = '?';
+      if (header) header.style.background = 'linear-gradient(135deg,#b45309,#8a3d05)';
+      if (icon) icon.innerHTML = SURVEY_ICON_SVG.vraag;
       if (title) title.textContent = 'Leeftijd van de cliënt bevestigen';
       setDock(false);
       msg.textContent = '';
@@ -1171,8 +1180,8 @@
       // (#7) Badge op het extensie-icoon: openstaande verplichte vragen.
       sendBadge(remaining);
       // Roze kop (huisstijl) als er nog vragen open staan, groen als alles klaar is.
-      if (header) header.style.background = remaining ? '#cc087d' : ((hasRespondentWarning || hasSignals) ? '#b45309' : '#1b7f3b');
-      if (iconEl) iconEl.textContent = (remaining || hasRespondentWarning || hasSignals) ? '⚠' : '✓';
+      if (header) header.style.background = remaining ? 'linear-gradient(135deg,#cc087d,#a3066a)' : ((hasRespondentWarning || hasSignals) ? 'linear-gradient(135deg,#b45309,#8a3d05)' : 'linear-gradient(135deg,#1b7f3b,#146430)');
+      if (iconEl) iconEl.innerHTML = (remaining || hasRespondentWarning || hasSignals) ? SURVEY_ICON_SVG.warn : SURVEY_ICON_SVG.ok;
       if (titleEl) titleEl.textContent = remaining
         ? ('Nog ' + remaining + ' van ' + state.items.length + ' verplichte ' + (state.items.length === 1 ? 'vraag' : 'vragen'))
         : (state.items.length ? ('Alle ' + completed + ' verplichte vragen ingevuld') : 'Alle verplichte vragen ingevuld');
