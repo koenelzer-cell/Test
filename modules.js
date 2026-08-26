@@ -220,7 +220,7 @@
       var card = document.createElement('div');
       card.className = 'onsah-melding';
       card.setAttribute('data-melding', item.id);
-      card.style.cssText = 'pointer-events:auto;background:#fff;border:1px solid #cc087d;border-left:4px solid #cc087d;border-radius:8px;padding:9px 11px;color:#222;box-shadow:0 2px 8px rgba(0,0,0,.12);';
+      card.style.cssText = 'pointer-events:auto;background:#fff;border:1px solid #cc087d;border-left:4px solid #cc087d;border-radius:10px;padding:9px 11px;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.16);';
       fillCard(card, item.value);
       barEl.appendChild(card);
     });
