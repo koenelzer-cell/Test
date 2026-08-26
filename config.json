@@ -6,6 +6,7 @@
       "clientPresent": true,
       "pickUursoort": true,
       "addTravelTime": true,
+      "kleur": "rood",
       "relevantForTeams": []
     },
     {
@@ -14,6 +15,7 @@
       "clientPresent": true,
       "pickUursoort": true,
       "addTravelTime": false,
+      "kleur": "blauw",
       "relevantForTeams": []
     },
     {
@@ -22,6 +24,7 @@
       "clientPresent": false,
       "pickUursoort": true,
       "addTravelTime": false,
+      "kleur": "geel",
       "relevantForTeams": []
     },
     {
@@ -30,6 +33,7 @@
       "clientPresent": true,
       "pickUursoort": true,
       "addTravelTime": false,
+      "kleur": "blauw",
       "relevantForTeams": []
     },
     {
@@ -38,6 +42,7 @@
       "clientPresent": false,
       "pickUursoort": true,
       "addTravelTime": false,
+      "kleur": "geel",
       "relevantForTeams": []
     },
     {
@@ -46,6 +51,7 @@
       "clientPresent": false,
       "pickUursoort": true,
       "addTravelTime": false,
+      "kleur": "groen",
       "relevantForTeams": []
     }
   ],
@@ -162,14 +168,6 @@
       "fill": "rgba(150,50,200,0.18)",
       "legend": "rgba(150,50,200,0.50)"
     }
-  },
-  "labelColors": {
-    "JG Huisbezoek": "rood",
-    "ALL Beeldbellen": "blauw",
-    "JG MDO": "geel",
-    "JG Face to face kantoor": "blauw",
-    "JG Verslaglegging": "geel",
-    "JG Zorgcoördinatie": "groen"
   },
   "profileSectors": {
     "JGGZ": "Jeugd & Gezin",

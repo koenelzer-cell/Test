@@ -35,12 +35,12 @@
   const DEFAULT_APP_CONFIG = {
     // Tabel 1: keuze in de helper -> ONS-label + gedrag.
     choices: [
-      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true },
-      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false },
-      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false },
-      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false },
-      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false },
-      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false },
+      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true,  kleur: 'rood' },
+      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
+      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
+      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
+      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
+      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'groen' },
     ],
     // Extra bekende labels (naast de etiketten uit choices) die de opschoning kent.
     extraKnownLabels: [],
@@ -63,18 +63,6 @@
       geel:  { naam: 'Geel',  fill: 'rgba(235,205,70,0.20)', legend: 'rgba(235,205,70,0.65)' },
       blauw: { naam: 'Blauw', fill: 'rgba(70,130,210,0.16)', legend: 'rgba(70,130,210,0.45)' },
       groen: { naam: 'Groen', fill: 'rgba(60,170,90,0.18)',  legend: 'rgba(60,170,90,0.50)' },
-    },
-    // Kleur van het stipje vóór een keuze in de Afspraakhulp, per ONS-label
-    // (instelbaar in het beheerscherm, in de modal "Labels in ONS") —
-    // verwijst naar een kleur-key uit het palet hierboven. Onbekend label ->
-    // vaste afwisseling (zie onsahCategoryColor).
-    labelColors: {
-      'JG Huisbezoek': 'rood',
-      'ALL Beeldbellen': 'blauw',
-      'JG MDO': 'geel',
-      'JG Face to face kantoor': 'blauw',
-      'JG Verslaglegging': 'geel',
-      'JG Zorgcoördinatie': 'groen',
     },
     profileSectors: { 'JGGZ': 'Jeugd & Gezin', 'J&O/JBG': 'Jeugd & Gezin', 'Begeleiding': 'Begeleiding' },
     // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
@@ -1134,7 +1122,6 @@
     if (hc.zoneProfiles && typeof hc.zoneProfiles === 'object') APP_CONFIG.zoneProfiles = hc.zoneProfiles;
     if (hc.profileSectors && typeof hc.profileSectors === 'object') APP_CONFIG.profileSectors = hc.profileSectors;
     if (hc.palette && typeof hc.palette === 'object') APP_CONFIG.palette = hc.palette;
-    if (hc.labelColors && typeof hc.labelColors === 'object') APP_CONFIG.labelColors = hc.labelColors;
     if (hc.texts && typeof hc.texts === 'object') APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
     if (hc.compatibility && typeof hc.compatibility === 'object') APP_CONFIG.compatibility = hc.compatibility;
     if (hc.features && typeof hc.features === 'object') APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
@@ -4999,18 +4986,14 @@
     const pair = clientPresent ? ['rood', 'blauw'] : ['geel', 'groen'];
     return onsahPaletteSolidColor(pair[(index || 0) % 2]);
   }
-  // Stipkleur per afspraaktype-keuze: leest de kleur op van het (eerste)
-  // gekoppelde ONS-label uit APP_CONFIG.labelColors (instelbaar in het
-  // beheerscherm, in de modal "Labels in ONS", zodat je 'm daar direct kunt
-  // matchen met de labelkleur die ONS zelf toont). Onbekend/ontbrekend label
-  // (bv. een oudere config), dan valt dit terug op de vaste afwisseling.
+  // Stipkleur per afspraaktype-keuze: leest het 'kleur'-veld van de keuze
+  // zelf (instelbaar in het beheerscherm, in de modal "Labels in ONS" bij
+  // dat afspraaktype, zodat je 'm daar direct kunt matchen met de labelkleur
+  // die ONS zelf toont). Ontbreekt dat veld (bv. een oudere config), dan
+  // valt dit terug op de vaste afwisseling.
   function onsahChoiceDotColor(choice, index) {
-    const labels = (choice && choice.etiketten && choice.etiketten.length) ? choice.etiketten : (choice && choice.etiket ? [choice.etiket] : []);
-    const map = (APP_CONFIG && APP_CONFIG.labelColors) || {};
-    for (let i = 0; i < labels.length; i++) {
-      const key = map[labels[i]];
-      if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
-    }
+    const key = choice && choice.kleur;
+    if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
     return onsahCategoryColor(choice && choice.clientPresent, index);
   }
   // Zoekt de registratievorm die bij deze afspraaktype-keuze hoort (via de

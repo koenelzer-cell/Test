@@ -964,12 +964,12 @@
 // ===== Standaard (identiek aan de extensie) =====
 const DEFAULTS = {
   choices: [
-    { label:'Huisbezoek',      etiket:'JG Huisbezoek',              clientPresent:true,  pickUursoort:true, addTravelTime:true,  durationStep:15, maxDuration:180 },
-    { label:'Digitaal',        etiket:'ALL Beeldbellen',             clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'MDO',             etiket:'JG MDO',                     clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Face 2 face',     etiket:'JG Face to face kantoor',    clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Verslaglegging',  etiket:'JG Verslaglegging',          clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Zorgcoördinatie', etiket:'JG Zorgcoördinatie',         clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
+    { label:'Huisbezoek',      etiket:'JG Huisbezoek',              clientPresent:true,  pickUursoort:true, addTravelTime:true,  durationStep:15, maxDuration:180, kleur:'rood' },
+    { label:'Digitaal',        etiket:'ALL Beeldbellen',             clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'blauw' },
+    { label:'MDO',             etiket:'JG MDO',                     clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'geel' },
+    { label:'Face 2 face',     etiket:'JG Face to face kantoor',    clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'blauw' },
+    { label:'Verslaglegging',  etiket:'JG Verslaglegging',          clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'geel' },
+    { label:'Zorgcoördinatie', etiket:'JG Zorgcoördinatie',         clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'groen' },
   ],
   nonClientCategories: [
     {label:'Werkzaamheden',options:[['Acquisitie','Acquisitie*'],['Werktijdenregeling','Werktijdenregeling*'],['Voorbereidende werkzaamheden','Voorbereidende werkzaamheden*'],['Verplichte nevenactiviteiten','verpl nevenact - Verplichte nevenactiviteiten*'],['Schoolcoaching','Schoolcoaching'],['Schoolcoaching indirect','Schoolcoaching indirect #'],['Reistijd','Reistijd']].map(([display,uursoort])=>({display,uursoort,durationStep:15,maxDuration:480}))},
@@ -995,18 +995,6 @@ const DEFAULTS = {
     blauw: { naam:'Blauw', fill:'rgba(70,130,210,0.16)', legend:'rgba(70,130,210,0.45)' },
     groen: { naam:'Groen', fill:'rgba(60,170,90,0.18)',  legend:'rgba(60,170,90,0.50)' },
     nieuwe_kleur_6rwf: { naam:'Paars', fill:'rgba(150,50,200,0.18)', legend:'rgba(150,50,200,0.50)' },
-  },
-  // Kleur van het stipje vóór een keuze in de Afspraakhulp, per ONS-label
-  // (instelbaar in de modal "Labels in ONS" hierboven) — verwijst naar het
-  // palet hierboven, zodat je 'm kunt matchen met de labelkleur die ONS zelf
-  // toont. Onbekend label -> vaste afwisseling (zie content.js).
-  labelColors: {
-    'JG Huisbezoek': 'rood',
-    'ALL Beeldbellen': 'blauw',
-    'JG MDO': 'geel',
-    'JG Face to face kantoor': 'blauw',
-    'JG Verslaglegging': 'geel',
-    'JG Zorgcoördinatie': 'groen',
   },
   profileSectors: { 'JGGZ':'Jeugd & Gezin', 'J&O/JBG':'Jeugd & Gezin', 'Begeleiding':'Begeleiding' },
   zoneProfiles: {
@@ -1385,7 +1373,7 @@ function mergeWithDefaults(value, defaults) {
 }
 function normalizeConfig(value) {
   const source=value&&value.helperConfig?value.helperConfig:value,out=mergeWithDefaults(source,DEFAULTS);
-  ['palette','labelColors','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
+  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
   out.compatibility=Object.assign({},out.compatibility||{});
   out.compatibility.schemaVersion=Math.max(DEFAULTS.compatibility.schemaVersion,parseInt(out.compatibility.schemaVersion,10)||0);
   if(compareSemver(out.compatibility.minimumExtensionVersion,DEFAULTS.compatibility.minimumExtensionVersion)!==1)out.compatibility.minimumExtensionVersion=DEFAULTS.compatibility.minimumExtensionVersion;
@@ -1415,6 +1403,9 @@ function pickerButton(sections, initial, opts) {
   const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'knop klein'; btn.setAttribute('data-picker', '1'); btn.style.cssText = 'min-width:150px;text-align:left;white-space:normal';
   btn._sections = sections;
   sections.forEach((s) => { const v = initial && initial[s.key]; btn[s.key] = Array.isArray(v) ? v.slice() : (v ? String(v).split(/[,;]/).map((x) => x.trim()).filter(Boolean) : []); });
+  // Optioneel: één kleur die bij déze knop (dus déze keuze/afspraaksoort)
+  // hoort, ingesteld in dezelfde dialog als de labels (zie openPicker).
+  if (opts.colorKey) { btn._colorKey = opts.colorKey; btn[opts.colorKey] = opts.colorInitial || ''; }
   btn._paint = () => {
     // Samenvatting van de gekozen waarden (bv. "Labels: — · Teams: alle").
     const detail = sections.map((s) => { const vals = btn[s.key] || []; const txt = vals.length ? vals.join(', ') : (s.emptyLabel || 'alle'); return (s.summaryPrefix ? s.summaryPrefix + ': ' : '') + txt; }).join('  ·  ');
@@ -1438,25 +1429,21 @@ function openPicker(btn) {
     if (btn._sections.length > 1) { const h = document.createElement('div'); h.textContent = s.title || s.kind; h.style.cssText = 'font-weight:700;margin:' + (si ? '14px' : '2px') + ' 0 4px'; box.appendChild(h); }
     const wrap = document.createElement('div'); wrap.setAttribute('data-section-key', s.key); wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px';
     if (!options.length) { const p = document.createElement('div'); p.className = 'trouble-leeg'; p.textContent = (s.kind === 'teams') ? 'Nog geen teams. Maak eerst teams aan bij “Bedrijfsonderdelen en teams”.' : 'Nog geen labels bekend. Importeer labels of vul etiketten bij de afspraaktypes in.'; wrap.appendChild(p); }
-    options.forEach((opt) => {
-      const l = document.createElement('label'); l.style.cssText = 'display:flex;align-items:center;gap:8px';
-      const i = document.createElement('input'); i.type = 'checkbox'; i.value = opt; i.checked = selected.includes(opt);
-      const txt = document.createElement('span'); txt.textContent = opt; txt.style.flex = '1';
-      l.append(i, txt);
-      // Stipkleur per label, direct hier in te stellen (i.p.v. een aparte
-      // kaart elders) zodat je 'm meteen kunt matchen met de labelkleur die
-      // ONS zelf toont.
-      if (s.kind === 'labels') {
-        const picker = colorSelect(_labelColors[opt]);
-        picker._select.dataset.labelColorFor = opt;
-        picker.title = 'Stipkleur voor dit label in de Afspraakhulp';
-        l.appendChild(picker);
-      }
-      wrap.appendChild(l);
-    });
+    options.forEach((opt) => { const l = document.createElement('label'); l.style.cssText = 'display:flex;align-items:center;gap:8px'; const i = document.createElement('input'); i.type = 'checkbox'; i.value = opt; i.checked = selected.includes(opt); l.append(i, document.createTextNode(opt)); wrap.appendChild(l); });
     const add = document.createElement('input'); add.type = 'text'; add.setAttribute('data-section-add', s.key); add.placeholder = 'eigen waarde toevoegen (optioneel)'; add.style.cssText = 'margin-top:5px;width:100%;box-sizing:border-box'; wrap.appendChild(add);
     box.appendChild(wrap);
   });
+  // Eén stipkleur voor déze keuze/afspraaksoort als geheel (niet per label):
+  // onder de labellijst + eigen-waarde-veld, zodat 'm hier meteen kunt
+  // matchen met de labelkleur die ONS toont, zonder per label te hoeven kiezen.
+  if (btn._colorKey) {
+    const colorWrap = document.createElement('div'); colorWrap.style.cssText = 'margin-top:14px;padding-top:12px;border-top:1px solid #ece7e5;display:flex;align-items:center;gap:8px';
+    const cap = document.createElement('span'); cap.textContent = 'Stipkleur voor deze keuze'; cap.style.cssText = 'font-weight:700;flex:1';
+    const picker = colorSelect(btn[btn._colorKey]);
+    picker._select.setAttribute('data-picker-color', '1');
+    colorWrap.append(cap, picker);
+    box.appendChild(colorWrap);
+  }
   const dlg = $('#multiPickerDialog'); if (dlg.showModal) { try { dlg.showModal(); } catch (e) { dlg.setAttribute('open', ''); } } else dlg.setAttribute('open', '');
 }
 function closeMultiPicker() { const dlg = $('#multiPickerDialog'); _pickerState = null; if (dlg.close) { try { dlg.close(); return; } catch (e) {} } dlg.removeAttribute('open'); }
@@ -1469,10 +1456,11 @@ function confirmMultiPicker() {
     const add = wrap.querySelector('[data-section-add]');
     if (add) String(add.value || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean).forEach((v) => { if (!chosen.includes(v)) chosen.push(v); });
     btn[s.key] = chosen;
-    if (s.kind === 'labels') {
-      wrap.querySelectorAll('select[data-label-color-for]').forEach((sel) => { _labelColors[sel.dataset.labelColorFor] = sel.value; });
-    }
   });
+  if (btn._colorKey) {
+    const colorSel = $('#multiPickerOptions').querySelector('select[data-picker-color]');
+    if (colorSel) btn[btn._colorKey] = colorSel.value;
+  }
   if (btn._paint) btn._paint(); markDirty();
   closeMultiPicker();
 }
@@ -1689,7 +1677,7 @@ function fillNcCategoryOptions(sel, val) {
   sel.value = cur || '';
 }
 function refreshNcCategoryDropdowns() { [...document.querySelectorAll('#tblNonClientChoices select[data-nccat]')].forEach((sel) => fillNcCategoryOptions(sel)); }
-function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), volgorde:rowVolg(tr) }; }
+function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); const etiketBtn = tr.querySelector('[data-choice-labels]'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), kleur:(etiketBtn ? etiketBtn._kleur : '') || '', volgorde:rowVolg(tr) }; }
 function formFromRow(tr) { const c = tr.querySelectorAll('input[type=checkbox]'); const pct = tr.querySelector('input[data-role=pct]'); const typ = tr.querySelector('select[data-role=svtype]'); const g = (r) => { const el = tr.querySelector('[data-role=' + r + ']'); return el ? el.value : ''; }; const ex = tr._formExtra || {}; return { vorm:g('vorm'), startVerdeling:(parseInt(pct.value, 10) || 0) + '% ' + typ.value, uursoort:g('us'), eindtijdBeginPlusMin:parseInt(ex.eindtijdBeginPlusMin, 10) || 0, rapportagePrefix:ex.rapportagePrefix || '', vraagDirecteTijd:c[0].checked, vraagIndirecteTijd:c[1].checked, vraagReistijd:c[2].checked, labels:pickerVals(tr,'_labels'), relevantForTeams:pickerVals(tr,'_teams'), volgorde:rowVolg(tr) }; }
 
 // ----- kleur-helpers -----
@@ -1708,9 +1696,6 @@ function slug(s) { return String(s || '').toLowerCase().normalize('NFD').replace
 
 // ===== werkende (nog niet opgeslagen) palet =====
 let _palette = clone(DEFAULTS.palette);
-// Stipkleur per ONS-label (Afspraakhulp), instelbaar in de modal "Labels in
-// ONS" zelf, naast elk label.
-let _labelColors = clone(DEFAULTS.labelColors);
 
 // ----- Volgorde (per lijst: 0 t/m oneindig; laag = bovenaan, leeg = onderaan) -----
 function volgInput(value) {
@@ -1747,7 +1732,7 @@ function addChoice(c) {
   // Eén of meer ONS-labels per afspraaktype. Backward-compatible: seed uit
   // 'etiketten' (nieuw, meerdere) of anders het enkele 'etiket'.
   const initLabels = (Array.isArray(c.etiketten) && c.etiketten.length) ? c.etiketten.slice() : (c.etiket ? [c.etiket] : []);
-  const etiket = pickerButton([{ key: '_labels', kind: 'labels', title: 'Labels in ONS', emptyLabel: '—', summaryPrefix: '' }], { _labels: initLabels });
+  const etiket = pickerButton([{ key: '_labels', kind: 'labels', title: 'Labels in ONS', emptyLabel: '—', summaryPrefix: '' }], { _labels: initLabels }, { colorKey: '_kleur', colorInitial: c.kleur });
   etiket.setAttribute('data-choice-labels', '1');
   const cp = chk(c.clientPresent), pu = chk(c.pickUursoort), tt = chk(c.addTravelTime);
   const teams = pickerButton([{ key: '_teams', kind: 'teams', title: 'Relevant voor welke teams?', emptyLabel: 'alle' }], { _teams: c.relevantForTeams });
@@ -2746,12 +2731,11 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), labelColors:Object.assign({}, _labelColors), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
   _palette = clone(cfg.palette || DEFAULTS.palette);
-  _labelColors = clone(cfg.labelColors || DEFAULTS.labelColors);
   _sectorNames = configuredSectorNames(cfg);
   _teamNames = teamNamesFrom(cfg);
   $('#tblChoices tbody').innerHTML = ''; sortByVolgorde(cfg.choices || []).forEach(addChoice);
