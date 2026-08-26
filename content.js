@@ -801,18 +801,37 @@
   }
   function _agSubTitle(text) {
     var h = document.createElement('div'); h.textContent = text;
-    h.style.cssText = 'font-weight:700;font-size:11px;color:#8a4a70;text-transform:uppercase;letter-spacing:.03em;margin:10px 0 5px';
+    h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';text-transform:uppercase;letter-spacing:.03em;margin:10px 0 5px';
     return h;
   }
-  // Groot statvak (voor de hoofd-splitsing cliënttijd vs niet-cliënttijd).
-  function _agBigStat(label, value, fg, bg, bd) {
+  // Groot statvak (voor de hoofd-splitsing cliënttijd vs niet-cliënttijd). Wit
+  // met een gekleurde identiteitsrand links; `interactive` voegt een dunne
+  // roze rand + chevron toe (klikbaar naar de opbouw-modal) en hover-lift.
+  function _agBigStat(label, value, fg, interactive) {
+    var T = ONSAH_TOKENS;
     var d = document.createElement('div');
-    d.style.cssText = 'flex:1 1 0;min-width:0;background:' + bg + ';border:1px solid ' + bd + ';border-radius:9px;padding:8px 10px';
+    d.style.cssText = 'position:relative;flex:1 1 0;min-width:0;box-sizing:border-box;background:#fff;border:1px solid ' + (interactive ? T.brand : T.line) + ';border-radius:10px;padding:9px ' + (interactive ? '20px' : '11px') + ' 9px 14px;transition:transform .12s ease, box-shadow .12s ease';
+    var edge = document.createElement('span');
+    edge.style.cssText = 'position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:' + fg;
+    d.appendChild(edge);
     var l = document.createElement('div'); l.textContent = label;
-    l.style.cssText = 'font-size:10px;font-weight:700;color:' + fg + ';text-transform:uppercase;letter-spacing:.03em';
+    l.style.cssText = 'font-size:10px;font-weight:700;color:' + T.inkSoft + ';text-transform:uppercase;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    d.appendChild(l);
     var v = document.createElement('div'); v.textContent = value;
-    v.style.cssText = 'font-size:17px;font-weight:800;color:' + fg + ';margin-top:1px';
-    d.append(l, v); return d;
+    v.style.cssText = 'font-size:16px;font-weight:800;color:' + fg + ';font-variant-numeric:tabular-nums;margin-top:1px';
+    d.appendChild(v);
+    if (interactive) {
+      // Chevron als hoek-icoon i.p.v. inline naast de waarde: zo hoeft de
+      // waarde (bv. "5 u 20 m") nooit samen met het icoon op één regel te
+      // passen in een smalle tegel, en blijft de tegel compact.
+      var chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
+      chev.setAttribute('width', '12'); chev.setAttribute('height', '12');
+      chev.style.cssText = 'position:absolute;right:8px;top:10px;width:12px;height:12px;color:' + T.brand;
+      d.appendChild(chev);
+      d.addEventListener('mouseenter', function () { d.style.transform = 'translateY(-1px)'; d.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.25)'; });
+      d.addEventListener('mouseleave', function () { d.style.transform = 'none'; d.style.boxShadow = 'none'; });
+    }
+    return d;
   }
   // Bouwt het overzicht-paneel (DOM) uit een summarizeAgendaWeek-resultaat.
   function agendaWeekPanelEl(summary, opts) {
@@ -846,17 +865,14 @@
     // Zo blijft het paneel kort; de opbouw direct/indirect/reistijd/overig staat in de modal.
     var split = document.createElement('div');
     split.style.cssText = 'display:flex;gap:6px;margin-bottom:5px';
-    var clientBox = _agBigStat('Cliënttijd', _agFmtMin(s.clientMinutes), '#166a37', '#e6f4ea', '#cdead7');
+    var clientBox = _agBigStat('Cliënttijd', _agFmtMin(s.clientMinutes), '#166a37', true);
     clientBox.style.cursor = 'pointer';
     clientBox.title = 'Klik voor de opbouw (direct / indirect / reistijd / overig)';
-    var hint = document.createElement('div'); hint.textContent = 'bekijk opbouw ›';
-    hint.style.cssText = 'font-size:9px;font-weight:700;color:#166a37;opacity:.85;margin-top:2px';
-    clientBox.appendChild(hint);
     clientBox.addEventListener('click', function () { try { showAgendaBreakdownModal(s, opts); } catch (e) {} });
-    split.append(clientBox, _agBigStat('Niet-cliënttijd', _agFmtMin(s.nonClientMinutes), '#555', '#eef0f2', '#e0e3e7'));
+    split.append(clientBox, _agBigStat('Niet-cliënttijd', _agFmtMin(s.nonClientMinutes), '#6b6367'));
     box.appendChild(split);
     var tot = document.createElement('div');
-    tot.style.cssText = 'font-size:11px;color:#777;font-weight:600;margin:0 0 8px';
+    tot.style.cssText = 'font-size:11px;color:#6b6367;font-weight:600;margin:0 0 8px;font-variant-numeric:tabular-nums';
     tot.textContent = 'Totaal: ' + _agFmtMin(s.totalMinutes);
     box.appendChild(tot);
 
@@ -889,21 +905,27 @@
   }
   // Inklapbare 'Overig'-sectie met de niet-cliënt uursoorten (* of #). Standaard dicht.
   function _agCollapsibleOverig(rows) {
+    var T = ONSAH_TOKENS;
     var wrap = document.createElement('div');
     var total = rows.reduce(function (a, r) { return a + (r.minutes || 0); }, 0);
     var head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:11px;color:#8a4a70;margin:8px 0 4px;user-select:none';
-    var chev = document.createElement('span'); chev.textContent = '▸'; chev.style.cssText = 'font-size:10px';
+    head.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:11px;color:' + T.brand + ';margin:10px 0 5px;padding:2px 0;user-select:none;transition:opacity .1s ease';
+    var chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
+    chev.setAttribute('width', '12'); chev.setAttribute('height', '12');
+    chev.style.cssText = 'width:12px;height:12px;flex:0 0 auto;transition:transform .15s ease';
     var lbl = document.createElement('span'); lbl.textContent = 'Overig (' + rows.length + ')'; lbl.style.flex = '1 1 auto'; lbl.style.textTransform = 'uppercase'; lbl.style.letterSpacing = '.03em';
-    var tm = document.createElement('span'); tm.textContent = _agFmtMin(total); tm.style.cssText = 'font-weight:800;color:#555';
+    var tm = document.createElement('span'); tm.textContent = _agFmtMin(total); tm.style.cssText = 'font-weight:800;color:' + T.ink + ';font-variant-numeric:tabular-nums';
     head.append(chev, lbl, tm);
     var body = document.createElement('div'); body.style.display = 'none';
     body.appendChild(_agBarList(rows));
+    var open = false;
     head.addEventListener('click', function () {
-      var open = body.style.display === 'none';
+      open = !open;
       body.style.display = open ? 'block' : 'none';
-      chev.textContent = open ? '▾' : '▸';
+      chev.style.transform = open ? 'rotate(90deg)' : 'none';
     });
+    head.addEventListener('mouseenter', function () { head.style.opacity = '.7'; });
+    head.addEventListener('mouseleave', function () { head.style.opacity = '1'; });
     wrap.append(head, body);
     return wrap;
   }
@@ -1037,17 +1059,18 @@
   }
   // Lijst met mini-balken, gesorteerd (langste bovenaan) — schaalt op het grootste item.
   function _agBarList(rows) {
+    var T = ONSAH_TOKENS;
     var wrap = document.createElement('div');
-    if (!rows.length) { wrap.textContent = '—'; wrap.style.cssText = 'color:#888;font-size:12px'; return wrap; }
+    if (!rows.length) { wrap.textContent = 'Geen gegevens'; wrap.style.cssText = 'color:' + T.inkSoft + ';font-size:12px'; return wrap; }
     var max = rows.reduce(function (m, r) { return Math.max(m, r.minutes || 0); }, 0) || 1;
     rows.forEach(function (r) {
-      var row = document.createElement('div'); row.style.cssText = 'margin:0 0 4px';
+      var row = document.createElement('div'); row.style.cssText = 'margin:0 0 6px';
       var top = document.createElement('div'); top.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:12px';
-      var a = document.createElement('span'); a.textContent = r.type; a.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (r.type === 'Niet-gedefinieerd' ? '#999' : '#333');
-      var b = document.createElement('span'); b.textContent = _agFmtMin(r.minutes); b.style.cssText = 'font-weight:700;white-space:nowrap;color:#333';
+      var a = document.createElement('span'); a.textContent = r.type; a.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (r.type === 'Niet-gedefinieerd' ? T.inkSoft : T.ink);
+      var b = document.createElement('span'); b.textContent = _agFmtMin(r.minutes); b.style.cssText = 'font-weight:700;white-space:nowrap;color:' + T.ink + ';font-variant-numeric:tabular-nums';
       top.append(a, b); row.appendChild(top);
-      var track = document.createElement('div'); track.style.cssText = 'height:5px;border-radius:3px;background:#f0e6ee;overflow:hidden;margin-top:1px';
-      var fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:' + Math.max(3, Math.round((r.minutes || 0) / max * 100)) + '%;background:' + (r.type === 'Niet-gedefinieerd' ? '#c9b3c2' : '#cc087d');
+      var track = document.createElement('div'); track.style.cssText = 'height:5px;border-radius:3px;background:' + T.line + ';overflow:hidden;margin-top:2px';
+      var fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:' + Math.max(3, Math.round((r.minutes || 0) / max * 100)) + '%;background:' + (r.type === 'Niet-gedefinieerd' ? '#c7bfbc' : T.brand);
       track.appendChild(fl); row.appendChild(track);
       wrap.appendChild(row);
     });
@@ -9497,50 +9520,63 @@
     function agRenderMain() {
       const body = agBody(); if (!body) return;
       body.innerHTML = '';
-      const msg = document.createElement('div');
-      Object.assign(msg.style, { fontSize: '13px', color: '#333', lineHeight: '1.4' });
-      if (!greyEnabled) {
-        msg.textContent = 'Gekleurde dagindeling staat uit.';
-      } else if (!currentProfile) {
-        msg.textContent = 'Kies eerst een indeling via het extensie-icoontje in de browser.';
-      } else {
-        msg.textContent = 'Gekleurde dagindeling staat aan (' + ((PROFILES[currentProfile] && PROFILES[currentProfile].label) || currentProfile) + '). Zie de legenda onder de i-knop.';
-      }
-      body.appendChild(msg);
+      const T = ONSAH_TOKENS;
+      let text, tone;
+      if (!greyEnabled) { text = 'Gekleurde dagindeling staat uit.'; tone = 'off'; }
+      else if (!currentProfile) { text = 'Kies eerst een indeling via het extensie-icoontje in de browser.'; tone = 'warn'; }
+      else { text = 'Gekleurde dagindeling staat aan (' + ((PROFILES[currentProfile] && PROFILES[currentProfile].label) || currentProfile) + ').'; tone = 'ok'; }
+      const card = document.createElement('div');
+      const bg = tone === 'ok' ? T.okWash : (tone === 'warn' ? '#fff4d6' : T.lineSoft);
+      const fg = tone === 'ok' ? T.ok : (tone === 'warn' ? '#8a5a00' : T.inkSoft);
+      Object.assign(card.style, { display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '9px 10px', borderRadius: '10px', background: bg, color: fg, fontSize: '12.5px', lineHeight: '1.4', fontWeight: '600' });
+      const icon = tone === 'ok' ? svgSpineCheck() : svgInfoIcon();
+      icon.setAttribute('width', '13'); icon.setAttribute('height', '13');
+      Object.assign(icon.style, { width: '13px', height: '13px', flex: '0 0 auto', marginTop: '1px' });
+      card.appendChild(icon);
+      const lbl = document.createElement('span'); lbl.textContent = text;
+      card.appendChild(lbl);
+      body.appendChild(card);
     }
     function agRenderInfo() {
       const body = agBody(); if (!body) return;
       body.innerHTML = '';
+      const T = ONSAH_TOKENS;
       const back = document.createElement('button');
       back.type = 'button';
-      Object.assign(back.style, { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#fff', color: '#cc087d', fontWeight: '600', fontSize: '13px', width: '100%', marginBottom: '8px' });
+      Object.assign(back.style, { display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 10px', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + T.brand, background: '#fff', color: T.brand, fontWeight: '600', fontSize: '13px', width: '100%', marginBottom: '10px', boxSizing: 'border-box', transition: 'transform .12s ease, box-shadow .12s ease' });
       back.appendChild(agSvgIcon('M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z'));
       back.appendChild(document.createTextNode('Terug'));
+      back.addEventListener('mouseenter', function () { back.style.transform = 'translateY(-1px)'; back.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.25)'; });
+      back.addEventListener('mouseleave', function () { back.style.transform = 'none'; back.style.boxShadow = 'none'; });
       back.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); agInfoOpen = false; agRenderMain(); });
+      onsahFocusRing(back);
       body.appendChild(back);
       const txt = document.createElement('div');
       txt.textContent = 'Gebruik de Agendahulp voor een duidelijk agenda-overzicht.';
-      Object.assign(txt.style, { fontSize: '13px', color: '#333', lineHeight: '1.4', margin: '2px 0 8px' });
+      Object.assign(txt.style, { fontSize: '12.5px', color: T.inkSoft, lineHeight: '1.4', margin: '2px 0 10px' });
       body.appendChild(txt);
       // Legenda — venster volgt automatisch de zone-profielen (vroegste start t/m laatste eind).
       const legTitle = document.createElement('div');
       legTitle.textContent = 'Legenda (' + workdayWindowLabel() + ')';
-      Object.assign(legTitle.style, { fontSize: '12px', fontWeight: '700', color: '#333', margin: '0 0 4px' });
+      Object.assign(legTitle.style, { fontSize: '11px', fontWeight: '700', color: T.brand, textTransform: 'uppercase', letterSpacing: '.03em', margin: '0 0 6px' });
       body.appendChild(legTitle);
+      const legendWrap = document.createElement('div');
+      Object.assign(legendWrap.style, { display: 'flex', flexDirection: 'column', gap: '5px' });
       activeLegend().forEach(function (item) {
         const row = document.createElement('div');
-        Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 3px' });
+        Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px' });
         const sw = document.createElement('span');
-        Object.assign(sw.style, { width: '14px', height: '14px', borderRadius: '3px', background: item.color, border: '1px solid rgba(0,0,0,.15)', flex: '0 0 auto' });
-        const lbl = document.createElement('span');
-        lbl.textContent = item.text;
-        Object.assign(lbl.style, { fontSize: '12px', color: '#333', lineHeight: '1.3' });
-        row.appendChild(sw); row.appendChild(lbl);
-        body.appendChild(row);
+        Object.assign(sw.style, { width: '12px', height: '12px', borderRadius: '4px', background: item.color, border: '1px solid rgba(0,0,0,.12)', flex: '0 0 auto' });
+        const swLbl = document.createElement('span');
+        swLbl.textContent = item.text;
+        Object.assign(swLbl.style, { fontSize: '12px', color: T.ink, lineHeight: '1.3' });
+        row.appendChild(sw); row.appendChild(swLbl);
+        legendWrap.appendChild(row);
       });
+      body.appendChild(legendWrap);
       const ver = document.createElement('div');
       ver.textContent = 'Versie ' + VERSION;
-      Object.assign(ver.style, { fontSize: '12px', color: '#666', marginTop: '8px' });
+      Object.assign(ver.style, { fontSize: '11px', color: T.inkSoft, marginTop: '10px', paddingTop: '8px', borderTop: '1px solid ' + T.line });
       body.appendChild(ver);
     }
     // Huidige invitee-id uit de URL (of uit een dag-kolom).
@@ -9593,7 +9629,7 @@
     function sectionTitle(text) {
       const el = document.createElement('div');
       el.textContent = text;
-      Object.assign(el.style, { fontSize: '12px', fontWeight: '700', color: '#333', margin: '0 0 6px', borderTop: '1px solid #eee', paddingTop: '8px' });
+      Object.assign(el.style, { fontSize: '11px', fontWeight: '700', color: ONSAH_TOKENS.brand, textTransform: 'uppercase', letterSpacing: '.03em', margin: '0 0 6px', borderTop: '1px solid ' + ONSAH_TOKENS.line, paddingTop: '9px' });
       return el;
     }
     // Kleine gekleurde 'pill' met label + waarde.
@@ -9604,11 +9640,12 @@
       return s;
     }
     function statLine(client, overig) {
+      const T = ONSAH_TOKENS;
       const wrap = document.createElement('div');
       Object.assign(wrap.style, { margin: '2px 0 2px' });
-      wrap.appendChild(pill('Cliënt', fmtHM(client), '#e6f4ea', '#166a37'));
-      wrap.appendChild(pill('Overig', fmtHM(overig), '#eef0f2', '#555'));
-      wrap.appendChild(pill('Totaal', fmtHM(client + overig), '#fbe4f1', '#a1005f'));
+      wrap.appendChild(pill('Cliënt', fmtHM(client), T.okWash, T.ok));
+      wrap.appendChild(pill('Overig', fmtHM(overig), T.lineSoft, T.inkSoft));
+      wrap.appendChild(pill('Totaal', fmtHM(client + overig), T.brandWash, T.brand));
       return wrap;
     }
     function updateTotals(res) {
@@ -9646,13 +9683,23 @@
         return s;
       }
 
+      const T = ONSAH_TOKENS;
+      // Herbruikbare lift-hover (zelfde taal als de tegels elders): optillen +
+      // zachte schaduw i.p.v. alleen een kleurwissel.
+      function liftOnHover(card) {
+        card.addEventListener('mouseenter', function () { card.style.transform = 'translateY(-1px)'; card.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.22)'; });
+        card.addEventListener('mouseleave', function () { card.style.transform = 'none'; card.style.boxShadow = 'none'; });
+      }
+
       // Knop naar de weekweergave — alleen buiten de (werk)week-weergave.
       if (view !== 'workweek' && view !== 'week') {
         const weekBtn = document.createElement('button');
         weekBtn.type = 'button';
-        weekBtn.textContent = '◀ Naar weekweergave';
-        Object.assign(weekBtn.style, { display: 'block', width: '100%', margin: '4px 0 8px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #cc087d', background: '#fff', color: '#cc087d', fontWeight: '700', fontSize: '12px' });
+        weekBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;margin:4px 0 10px;padding:8px 10px;border-radius:10px;cursor:pointer;border:1px solid ' + T.brand + ';background:#fff;color:' + T.brand + ';font-weight:700;font-size:12px;transition:transform .12s ease, box-shadow .12s ease';
+        weekBtn.textContent = 'Naar weekweergave';
+        liftOnHover(weekBtn);
         weekBtn.addEventListener('click', function () { jumpToWeek(); });
+        onsahFocusRing(weekBtn);
         cont.appendChild(weekBtn);
       }
 
@@ -9662,19 +9709,21 @@
         // Standaard ingeklapt: alleen 'open' als de gebruiker dat eerder koos.
         var unregCollapsed = storageGet(UNREG_KEY, '1') !== '0';
         var secHead = document.createElement('div');
-        Object.assign(secHead.style, { display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '700', color: '#333', margin: '0 0 6px', borderTop: '1px solid #eee', paddingTop: '8px', userSelect: 'none' });
-        var chev = document.createElement('span');
-        chev.textContent = unregCollapsed ? '▸' : '▾';
-        Object.assign(chev.style, { color: '#8a4a70', fontSize: '11px', flex: '0 0 auto' });
+        Object.assign(secHead.style, { display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', color: T.brand, textTransform: 'uppercase', letterSpacing: '.03em', margin: '0 0 6px', borderTop: '1px solid ' + T.line, paddingTop: '9px', userSelect: 'none' });
+        var chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
+        chev.setAttribute('width', '11'); chev.setAttribute('height', '11');
+        chev.style.cssText = 'width:11px;height:11px;flex:0 0 auto;transition:transform .15s ease;transform:' + (unregCollapsed ? 'none' : 'rotate(90deg)');
         var secLbl = document.createElement('span'); secLbl.textContent = 'Ongeregistreerde tijd per dag';
         secLbl.style.flex = '1 1 auto';
         secHead.append(chev, secLbl);
         var secBody = document.createElement('div');
-        secBody.style.display = unregCollapsed ? 'none' : 'block';
+        secBody.style.display = unregCollapsed ? 'none' : 'flex';
+        secBody.style.flexDirection = 'column';
+        secBody.style.gap = '6px';
         secHead.addEventListener('click', function () {
           unregCollapsed = !unregCollapsed;
-          secBody.style.display = unregCollapsed ? 'none' : 'block';
-          chev.textContent = unregCollapsed ? '▸' : '▾';
+          secBody.style.display = unregCollapsed ? 'none' : 'flex';
+          chev.style.transform = unregCollapsed ? 'none' : 'rotate(90deg)';
           storageSet(UNREG_KEY, unregCollapsed ? '1' : '0');
         });
         cont.appendChild(secHead);
@@ -9682,21 +9731,20 @@
         pastDates.forEach(function (date) {
           const t = past[date];
           const card = document.createElement('div');
-          Object.assign(card.style, { margin: '0 0 6px', padding: '6px 8px', borderRadius: '8px', background: '#faf7f9', border: '1px solid #f0e6ee', cursor: inDayView ? 'default' : 'pointer' });
+          card.style.cssText = 'padding:7px 9px;border-radius:10px;background:#fff;border:1px solid ' + (inDayView ? T.line : T.brand) + ';cursor:' + (inDayView ? 'default' : 'pointer') + ';box-sizing:border-box;transition:transform .12s ease, box-shadow .12s ease';
           if (!inDayView) {
             card.title = 'Klik om naar deze dag te gaan';
-            card.addEventListener('mouseenter', function () { card.style.background = '#fbeaf3'; });
-            card.addEventListener('mouseleave', function () { card.style.background = '#faf7f9'; });
+            liftOnHover(card);
             card.addEventListener('click', function () { jumpToDay(date); });
           }
           const d = document.createElement('div');
           d.textContent = dayLabel(date);
-          Object.assign(d.style, { fontSize: '12px', fontWeight: '700', color: '#222', marginBottom: '2px' });
+          Object.assign(d.style, { fontSize: '12px', fontWeight: '700', color: T.ink, marginBottom: '3px' });
           // Compacte markeringen: te laat (>24u) en aanpasvenster-status.
-          if (t.lateCount > 0) d.appendChild(miniTag('te laat: ' + t.lateCount, '#9b1c1c', '#fde8e8', '#f0b0b0'));
+          if (t.lateCount > 0) d.appendChild(miniTag('te laat: ' + t.lateCount, T.bad, T.badWash, '#f0b0b0'));
           const ws = windowStatusForDate(date, windowStart);
-          if (ws === 'locked') d.appendChild(miniTag('vergrendeld', '#9b1c1c', '#fde8e8', '#f0b0b0'));
-          else if (ws === 'soon') d.appendChild(miniTag('verloopt binnenkort', '#7a5200', '#fff6e0', '#f0d08a'));
+          if (ws === 'locked') d.appendChild(miniTag('vergrendeld', T.bad, T.badWash, '#f0b0b0'));
+          else if (ws === 'soon') d.appendChild(miniTag('verloopt binnenkort', '#8a5a00', '#fff6e0', '#f0d08a'));
           card.appendChild(d);
           card.appendChild(statLine(t.client, t.overig));
           secBody.appendChild(card);
@@ -9713,31 +9761,36 @@
         cont.appendChild(sectionTitle('Nog te registreren' + (items.length ? ' (' + items.length + ')' : '')));
         if (!items.length) {
           const none = document.createElement('div');
-          none.textContent = 'Alles geregistreerd ✓';
-          Object.assign(none.style, { fontSize: '13px', fontWeight: '700', color: '#1b7f3b', lineHeight: '1.4', padding: '4px 0' });
+          none.style.cssText = 'display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:10px;background:' + T.okWash + ';color:' + T.ok + ';font-size:12.5px;font-weight:700';
+          const okIcon = svgSpineCheck();
+          okIcon.setAttribute('width', '13'); okIcon.setAttribute('height', '13');
+          okIcon.style.cssText = 'width:13px;height:13px;flex:0 0 auto';
+          none.append(okIcon, document.createTextNode('Alles geregistreerd'));
           cont.appendChild(none);
         } else {
+          const list = document.createElement('div');
+          list.style.cssText = 'display:flex;flex-direction:column;gap:6px';
           items.forEach(function (it) {
             const card = document.createElement('div');
-            Object.assign(card.style, { display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 6px', padding: '7px 9px', borderRadius: '8px', background: '#fff', border: '1px solid ' + (it.client ? '#f3c6dd' : '#e2e2e2'), cursor: 'pointer' });
+            card.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#fff;border:1px solid ' + (it.client ? T.brand : T.line) + ';cursor:pointer;box-sizing:border-box;transition:transform .12s ease, box-shadow .12s ease';
             card.title = 'Klik om de afspraak te openen';
-            card.addEventListener('mouseenter', function () { card.style.background = '#fbeaf3'; });
-            card.addEventListener('mouseleave', function () { card.style.background = '#fff'; });
+            liftOnHover(card);
             card.addEventListener('click', function () { openOccurrence(it.el); });
             const time = document.createElement('span');
             time.textContent = it.time || '--:--';
-            Object.assign(time.style, { fontSize: '12px', fontWeight: '800', color: '#a1005f', fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' });
+            Object.assign(time.style, { fontSize: '12px', fontWeight: '800', color: T.brand, fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' });
             card.appendChild(time);
             const name = document.createElement('span');
             name.textContent = it.name;
-            Object.assign(name.style, { fontSize: '12px', color: '#222', flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
+            Object.assign(name.style, { fontSize: '12px', color: T.ink, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
             card.appendChild(name);
             const tag = document.createElement('span');
             tag.textContent = it.client ? 'cliënt' : 'overig';
-            Object.assign(tag.style, { fontSize: '10px', fontWeight: '700', color: it.client ? '#166a37' : '#666', background: it.client ? '#e6f4ea' : '#eef0f2', borderRadius: '8px', padding: '1px 7px', flex: '0 0 auto' });
+            Object.assign(tag.style, { fontSize: '10px', fontWeight: '700', color: it.client ? T.ok : T.inkSoft, background: it.client ? T.okWash : T.lineSoft, borderRadius: '8px', padding: '1px 7px', flex: '0 0 auto' });
             card.appendChild(tag);
-            cont.appendChild(card);
+            list.appendChild(card);
           });
+          cont.appendChild(list);
         }
       }
     }
