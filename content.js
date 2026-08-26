@@ -5360,14 +5360,19 @@
     renderState();
     return wrap;
   }
-  // Voor afspraakduur specifiek: boven de PICKER_CHIP_LIMIT eerst het aantal
-  // hele uren laten kiezen en pas daarna (indien nodig) de minuten, óf (als
-  // dat per afspraaktype zo ingesteld is via Overige -> Duurkeuze bij veel
-  // opties) de schuifregelaar of de twee-koloms-weergave.
+  // Voor afspraakduur: 'slider' en 'columns' zijn EXPLICIETE keuzes (alleen
+  // bereikbaar door dat bij een afspraaktype in te stellen via Overige ->
+  // Duurkeuze bij veel opties) en gelden daarom altijd, ongeacht het aantal
+  // opties — anders zou een ingestelde schuifregelaar/twee-koloms-weergave
+  // bij een klein aantal opties (bv. 12) alsnog overschreven worden door de
+  // standaard-chipgrid, wat 'm in de praktijk onbruikbaar maakt. Alleen de
+  // standaardstijl 'hourMinute' (of geen expliciete keuze) behoudt het oude
+  // automatische gedrag: chipgrid bij een overzichtelijk aantal opties
+  // (<= PICKER_CHIP_LIMIT), anders pas de uren-dan-minuten-weergave.
   function mkDurationPicker(values, onPick, style) {
-    if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
     if (style === 'slider') return mkTimePicker(values, values[0], onPick);
     if (style === 'columns') return mkTwoColumnDurationPicker(values, onPick);
+    if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
     return mkHourMinutePicker(values, onPick);
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
