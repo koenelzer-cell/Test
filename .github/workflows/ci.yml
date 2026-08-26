@@ -1,0 +1,40 @@
+name: CI
+
+# Bouwt de extensie, controleert syntax en draait de test-suite (jsdom +
+# node:test) bij elke push en pull request.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 22 opzetten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dependencies installeren
+        run: npm ci || npm install
+
+      - name: content.js bouwen
+        run: npm run build
+
+      - name: Syntaxcontrole (content.js + popup.js)
+        run: npm run check
+
+      - name: Beheerscherm inline-scripts parsen
+        run: |
+          node -e "const fs=require('fs');const h=fs.readFileSync('beheer_u.html','utf8');const m=[...h.matchAll(/<script>([\s\S]*?)<\/script>/g)];let n=0;for(const s of m){n++;new Function(s[1]);}console.log('beheerscherm: '+n+' inline-scripts OK');"
+
+      - name: Manifest valideren (geldige JSON + MV3)
+        run: |
+          node -e "const m=require('./manifest.json');if(m.manifest_version!==3)throw new Error('geen MV3');if(!m.version)throw new Error('geen versie');console.log('manifest OK: v'+m.version);"
+
+      - name: Tests draaien (jsdom + fixtures)
+        run: node --test --test-force-exit test/*.test.js

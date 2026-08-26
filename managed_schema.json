@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "title": "Extensie ingeschakeld (hoofdschakelaar)",
+      "description": "Zet de volledige extensie uit wanneer false.",
+      "type": "boolean"
+    },
+    "appointmentHelperEnabled": {
+      "title": "Afspraakhulp ingeschakeld",
+      "type": "boolean"
+    },
+    "registrationHelperEnabled": {
+      "title": "Registratiehulp ingeschakeld",
+      "type": "boolean"
+    },
+    "surveyHelperEnabled": {
+      "title": "Vragenlijst-checklist ingeschakeld",
+      "type": "boolean"
+    },
+    "surveyAuditEnabled": {
+      "title": "Vragenlijst achtergrond-audit en Volgende-status-controle ingeschakeld",
+      "type": "boolean"
+    },
+    "helperConfig": {
+      "title": "Beheerbare configuratie (uit het beheerscherm)",
+      "description": "Overschrijft afspraaktypes, registratievormen, teksten, functies, instellingen per bedrijfsonderdeel en team, kleuren en zone-profielen.",
+      "type": "object"
+    }
+  }
+}
