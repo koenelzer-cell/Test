@@ -727,6 +727,13 @@
         <label class="beheer-veld"><span>Stapduur (min)</span><input id="tsdStep" type="number" min="1" max="240"></label>
         <label class="beheer-veld"><span>Maximale tijd (min)</span><input id="tsdMax" type="number" min="1" max="1440"></label>
       </div>
+      <label class="beheer-veld" style="margin-top:10px"><span>Duurkeuze bij veel opties (&gt; 16)</span>
+        <select id="tsdPickerStyle">
+          <option value="hourMinute">Eerst uren, dan minuten</option>
+          <option value="slider">Schuifregelaar</option>
+        </select>
+      </label>
+      <p class="uitleg" style="margin:4px 0 0">Bij 16 of minder duur-opties (op basis van stapduur/max hierboven) toont de hulp altijd een chipsrooster; dit bepaalt alleen de weergave als dat er te veel worden.</p>
       <label class="beheer-veld" style="margin-top:10px"><span>Informatielabel</span><textarea id="tsdInfo" rows="5" placeholder="bijv. uitleg die de medewerker ziet bij het 'i'-icoon" style="width:100%;min-height:110px;resize:vertical;font:inherit;border:1px solid #ddd;border-radius:7px;padding:8px 9px"></textarea></label>
     </div>
     <div class="acties"><button class="knop" type="button" onclick="closeTypeSettings()">Annuleren</button><button class="knop primair" type="button" onclick="saveTypeSettings()">Opslaan</button></div>
@@ -1472,27 +1479,27 @@ function dupBtn(fn) { const b = document.createElement('button'); b.type = 'butt
 function delIconBtn(fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'rij-actie rood'; b.innerHTML = SVG_DEL; b.title = 'Verwijder'; b.setAttribute('aria-label', 'Verwijder'); b.onclick = () => { fn(); markDirty(); }; return b; }
 function rowActions(dupFn, delFn) { const s = document.createElement('span'); s.className = 'rij-acties'; s.append(dupBtn(dupFn), delIconBtn(delFn)); return s; }
 // ---- Per-type "overige instellingen": standaardduur/stapduur/max/informatielabel via ⚙-modal ----
-function defaultTypeSettings() { return { defaultDuration:0, durationStep:15, maxDuration:180, info:'' }; }
-function typeSettingsCustomized(s, base) { base = base || defaultTypeSettings(); return !!s && (s.defaultDuration !== base.defaultDuration || s.durationStep !== base.durationStep || s.maxDuration !== base.maxDuration || (s.info || '') !== ''); }
+function defaultTypeSettings() { return { defaultDuration:0, durationStep:15, maxDuration:180, pickerStyle:'hourMinute', info:'' }; }
+function typeSettingsCustomized(s, base) { base = base || defaultTypeSettings(); return !!s && (s.defaultDuration !== base.defaultDuration || s.durationStep !== base.durationStep || s.maxDuration !== base.maxDuration || (s.pickerStyle || 'hourMinute') !== base.pickerStyle || (s.info || '') !== ''); }
 function refreshGear(b, tr) { if (!b) return; const on = typeSettingsCustomized(tr._settings, tr._settingsBase); b.style.color = on ? '#cc087d' : ''; b.style.borderColor = on ? '#cc087d' : ''; b.title = on ? 'Overige instellingen (aangepast)' : 'Overige instellingen'; }
 function gearBtn(tr) { const b = document.createElement('button'); b.type = 'button'; b.className = 'rij-actie'; b.textContent = '⚙'; b.setAttribute('aria-label', 'Overige instellingen'); b.onclick = () => openTypeSettings(tr, b); refreshGear(b, tr); return b; }
 let _tsdRow = null, _tsdBtn = null;
 function openTypeSettings(tr, btn) {
   _tsdRow = tr; _tsdBtn = btn; const s = tr._settings || defaultTypeSettings();
   const nm = tr.querySelector('input[type=text]'); $('#tsdName').textContent = (nm && nm.value) || 'dit type';
-  $('#tsdDefault').value = s.defaultDuration || 0; $('#tsdStep').value = s.durationStep || 15; $('#tsdMax').value = s.maxDuration || 180; $('#tsdInfo').value = s.info || '';
+  $('#tsdDefault').value = s.defaultDuration || 0; $('#tsdStep').value = s.durationStep || 15; $('#tsdMax').value = s.maxDuration || 180; $('#tsdPickerStyle').value = s.pickerStyle || 'hourMinute'; $('#tsdInfo').value = s.info || '';
   const d = $('#typeSettingsDialog'); if (d.showModal) { try { d.showModal(); } catch (e) { d.setAttribute('open', ''); } } else d.setAttribute('open', '');
 }
 function closeTypeSettings() { const d = $('#typeSettingsDialog'); if (d.close) { try { d.close(); } catch (e) { d.removeAttribute('open'); } } else d.removeAttribute('open'); }
 function _numOr(sel, dflt) { const n = parseInt($(sel).value, 10); return Number.isFinite(n) ? n : dflt; }
 function saveTypeSettings() {
   if (_tsdRow) {
-    _tsdRow._settings = { defaultDuration: Math.max(0, _numOr('#tsdDefault', 0)), durationStep: Math.max(1, _numOr('#tsdStep', 15)), maxDuration: Math.max(1, _numOr('#tsdMax', 180)), info: ($('#tsdInfo').value || '').trim() };
+    _tsdRow._settings = { defaultDuration: Math.max(0, _numOr('#tsdDefault', 0)), durationStep: Math.max(1, _numOr('#tsdStep', 15)), maxDuration: Math.max(1, _numOr('#tsdMax', 180)), pickerStyle: ($('#tsdPickerStyle').value === 'slider' ? 'slider' : 'hourMinute'), info: ($('#tsdInfo').value || '').trim() };
     refreshGear(_tsdBtn, _tsdRow); markDirty();
   }
   closeTypeSettings();
 }
-function settingsFromObj(c, base) { const b = base || defaultTypeSettings(); return { defaultDuration: c && c.defaultDuration != null ? c.defaultDuration : b.defaultDuration, durationStep: c && c.durationStep != null ? c.durationStep : b.durationStep, maxDuration: c && c.maxDuration != null ? c.maxDuration : b.maxDuration, info: (c && c.info) || '' }; }
+function settingsFromObj(c, base) { const b = base || defaultTypeSettings(); return { defaultDuration: c && c.defaultDuration != null ? c.defaultDuration : b.defaultDuration, durationStep: c && c.durationStep != null ? c.durationStep : b.durationStep, maxDuration: c && c.maxDuration != null ? c.maxDuration : b.maxDuration, pickerStyle: (c && c.pickerStyle === 'slider') ? 'slider' : 'hourMinute', info: (c && c.info) || '' }; }
 // ---- Categorieën voor niet-cliëntgebonden types: eerst definiëren, dan kiezen via dropdown ----
 let _ncCategories = [];
 let _ncCategoryVolg = {}; // categorie -> volgorde (0..oneindig; leeg = achteraan)
@@ -1677,7 +1684,7 @@ function fillNcCategoryOptions(sel, val) {
   sel.value = cur || '';
 }
 function refreshNcCategoryDropdowns() { [...document.querySelectorAll('#tblNonClientChoices select[data-nccat]')].forEach((sel) => fillNcCategoryOptions(sel)); }
-function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); const etiketBtn = tr.querySelector('[data-choice-labels]'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), kleur:(etiketBtn ? etiketBtn._kleur : '') || '', volgorde:rowVolg(tr) }; }
+function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); const etiketBtn = tr.querySelector('[data-choice-labels]'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, pickerStyle:(tr._settings||{}).pickerStyle, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), kleur:(etiketBtn ? etiketBtn._kleur : '') || '', volgorde:rowVolg(tr) }; }
 function formFromRow(tr) { const c = tr.querySelectorAll('input[type=checkbox]'); const pct = tr.querySelector('input[data-role=pct]'); const typ = tr.querySelector('select[data-role=svtype]'); const g = (r) => { const el = tr.querySelector('[data-role=' + r + ']'); return el ? el.value : ''; }; const ex = tr._formExtra || {}; return { vorm:g('vorm'), startVerdeling:(parseInt(pct.value, 10) || 0) + '% ' + typ.value, uursoort:g('us'), eindtijdBeginPlusMin:parseInt(ex.eindtijdBeginPlusMin, 10) || 0, rapportagePrefix:ex.rapportagePrefix || '', vraagDirecteTijd:c[0].checked, vraagIndirecteTijd:c[1].checked, vraagReistijd:c[2].checked, labels:pickerVals(tr,'_labels'), relevantForTeams:pickerVals(tr,'_teams'), volgorde:rowVolg(tr) }; }
 
 // ----- kleur-helpers -----
@@ -1755,7 +1762,7 @@ function readChoices() {
 }
 function minuteSettingInput(value,role,min) { const i=document.createElement('input');i.type='number';i.min=String(min==null?0:min);i.max='1440';i.value=String(value==null?'':value);i.dataset.role=role;i.style.cssText='width:72px;border:1px solid #ddd;border-radius:6px;padding:4px 5px;font:inherit';i.addEventListener('input',markDirty);return i; }
 function flattenNonClientCategories(categories){const out=[];sortByVolgorde(categories||[]).forEach((cat)=>{const items=cat.directOption?[cat.directOption]:sortByVolgorde(cat.options||[]);items.forEach((opt)=>out.push(Object.assign({category:cat.label||''},opt)));});return out;}
-function nonClientFromRow(tr){const catSel=tr.querySelector('select[data-nccat]'),texts=tr.querySelectorAll('input[type=text]'),free=tr.querySelector('input[type=checkbox]'),s=tr._settings||defaultTypeSettings();return {category:catSel?catSel.value.trim():'',display:texts[0].value.trim(),uursoort:texts[1].value.trim(),etiket:texts[2]?texts[2].value.trim():'',freeTitle:!!(free&&free.checked),defaultDuration:s.defaultDuration,durationStep:s.durationStep,maxDuration:s.maxDuration,info:s.info||'',volgorde:rowVolg(tr)};}
+function nonClientFromRow(tr){const catSel=tr.querySelector('select[data-nccat]'),texts=tr.querySelectorAll('input[type=text]'),free=tr.querySelector('input[type=checkbox]'),s=tr._settings||defaultTypeSettings();return {category:catSel?catSel.value.trim():'',display:texts[0].value.trim(),uursoort:texts[1].value.trim(),etiket:texts[2]?texts[2].value.trim():'',freeTitle:!!(free&&free.checked),defaultDuration:s.defaultDuration,durationStep:s.durationStep,maxDuration:s.maxDuration,pickerStyle:s.pickerStyle,info:s.info||'',volgorde:rowVolg(tr)};}
 function addNonClientChoice(value){
   const c=value||{category:'',display:'',uursoort:'',freeTitle:false,defaultDuration:0,durationStep:15,maxDuration:480},tr=document.createElement('tr');
   tr._settingsBase={defaultDuration:0,durationStep:15,maxDuration:480,info:''};
@@ -1765,7 +1772,7 @@ function addNonClientChoice(value){
   tr.append(cell(volgInput(c.volgorde),'center'),cell(category),cell(display),cell(uursoort),cell(etiket),cell(free,'center'),cell(gearBtn(tr),'center'),cell(rowActions(()=>addNonClientChoice(nonClientFromRow(tr)),()=>tr.remove()),'center'));
   $('#tblNonClientChoices tbody').appendChild(tr);
 }
-function readNonClientCategories(){const groups=new Map();[...$('#tblNonClientChoices tbody').children].map(nonClientFromRow).filter((x)=>x.category&&x.display).forEach((row)=>{if(!groups.has(row.category))groups.set(row.category,[]);const opt={display:row.display,uursoort:row.uursoort,freeTitle:row.freeTitle,defaultDuration:row.defaultDuration,durationStep:row.durationStep,maxDuration:row.maxDuration};if(row.etiket)opt.etiket=row.etiket;if(row.info)opt.info=row.info;if(row.volgorde!=null)opt.volgorde=row.volgorde;groups.get(row.category).push(opt);});const cats=[...groups].map(([label,rawItems])=>{const items=sortByVolgorde(rawItems);const cat=items.length===1&&items[0].freeTitle&&items[0].display.toLowerCase()===label.toLowerCase()?{label,directOption:items[0]}:{label,options:items};if(_ncCategoryVolg[label]!=null)cat.volgorde=_ncCategoryVolg[label];return cat;});return sortByVolgorde(cats);}
+function readNonClientCategories(){const groups=new Map();[...$('#tblNonClientChoices tbody').children].map(nonClientFromRow).filter((x)=>x.category&&x.display).forEach((row)=>{if(!groups.has(row.category))groups.set(row.category,[]);const opt={display:row.display,uursoort:row.uursoort,freeTitle:row.freeTitle,defaultDuration:row.defaultDuration,durationStep:row.durationStep,maxDuration:row.maxDuration};if(row.etiket)opt.etiket=row.etiket;if(row.pickerStyle==='slider')opt.pickerStyle=row.pickerStyle;if(row.info)opt.info=row.info;if(row.volgorde!=null)opt.volgorde=row.volgorde;groups.get(row.category).push(opt);});const cats=[...groups].map(([label,rawItems])=>{const items=sortByVolgorde(rawItems);const cat=items.length===1&&items[0].freeTitle&&items[0].display.toLowerCase()===label.toLowerCase()?{label,directOption:items[0]}:{label,options:items};if(_ncCategoryVolg[label]!=null)cat.volgorde=_ncCategoryVolg[label];return cat;});return sortByVolgorde(cats);}
 
 // ----- 2. Label -> vorm (vorm gekozen uit de registratievormen hierboven) -----
 function formNames() {

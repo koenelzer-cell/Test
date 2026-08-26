@@ -5293,10 +5293,12 @@
     return values.length > PICKER_CHIP_LIMIT ? mkTimePicker(values, initial, onPick) : mkChipGrid(values, onPick);
   }
   // Voor afspraakduur specifiek: boven de PICKER_CHIP_LIMIT eerst het aantal
-  // hele uren laten kiezen en pas daarna (indien nodig) de minuten, i.p.v. de
-  // schuifregelaar van mkTimePicker.
-  function mkDurationPicker(values, onPick) {
-    return values.length > PICKER_CHIP_LIMIT ? mkHourMinutePicker(values, onPick) : mkChipGrid(values, onPick);
+  // hele uren laten kiezen en pas daarna (indien nodig) de minuten, óf (als
+  // dat per afspraaktype zo ingesteld is via Overige -> Duurkeuze bij veel
+  // opties) de schuifregelaar van mkTimePicker.
+  function mkDurationPicker(values, onPick, style) {
+    if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
+    return style === 'slider' ? mkTimePicker(values, values[0], onPick) : mkHourMinutePicker(values, onPick);
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
@@ -6367,7 +6369,7 @@
         scheduleAppointmentEndTime(m);
         [100, 300].forEach(function (d) { setTimeout(function () { safe(function () { enforceAppointmentEndTime(m); }); }, d); });
       }); }, 50);
-    }); }));
+    }); }, opt.pickerStyle));
     setStatus('Kies de duur');
   }
   // 'Overig': geen uursoort. Eis dat de gebruiker de titel "Overig - ..." aanvult;
@@ -6548,7 +6550,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum('durationStepMin',15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum('registrationMaxMin',180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes))));
+    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle));
   }
   function showAppointmentTravelSelection(choice) {
     const body = $body(); if (!body) return;
@@ -7383,7 +7385,7 @@
       scheduleReapplyRegistrationSplit();
       setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : 'Eindtijd niet gezet', endOk);
       setTimeout(() => routeAfterRegistrationDuration(choice), 200);
-    })));
+    }), choice.pickerStyle));
     setStatus('Kies de duur');
   }
   function routeAfterRegistrationDuration(choice) {
@@ -7553,7 +7555,7 @@
       setStatus(`${choice.label} ${registrationDurationLabel(minutes)}${endOk && splitOk ? '' : ' | tijd/verdeling deels gezet'}`, endOk && splitOk);
       registrationFlowBusy = true;
       setTimeout(() => { registrationFlowBusy = false; safe(() => choice.addTravelTime ? showRegistrationTravelSelection(choice) : showRegistrationHourTypeSelection()); }, 320);
-    })));
+    }), choice.pickerStyle));
   }
   function selectHourTypeInNativeSelects(text) {
     const selects = deepQueryAll('select')
