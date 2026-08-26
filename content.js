@@ -821,7 +821,7 @@
     var box = document.createElement('div'); box.setAttribute('data-ons-week-panel', '1');
     box.style.cssText = 'font-size:12px;color:#222';
     var scopeLabel = (opts.scope === 'dag' ? 'Dagoverzicht' : 'Weekoverzicht');
-    var titleText = scopeLabel + (opts.week ? ' — week ' + opts.week : '');
+    var titleText = scopeLabel + (opts.week ? ', week ' + opts.week : '');
     if (opts.embedded) {
       var t0 = document.createElement('div');
       t0.textContent = titleText + ' ';
