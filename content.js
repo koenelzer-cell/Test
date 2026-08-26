@@ -35,12 +35,12 @@
   const DEFAULT_APP_CONFIG = {
     // Tabel 1: keuze in de helper -> ONS-label + gedrag.
     choices: [
-      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true },
-      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false },
-      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false },
-      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false },
-      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false },
-      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false },
+      { label: 'Huisbezoek',      etiket: 'JG Huisbezoek',              clientPresent: true,  pickUursoort: true, addTravelTime: true,  kleur: 'rood' },
+      { label: 'Digitaal',        etiket: 'ALL Beeldbellen',            clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
+      { label: 'MDO',             etiket: 'JG MDO',                     clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
+      { label: 'Face 2 face',     etiket: 'JG Face to face kantoor',    clientPresent: true,  pickUursoort: true, addTravelTime: false, kleur: 'blauw' },
+      { label: 'Verslaglegging',  etiket: 'JG Verslaglegging',          clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'geel' },
+      { label: 'Zorgcoördinatie', etiket: 'JG Zorgcoördinatie',         clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: 'groen' },
     ],
     // Extra bekende labels (naast de etiketten uit choices) die de opschoning kent.
     extraKnownLabels: [],
@@ -64,11 +64,6 @@
       blauw: { naam: 'Blauw', fill: 'rgba(70,130,210,0.16)', legend: 'rgba(70,130,210,0.45)' },
       groen: { naam: 'Groen', fill: 'rgba(60,170,90,0.18)',  legend: 'rgba(60,170,90,0.50)' },
     },
-    // Kleur van de stipjes vóór elke keuze in de Afspraakhulp — verwijst naar
-    // een kleur-key uit het palet hierboven (instelbaar in het beheerscherm,
-    // bij Afspraaktypes). 'visit'/'rest' wisselen om en om voor cliëntgebonden
-    // keuzes, 'admin'/'meet' voor niet-cliëntgebonden keuzes.
-    categoryDotColors: { visit: 'rood', rest: 'blauw', admin: 'geel', meet: 'groen' },
     profileSectors: { 'JGGZ': 'Jeugd & Gezin', 'J&O/JBG': 'Jeugd & Gezin', 'Begeleiding': 'Begeleiding' },
     // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
     zoneProfiles: {
@@ -1511,10 +1506,14 @@
       const sv = String(f.startVerdeling || '').match(/(\d+)\s*%\s*(direct|indirect)/i);
       if (sv) {
         const pct = Math.max(0, Math.min(100, parseInt(sv[1], 10) || 0));
-        const directPct = /indirect/i.test(sv[2]) ? (100 - pct) : pct;
+        const word = sv[2].toLowerCase();
+        const directPct = word === 'indirect' ? (100 - pct) : pct;
         if (directPct === 100) o.directFullDuration = true;
         else if (directPct === 0) o.indirectFullDuration = true;
         else o.startSplit = { directPct: directPct, indirectPct: 100 - directPct };
+        // Knoptekst-label o.b.v. de ingestelde verdeling: 100% -> enkel het woord,
+        // anders het hoofdwoord eerst met het andere erachter (bv. "80% direct" -> "direct/indirect").
+        o.directIndirectLabel = pct >= 100 ? word : (word === 'direct' ? 'direct/indirect' : 'indirect/direct');
       }
       if (f.vraagDirecteTijd) o.askDirectPortion = true;
       if (f.vraagIndirecteTijd) o.askIndirectPortion = true;
@@ -4976,9 +4975,17 @@
     return m ? ('rgb(' + m[1] + ',' + m[2] + ',' + m[3] + ')') : '#999';
   }
   function onsahCategoryColor(clientPresent, index) {
-    const map = APP_CONFIG.categoryDotColors || {};
-    const pair = clientPresent ? [map.visit || 'rood', map.rest || 'blauw'] : [map.admin || 'geel', map.meet || 'groen'];
+    const pair = clientPresent ? ['rood', 'blauw'] : ['geel', 'groen'];
     return onsahPaletteSolidColor(pair[(index || 0) % 2]);
+  }
+  // Stipkleur per afspraaktype-keuze: leest het per-rij 'kleur'-veld (instelbaar
+  // in het beheerscherm, bij Afspraaktypes -> vlak onder Labels in ONS, zodat
+  // je 'm kunt matchen met de labelkleur die ONS zelf toont). Ontbreekt dat
+  // veld (bv. een oudere config), dan valt dit terug op de vaste afwisseling.
+  function onsahChoiceDotColor(choice, index) {
+    const key = choice && choice.kleur;
+    if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
+    return onsahCategoryColor(choice && choice.clientPresent, index);
   }
   // Registratievormen hebben geen clientPresent-veld, maar wel een
   // direct/indirect-verdeling (zelfde onderliggende onderscheid).
@@ -5171,11 +5178,13 @@
     return svg;
   }
   // Zijwaartse chevron: het paneel klapt in de spine (opzij), niet meer
-  // verticaal samen. Links = "klap in (richting de spine)", rechts = "klap uit".
+  // verticaal samen. De spine zit vast tegen de rechterkant; het paneel
+  // vouwt daarvandaan naar links open. Rechts = "klap uit (naar links open)",
+  // links = "klap in (terug naar de spine)".
   function setChevronIcon(button, collapsed) {
     if (!button) return;
     button.textContent = '';
-    button.appendChild(svgIcon(collapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
+    button.appendChild(svgIcon(collapsed ? 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z' : 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
   }
   function mkBackButton(onClick, label) {
     // Elke Terug-klik geeft ~1,2s rust aan de auto-refresh, zodat de navigatie
@@ -5520,7 +5529,7 @@
     CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
       pendingChoice = choice;
       prepareClientAndHandleChoice(choice);
-    }), { tick: onsahCategoryColor(choice.clientPresent, i) })));
+    }), { tick: onsahChoiceDotColor(choice, i) })));
     addResetButton(body);
     setStatus('');
   }
@@ -5530,7 +5539,7 @@
     Object.assign(note.style, { fontSize: '13px', color: '#b3261e', lineHeight: '1.35', padding: '4px 0 8px' });
     body.appendChild(note);
     CONFIG.choices.forEach((choice, i) => {
-      const b = mkButton(choice.label, () => {}, { tick: onsahCategoryColor(choice.clientPresent, i) });
+      const b = mkButton(choice.label, () => {}, { tick: onsahChoiceDotColor(choice, i) });
       try { b.disabled = true; } catch (e) {}
       b.setAttribute('aria-disabled', 'true');
       Object.assign(b.style, { opacity: '0.45', cursor: 'not-allowed' });
@@ -8620,7 +8629,8 @@
       return;
     }
     REGISTRATION_CHOICES.forEach((choice, i) => {
-      body.appendChild(mkButton(choice.label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i) }));
+      const label = choice.label + (choice.directIndirectLabel ? ' (' + choice.directIndirectLabel + ')' : '');
+      body.appendChild(mkButton(label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i) }));
     });
     const reset = mkButton('Instellingen verwijderen', () => safe(clearRegistrationSettings), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
     body.appendChild(reset);
@@ -8894,8 +8904,12 @@
     status.setAttribute('data-status', '');
     Object.assign(status.style, { padding: '0 12px 12px' });
     mainCol.appendChild(status);
-    popupEl.appendChild(spine);
+    // mainCol vóór de spine: zo blijft de spine (het klikbare handvat) altijd
+    // exact op dezelfde plek tegen de rechterkant, ook tijdens het animeren
+    // van de breedte — het paneel vouwt daarvandaan naar links open in plaats
+    // van dat de spine zelf wegschuift van de rand.
     popupEl.appendChild(mainCol);
+    popupEl.appendChild(spine);
     refreshMainScreen();
     setPopupCollapsed(popupCollapsed);
     // Houd de popup volledig in beeld zodra de inhoud (en dus de hoogte) verandert.
@@ -9653,7 +9667,7 @@
     // Zijwaartse chevron, zelfde richting-logica als de Afspraakhulp-popup.
     function agSetChevron(btn) {
       btn.textContent = '';
-      btn.appendChild(agSvgIcon(agCollapsed ? 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z' : 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z'));
+      btn.appendChild(agSvgIcon(agCollapsed ? 'M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z' : 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z'));
     }
     function agBody() { return agPopup && agPopup.querySelector('[data-ag-body]'); }
     // Klapt ZIJWAARTS in/uit (breedte naar 0, spine blijft zichtbaar), net als
@@ -9669,6 +9683,7 @@
         mainCol.style.pointerEvents = c ? 'none' : 'auto';
       }
       if (chev) { agSetChevron(chev); chev.setAttribute('aria-label', c ? 'Agendahulp uitklappen' : 'Agendahulp inklappen'); }
+      agApplyMaxSize();
       // Bij uitklappen alles geforceerd opnieuw tekenen (stond tijdens inklappen stil).
       if (!c) { _totalsSig = null; updateTotals(); safe(refreshAgendaWeekApi); }
     }
@@ -10022,7 +10037,8 @@
       if (agPopup) return;
       ensureOnsAhBaseStyles();
       agPopup = document.createElement('div');
-      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', right: '24px', bottom: '24px', top: 'auto', left: 'auto', maxHeight: 'calc(100vh - 48px)', background: '#fff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+      Object.assign(agPopup.style, { position: 'fixed', zIndex: '2147483646', right: '24px', bottom: '24px', top: 'auto', left: 'auto', background: '#fff', color: '#201d1f', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+      agApplyMaxSize();
       const agSpine = document.createElement('div');
       agSpine.setAttribute('role', 'button');
       agSpine.setAttribute('tabindex', '0');
@@ -10121,8 +10137,10 @@
       weekBox.setAttribute('data-ag-week', '');
       Object.assign(weekBox.style, { padding: '0 12px 12px' });
       agMainCol.appendChild(weekBox);
-      agPopup.appendChild(agSpine);
+      // mainCol vóór de spine: zelfde reden als bij de Afspraakhulp-popup —
+      // de spine blijft zo altijd op dezelfde plek tegen de rechterkant staan.
       agPopup.appendChild(agMainCol);
+      agPopup.appendChild(agSpine);
       document.body.appendChild(agPopup);
       // Standaard rechtsonder in beeld (via CSS right/bottom); alleen als de
       // gebruiker het paneel zelf heeft versleept, gebruiken we die positie.
@@ -10132,6 +10150,18 @@
       safe(refreshAgendaWeekApi); // meteen het weekoverzicht laden
     }
     function removeAgPopup() { if (agPopup) { agPopup.remove(); agPopup = null; } _totalsSig = null; }
+    // De widget mag nooit groter worden dan 2/3 van het scherm: bij een lange
+    // uitsplitsing/weekoverzicht scrollt de inhoud intern (agMainCol) in
+    // plaats van dat de hele widget doorgroeit.
+    function agPopupMaxSize() {
+      return { maxHeight: Math.max(160, Math.round(window.innerHeight * 2 / 3)), maxWidth: Math.max(220, Math.round(window.innerWidth * 2 / 3)) };
+    }
+    function agApplyMaxSize() {
+      if (!agPopup) return;
+      const s = agPopupMaxSize();
+      agPopup.style.maxHeight = s.maxHeight + 'px';
+      agPopup.style.maxWidth = s.maxWidth + 'px';
+    }
     function agClamp(left, top) {
       const w = (agPopup && agPopup.offsetWidth) || 260;
       const h = (agPopup && agPopup.offsetHeight) || 120;
@@ -10169,6 +10199,7 @@
       });
       observer.observe(document.documentElement, { childList: true, subtree: true });
       window.addEventListener('resize', schedule);
+      window.addEventListener('resize', agApplyMaxSize);
       // De MutationObserver hierboven vangt vrijwel alle wijzigingen op; een
       // rustige 250ms-fallback dekt gevallen die geen DOM-mutatie geven
       // (bijv. layout-only). 20×/sec verven is niet nodig.

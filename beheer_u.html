@@ -343,9 +343,6 @@
       <div class="rijknoppen"><button class="knop klein" onclick="addChoice()">+ Regel</button></div>
       <label class="beheer-veld" style="margin-top:14px;max-width:640px"><span>Extra bekende labels (komma-gescheiden)</span><input id="extraLabels" type="text" placeholder="bijv. JG Overig" onchange="markDirty()"></label>
       <p class="uitleg" style="margin-top:4px">Labels die de hulp herkent naast de afspraaktypes hierboven (bijv. bij het opschonen van labels). Standaard: <b>JG Overig</b>.</p>
-      <h3 style="font-size:13px;margin:16px 0 6px">Categoriekleuren van de stipjes</h3>
-      <p class="uitleg">Elke keuze in de hulp (Huisbezoek, Digitaal, …) toont een klein gekleurd stipje. Kies hier welke kleur uit het <b>Kleurenpalet</b> (zie Agendahulp → Kleurenpalet) bij elke stip-variant hoort. Cliëntgebonden keuzes wisselen om en om tussen de eerste twee; niet-cliëntgebonden keuzes tussen de laatste twee.</p>
-      <div class="beheer-grid" id="categorieKleuren" style="max-width:520px"></div>
     </div>
     <div class="kaart">
       <h2>Niet-cliëntgebonden afspraaktypes <span class="badge actief">actief</span></h2>
@@ -967,12 +964,12 @@
 // ===== Standaard (identiek aan de extensie) =====
 const DEFAULTS = {
   choices: [
-    { label:'Huisbezoek',      etiket:'JG Huisbezoek',              clientPresent:true,  pickUursoort:true, addTravelTime:true,  durationStep:15, maxDuration:180 },
-    { label:'Digitaal',        etiket:'ALL Beeldbellen',             clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'MDO',             etiket:'JG MDO',                     clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Face 2 face',     etiket:'JG Face to face kantoor',    clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Verslaglegging',  etiket:'JG Verslaglegging',          clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
-    { label:'Zorgcoördinatie', etiket:'JG Zorgcoördinatie',         clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180 },
+    { label:'Huisbezoek',      etiket:'JG Huisbezoek',              clientPresent:true,  pickUursoort:true, addTravelTime:true,  durationStep:15, maxDuration:180, kleur:'rood' },
+    { label:'Digitaal',        etiket:'ALL Beeldbellen',             clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'blauw' },
+    { label:'MDO',             etiket:'JG MDO',                     clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'geel' },
+    { label:'Face 2 face',     etiket:'JG Face to face kantoor',    clientPresent:true,  pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'blauw' },
+    { label:'Verslaglegging',  etiket:'JG Verslaglegging',          clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'geel' },
+    { label:'Zorgcoördinatie', etiket:'JG Zorgcoördinatie',         clientPresent:false, pickUursoort:true, addTravelTime:false, durationStep:15, maxDuration:180, kleur:'groen' },
   ],
   nonClientCategories: [
     {label:'Werkzaamheden',options:[['Acquisitie','Acquisitie*'],['Werktijdenregeling','Werktijdenregeling*'],['Voorbereidende werkzaamheden','Voorbereidende werkzaamheden*'],['Verplichte nevenactiviteiten','verpl nevenact - Verplichte nevenactiviteiten*'],['Schoolcoaching','Schoolcoaching'],['Schoolcoaching indirect','Schoolcoaching indirect #'],['Reistijd','Reistijd']].map(([display,uursoort])=>({display,uursoort,durationStep:15,maxDuration:480}))},
@@ -999,11 +996,6 @@ const DEFAULTS = {
     groen: { naam:'Groen', fill:'rgba(60,170,90,0.18)',  legend:'rgba(60,170,90,0.50)' },
     nieuwe_kleur_6rwf: { naam:'Paars', fill:'rgba(150,50,200,0.18)', legend:'rgba(150,50,200,0.50)' },
   },
-  // Kleur van de stipjes vóór elke keuze in de Afspraakhulp (Huisbezoek,
-  // Digitaal, ...) — verwijst naar een kleur uit het palet hierboven, net als
-  // een dagindeling-zone. 'visit'/'rest' = cliëntgebonden keuzes (om en om),
-  // 'admin'/'meet' = niet-cliëntgebonden keuzes (om en om).
-  categoryDotColors: { visit:'rood', rest:'blauw', admin:'geel', meet:'groen' },
   profileSectors: { 'JGGZ':'Jeugd & Gezin', 'J&O/JBG':'Jeugd & Gezin', 'Begeleiding':'Begeleiding' },
   zoneProfiles: {
     'JGGZ': [
@@ -1381,7 +1373,7 @@ function mergeWithDefaults(value, defaults) {
 }
 function normalizeConfig(value) {
   const source=value&&value.helperConfig?value.helperConfig:value,out=mergeWithDefaults(source,DEFAULTS);
-  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout','categoryDotColors'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
+  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
   out.compatibility=Object.assign({},out.compatibility||{});
   out.compatibility.schemaVersion=Math.max(DEFAULTS.compatibility.schemaVersion,parseInt(out.compatibility.schemaVersion,10)||0);
   if(compareSemver(out.compatibility.minimumExtensionVersion,DEFAULTS.compatibility.minimumExtensionVersion)!==1)out.compatibility.minimumExtensionVersion=DEFAULTS.compatibility.minimumExtensionVersion;
@@ -1667,7 +1659,7 @@ function fillNcCategoryOptions(sel, val) {
   sel.value = cur || '';
 }
 function refreshNcCategoryDropdowns() { [...document.querySelectorAll('#tblNonClientChoices select[data-nccat]')].forEach((sel) => fillNcCategoryOptions(sel)); }
-function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), volgorde:rowVolg(tr) }; }
+function choiceFromRow(tr) { const labelEl = tr.querySelector('input[data-role=choice-label]'); const c = tr.querySelectorAll('input[type=checkbox]'); const etiketten = pickerVals(tr, '_labels'); const kleurSel = tr.querySelector('select[data-choice-kleur]'); return { label:(labelEl ? labelEl.value : ''), etiket:etiketten[0] || '', etiketten:etiketten, clientPresent:c[0].checked, pickUursoort:c[1].checked, addTravelTime:c[2].checked, defaultDuration:(tr._settings||{}).defaultDuration, durationStep:(tr._settings||{}).durationStep, maxDuration:(tr._settings||{}).maxDuration, info:(tr._settings||{}).info, relevantForTeams:pickerVals(tr,'_teams'), kleur:(kleurSel ? kleurSel.value : ''), volgorde:rowVolg(tr) }; }
 function formFromRow(tr) { const c = tr.querySelectorAll('input[type=checkbox]'); const pct = tr.querySelector('input[data-role=pct]'); const typ = tr.querySelector('select[data-role=svtype]'); const g = (r) => { const el = tr.querySelector('[data-role=' + r + ']'); return el ? el.value : ''; }; const ex = tr._formExtra || {}; return { vorm:g('vorm'), startVerdeling:(parseInt(pct.value, 10) || 0) + '% ' + typ.value, uursoort:g('us'), eindtijdBeginPlusMin:parseInt(ex.eindtijdBeginPlusMin, 10) || 0, rapportagePrefix:ex.rapportagePrefix || '', vraagDirecteTijd:c[0].checked, vraagIndirecteTijd:c[1].checked, vraagReistijd:c[2].checked, labels:pickerVals(tr,'_labels'), relevantForTeams:pickerVals(tr,'_teams'), volgorde:rowVolg(tr) }; }
 
 // ----- kleur-helpers -----
@@ -1724,9 +1716,18 @@ function addChoice(c) {
   const initLabels = (Array.isArray(c.etiketten) && c.etiketten.length) ? c.etiketten.slice() : (c.etiket ? [c.etiket] : []);
   const etiket = pickerButton([{ key: '_labels', kind: 'labels', title: 'Labels in ONS', emptyLabel: '—', summaryPrefix: '' }], { _labels: initLabels });
   etiket.setAttribute('data-choice-labels', '1');
+  // Stipkleur van deze keuze in de hulp: direct onder "Labels in ONS", zodat
+  // je 'm kunt matchen met de kleur die dit label in ONS zelf heeft.
+  const kleur = colorSelect(c.kleur);
+  kleur._select.setAttribute('data-choice-kleur', '1');
+  kleur.title = 'Kleur van het stipje in de hulp bij deze keuze';
+  kleur.style.marginTop = '4px';
+  const etiketCell = document.createElement('div');
+  etiketCell.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:4px';
+  etiketCell.append(etiket, kleur);
   const cp = chk(c.clientPresent), pu = chk(c.pickUursoort), tt = chk(c.addTravelTime);
   const teams = pickerButton([{ key: '_teams', kind: 'teams', title: 'Relevant voor welke teams?', emptyLabel: 'alle' }], { _teams: c.relevantForTeams });
-  tr.append(cell(volgInput(c.volgorde), 'center'), cell(label), cell(etiket), cell(cp, 'center'), cell(pu, 'center'), cell(tt, 'center'), cell(gearBtn(tr), 'center'), cell(teams), cell(rowActions(() => addChoice(choiceFromRow(tr)), () => tr.remove()), 'center'));
+  tr.append(cell(volgInput(c.volgorde), 'center'), cell(label), cell(etiketCell), cell(cp, 'center'), cell(pu, 'center'), cell(tt, 'center'), cell(gearBtn(tr), 'center'), cell(teams), cell(rowActions(() => addChoice(choiceFromRow(tr)), () => tr.remove()), 'center'));
   $('#tblChoices tbody').appendChild(tr);
 }
 function readChoices() {
@@ -2111,7 +2112,7 @@ function readPalette() {
 // Herbouw _palette en ververs alle zone-kleur-dropdowns (behoud gekozen waarde).
 function refreshPaletteEverywhere() {
   _palette = readPalette();
-  [...document.querySelectorAll('#zones select[data-kleur], #categorieKleuren select[data-kleur]')].forEach((sel) => {
+  [...document.querySelectorAll('#zones select[data-kleur], #tblChoices select[data-kleur]')].forEach((sel) => {
     const cur = sel.value;
     fillColorOptions(sel);
     sel.value = _palette[cur] ? cur : (Object.keys(_palette)[0] || '');
@@ -2129,32 +2130,6 @@ function paintColorSelect(sel) {
   const sw = sel.parentNode.querySelector('.swatch'); if (!sw) return;
   const p = _palette[sel.value]; sw.style.background = p ? p.fill : '#fff';
 }
-// ----- Categoriekleuren van de stipjes in Afspraakhulp (verwijst naar het palet) -----
-const CATEGORY_DOT_KEYS = [
-  ['visit', 'Cliëntcontact (1)'],
-  ['rest', 'Cliëntcontact (2)'],
-  ['admin', 'Niet-cliëntgebonden (1)'],
-  ['meet', 'Niet-cliëntgebonden (2)'],
-];
-function renderCategoryDotColors(map) {
-  map = Object.assign({}, DEFAULTS.categoryDotColors, map || {});
-  const wrap = $('#categorieKleuren'); if (!wrap) return;
-  wrap.innerHTML = '';
-  CATEGORY_DOT_KEYS.forEach(([key, label]) => {
-    const field = document.createElement('label'); field.className = 'beheer-veld';
-    const cap = document.createElement('span'); cap.textContent = label;
-    const picker = colorSelect(map[key]);
-    picker._select.dataset.categorie = key;
-    field.append(cap, picker);
-    wrap.appendChild(field);
-  });
-}
-function readCategoryDotColors() {
-  const out = {};
-  document.querySelectorAll('#categorieKleuren select[data-categorie]').forEach((sel) => { out[sel.dataset.categorie] = sel.value; });
-  return out;
-}
-
 // ----- 4. Zone-profielen -----
 function colorSelect(val) {
   const wrap = document.createElement('span');
@@ -2747,7 +2722,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), categoryDotColors:readCategoryDotColors(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2766,7 +2741,6 @@ function renderAll(cfg) {
   $('#tblForms tbody').innerHTML = ''; sortByVolgorde(cfg.registrationForms || []).forEach(addForm);
   renderSurveys(cfg.surveys);
   $('#tblPalette tbody').innerHTML = ''; Object.keys(_palette).forEach((k) => addColor(k, _palette[k]));
-  renderCategoryDotColors(cfg.categoryDotColors);
   $('#zones').innerHTML = '';
   const secs = cfg.profileSectors || {};
   Object.keys(cfg.zoneProfiles || {}).forEach((k) => addProfile(k, cfg.zoneProfiles[k], secs[k]));
