@@ -338,7 +338,7 @@
       <h2>Cliëntgebonden afspraaktypes <span class="badge actief">actief</span></h2>
       <p class="uitleg">Keuze in de hulp → ONS-label(s) en gedrag. Klik op <b>Labels in ONS</b> om één of meerdere labels aan het afspraaktype te koppelen. Via <b>⚙</b> stel je per type de standaardduur, stapduur, maximale tijd en het informatielabel in.</p>
       <table id="tblChoices"><thead><tr>
-        <th class="center" title="Volgorde: laag = bovenaan, leeg = onderaan">Volg</th><th>Keuze in hulp</th><th>Labels in ONS</th><th class="center">Cliënt aanwezig</th><th class="center">Uursoort per cliënt</th><th class="center">Reistijdvraag</th><th class="center">Overige</th><th>Relevant voor (teams)</th><th></th>
+        <th class="center" title="Volgorde: laag = bovenaan, leeg = onderaan">Volg</th><th>Keuze in hulp</th><th>Labels in ONS</th><th class="center" title="Cliënt aanwezig">Cliënt</th><th class="center" title="Uursoort per cliënt">Uursoort</th><th class="center" title="Reistijdvraag">Reistijd</th><th class="center">Overige</th><th>Relevant voor (teams)</th><th></th>
       </tr></thead><tbody></tbody></table>
       <div class="rijknoppen"><button class="knop klein" onclick="addChoice()">+ Regel</button></div>
       <label class="beheer-veld" style="margin-top:14px;max-width:640px"><span>Extra bekende labels (komma-gescheiden)</span><input id="extraLabels" type="text" placeholder="bijv. JG Overig" onchange="markDirty()"></label>
@@ -1657,10 +1657,13 @@ function initSelectAllHeaders() {
         [...body.rows].forEach((r) => { const c = r.cells[idx] && r.cells[idx].querySelector('input[type=checkbox]'); if (c && c.checked !== val) { c.checked = val; c.dispatchEvent(new Event('change', { bubbles:true })); } });
         cb.checked = val; markDirty();
       });
-      th.textContent = ''; th.style.cssText = (th.style.cssText || '') + ';white-space:nowrap';
-      const span = document.createElement('span'); span.textContent = orig;
+      // Compact: label en 'alle'-toggle onder elkaar i.p.v. naast elkaar, met
+      // een smalle kolombreedte — deze kolommen bevatten toch maar één vinkje
+      // per rij, dus hoeven niet breder te zijn dan een kort label.
+      th.textContent = ''; th.style.cssText = (th.style.cssText || '') + ';white-space:normal;overflow-wrap:break-word;width:70px;max-width:70px;text-align:center;line-height:1.15';
+      const span = document.createElement('span'); span.textContent = orig; span.style.cssText = 'display:block;overflow-wrap:break-word';
       const cap = document.createElement('span'); cap.textContent = 'alle'; cap.style.cssText = 'font-size:9px;color:#888';
-      wrap.style.cssText = 'display:inline-flex;align-items:center;gap:3px;vertical-align:middle;margin-left:8px'; wrap.append(cb, cap);
+      wrap.style.marginTop = '3px'; wrap.append(cb, cap);
       th.append(span, wrap);
     });
   });
