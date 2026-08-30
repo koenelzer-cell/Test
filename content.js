@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.190'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.191'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -635,48 +635,12 @@
     if (!durMin && r.time_slot && typeof r.time_slot.duration === 'number') durMin = Math.round(r.time_slot.duration / 60);
     var accounted = direct + indirect + travel;
     var otherMin = Math.max(0, durMin - accounted); // niet-cliënt/overige tijd
-    // Datum en begin-/eindtijd worden meegenomen om overlappende registraties te
-    // kunnen signaleren. Dit blijft binnen dezelfde privacylijn als hierboven:
-    // wanneer er iets is geregistreerd, niet vóór of dóór wie.
-    var _clock = function (v) {
-      if (!v) return null;
-      var m = /T(\d{2}):(\d{2})/.exec(String(v));
-      if (m) return (+m[1]) * 60 + (+m[2]);
-      var d = new Date(v);
-      return isNaN(d.getTime()) ? null : d.getHours() * 60 + d.getMinutes();
-    };
     return {
       directMin: direct, indirectMin: indirect, travelMin: travel, otherMin: otherMin,
       durationMin: durMin || accounted,
       hourTypeName: htName,
-      hourTypeId: htId,
-      ymd: dymd || null,
-      startMin: _clock(st),
-      endMin: _clock(et)
+      hourTypeId: htId
     };
-  }
-  // Overlappen twee tijdvakken (in minuten sinds middernacht)? Randen die elkaar
-  // raken (10:00-11:00 en 11:00-12:00) tellen niet als overlap.
-  function _tijdvakkenOverlappen(aStart, aEind, bStart, bEind) {
-    if (aStart == null || aEind == null || bStart == null || bEind == null) return false;
-    if (aEind <= aStart || bEind <= bStart) return false;
-    return aStart < bEind && bStart < aEind;
-  }
-  // Zoekt in de al opgehaalde weekregistraties naar een tijdvak dat overlapt met
-  // het opgegeven vak. Puur op tijd — er wordt niet naar cliënten gekeken.
-  // Geeft null als er geen weekgegevens (in de cache) zijn: dan liever niets
-  // melden dan een melding op onvolledige gegevens.
-  function overlappendeRegistratie(ymd, startMin, eindMin, negeerOccurrenceId) {
-    if (!ymd || startMin == null || eindMin == null) return null;
-    var rijen = _weekRegDetailsCache;
-    if (!Array.isArray(rijen) || !rijen.length) return null;
-    for (var i = 0; i < rijen.length; i++) {
-      var r = rijen[i];
-      if (!r || r.ymd !== ymd) continue;
-      if (negeerOccurrenceId && String(r.occurrenceId) === String(negeerOccurrenceId)) continue;
-      if (_tijdvakkenOverlappen(startMin, eindMin, r.startMin, r.endMin)) return r;
-    }
-    return null;
   }
   // Aggregeer de detailregels tot een summary die declarabiliteitPct begrijpt.
   function summarizeWeekRegistrations(detailsList) {
@@ -758,9 +722,6 @@
       .catch(function () { return null; });
   }
   var _weekRegCache = Object.create(null);
-  // De laatst opgehaalde weekdetails, voor de overlapcontrole. Bevat alleen
-  // tijden, duur en uursoort — geen cliëntgegevens (zie parseRegistrationDetails).
-  var _weekRegDetailsCache = [];
   function fetchWeekRegistrationDeclarabiliteit(inviteeId, date) {
     var d = agendaYmd(date) || agendaYmd(new Date());
     var cacheKey = inviteeId + '|' + d;
@@ -771,20 +732,10 @@
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (j) {
         var occs = parseWeekRegistrationOccurrences(j).slice(0, 200); // veiligheidsplafond
-        return _mapPool(occs, 6, function (o) {
-          return fetchRegistrationDetails(inviteeId, o.occurrenceId).then(function (d) {
-            // Het occurrence-ID vasthouden, zodat een registratie zichzelf later
-            // niet als overlap aanmerkt.
-            if (d) d.occurrenceId = o.occurrenceId;
-            return d;
-          });
-        });
+        return _mapPool(occs, 6, function (o) { return fetchRegistrationDetails(inviteeId, o.occurrenceId); });
       })
       .then(function (details) {
-        var schoon = details.filter(Boolean);
-        // Bewaren voor de overlapcontrole; geen extra netwerkverkeer nodig.
-        _weekRegDetailsCache = schoon;
-        var summary = summarizeWeekRegistrations(schoon);
+        var summary = summarizeWeekRegistrations(details.filter(Boolean));
         _weekRegCache[cacheKey] = { ts: Date.now(), summary: summary };
         return summary;
       });
@@ -5245,6 +5196,10 @@
   // 'columns' hersteld; dit is de derde.
   function mkDurationPicker(values, onPick, style, initial, labelStijl) {
     const start = (initial != null) ? initial : values[0];
+    // 'minutenRooster': altijd alle waarden in één rooster, nooit een uren-stap.
+    // Gebruikt voor de vraag hoeveel directe/indirecte tijd er in een registratie
+    // zat: dat denk je in minuten, ook als de registratie vier uur duurt.
+    if (style === 'minutenRooster') return mkChipGrid(values, onPick, labelStijl);
     if (style === 'slider') return mkTimePicker(values, start, onPick);
     if (style === 'columns') return mkTwoColumnDurationPicker(values, onPick);
     if (style === 'hourMinute') return mkHourMinutePicker(values, onPick, labelStijl);
@@ -7475,32 +7430,7 @@
       const ind = _regToMin(_regFieldVal('#declaration_indirect_time')) || 0;
       if ((di + ind) > 0 && (di + ind) !== dur) issues.push({ sev: 'warn', msg: 'Direct + indirect (' + (di + ind) + ' min) komt niet overeen met de duur (' + dur + ' min)' });
     }
-    // Staat er in deze week al een registratie op hetzelfde tijdvak? Puur een
-    // tijdvergelijking; er wordt niet naar cliënten gekeken. Een waarschuwing,
-    // geen blokkade — dubbel boeken kan legitiem zijn (bv. groepsregistratie).
-    try {
-      const dubbel = registrationOverlapIssue();
-      if (dubbel) issues.push(dubbel);
-    } catch (e) {}
     return issues;
-  }
-  // Vergelijkt het tijdvak dat nu op het scherm staat met de al opgehaalde
-  // weekregistraties. Geeft null als er niets te melden is, of als de
-  // weekgegevens (nog) niet geladen zijn — dan liever zwijgen dan gokken.
-  function registrationOverlapIssue() {
-    const ymd = _regFieldVal('#declaration_on_date') || _regFieldVal('#declaration_date') || currentAgendaDate();
-    const start = _regToMin(registrationLiveTimeValue(registrationTimeInput('declaration_start_time_display')));
-    const eind = _regToMin(registrationLiveTimeValue(registrationTimeInput('declaration_end_time_display')));
-    if (!ymd || start == null || eind == null || eind <= start) return null;
-    const eigen = (typeof currentRegistrationId === 'function') ? currentRegistrationId() : null;
-    const hit = overlappendeRegistratie(String(ymd).slice(0, 10), start, eind, eigen);
-    if (!hit) return null;
-    const klok = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-    return {
-      sev: 'warn',
-      msg: 'Er staat op deze dag al een registratie van ' + klok(hit.startMin) + ' tot ' + klok(hit.endMin) +
-           (hit.hourTypeName ? ' (' + hit.hourTypeName + ')' : '') + ' — controleer of dit geen dubbele invoer is.',
-    };
   }
   // De Indienen-knop blijft een vanilla-knoop: updateRegistrationReportSubmitButton
   // werkt hem live bij (tekst/kleur volgen de rapportagestatus). React plaatst hem
@@ -7681,7 +7611,7 @@
           setStatus(ok ? `${choice.label} | ${woord} tijd ${registrationDurationLabel(minutes)}` : 'Verdeling niet gezet', ok);
           continueAfterRegistrationChoice(choice);
         });
-      }, choice.pickerStyle, undefined, durationLabelStyle('duur')),
+      }, 'minutenRooster', undefined, durationLabelStyle('duur')),
     });
   }
   function showRegistrationTravelSelection(choice) {
@@ -10668,10 +10598,6 @@
     registrationPrefixRegex: (typeof registrationPrefixRegex === 'function') ? registrationPrefixRegex : undefined,
     registrationChoicePrefixRegex: (typeof registrationChoicePrefixRegex === 'function') ? registrationChoicePrefixRegex : undefined,
     choicePrefix: (typeof choicePrefix === 'function') ? choicePrefix : undefined,
-    // Dubbele-registratiecontrole.
-    _tijdvakkenOverlappen: (typeof _tijdvakkenOverlappen === 'function') ? _tijdvakkenOverlappen : undefined,
-    overlappendeRegistratie: (typeof overlappendeRegistratie === 'function') ? overlappendeRegistratie : undefined,
-    __setWeekRegDetails: function (rows) { try { _weekRegDetailsCache = rows || []; } catch (e) {} },
     PICKER_CHIP_LIMIT: (typeof PICKER_CHIP_LIMIT !== 'undefined') ? PICKER_CHIP_LIMIT : undefined,
     clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
     __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },

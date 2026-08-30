@@ -197,3 +197,28 @@ test('het platte minutenrooster volgt dezelfde weergave', () => {
   const min = api.mkDurationPicker(waarden, () => {}, 'hourMinute', undefined, 'minuten');
   assert.match(min.textContent || '', /75 min/);
 });
+
+// ── De portievraag: nooit een uren-stap ─────────────────────────────────────
+// "Hoeveel directe/indirecte tijd zat er in deze registratie?" denk je in
+// minuten, ook bij een registratie van vier uur. Dit gebruikt de stijl
+// 'minutenRooster', die de uren-stap altijd overslaat.
+
+test('de portievraag toont ook bij een lange registratie alle minuten', () => {
+  const api = pickers();
+  // Registratie van 4 uur, stap 5 minuten = 48 keuzes.
+  const lang = Array.from({ length: 48 }, (_, i) => (i + 1) * 5);
+  const node = api.mkDurationPicker(lang, () => {}, 'minutenRooster', undefined, 'urenMinuten');
+  const tekst = node.textContent || '';
+  assert.doesNotMatch(tekst, /aantal uren/i,
+    'bij de portievraag hoort nooit eerst om uren gevraagd te worden');
+  assert.equal(node.querySelectorAll('button').length, 48,
+    'alle stappen van 5 minuten horen direct kiesbaar te zijn');
+});
+
+test('het minutenrooster kiest de juiste waarde', () => {
+  const api = pickers();
+  let gekozen = null;
+  const node = api.mkDurationPicker([5, 10, 15], (v) => { gekozen = v; }, 'minutenRooster', undefined, 'minuten');
+  [...node.querySelectorAll('button')].find((b) => /^10 min/.test(b.textContent || '')).click();
+  assert.equal(gekozen, 10);
+});
