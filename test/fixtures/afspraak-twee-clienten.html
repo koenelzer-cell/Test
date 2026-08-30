@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Nagebouwde "Afspraak toevoegen"-modal met TWEE cliënten — het scenario waarin
+  cliënt 2 werd overgeslagen of diens uursoort werd overschreven.
+
+  Tinus Test heeft al een uursoort (zichtbaar als _summary_-samenvatting in de
+  kaart); Tamara Test nog niet (combobox draagt class "placeholder").
+
+  LET OP: dit is handmatig nagebouwd op de selectors die content.js gebruikt,
+  geen echte ONS-export. Vervang dit bestand door een echte opgeslagen kopie van
+  de ONS-modal zodra je die hebt — dan dekt de test de werkelijke opmaak.
+-->
+<html lang="nl">
+<body>
+  <div class="modal" role="dialog">
+    <h1>Afspraak toevoegen</h1>
+
+    <ul data-qa="selected_clients" class="_selected-clients_abc12">
+      <!-- Cliënt 1: uursoort AL gezet -->
+      <li data-invitee-id="1001" data-test-rect="100,0,600,200">
+        <span class="_invitee-name_sohx9_40" data-test-rect="100,0,300,20">Tinus Test</span>
+        <div data-test-rect="122,0,300,16">Cliënt</div>
+        <uc-button data-qa="toggle-invitee-fields-button" aria-label="Velden Tinus Test"></uc-button>
+        <uc-select data-qa="hour_type_select" data-test-rect="150,0,400,40">
+          <div role="combobox" aria-label="Uursoort">BG zwaar</div>
+          <uc-select-list value="713"></uc-select-list>
+        </uc-select>
+        <div slot="sub">
+          <span class="_summary_x1y2z">BG zwaar</span>
+        </div>
+      </li>
+
+      <!-- Cliënt 2: uursoort NOG NIET gezet -->
+      <li data-invitee-id="1002" data-test-rect="400,0,600,200">
+        <span class="_invitee-name_sohx9_40" data-test-rect="400,0,300,20">Tamara Test</span>
+        <div data-test-rect="422,0,300,16">Cliënt</div>
+        <uc-button data-qa="toggle-invitee-fields-button" aria-label="Velden Tamara Test"></uc-button>
+        <uc-select data-qa="hour_type_select" data-test-rect="450,0,400,40">
+          <div role="combobox" aria-label="Uursoort" class="placeholder">Zoek naar uursoorten</div>
+          <uc-select-list value=""></uc-select-list>
+        </uc-select>
+      </li>
+    </ul>
+  </div>
+</body>
+</html>

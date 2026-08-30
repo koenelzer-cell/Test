@@ -52,7 +52,7 @@
         "https://*.onsagenda.nl/*",
         "https://impegno.ons-dossier.nl/*"
       ],
-      "js": ["modules.js", "content.js"],
+      "js": ["modules.js", "dist/react-bundle.js", "content.js"],
       "run_at": "document_idle"
     },
     {

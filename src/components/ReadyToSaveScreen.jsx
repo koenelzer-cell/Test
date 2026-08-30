@@ -1,0 +1,35 @@
+import { BackButton } from './BackButton.jsx';
+import { TileButton } from './TileButton.jsx';
+import { VanillaNode, VanillaNodes } from './VanillaNode.jsx';
+import { useInterval } from '../hooks/useInterval.js';
+
+// Opslaanscherm van de Afspraakhulp. De twee tekstregels zijn beheerbaar
+// (mkText) en de doorplannen-schakelaar bouwt op datzelfde tekstsysteem —
+// beide komen daarom als kant-en-klare knoop binnen. De rest is React.
+//
+// `onWatchTick` is de bewaking op de herhaling-instelling: die liep voorheen als
+// losse setInterval in content.js en moest overal handmatig gestopt worden.
+// Nu hoort hij bij dit scherm en stopt hij vanzelf als je hier weg navigeert.
+export function ReadyToSaveScreen({
+  textNodes, toggleNode, tokens, onBack, onSave, saveDisabled, showUursoortNote,
+  onWatchTick, watchIntervalMs,
+}) {
+  useInterval(onWatchTick, watchIntervalMs);
+  return (
+    <div>
+      <div style={{ marginBottom: 8 }}>
+        <BackButton label="Terug" onClick={onBack} tokens={tokens} />
+      </div>
+      <VanillaNodes nodes={textNodes} />
+      <VanillaNode node={toggleNode} />
+      <div style={{ marginTop: 6 }}>
+        <TileButton label="Opslaan" onClick={onSave} tokens={tokens} disabled={saveDisabled} />
+      </div>
+      {showUursoortNote ? (
+        <div style={{ fontSize: 12, color: '#b3261e', margin: '6px 0 0', fontWeight: 700 }}>
+          Let op: voeg nog een uursoort toe.
+        </div>
+      ) : null}
+    </div>
+  );
+}
