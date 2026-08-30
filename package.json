@@ -6,7 +6,9 @@
     "build:ext": "esbuild src/react-entry.jsx --bundle --minify --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/react-bundle.js --format=iife --target=chrome100",
     "build:test": "esbuild src/components/WizardScreen.jsx --bundle --jsx=automatic --define:process.env.NODE_ENV=\\\"development\\\" --outfile=test/build/components.mjs --format=esm --platform=neutral --packages=external",
     "check": "node --check content.js && node --check popup.js && node --check dist/react-bundle.js",
-    "test": "npm run build && node --test --test-force-exit test/*.test.js"
+    "test": "npm run build && node --test --test-force-exit test/*.test.js",
+    "dev": "npm run build && esbuild src/react-entry.jsx --bundle --minify --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/react-bundle.js --format=iife --target=chrome100 --watch",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

@@ -11,11 +11,13 @@ dan moet je bouwen voordat je de extensie herlaadt:**
 
 ```bash
 npm install     # eenmalig
-npm run build   # na elke wijziging in src/
+npm run dev     # bouwt en blijft meekijken tijdens het werken
 ```
 
-Vergeet je dat, dan draait de extensie op de vorige bundel en lijkt je wijziging
-geen effect te hebben.
+`npm run dev` bouwt opnieuw zodra je iets in `src/` opslaat, zodat je het niet
+kunt vergeten. Doe je het met de hand (`npm run build`) en vergeet je het, dan
+draait de extensie op de vorige bundel en lijkt je wijziging geen effect te
+hebben.
 
 `dist/react-bundle.js` staat bewust in versiebeheer: de extensie wordt uitgepakt
 geladen en er is geen bouwstap bij de uitrol.
@@ -23,9 +25,28 @@ geladen en er is geen bouwstap bij de uitrol.
 ## Ontwikkelen
 
 ```bash
+npm run dev     # bouwt en blijft meekijken
 npm test        # bouwt en draait de testsuite
 npm run check   # syntaxcontrole van content.js, popup.js en de bundel
 ```
+
+### Een versie uitbrengen
+
+```bash
+npm run release            # x.y.Z+1
+npm run release -- --minor # x.Y+1.0
+npm run release -- --dry   # tonen wat er zou gebeuren, niets wijzigen
+```
+
+Dit hoogt het versienummer op (in `manifest.json` én de terugvalregel in
+`content.js`), bouwt, controleert de syntax, draait de tests, controleert dat
+het manifest naar bestaande bestanden verwijst en dat de bundel niet ouder is
+dan `src/`, en maakt daarna pas de ZIP. Gaat er iets mis, dan stopt het en
+wordt er niets ingepakt.
+
+Die laatste twee controles vangen de fouten die met de hand het makkelijkst
+gebeuren: een ZIP met een oude bundel, of een versienummer dat niet is
+opgehoogd waardoor werkplekken niet updaten.
 
 De tests draaien in jsdom en hebben geen browser of ONS-omgeving nodig.
 
