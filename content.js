@@ -792,13 +792,6 @@
     return c;
   }
   // Klein statvak (voor de directe/indirecte/reistijd/onbekend-verdeling).
-  function _agStat(label, value, fg) {
-    var d = document.createElement('div');
-    d.style.cssText = 'flex:1 1 46%;min-width:80px;background:#faf7f9;border:1px solid #f0e6ee;border-radius:8px;padding:5px 8px';
-    d.innerHTML = '<div style="font-size:10px;color:#777;font-weight:600">' + label + '</div>' +
-      '<div style="font-size:13px;font-weight:800;color:' + fg + '">' + value + '</div>';
-    return d;
-  }
   // Bouwt het weekoverzicht-paneel (React). _agSubTitle/_agBigStat/
   // agendaWeekPanelEl/_agCollapsibleOverig zijn vervangen door
   // src/components/AgendaWeekPanel.jsx (zie dist/react-bundle.js);
@@ -1967,13 +1960,6 @@
     apply(attempts);
     return true;
   }
-  function typeIntoActive(text) {
-    const a = deepActive();
-    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) { setInputText(a, text); return true; }
-    const inp = deepQueryAll('input,textarea').find((i) => visible(i) && /^zoek/i.test(i.getAttribute('placeholder') || ''));
-    if (inp) { inp.focus(); setInputText(inp, text); return true; }
-    return false;
-  }
   // Zit `el` (ook door shadow roots heen) binnen `host`?
   function deepContains(host, el) {
     if (!host || !el) return false;
@@ -2163,13 +2149,6 @@
     }, 60);
     return true;
   }
-  function findOpenSearchBox(trigger) {
-    // Pak nooit de globale agenda/client-zoekbalk. Eerst zoeken binnen de
-    // geopende dropdown rond dit trigger-veld.
-    const local = searchInputForTrigger(trigger);
-    if (local) return local;
-    return null;
-  }
   function selectNonClientUursoort(text, onResult, attempt = 0) {
     // Zelfde patroon als selectLabel: clickElementCenter opent de dropdown,
     // zoekterm typen (zonder * en #), dan exacte optie klikken.
@@ -2200,42 +2179,6 @@
     const t = findClientUursoortTrigger() || findOpener({ placeholderRe: /uursoort|hour type/i, displayTexts: ['zoek naar uursoorten'], labelTexts: ['uursoort', 'uursoorten', 'hour type'] });
     if (!t) logStep('uursoort-veld niet gevonden', false, 'geen match op tekst/placeholder');
     return t;
-  }
-  function selectedUursoortSummaryForEntry(entry) {
-    if (!entry || !entry.role) return '';
-    const rr = rect(entry.role);
-    const allEntries = findClientEntries();
-    const idx = allEntries.findIndex((item) => item.name === entry.name);
-    const nextTop = idx >= 0 && allEntries[idx + 1] ? rect(allEntries[idx + 1].nameEl).top : rr.bottom + 280;
-    let uursoortLabelTop = nextTop;
-    for (const label of deepQueryAll('label,div,span,p', entry.card || document)) {
-      if (!visible(label) || isOwnPopup(label) || clean(label.textContent) !== 'uursoort') continue;
-      const lr = rect(label);
-      if (lr.top > rr.bottom - 4 && lr.top < uursoortLabelTop && Math.abs(lr.left - rr.left) < 160) uursoortLabelTop = lr.top;
-    }
-    const nameClean = clean(entry.name);
-    let best = '', bestScore = Infinity;
-    for (const el of deepQueryAll('div,span,p,button,[role="combobox"]', entry.card || document)) {
-      if (!visible(el) || isOwnPopup(el)) continue;
-      const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      const c = clean(txt);
-      if (!txt || c === nameClean || c === clean(entry.firstName) || c === 'client') continue;
-      if (/clienten zijn aanwezig|niet beschikbaar|verwijder uit selectie|toeslag|selecteer toeslag|zoek naar uursoorten|uursoort|medewerker|toevoegen/.test(c)) continue;
-      const r = rect(el);
-      if (r.top < rr.bottom - 6 || r.top >= Math.min(uursoortLabelTop, nextTop) - 2) continue;
-      if (Math.abs(r.left - rr.left) > 150) continue;
-      const triggerPenalty = entry.uursoortTrigger && entry.uursoortTrigger.contains && entry.uursoortTrigger.contains(el) ? 25 : 0;
-      const score = Math.max(0, r.top - rr.bottom) + Math.abs(r.left - rr.left) / 4 + triggerPenalty;
-      if (score < bestScore) { best = txt; bestScore = score; }
-    }
-    return best;
-  }
-  function isRealClientUursoortSummary(text) {
-    const c = clean(text);
-    if (!c || c.length < 2) return false;
-    if (/^(client|medewerker|uursoort|toeslag|selecteer toeslag|zoek naar uursoorten|selecteer uursoort|geen resultaten|voer minstens|toont )/.test(c)) return false;
-    if (/clienten zijn aanwezig|niet beschikbaar|verwijder uit selectie|toevoegen|annuleren|opslaan/.test(c)) return false;
-    return true;
   }
   function hasUursoortSelected() {
     const hasTriggerValue = (trigger) => {
@@ -2468,16 +2411,6 @@
     }
     return best;
   }
-  function dateTodayText() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
-  }
-  function timeNowText() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
   function getDateInput() {
     const ov = overrideEl('afsDatum'); if (ov) return ov;
     const host = deepQueryAll('uc-date-input[aria-label="Datum*"], uc-date-input[aria-label="Datum"]')
@@ -2649,12 +2582,6 @@
     setInputTextComposed(endInput, addOneHourText(startText));
     return true;
   }
-  function triggerHuisbezoekEndTime() {
-    ensureDateAndStartTime();
-    setHuisbezoekEndTime();
-    setTimeout(setHuisbezoekEndTime, 120);
-    setTimeout(setHuisbezoekEndTime, 350);
-  }
   function ensureDateAndStartTime() {
     return false;
   }
@@ -2734,9 +2661,6 @@
     if (appointmentReadyToSave() || appointmentCoreApplied()) return true;
     if (activeNonClientOption && !hasClientInAppointment() && hasAppointmentDate() && hasAppointmentStartTime()) return true;
     return false;
-  }
-  function appointmentDateStartEndPresent() {
-    return hasAppointmentDate() && hasAppointmentStartTime() && hasAppointmentEndTime();
   }
   // Cliëntafspraak zonder (herkend) label: opslaan blokkeren. Bewust fail-open:
   // niet-cliënt-opties (Overig/Acquisitie) en het geval waarin het labelveld niet
@@ -2924,31 +2848,6 @@
       if (n.getAttribute && n.getAttribute('role') === 'option') return n;
     }
     return el;
-  }
-  function clickVisibleLabelOption(trigger, known, currentText) {
-    const tr = rect(trigger);
-    let best = null, bestScore = Infinity;
-    for (const root of optionSearchRoots(trigger)) {
-      for (const el of deepQueryAll('[role="option"],li,div,span,button', root)) {
-        if (!visible(el) || isOwnPopup(el) || /input|textarea|select/i.test(el.tagName || '')) continue;
-        const option = clean(optionText(el));
-        if (!option) continue;
-        const matchesKnown = known.includes(option) || known.some((label) => option === label || option.includes(label));
-        const matchesCurrent = currentText && known.some((label) => currentText.includes(label) && option.includes(label));
-        if (!matchesKnown && !matchesCurrent) continue;
-        const row = rowForOptionText(el, root);
-        if (!visible(row) || isOwnPopup(row)) continue;
-        const r = rect(row);
-        if (r.top < tr.bottom - 6 || r.width < 140 || r.height < 22 || r.height > 72) continue;
-        if (clean(optionText(row)).includes('toont ') || clean(optionText(row)).includes('zoekterm')) continue;
-        const selectedScore = /true/i.test(row.getAttribute('aria-selected') || '') || /selected|active|checked/i.test(row.className || '') ? -1000 : 0;
-        const score = selectedScore + Math.abs(r.top - tr.bottom) + Math.abs(r.left - tr.left) / 5 + (clean(optionText(row)) === option ? 0 : 25);
-        if (score < bestScore) { best = row; bestScore = score; }
-      }
-    }
-    if (!best) return false;
-    clickOption(best);
-    return true;
   }
   // ÉÉN bron voor de gekozen labels. In de huidige ONS-UI is elke chip een
   // <button class="label-tag" aria-label="Verwijder label <naam>"> binnen
@@ -3634,16 +3533,6 @@
           return rr.top >= r.bottom - 12 && rr.top <= r.bottom + 70 && Math.abs(rr.left - r.left) <= 190;
         });
       });
-  }
-  function inviteeRoleForNameEl(nameEl) {
-    const nr = rect(nameEl);
-    return deepQueryAll('div,span,p').find((el) => {
-      if (!visible(el) || isOwnPopup(el)) return false;
-      const c = clean(el.textContent || '');
-      if (c !== 'client' && c !== 'medewerker') return false;
-      const rr = rect(el);
-      return rr.top >= nr.bottom - 10 && rr.top <= nr.bottom + 55 && Math.abs(rr.left - nr.left) <= 170;
-    }) || null;
   }
   function unavailableInvitees() {
     const out = [];
@@ -4679,8 +4568,8 @@
       step++;
     }, 260);
     const stopTimer = () => clearInterval(timer);
-    // Stopt vanzelf zodra dit scherm wordt vervangen (body.innerHTML = '' in
-    // de volgende render) — geen losse interval die eeuwig doortikt.
+    // Stopt vanzelf zodra dit scherm wordt vervangen (resetBody of een
+    // React-hertekening) — geen losse interval die eeuwig doortikt.
     const stopObserver = new MutationObserver(() => { if (!wrap.isConnected) { stopTimer(); stopObserver.disconnect(); } });
     try { stopObserver.observe(body, { childList: true }); } catch (e) {}
     setTimeout(() => { stopTimer(); try { stopObserver.disconnect(); } catch (e) {} }, 30000); // vangnet
@@ -5100,8 +4989,10 @@
     render();
     return wrap;
   }
-  function mkValuePicker(values, initial, onPick) {
-    return values.length > PICKER_CHIP_LIMIT ? mkTimePicker(values, initial, onPick) : mkChipGrid(values, onPick);
+  // Reistijdkeuze: dezelfde stijlkeuze als de duurvragen. Zonder stijl valt hij
+  // terug op het automatische gedrag van vóór deze wijziging.
+  function mkValuePicker(values, initial, onPick, style) {
+    return mkDurationPicker(values, onPick, style, initial);
   }
   // Uren en minuten als twee kolommen náást elkaar (i.p.v. na elkaar zoals
   // mkHourMinutePicker): je ziet meteen het hele bereik van beide, kiest in
@@ -5180,9 +5071,22 @@
   // standaardstijl 'hourMinute' (of geen expliciete keuze) behoudt het oude
   // automatische gedrag: chipgrid bij een overzichtelijk aantal opties
   // (<= PICKER_CHIP_LIMIT), anders pas de uren-dan-minuten-weergave.
-  function mkDurationPicker(values, onPick, style) {
-    if (style === 'slider') return mkTimePicker(values, values[0], onPick);
+  // Eén ingang voor ELKE duur-/tijdvraag, zodat de in het beheerscherm gekozen
+  // stijl overal geldt: afspraakduur, registratieduur, reistijd én de
+  // directe/indirecte tijd. `initial` is de startwaarde voor de schuifregelaar
+  // (reistijd begint op 0, een duur op de eerste waarde).
+  //
+  // 'hourMinute' had eerder geen eigen tak en viel door naar het chipsrooster;
+  // omdat dat óók de standaardwaarde is, werd de ingestelde stijl bij 16 of
+  // minder opties genegeerd. Dezelfde fout was eerder al voor 'slider' en
+  // 'columns' hersteld; dit is de derde.
+  function mkDurationPicker(values, onPick, style, initial) {
+    const start = (initial != null) ? initial : values[0];
+    if (style === 'slider') return mkTimePicker(values, start, onPick);
     if (style === 'columns') return mkTwoColumnDurationPicker(values, onPick);
+    if (style === 'hourMinute') return mkHourMinutePicker(values, onPick);
+    // Geen (of onbekende) stijl: automatisch — compacte chips bij een
+    // overzichtelijk aantal opties, anders uren-dan-minuten.
     if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
     return mkHourMinutePicker(values, onPick);
   }
@@ -6126,9 +6030,6 @@
     if (!txt || /^(zoek naar uursoorten|selecteer uursoort|uursoort|zoek naar uursoort)$/.test(txt)) return false;
     return nonClientHourTypeMatches(txt, wanted);
   }
-  function nonClientReadyToSave() {
-    return hasAppointmentDate() && hasAppointmentStartTime() && hasAppointmentEndTime() && nonClientUursoortSet();
-  }
   // 'Overig'-flow: geen uursoort, maar een verplichte vrije titel "Overig - ...".
   function nonClientFreeTitlePrefix(opt) { return (opt && opt.display ? opt.display : 'Overig') + ' - '; }
   function nonClientFreeTitleComplete(opt) {
@@ -6490,7 +6391,7 @@
         const ok = setAppointmentTravelTotalMinutes(minutes);
         setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
         setTimeout(() => handleChoice(choice), 70);
-      })),
+      }), choice.pickerStyle),
     });
   }
   function submitAppointmentFromHelper() {
@@ -7424,14 +7325,15 @@
     // Stapgrootte uit config (standaard 5 min), maximaal de registratieduur.
     const _ps = (APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.portionStepMin > 0) ? APP_CONFIG.generalSettings.portionStepMin : 5;
     const max = Math.floor(total / _ps) * _ps;
-    const _opts = [];
-    for (let minutes = _ps; minutes <= max; minutes += _ps) _opts.push({ value: minutes, label: registrationDurationLabel(minutes) });
+    const _vals = [];
+    for (let minutes = _ps; minutes <= max; minutes += _ps) _vals.push(minutes);
+    // Ook deze vraag volgt nu de ingestelde duurkeuze-stijl; voorheen was dit
+    // altijd een vaste knoppenlijst, ongeacht wat er in het beheerscherm stond.
     window.__onsahReact.renderWizardScreen(body, 'duration', {
       title: `Duur ${woord} tijd:`,
       tokens: ONSAH_TOKENS,
       onBack: onBack,
-      options: _opts,
-      onPick: function (minutes) {
+      pickerNode: mkDurationPicker(_vals, function (minutes) {
         safe(function () {
           activeRegistrationPortionMinutes = minutes;
           const ok = applyRegistrationPortion(choice, minutes);
@@ -7439,7 +7341,7 @@
           setStatus(ok ? `${choice.label} | ${woord} tijd ${registrationDurationLabel(minutes)}` : 'Verdeling niet gezet', ok);
           continueAfterRegistrationChoice(choice);
         });
-      },
+      }, choice.pickerStyle),
     });
   }
   function showRegistrationTravelSelection(choice) {
@@ -7458,29 +7360,6 @@
         const ok = setRegistrationTravelTotalMinutes(minutes);
         setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
         setTimeout(() => { registrationFlowBusy = false; safe(() => proceedToReportOrHourType(activeRegistrationChoice)); }, 250);
-      })),
-    });
-  }
-  function showRegistrationDurationSelection(choice) {
-    const body = $body(); if (!body) return;
-    if (!hasRegistrationPrereqs()) { showRegistrationNeedsClient(); return; }
-    clearScreenMark();
-    const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
-    const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
-    const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
-      title: `${choice.label} duur:`,
-      backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
-      tokens: ONSAH_TOKENS,
-      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
-      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => {
-        activeRegistrationChoice = choice;
-        const endOk = setRegistrationEndTimePlusMinutes(minutes);
-        const splitOk = applyRegistrationSplitForChoice(choice);
-        scheduleReapplyRegistrationSplit();
-        setStatus(`${choice.label} ${registrationDurationLabel(minutes)}${endOk && splitOk ? '' : ' | tijd/verdeling deels gezet'}`, endOk && splitOk);
-        registrationFlowBusy = true;
-        setTimeout(() => { registrationFlowBusy = false; safe(() => choice.addTravelTime ? showRegistrationTravelSelection(choice) : showRegistrationHourTypeSelection()); }, 320);
       }), choice.pickerStyle),
     });
   }
@@ -7592,16 +7471,6 @@
         const person = registrationClientNameForHourType(container, index);
         return { container, target, index, name: person.name, firstName: person.firstName };
       });
-  }
-  function clickSelect2OptionText(text) {
-    const wanted = clean(text);
-    const options = deepQueryAll('.select2-results__option,[role="option"],li')
-      .filter((el) => visible(el) && !isOwnPopup(el));
-    const match = options.find((el) => clean(el.textContent || '') === wanted) ||
-      options.find((el) => clean(el.textContent || '').includes(wanted));
-    if (!match) return false;
-    clickOption(match);
-    return true;
   }
   function clickSelect2OptionTextInRoot(text, root) {
     const wanted = clean(text);
@@ -7827,28 +7696,6 @@
       setStatus(options.length ? 'Kies uursoort' : 'Uursoorten niet gevonden', !!options.length);
     }, context);
   }
-  function setNoShowViaSelect2(attempt, onDone) {
-    const containers = visibleSelect2HourTypeContainers();
-    if (!containers.length) { onDone(false); return; }
-    let index = 0, anyOk = false;
-    const next = () => {
-      const container = containers[index++];
-      if (!container) { onDone(anyOk); return; }
-      const target = container.closest('.select2-selection') || container.parentElement || container;
-      clickElementCenter(target);
-      setTimeout(() => {
-        const resultsRoot = select2ResultsElementForSelection(target, container);
-        const search = select2SearchInputForHourType(resultsRoot);
-        if (search) setInputText(search, 'No show#');
-        setTimeout(() => {
-          const ok = clickSelect2OptionTextInRoot('No show#', resultsRoot);
-          anyOk = anyOk || ok;
-          setTimeout(next, 120);
-        }, 180);
-      }, 120);
-    };
-    next();
-  }
   function setHourTypeViaSelect2(text, onDone) {
     const containers = visibleSelect2HourTypeContainers();
     if (!containers.length) { onDone(false); return; }
@@ -7923,7 +7770,6 @@
     };
     next();
   }
-  function setRegistrationNoShow(onDone) { setRegistrationHourType('No show#', onDone); }
   function applyRegistrationNoShow() {
     applyRegistrationChoice(REGISTRATION_CHOICES[0]);
   }
@@ -9120,6 +8966,9 @@
       const body = popupEl.querySelector('[data-body]');
       if (body && window.__onsahReact) window.__onsahReact.unmount(body);
     } catch (e) {}
+    // De grootte-observer hangt aan het paneel dat we nu weggooien; zonder
+    // disconnect blijft hij actief op een losgekoppeld element.
+    try { if (popupEl.__onsResizeObserver) { popupEl.__onsResizeObserver.disconnect(); popupEl.__onsResizeObserver = null; } } catch (e) {}
     popupEl.remove();
     popupEl = null;
   }
@@ -9817,7 +9666,6 @@
       // Bij uitklappen alles geforceerd opnieuw tekenen (stond tijdens inklappen stil).
       if (!c) { _totalsSig = null; updateTotals(); safe(refreshAgendaWeekApi); }
     }
-    function agBodyEl() { return agBody(); }
     function agRenderMain() {
       const body = agBody(); if (!body) return;
       body.innerHTML = '';
@@ -10448,6 +10296,9 @@
     invalidateClientEntries: (typeof invalidateClientEntries === 'function') ? invalidateClientEntries : undefined,
     inputBelongsToTrigger: (typeof inputBelongsToTrigger === 'function') ? inputBelongsToTrigger : undefined,
     markScreen: (typeof markScreen === 'function') ? markScreen : undefined,
+    // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
+    mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
+    PICKER_CHIP_LIMIT: (typeof PICKER_CHIP_LIMIT !== 'undefined') ? PICKER_CHIP_LIMIT : undefined,
     clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
     __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },
     matchRegistrationChoiceByLabel: (typeof matchRegistrationChoiceByLabel === 'function') ? matchRegistrationChoiceByLabel : undefined,
