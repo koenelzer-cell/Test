@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ONS Agendahulp",
-  "version": "1.6.185",
+  "version": "1.6.186",
   "description": "Afspraak-/registratiehulp en gekleurde dagindeling voor ONS Agenda.",
   "permissions": ["storage"],
   "storage": {

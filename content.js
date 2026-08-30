@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.185'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.186'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -3270,17 +3270,12 @@
   function takeAppointmentSnapshot() {
     try {
       const lees = (el) => (el ? String(inputTextValue(el) || '') : null);
-      let labels = [];
-      try {
-        labels = (labelChips(getEtiketTrigger()) || [])
-          .map((c) => String(c.name || '').trim()).filter(Boolean);
-      } catch (e) {}
       _appointmentSnapshot = {
-        titel: lees(getTitleInput()),
-        eind: lees(getEndTimeInput()),
-        heen: lees(appointmentTravelInput('heen')),
-        terug: lees(appointmentTravelInput('terug')),
-        labels: labels,
+        titel: lees(OnsAdapter.afspraak.titelVeld()),
+        eind: lees(OnsAdapter.afspraak.eindtijdVeld()),
+        heen: lees(OnsAdapter.afspraak.reistijdVeld('heen')),
+        terug: lees(OnsAdapter.afspraak.reistijdVeld('terug')),
+        labels: OnsAdapter.afspraak.labels(),
       };
     } catch (e) { _appointmentSnapshot = null; }
     return _appointmentSnapshot;
@@ -3296,23 +3291,23 @@
     if (!snap) { if (onDone) onDone(false); return; }
     const zet = (el, waarde) => { if (el && waarde != null) setInputTextOns(el, waarde); };
     try {
-      zet(getTitleInput(), snap.titel);
-      zet(getEndTimeInput(), snap.eind);
-      zet(appointmentTravelInput('heen'), snap.heen);
-      zet(appointmentTravelInput('terug'), snap.terug);
+      zet(OnsAdapter.afspraak.titelVeld(), snap.titel);
+      zet(OnsAdapter.afspraak.eindtijdVeld(), snap.eind);
+      zet(OnsAdapter.afspraak.reistijdVeld('heen'), snap.heen);
+      zet(OnsAdapter.afspraak.reistijdVeld('terug'), snap.terug);
     } catch (e) {}
     // Labels: eerst de door de hulp gezette labels eraf, dan terug wat er stond.
-    clearKnownLabels(function () {
+    OnsAdapter.afspraak.wisLabels(function () {
       const terug = (snap.labels || []).slice();
       const volgende = function () {
         if (!terug.length) {
-          clearAllUursoorten(function () {
+          OnsAdapter.clienten.wisUursoorten(function () {
             clearAppointmentSnapshot();
             if (onDone) onDone(true);
           });
           return;
         }
-        setLabel(terug.shift(), volgende);
+        OnsAdapter.afspraak.zetLabel(terug.shift(), volgende);
       };
       volgende();
     });
@@ -3555,9 +3550,9 @@
     const rijen = [];
     const push = (label, waarde, ok) => rijen.push({ label: label, waarde: waarde, ok: ok !== false, ontbreekt: !waarde });
 
-    const titel = (() => { try { const i = getTitleInput(); return i ? String(inputTextValue(i) || '').trim() : ''; } catch (e) { return ''; } })();
+    const titel = OnsAdapter.afspraak.titel();
     const start = (() => { try { return appointmentCurrentStartTimeText() || ''; } catch (e) { return ''; } })();
-    const eind = (() => { try { const i = getEndTimeInput(); return i ? String(inputTextValue(i) || '').trim() : ''; } catch (e) { return ''; } })();
+    const eind = OnsAdapter.afspraak.eindtijd();
 
     const nietClient = !hasClientInAppointment() && !!activeNonClientOption;
     const type = nietClient
@@ -3570,22 +3565,19 @@
 
     if (activeAppointmentDurationMinutes > 0) push('Duur', registrationDurationLabel(activeAppointmentDurationMinutes));
 
-    const reis = appointmentTravelTotalMinutes();
+    const reis = OnsAdapter.afspraak.reistijdTotaal();
     if (reis != null) push('Reistijd', registrationDurationLabel(reis) + ' totaal');
 
     // Labels zoals ze nu op de afspraak staan.
-    try {
-      const chips = labelChips(getEtiketTrigger()) || [];
-      const namen = chips.map((c) => String(c.name || '').trim()).filter(Boolean);
-      if (namen.length) push('Label', namen.join(', '));
-    } catch (e) {}
+    const namen = OnsAdapter.afspraak.labels();
+    if (namen.length) push('Label', namen.join(', '));
 
     // Per cliënt de gekozen uursoort — het veld waar het in de praktijk misgaat.
     if (!nietClient) {
       try {
-        invalidateClientEntries();
-        findClientEntries().forEach((entry) => {
-          const tekst = entryUursoortText(entry);
+        OnsAdapter.clienten.ververs();
+        (OnsAdapter.clienten.lijst() || []).forEach((entry) => {
+          const tekst = OnsAdapter.clienten.uursoort(entry);
           push('Uursoort ' + (entry.firstName || entry.name || ''), tekst, !!tekst);
         });
       } catch (e) {}
@@ -5702,12 +5694,106 @@
   // Label/datum/begintijd horen altijd in de afspraakdetails te staan zodra het
   // keuzescherm verschijnt. Uursoort blijft buiten de check: dat veld zit soms in
   // een ingeklapte cliëntkaart en wordt bewust later door de gebruiker gekozen.
+  /* ==========================================================================
+     ONS-adapter
+
+     Eén plek die beschrijft wat de hulp uit ONS leest en erin schrijft. De rest
+     van de extensie hoeft dan niet te weten hóé ONS dat technisch doet — bij een
+     wijziging in ONS is dit het bestand waar je kijkt.
+
+     Bewust een dunne laag over de bestaande functies, niet een herschrijving:
+     die functies zijn door schade en schande afgesteld en werken. Wat de laag
+     wél toevoegt:
+       1) een inventaris van alle contactpunten, op één plek;
+       2) elke mislukte uitlezing wordt geregistreerd, zodat de zelftest niet
+          langer drie hardgecodeerde velden controleert maar álles wat de hulp
+          werkelijk nodig had;
+       3) een testbare naad: met een opgeslagen stuk ONS-HTML kun je nu
+          controleren of de herkenning nog klopt.
+     ========================================================================== */
+  const _onsGemist = new Set();
+  // Voert een uitlezing uit en onthoudt of die iets opleverde. `naam` is wat de
+  // medewerker in een melding te zien krijgt, dus in gewone taal.
+  function _onsLees(naam, fn) {
+    let waarde = null;
+    try { waarde = fn(); } catch (e) { waarde = null; }
+    const leeg = waarde == null || waarde === '' || waarde === false ||
+      (Array.isArray(waarde) && waarde.length === 0);
+    if (leeg) _onsGemist.add(naam); else _onsGemist.delete(naam);
+    return waarde;
+  }
+  // Welke ONS-velden heeft de hulp deze sessie niet kunnen vinden?
+  // Let op: een Set is niet array-achtig, dus Array.prototype.slice werkt hier
+  // niet — die gaf stilzwijgend een lege lijst terug.
+  function onsGemisteVelden() { return Array.from(_onsGemist); }
+  function onsVergeetGemist() { _onsGemist.clear(); }
+
+  const OnsAdapter = {
+    // Waar zijn we, en in welk scherm?
+    context: {
+      modal: () => _onsLees('afspraakvenster', findModal),
+      heeftClient: () => hasClientInAppointment(),
+    },
+    // De afspraak zelf.
+    afspraak: {
+      titelVeld: () => _onsLees('titel', getTitleInput),
+      datumVeld: () => _onsLees('datum', getDateInput),
+      begintijdVeld: () => _onsLees('begintijd', getStartTimeInput),
+      eindtijdVeld: () => _onsLees('eindtijd', getEndTimeInput),
+      labelVeld: () => _onsLees('label', getEtiketTrigger),
+      herhalingVeld: () => _onsLees('herhaling', findRecurrenceField),
+      reistijdVeld: (richting) => _onsLees('reistijd ' + richting, () => appointmentTravelInput(richting)),
+
+      titel() { const el = this.titelVeld(); return el ? String(inputTextValue(el) || '').trim() : ''; },
+      eindtijd() { const el = this.eindtijdVeld(); return el ? String(inputTextValue(el) || '').trim() : ''; },
+      labels() {
+        try { return (labelChips(getEtiketTrigger()) || []).map((c) => String(c.name || '').trim()).filter(Boolean); }
+        catch (e) { return []; }
+      },
+      reistijdTotaal: () => appointmentTravelTotalMinutes(),
+
+      zetTitel: (tekst) => setAppointmentTitleText(tekst),
+      zetLabel: (naam, klaar) => setLabel(naam, klaar),
+      wisLabels: (klaar) => clearKnownLabels(klaar),
+      zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),
+      wisReistijd: () => clearAppointmentTravelTimes(),
+      wisTitel: () => clearTitle(),
+      wisEindtijd: () => clearEndTime(),
+    },
+    // De cliënten in de afspraak en hun uursoort — het veld waar het in de
+    // praktijk het vaakst misgaat.
+    clienten: {
+      lijst: () => _onsLees('cliëntkaarten', findClientEntries),
+      ververs: () => invalidateClientEntries(),
+      klapUit: (klaar) => ensureClientExpanded(klaar),
+      uursoort: (entry) => entryUursoortText(entry),
+      heeftUursoort: (entry) => entryUursoortIsSet(entry),
+      uursoortVeld: (entry) => (entry ? entry.uursoortTrigger : null),
+      zetUursoort: (tekst, klaar, trigger) => chooseUursoort(tekst, klaar, trigger),
+      wisUursoorten: (klaar) => clearAllUursoorten(klaar),
+    },
+  };
+
+  // De zelftest gebruikt nu de adapter: elk veld dat de hulp probeerde te lezen
+  // en niet vond, komt hier automatisch in. Voorheen stonden hier drie
+  // hardgecodeerde controles, waardoor bv. een verdwenen uursoort-veld niet werd
+  // gemeld.
   function appointmentMissingHooks() {
-    const missing = [];
-    if (!getEtiketTrigger()) missing.push('label');
-    if (!getDateInput()) missing.push('datum');
-    if (!getStartTimeInput()) missing.push('begintijd');
-    return missing;
+    onsVergeetGemist();
+    OnsAdapter.afspraak.labelVeld();
+    OnsAdapter.afspraak.datumVeld();
+    OnsAdapter.afspraak.begintijdVeld();
+    // Deze zijn alleen relevant zodra er een cliënt in de afspraak zit.
+    if (OnsAdapter.context.heeftClient()) {
+      OnsAdapter.clienten.ververs();
+      const rijen = OnsAdapter.clienten.lijst() || [];
+      rijen.forEach((entry) => {
+        if (!OnsAdapter.clienten.uursoortVeld(entry)) {
+          _onsGemist.add('uursoortveld ' + (entry.firstName || entry.name || ''));
+        }
+      });
+    }
+    return onsGemisteVelden();
   }
   // Bundelt de kwaliteitssignalen (onvolledige registratie) en zelfdiagnose
   // (kern-hook niet herkend) voor het altijd-zichtbare meldingenkanaal, zodat de
@@ -10651,6 +10737,10 @@
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
     renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
+    // ONS-adapter: de gedocumenteerde naad naar ONS.
+    OnsAdapter: (typeof OnsAdapter !== 'undefined') ? OnsAdapter : undefined,
+    onsGemisteVelden: (typeof onsGemisteVelden === 'function') ? onsGemisteVelden : undefined,
+    onsVergeetGemist: (typeof onsVergeetGemist === 'function') ? onsVergeetGemist : undefined,
     // Ongedaan maken.
     takeAppointmentSnapshot: (typeof takeAppointmentSnapshot === 'function') ? takeAppointmentSnapshot : undefined,
     hasAppointmentSnapshot: (typeof hasAppointmentSnapshot === 'function') ? hasAppointmentSnapshot : undefined,
