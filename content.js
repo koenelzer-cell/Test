@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.3.89'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.182'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -839,7 +839,9 @@
   function showAgendaBreakdownModal(s, opts) {
     opts = opts || {}; s = s || {};
     var shell = mkModalShell('onsAgendaBreakdownModal', 'Waar de tijd uit bestaat' + (opts.week ? ', week ' + opts.week : ''));
-    window.__onsahReact.renderBreakdownBody(shell.body, s, opts, _agFmtMin);
+    var _b1 = onsahReact();
+    if (!_b1) { renderBundleMissing(shell.body); return; }
+    _b1.renderBreakdownBody(shell.body, s, opts, _agFmtMin);
   }
   // Apart scherm (overlay) dat laat zien HOE de cijfers zijn opgebouwd — met de
   // daadwerkelijke minuten. Puur getallen/labels uit de summary; geen cliënt-PII.
@@ -849,7 +851,9 @@
     opts = opts || {}; s = s || {};
     var shell = mkModalShell('onsAgendaCalcModal', 'Verhouding per uursoort' + (opts.week ? ', week ' + opts.week : ''), { maxWidth: '460px' });
     var rows = (s.byType || []).filter(function (r) { return r && r.type && _isClientUursoortName(r.type); });
-    window.__onsahReact.renderCalcBody(shell.body, rows, _nonClientMarker(), _agFmtMin);
+    var _b2 = onsahReact();
+    if (!_b2) { renderBundleMissing(shell.body); return; }
+    _b2.renderCalcBody(shell.body, rows, _nonClientMarker(), _agFmtMin);
   }
   // Sectie 'Afgerond (geregistreerd)' — de ECHTE directe/indirecte/reistijd uit de
   // registratie-widget (sessie-gebruiker, per dag).
@@ -2311,7 +2315,7 @@
   function showFreeDayInactive() {
     const body = $body(); if (!body) return;
     clearScreenMark();
-    window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+    renderScreen(body, 'infoScreen', {
       title: 'Vrije dag',
       titleStyle: { fontWeight: 700, fontSize: 14, color: '#555', padding: '4px 0 2px' },
       body: 'Deze dag is grijs gemarkeerd. De afspraakhulp is hier niet actief.',
@@ -5187,6 +5191,39 @@
     try { if (window.__onsahReact) window.__onsahReact.unmount(body); } catch (e) {}
     body.innerHTML = '';
   }
+  // ===== Ingang naar de React-bundel =====
+  // De schermen van de hulp zitten in dist/react-bundle.js, dat het manifest
+  // vóór dit bestand laadt. Ontbreekt die bundel — niet gebouwd na een
+  // wijziging in src/, bestand kwijt, of de vololgorde in het manifest
+  // gewijzigd — dan bestaat window.__onsahReact niet en zou elke schermaanroep
+  // stukvallen op een generieke "Er ging iets mis". Daarom één ingang met een
+  // melding die de oorzaak wél benoemt.
+  function onsahReact() {
+    var b = (typeof window !== 'undefined') ? window.__onsahReact : null;
+    return (b && typeof b.renderWizardScreen === 'function') ? b : null;
+  }
+  function renderBundleMissing(container) {
+    if (!container) return;
+    try {
+      container.innerHTML = '';
+      var box = document.createElement('div');
+      box.style.cssText = 'font-size:13px;color:#b3261e;font-weight:700;line-height:1.4;padding:6px 0';
+      box.textContent = 'De schermen van de hulp konden niet worden geladen.';
+      var sub = document.createElement('div');
+      sub.style.cssText = 'font-size:12px;color:#6b6367;font-weight:400;margin-top:4px';
+      sub.textContent = 'De extensie is waarschijnlijk niet volledig geïnstalleerd. Meld dit via ‘Meld probleem’.';
+      box.appendChild(sub);
+      container.appendChild(box);
+    } catch (e) {}
+  }
+  // Alle schermaanroepen lopen hierlangs. Geeft false als er niets getekend kon
+  // worden, zodat de aanroeper desgewenst kan stoppen.
+  function renderScreen(container, name, props) {
+    var b = onsahReact();
+    if (!b) { renderBundleMissing(container); return false; }
+    b.renderWizardScreen(container, name, props);
+    return true;
+  }
   // Tekent een eerder gemarkeerd scherm opnieuw. Geeft false bij een onbekende
   // naam, zodat de aanroeper op de oude tekstherkenning kan terugvallen.
   function renderMarkedScreen(screen) {
@@ -5482,7 +5519,7 @@
   function showNeedsTeamChoice() {
     const body = $body(); if (!body) return;
     clearScreenMark();
-    window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+    renderScreen(body, 'infoScreen', {
       title: 'Kies eerst je team om de hulp te gebruiken.',
       titleStyle: { padding: '6px 0' },
       body: 'Open de extensie (het pictogram naast de adresbalk) en kies je team/kleurprofiel. Daarna verschijnen de afspraaktypes en registraties hier.',
@@ -5557,7 +5594,7 @@
       tick: onsahChoiceDotColor(choice, i),
       meta: onsahChoiceDirectIndirectLabel(choice),
     }));
-    window.__onsahReact.renderWizardScreen(body, 'choices', {
+    renderScreen(body, 'choices', {
       choices: choices,
       blocked: !!blocked,
       blockedNote: 'Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.',
@@ -5746,7 +5783,7 @@
     // lege flits; React hertekent dezelfde root gewoon in place.
     const dateTimeReady = hasAppointmentDate() && hasAppointmentStartTime();
     if (!dateTimeReady) {
-      window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+      renderScreen(body, 'infoScreen', {
         title: 'Vul begintijd en datum in.',
         titleStyle: { lineHeight: 1.35, padding: '4px 0 8px' },
         body: '',
@@ -5762,7 +5799,7 @@
     // Beheerde categorieën uit config.nonClientCategories hebben voorrang (incl.
     // informatielabel/duur per type); leeg = ingebouwde lijst.
     const _cats = nonClientCategoriesActive();
-    window.__onsahReact.renderWizardScreen(body, 'needsPrereqs', {
+    renderScreen(body, 'needsPrereqs', {
       categories: _cats.map(function (cat) { return { label: cat.label }; }),
       tokens: ONSAH_TOKENS,
       onAddClient: function () { safe(clickAddClientButton); },
@@ -5935,7 +5972,7 @@
     const body = $body(); if (!body) return;
     clearScreenMark();
     const _opts = cat.options || [];
-    window.__onsahReact.renderWizardScreen(body, 'category', {
+    renderScreen(body, 'category', {
       heading: cat.label,
       options: _opts.map(function (opt) { return { display: opt.display, info: !!opt.info }; }),
       tokens: ONSAH_TOKENS,
@@ -6146,7 +6183,7 @@
     clearScreenMark();
     nonClientBusy = false;
     nonClientNoUursoortActive = true;
-    window.__onsahReact.renderWizardScreen(body, 'messageScreen', {
+    renderScreen(body, 'messageScreen', {
       title: 'Geen uursoorten gevonden!',
       titleStyle: { color: '#b3261e' },
       body: 'Controleer zelf of er uursoorten in de lijst staan en neem contact op met EPD.',
@@ -6169,7 +6206,7 @@
     const durStep = opt.durationStep > 0 ? opt.durationStep : gsNum('durationStepMin', 15);
     const durMax = opt.maxDuration > 0 ? opt.maxDuration : gsNum('appointmentMaxMin', 480);
     const durValues = []; for (let m = durStep; m <= durMax; m += durStep) durValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: opt.display + ' duur:',
       tokens: ONSAH_TOKENS,
       onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showAppointmentNeedsPrereqs); },
@@ -6207,7 +6244,7 @@
     });
     // Geen resetBody: dit scherm wordt door refreshAppointmentPrereqScreen
     // herhaald getekend terwijl de gebruiker de titel typt.
-    window.__onsahReact.renderWizardScreen(body, 'messageScreen', {
+    renderScreen(body, 'messageScreen', {
       title: 'Vul de titel aan na "' + prefix + '".',
       titleStyle: { fontSize: 13, margin: '4px 0 2px', color: '#333' },
       body: 'Zodra je een titel hebt ingevuld, kun je opslaan.',
@@ -6368,7 +6405,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum('durationStepMin',15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum('registrationMaxMin',180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
       onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
@@ -6382,7 +6419,7 @@
     const _ts = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelStepMin>0?APP_CONFIG.generalSettings.travelStepMin:5);
     const _tm = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelMaxMin>0?APP_CONFIG.generalSettings.travelMaxMin:60);
     const _travelValues = []; for (let m=0; m<=_tm; m+=_ts) _travelValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: 'Totale reistijd (heen en terug):',
       tokens: ONSAH_TOKENS,
       onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
@@ -6579,7 +6616,7 @@
         showAppointmentReadyToSave();
       }
     });
-    window.__onsahReact.renderWizardScreen(body, 'readyToSave', {
+    renderScreen(body, 'readyToSave', {
       onWatchTick: onWatchTick,
       watchIntervalMs: _doorplannenActief ? 250 : 0,
       textNodes: [
@@ -6654,7 +6691,7 @@
     });
     const renderMissing = () => {
       const names = clientsMissingUursoort();
-      window.__onsahReact.renderWizardScreen(body, 'manualUursoort', {
+      renderScreen(body, 'manualUursoort', {
         missingText: missingUursoortText(names),
         subNode: _subNode,
         instructionNode: _instrNode,
@@ -6680,7 +6717,7 @@
   function showUursoort(options, afterPick, clientContext = null) {
     const body = $body(); if (!body) return;
     clearScreenMark();
-    window.__onsahReact.renderWizardScreen(body, 'pickList', {
+    renderScreen(body, 'pickList', {
       title: clientContext ? `Uursoort ${clientContext.firstName}` : 'Kies uursoort',
       titleWeight: 600,
       loading: false,
@@ -7072,7 +7109,7 @@
       Object.assign(link.style, { color: '#cc087d', textDecoration: 'underline' });
       msg.appendChild(link);
     }
-    window.__onsahReact.renderWizardScreen(body, 'reportPrompt', {
+    renderScreen(body, 'reportPrompt', {
       msgNode: msg,
       completenessNode: mkRegistrationCompletenessNode(),
       submitNode: mkRegistrationSubmitNode(),
@@ -7092,7 +7129,7 @@
   function showRegistrationSubmitOnly() {
     const body = $body(); if (!body) return;
     clearScreenMark();
-    window.__onsahReact.renderWizardScreen(body, 'submitOnly', {
+    renderScreen(body, 'submitOnly', {
       completenessNode: mkRegistrationCompletenessNode(),
       submitNode: mkRegistrationSubmitNode(),
     });
@@ -7210,7 +7247,7 @@
     const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
       onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
@@ -7285,7 +7322,7 @@
     // is immers overgeslagen). Bij een losse registratie zonder afspraak staat
     // No show al in de keuzelijst, dus dan tonen we deze knop niet.
     const _ns = registrationFromAppointment ? REGISTRATION_CHOICES.find((x) => x.label === 'No show') : null;
-    window.__onsahReact.renderWizardScreen(body, 'portionQuestion', {
+    renderScreen(body, 'portionQuestion', {
       question: `${woord.charAt(0).toUpperCase() + woord.slice(1)} tijd aanwezig in deze registratie?`,
       woordBijw: choice.askIndirectPortion ? 'indirect' : 'direct',
       startText: registrationLiveTimeValue(registrationTimeInput('declaration_start_time_display')) || 'begintijd',
@@ -7314,7 +7351,7 @@
     const total = registrationDurationMinutes();
     const onBack = function () { suppressAutoUntil = Date.now() + 1200; safe(() => showRegistrationPortionQuestion(choice)); };
     if (total === null || total < 5) {
-      window.__onsahReact.renderWizardScreen(body, 'duration', {
+      renderScreen(body, 'duration', {
         title: `Duur ${woord} tijd:`,
         tokens: ONSAH_TOKENS,
         onBack: onBack,
@@ -7329,7 +7366,7 @@
     for (let minutes = _ps; minutes <= max; minutes += _ps) _vals.push(minutes);
     // Ook deze vraag volgt nu de ingestelde duurkeuze-stijl; voorheen was dit
     // altijd een vaste knoppenlijst, ongeacht wat er in het beheerscherm stond.
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: `Duur ${woord} tijd:`,
       tokens: ONSAH_TOKENS,
       onBack: onBack,
@@ -7350,7 +7387,7 @@
     const _ts = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelStepMin>0?APP_CONFIG.generalSettings.travelStepMin:5);
     const _tm = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelMaxMin>0?APP_CONFIG.generalSettings.travelMaxMin:60);
     const _travelValues = []; for (let m=0; m<=_tm; m+=_ts) _travelValues.push(m);
-    window.__onsahReact.renderWizardScreen(body, 'duration', {
+    renderScreen(body, 'duration', {
       title: 'Totale reistijd (heen en terug):',
       backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
       tokens: ONSAH_TOKENS,
@@ -7662,7 +7699,7 @@
     markScreen('registrationHourTypeSelection', { index: selectedIndex });
     const title = context ? `Uursoort ${context.firstName}` : 'Uursoortselectie';
     const onBack = () => { suppressAutoUntil = Date.now() + 1200; safe(() => backFromRegistrationHourTypeSelection(selectedIndex)); };
-    window.__onsahReact.renderWizardScreen(body, 'pickList', {
+    renderScreen(body, 'pickList', {
       title: title, loading: true, options: null, tokens: ONSAH_TOKENS, onBack: onBack,
       emptyMessage: 'Geen uursoorten gevonden',
     });
@@ -7689,7 +7726,7 @@
           setStatus(ok ? `Uursoort gezet voor ${context ? context.firstName : 'client'}: ${opt}` : `Uursoort niet gevonden voor ${context ? context.firstName : 'client'}: ${opt}`, ok);
         });
       });
-      window.__onsahReact.renderWizardScreen(body, 'pickList', {
+      renderScreen(body, 'pickList', {
         title: title, loading: false, options: options, tokens: ONSAH_TOKENS, onBack: onBack,
         onPick: onPickOption, emptyMessage: 'Geen uursoorten gevonden',
       });
@@ -7829,7 +7866,7 @@
     markScreen('registrationNeedsClient');
     // Geen resetBody: dit scherm wordt herhaald getekend terwijl op cliënt/datum
     // gewacht wordt. Beheerbare teksten blijven mkText-knopen.
-    window.__onsahReact.renderWizardScreen(body, 'needsClient', {
+    renderScreen(body, 'needsClient', {
       nodes: [
         mkText('registratie_prereq_regel1', 'Voor cliëntgebonden registraties: vul cliënt, datum en begintijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' }),
         mkText('registratie_prereq_regel2', 'Voor niet cliëntgebonden registraties: vul datum, begintijd en eindtijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' }),
@@ -8170,7 +8207,7 @@
     const body = $body(); if (!body || registrationNoShowPromptOpen) return;
     registrationNoShowPromptOpen = true;
     markScreen('registrationNoShowPrompt');
-    window.__onsahReact.renderWizardScreen(body, 'prompt', {
+    renderScreen(body, 'prompt', {
       question: 'No show?',
       tokens: ONSAH_TOKENS,
       onYes: function () {
@@ -8279,7 +8316,7 @@
     const body = $body(); if (!body || registrationEpisodesPromptOpen) return;
     registrationEpisodesPromptOpen = true;
     clearScreenMark();
-    window.__onsahReact.renderWizardScreen(body, 'prompt', {
+    renderScreen(body, 'prompt', {
       question: 'Afschermen via Episodes?',
       hint: 'Kopieer en plak de af te schermen zin(nen) onder de juiste episode.',
       tokens: ONSAH_TOKENS,
@@ -8582,7 +8619,7 @@
       showRegistrationReportPrompt(activeRegistrationChoice);
       return;
     }
-    window.__onsahReact.renderWizardScreen(body, 'choices', {
+    renderScreen(body, 'choices', {
       choices: REGISTRATION_CHOICES.map((choice, i) => ({
         label: choice.label,
         tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i),
@@ -9978,7 +10015,9 @@
         var allRows = summary.byType || [];
         var clientRows = [], overigRows = [];
         allRows.forEach(function (r) { if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r); else clientRows.push(r); });
-        window.__onsahReact.renderWeekPanel(cont, summary, o, ONSAH_TOKENS, clientRows, overigRows, _agFmtMin, {
+        var _b3 = onsahReact();
+        if (!_b3) { renderBundleMissing(cont); return; }
+        _b3.renderWeekPanel(cont, summary, o, ONSAH_TOKENS, clientRows, overigRows, _agFmtMin, {
           onOpenBreakdown: function () { try { showAgendaBreakdownModal(summary, o); } catch (e) {} },
           onOpenCalc: function () { try { showAgendaCalcModal(summary, o); } catch (e) {} },
         });
@@ -10298,6 +10337,7 @@
     markScreen: (typeof markScreen === 'function') ? markScreen : undefined,
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
+    renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
     PICKER_CHIP_LIMIT: (typeof PICKER_CHIP_LIMIT !== 'undefined') ? PICKER_CHIP_LIMIT : undefined,
     clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
     __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },
