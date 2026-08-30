@@ -10414,6 +10414,16 @@
     choiceLabels: (typeof choiceLabels === 'function') ? choiceLabels : undefined,
     setLabelsExclusive: (typeof setLabelsExclusive === 'function') ? setLabelsExclusive : undefined,
     entryUursoortIsSet: (typeof entryUursoortIsSet === 'function') ? entryUursoortIsSet : undefined,
+    // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
+    // meerdere-cliënten-flow en de schermherkenning.
+    findClientEntries: (typeof findClientEntries === 'function') ? findClientEntries : undefined,
+    uursoortContexts: (typeof uursoortContexts === 'function') ? uursoortContexts : undefined,
+    clientsMissingUursoortEntries: (typeof clientsMissingUursoortEntries === 'function') ? clientsMissingUursoortEntries : undefined,
+    invalidateClientEntries: (typeof invalidateClientEntries === 'function') ? invalidateClientEntries : undefined,
+    inputBelongsToTrigger: (typeof inputBelongsToTrigger === 'function') ? inputBelongsToTrigger : undefined,
+    markScreen: (typeof markScreen === 'function') ? markScreen : undefined,
+    clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
+    __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },
     matchRegistrationChoiceByLabel: (typeof matchRegistrationChoiceByLabel === 'function') ? matchRegistrationChoiceByLabel : undefined,
     loadPendingRegistrationLabel: (typeof loadPendingRegistrationLabel === 'function') ? loadPendingRegistrationLabel : undefined,
     __setPendingRegistration: function (o) { try { if (o == null) sessionStorage.removeItem(PENDING_REG_KEY); else sessionStorage.setItem(PENDING_REG_KEY, JSON.stringify(o)); } catch (e) {} },
