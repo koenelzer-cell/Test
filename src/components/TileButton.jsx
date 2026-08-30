@@ -12,13 +12,17 @@ import { ChevronIcon } from './ChevronIcon.jsx';
 export function TileButton({
   label, onClick, tokens, style, disabled,
   tick, meta, chevron = true, accent, accentWash,
+  hotkey, aangewezen,
 }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focused, setFocused] = useState(false);
   const T = tokens;
   const hoverBg = accentWash || (accent ? accent + '14' : T.brandWash);
-  const chevColor = hover ? (accent || T.brand) : '#c7bfbc';
+  // Toetsenbord-aanwijzing telt als hover: dezelfde markering, zodat je ziet
+  // waar je bent zonder een tweede visuele taal te leren.
+  const opgelicht = hover || aangewezen;
+  const chevColor = opgelicht ? (accent || T.brand) : '#c7bfbc';
   return (
     <button
       type="button"
@@ -41,22 +45,37 @@ export function TileButton({
         width: '100%',
         padding: '10px 11px',
         borderRadius: 11,
-        border: '1px solid ' + (hover ? 'transparent' : T.brand),
-        background: hover ? hoverBg : '#fff',
+        border: '1px solid ' + (opgelicht ? 'transparent' : T.brand),
+        background: opgelicht ? hoverBg : '#fff',
         color: accent || T.ink,
         font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif',
         textAlign: 'left',
         cursor: 'pointer',
         transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
         boxSizing: 'border-box',
-        transform: active ? 'translateY(0)' : hover ? 'translateY(-1px)' : 'none',
-        boxShadow: hover ? '0 4px 14px -6px rgba(32,20,15,.28)' : 'none',
-        outline: focused ? '2px solid ' + (accent || T.brand) : 'none',
+        transform: active ? 'translateY(0)' : opgelicht ? 'translateY(-1px)' : 'none',
+        boxShadow: opgelicht ? '0 4px 14px -6px rgba(32,20,15,.28)' : 'none',
+        outline: (focused || aangewezen) ? '2px solid ' + (accent || T.brand) : 'none',
         outlineOffset: 2,
         ...style,
         ...(disabled ? { opacity: 0.45, cursor: 'not-allowed' } : null),
       }}
     >
+      {hotkey ? (
+        <span
+          aria-hidden="true"
+          style={{
+            flex: '0 0 auto', minWidth: 16, height: 16, borderRadius: 4,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 700, lineHeight: 1,
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+            color: opgelicht ? (accent || T.brand) : T.inkSoft,
+            background: T.lineSoft, border: '1px solid ' + T.line,
+          }}
+        >
+          {hotkey}
+        </span>
+      ) : null}
       {tick ? (
         <span style={{ width: 7, height: 7, borderRadius: '50%', flex: '0 0 auto', background: tick }} />
       ) : null}

@@ -1,6 +1,7 @@
 import { PillButton } from './PillButton.jsx';
 import { NavButton } from './NavButton.jsx';
 import { TileButton } from './TileButton.jsx';
+import { useListKeyboard } from '../hooks/useListKeyboard.js';
 
 // Plus-icoon, zelfde pad als ONS zelf gebruikt.
 const ADD_ICON = (
@@ -12,7 +13,12 @@ const ADD_ICON = (
 // Scherm "voeg een cliënt toe of kies een niet-cliëntgebonden categorie".
 // Vervangt de opbouw in content.js' showAppointmentNeedsPrereqs; welke
 // categorieën er zijn (en wat een klik doet) blijft daar bepaald.
-export function NeedsPrereqsScreen({ categories, tokens, onAddClient, onPickCategory, onReset }) {
+export function NeedsPrereqsScreen({ categories, tokens, onAddClient, onPickCategory, onReset, keyboardEnabled = true }) {
+  const aangewezen = useListKeyboard({
+    count: categories.length,
+    onSelect: (i) => onPickCategory(i),
+    enabled: keyboardEnabled,
+  });
   return (
     <div>
       <PillButton
@@ -27,7 +33,7 @@ export function NeedsPrereqsScreen({ categories, tokens, onAddClient, onPickCate
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {categories.map((cat, i) => (
-          <NavButton key={cat.label + '|' + i} label={cat.label} onClick={() => onPickCategory(i)} tokens={tokens} />
+          <NavButton key={cat.label + '|' + i} label={cat.label} onClick={() => onPickCategory(i)} tokens={tokens} hotkey={i < 9 ? String(i + 1) : null} aangewezen={aangewezen === i} />
         ))}
       </div>
       <div style={{ marginTop: 6 }}>

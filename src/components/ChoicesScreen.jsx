@@ -1,4 +1,5 @@
 import { TileButton } from './TileButton.jsx';
+import { useListKeyboard } from '../hooks/useListKeyboard.js';
 
 // Het hoofdkeuzemenu van de Afspraakhulp: de lijst afspraaktypes plus
 // "Verwijder instellingen". Vervangt de knoppenopbouw in content.js'
@@ -8,7 +9,13 @@ import { TileButton } from './TileButton.jsx';
 // De keuzes komen kant-en-klaar binnen (label, tick-kleur, meta-badge): het
 // bepalen daarvan (palet, registratievorm-koppeling) blijft domeinlogica in
 // content.js.
-export function ChoicesScreen({ choices, blocked, blockedNote, tokens, onPick, onReset, extra, resetLabel = 'Verwijder instellingen' }) {
+export function ChoicesScreen({ choices, blocked, blockedNote, tokens, onPick, onReset, extra, resetLabel = 'Verwijder instellingen', keyboardEnabled = true }) {
+  // Geblokkeerd: de types zijn niet klikbaar, dus ook geen sneltoetsen.
+  const aangewezen = useListKeyboard({
+    count: blocked ? 0 : choices.length,
+    onSelect: (i) => onPick(i),
+    enabled: keyboardEnabled,
+  });
   return (
     <div>
       {blocked && blockedNote ? (
@@ -24,6 +31,8 @@ export function ChoicesScreen({ choices, blocked, blockedNote, tokens, onPick, o
             tokens={tokens}
             disabled={blocked}
             onClick={blocked ? undefined : () => onPick(i)}
+            hotkey={!blocked && i < 9 ? String(i + 1) : null}
+            aangewezen={aangewezen === i}
           />
         ))}
       </div>

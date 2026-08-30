@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
 // Vooruit-navigatieknop (content.js' mkNavButton): label links, pijl rechts.
-export function NavButton({ label, onClick, tokens }) {
+export function NavButton({ label, onClick, tokens, hotkey, aangewezen }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focused, setFocused] = useState(false);
   const T = tokens;
+  const opgelicht = hover || aangewezen;
   return (
     <button
       type="button"
@@ -25,19 +26,34 @@ export function NavButton({ label, onClick, tokens }) {
         textAlign: 'left',
         padding: '10px 11px',
         borderRadius: 11,
-        border: '1px solid ' + (hover ? 'transparent' : T.brand),
-        background: hover ? T.brandWash : '#fff',
+        border: '1px solid ' + (opgelicht ? 'transparent' : T.brand),
+        background: opgelicht ? T.brandWash : '#fff',
         color: T.ink,
         font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif',
         cursor: 'pointer',
         boxSizing: 'border-box',
         transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
-        transform: active ? 'translateY(0)' : hover ? 'translateY(-1px)' : 'none',
-        boxShadow: hover ? '0 4px 14px -6px rgba(32,20,15,.28)' : 'none',
-        outline: focused ? '2px solid ' + T.brand : 'none',
+        transform: active ? 'translateY(0)' : opgelicht ? 'translateY(-1px)' : 'none',
+        boxShadow: opgelicht ? '0 4px 14px -6px rgba(32,20,15,.28)' : 'none',
+        outline: (focused || aangewezen) ? '2px solid ' + T.brand : 'none',
         outlineOffset: 2,
       }}
     >
+      {hotkey ? (
+        <span
+          aria-hidden="true"
+          style={{
+            flex: '0 0 auto', minWidth: 16, height: 16, borderRadius: 4,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 700, lineHeight: 1,
+            fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+            color: opgelicht ? T.brand : T.inkSoft,
+            background: T.lineSoft, border: '1px solid ' + T.line, marginRight: 6,
+          }}
+        >
+          {hotkey}
+        </span>
+      ) : null}
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </span>

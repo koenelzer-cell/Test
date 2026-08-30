@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BackButton } from './BackButton.jsx';
 import { TileButton } from './TileButton.jsx';
+import { useListKeyboard } from '../hooks/useListKeyboard.js';
 
 // Kleine ronde info-knop naast een optie die een toelichting heeft.
 function InfoDot({ title, onClick }) {
@@ -33,7 +34,12 @@ function InfoDot({ title, onClick }) {
 
 // Categorie met niet-cliëntgebonden opties; opties met een toelichting krijgen
 // een extra info-knop ernaast. Vervangt content.js' showNonClientCategory.
-export function CategoryScreen({ heading, options, tokens, onBack, onPick, onInfo }) {
+export function CategoryScreen({ heading, options, tokens, onBack, onPick, onInfo, keyboardEnabled = true }) {
+  const aangewezen = useListKeyboard({
+    count: options.length,
+    onSelect: (i) => onPick(i),
+    enabled: keyboardEnabled,
+  });
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
@@ -45,12 +51,12 @@ export function CategoryScreen({ heading, options, tokens, onBack, onPick, onInf
           opt.info ? (
             <div key={opt.display + '|' + i} style={{ display: 'flex', gap: 4 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <TileButton label={opt.display} onClick={() => onPick(i)} tokens={tokens} />
+                <TileButton label={opt.display} onClick={() => onPick(i)} tokens={tokens} hotkey={i < 9 ? String(i + 1) : null} aangewezen={aangewezen === i} />
               </div>
               <InfoDot title={'Meer info over ' + opt.display} onClick={() => onInfo(i)} />
             </div>
           ) : (
-            <TileButton key={opt.display + '|' + i} label={opt.display} onClick={() => onPick(i)} tokens={tokens} />
+            <TileButton key={opt.display + '|' + i} label={opt.display} onClick={() => onPick(i)} tokens={tokens} hotkey={i < 9 ? String(i + 1) : null} aangewezen={aangewezen === i} />
           )
         )}
       </div>

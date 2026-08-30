@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.182'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.183'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -635,12 +635,48 @@
     if (!durMin && r.time_slot && typeof r.time_slot.duration === 'number') durMin = Math.round(r.time_slot.duration / 60);
     var accounted = direct + indirect + travel;
     var otherMin = Math.max(0, durMin - accounted); // niet-cliënt/overige tijd
+    // Datum en begin-/eindtijd worden meegenomen om overlappende registraties te
+    // kunnen signaleren. Dit blijft binnen dezelfde privacylijn als hierboven:
+    // wanneer er iets is geregistreerd, niet vóór of dóór wie.
+    var _clock = function (v) {
+      if (!v) return null;
+      var m = /T(\d{2}):(\d{2})/.exec(String(v));
+      if (m) return (+m[1]) * 60 + (+m[2]);
+      var d = new Date(v);
+      return isNaN(d.getTime()) ? null : d.getHours() * 60 + d.getMinutes();
+    };
     return {
       directMin: direct, indirectMin: indirect, travelMin: travel, otherMin: otherMin,
       durationMin: durMin || accounted,
       hourTypeName: htName,
-      hourTypeId: htId
+      hourTypeId: htId,
+      ymd: dymd || null,
+      startMin: _clock(st),
+      endMin: _clock(et)
     };
+  }
+  // Overlappen twee tijdvakken (in minuten sinds middernacht)? Randen die elkaar
+  // raken (10:00-11:00 en 11:00-12:00) tellen niet als overlap.
+  function _tijdvakkenOverlappen(aStart, aEind, bStart, bEind) {
+    if (aStart == null || aEind == null || bStart == null || bEind == null) return false;
+    if (aEind <= aStart || bEind <= bStart) return false;
+    return aStart < bEind && bStart < aEind;
+  }
+  // Zoekt in de al opgehaalde weekregistraties naar een tijdvak dat overlapt met
+  // het opgegeven vak. Puur op tijd — er wordt niet naar cliënten gekeken.
+  // Geeft null als er geen weekgegevens (in de cache) zijn: dan liever niets
+  // melden dan een melding op onvolledige gegevens.
+  function overlappendeRegistratie(ymd, startMin, eindMin, negeerOccurrenceId) {
+    if (!ymd || startMin == null || eindMin == null) return null;
+    var rijen = _weekRegDetailsCache;
+    if (!Array.isArray(rijen) || !rijen.length) return null;
+    for (var i = 0; i < rijen.length; i++) {
+      var r = rijen[i];
+      if (!r || r.ymd !== ymd) continue;
+      if (negeerOccurrenceId && String(r.occurrenceId) === String(negeerOccurrenceId)) continue;
+      if (_tijdvakkenOverlappen(startMin, eindMin, r.startMin, r.endMin)) return r;
+    }
+    return null;
   }
   // Aggregeer de detailregels tot een summary die declarabiliteitPct begrijpt.
   function summarizeWeekRegistrations(detailsList) {
@@ -722,6 +758,9 @@
       .catch(function () { return null; });
   }
   var _weekRegCache = Object.create(null);
+  // De laatst opgehaalde weekdetails, voor de overlapcontrole. Bevat alleen
+  // tijden, duur en uursoort — geen cliëntgegevens (zie parseRegistrationDetails).
+  var _weekRegDetailsCache = [];
   function fetchWeekRegistrationDeclarabiliteit(inviteeId, date) {
     var d = agendaYmd(date) || agendaYmd(new Date());
     var cacheKey = inviteeId + '|' + d;
@@ -732,10 +771,20 @@
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (j) {
         var occs = parseWeekRegistrationOccurrences(j).slice(0, 200); // veiligheidsplafond
-        return _mapPool(occs, 6, function (o) { return fetchRegistrationDetails(inviteeId, o.occurrenceId); });
+        return _mapPool(occs, 6, function (o) {
+          return fetchRegistrationDetails(inviteeId, o.occurrenceId).then(function (d) {
+            // Het occurrence-ID vasthouden, zodat een registratie zichzelf later
+            // niet als overlap aanmerkt.
+            if (d) d.occurrenceId = o.occurrenceId;
+            return d;
+          });
+        });
       })
       .then(function (details) {
-        var summary = summarizeWeekRegistrations(details.filter(Boolean));
+        var schoon = details.filter(Boolean);
+        // Bewaren voor de overlapcontrole; geen extra netwerkverkeer nodig.
+        _weekRegDetailsCache = schoon;
+        var summary = summarizeWeekRegistrations(schoon);
         _weekRegCache[cacheKey] = { ts: Date.now(), summary: summary };
         return summary;
       });
@@ -5175,11 +5224,66 @@
   // Alleen 'echte' schermen melden zich — tijdelijke overlays (laden, info,
   // uitgeschakeld) juist niet, want daar mag je nooit naar terugkeren.
   let currentScreen = null;
-  function markScreen(name, args) { currentScreen = { name: name, args: args || {} }; }
+  // Waar je vandaan kwam. Voorheen had elk scherm één vast Terug-doel; vanuit
+  // het reistijdscherm belandde je daardoor in het keuzemenu terwijl je van de
+  // duurkeuze kwam. De stapel bewaart de werkelijke route.
+  //
+  // Belangrijk: Terug maakt niets ongedaan. De wizard schrijft onderweg in ONS
+  // (eindtijd, label, uursoort), en teruggaan haalt dat niet weg. De stapel
+  // bepaalt alléén wélk scherm je weer ziet; de opruiming per scherm blijft
+  // staan waar die stond.
+  const SCREEN_HISTORY_MAX = 20;
+  let screenHistory = [];
+  let _navigatingBack = false;
+  function markScreen(name, args) {
+    const vorige = currentScreen;
+    currentScreen = { name: name, args: args || {} };
+    // Tijdens een Terug-navigatie niets bijschrijven, anders groeit de stapel
+    // eindeloos en kom je nooit verder terug dan één stap.
+    if (_navigatingBack) return;
+    if (!vorige || vorige.name === name) return;
+    screenHistory.push(vorige);
+    if (screenHistory.length > SCREEN_HISTORY_MAX) screenHistory.shift();
+  }
+  function clearScreenHistory() { screenHistory = []; }
+  // Tekent het vorige scherm. Geeft false als er niets is om naar terug te
+  // gaan, zodat de aanroeper op zijn eigen vaste doel kan terugvallen.
+  function goBackScreen() {
+    while (screenHistory.length) {
+      const doel = screenHistory.pop();
+      _navigatingBack = true;
+      let ok = false;
+      try { ok = renderMarkedScreen(doel); } catch (e) { ok = false; }
+      _navigatingBack = false;
+      if (ok) { currentScreen = doel; return true; }
+    }
+    return false;
+  }
+  // Terug-handler: eerst de opruiming van dít scherm, dan het vorige scherm —
+  // en als de stapel leeg is (bv. na een herstel) het oude vaste doel.
+  function backHandler(opruimen, vastDoel) {
+    return function () {
+      suppressAutoUntil = Date.now() + 1200;
+      safe(function () {
+        if (typeof opruimen === 'function') opruimen();
+        if (goBackScreen()) return;
+        if (typeof vastDoel === 'function') vastDoel();
+      });
+    };
+  }
   // Voor schermen die (nog) niet herstelbaar zijn: markering wissen, zodat er
   // nooit een verouderd scherm blijft staan en de terugval het overneemt —
   // precies zoals het vóór de state-machine ook ging.
-  function clearScreenMark() { currentScreen = null; }
+  // Het scherm dat je verlaat is zelf niet herstelbaar, maar de route ernaartoe
+  // wél: het scherm waar je vandaan kwam gaat op de stapel, zodat Terug niet
+  // een stap overslaat.
+  function clearScreenMark() {
+    if (currentScreen && !_navigatingBack) {
+      screenHistory.push(currentScreen);
+      if (screenHistory.length > SCREEN_HISTORY_MAX) screenHistory.shift();
+    }
+    currentScreen = null;
+  }
   // Staat dit scherm nu? Vervangt checks die vroeger afgingen op het bestaan van
   // een timer of op de tekst in het paneel.
   function isScreen(name) { return !!currentScreen && currentScreen.name === name; }
@@ -5221,7 +5325,14 @@
   function renderScreen(container, name, props) {
     var b = onsahReact();
     if (!b) { renderBundleMissing(container); return false; }
-    b.renderWizardScreen(container, name, props);
+    // Sneltoetsen alleen als het paneel ook echt bedienbaar is: uitgeklapt, hulp
+    // aan, en geen info-paneel eroverheen. Anders zou een cijfertoets iets kiezen
+    // op een scherm dat de medewerker niet ziet.
+    var p = props || {};
+    if (p.keyboardEnabled === undefined) {
+      p = Object.assign({}, p, { keyboardEnabled: !popupCollapsed && helperEnabled !== false && !_infoPanelRestore });
+    }
+    b.renderWizardScreen(container, name, p);
     return true;
   }
   // Tekent een eerder gemarkeerd scherm opnieuw. Geeft false bij een onbekende
@@ -6408,7 +6519,7 @@
     renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
-      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+      onBack: backHandler(null, showChoices),
       pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle),
     });
   }
@@ -6422,7 +6533,7 @@
     renderScreen(body, 'duration', {
       title: 'Totale reistijd (heen en terug):',
       tokens: ONSAH_TOKENS,
-      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+      onBack: backHandler(null, showChoices),
       pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
         appointmentFlowBusy = true;
         const ok = setAppointmentTravelTotalMinutes(minutes);
@@ -6625,15 +6736,17 @@
       ],
       toggleNode: _dpBox,
       tokens: ONSAH_TOKENS,
-      onBack: function () {
-        suppressAutoUntil = Date.now() + 1200;
-        safe(() => {
+      onBack: backHandler(
+        function () {
           appointmentSaveScreenActive = false; // bewust weg van de opslaanpagina
           stopDoorplannenSaveWatch();
+          appointmentForceChoiceOnce = true;
+        },
+        function () {
           if (nonClient) { showAppointmentNeedsPrereqs(); return; }
-          appointmentForceChoiceOnce = true; showChoices();
-        });
-      },
+          showChoices();
+        }
+      ),
       saveDisabled: doorplannenBlocksSave(),
       onSave: () => safe(() => {
         if (doorplannenBlocksSave()) {
@@ -7197,7 +7310,32 @@
       const ind = _regToMin(_regFieldVal('#declaration_indirect_time')) || 0;
       if ((di + ind) > 0 && (di + ind) !== dur) issues.push({ sev: 'warn', msg: 'Direct + indirect (' + (di + ind) + ' min) komt niet overeen met de duur (' + dur + ' min)' });
     }
+    // Staat er in deze week al een registratie op hetzelfde tijdvak? Puur een
+    // tijdvergelijking; er wordt niet naar cliënten gekeken. Een waarschuwing,
+    // geen blokkade — dubbel boeken kan legitiem zijn (bv. groepsregistratie).
+    try {
+      const dubbel = registrationOverlapIssue();
+      if (dubbel) issues.push(dubbel);
+    } catch (e) {}
     return issues;
+  }
+  // Vergelijkt het tijdvak dat nu op het scherm staat met de al opgehaalde
+  // weekregistraties. Geeft null als er niets te melden is, of als de
+  // weekgegevens (nog) niet geladen zijn — dan liever zwijgen dan gokken.
+  function registrationOverlapIssue() {
+    const ymd = _regFieldVal('#declaration_on_date') || _regFieldVal('#declaration_date') || currentAgendaDate();
+    const start = _regToMin(registrationLiveTimeValue(registrationTimeInput('declaration_start_time_display')));
+    const eind = _regToMin(registrationLiveTimeValue(registrationTimeInput('declaration_end_time_display')));
+    if (!ymd || start == null || eind == null || eind <= start) return null;
+    const eigen = (typeof currentRegistrationId === 'function') ? currentRegistrationId() : null;
+    const hit = overlappendeRegistratie(String(ymd).slice(0, 10), start, eind, eigen);
+    if (!hit) return null;
+    const klok = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    return {
+      sev: 'warn',
+      msg: 'Er staat op deze dag al een registratie van ' + klok(hit.startMin) + ' tot ' + klok(hit.endMin) +
+           (hit.hourTypeName ? ' (' + hit.hourTypeName + ')' : '') + ' — controleer of dit geen dubbele invoer is.',
+    };
   }
   // De Indienen-knop blijft een vanilla-knoop: updateRegistrationReportSubmitButton
   // werkt hem live bij (tekst/kleur volgen de rapportagestatus). React plaatst hem
@@ -7250,7 +7388,7 @@
     renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
-      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
+      onBack: backHandler(null, showRegistrationChoices),
       pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => {
         const endOk = setRegistrationEndTimePlusMinutes(minutes);
         // verdeling opnieuw toepassen op de nieuwe (nu bekende) duur
@@ -7391,7 +7529,7 @@
       title: 'Totale reistijd (heen en terug):',
       backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
       tokens: ONSAH_TOKENS,
-      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
+      onBack: backHandler(null, showRegistrationChoices),
       pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
         registrationFlowBusy = true;
         const ok = setRegistrationTravelTotalMinutes(minutes);
@@ -9116,6 +9254,7 @@
     registrationFromAppointment = false;
     registrationAutoApplied = false;
     clearScreenMark();
+    clearScreenHistory(); // nieuwe sessie begint zonder route van de vorige
     activeMode = null;
     removePopup(); // ruimt ook de React-root op, incl. de controle-lussen
 
@@ -10338,8 +10477,14 @@
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
     renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
+    // Dubbele-registratiecontrole.
+    _tijdvakkenOverlappen: (typeof _tijdvakkenOverlappen === 'function') ? _tijdvakkenOverlappen : undefined,
+    overlappendeRegistratie: (typeof overlappendeRegistratie === 'function') ? overlappendeRegistratie : undefined,
+    __setWeekRegDetails: function (rows) { try { _weekRegDetailsCache = rows || []; } catch (e) {} },
     PICKER_CHIP_LIMIT: (typeof PICKER_CHIP_LIMIT !== 'undefined') ? PICKER_CHIP_LIMIT : undefined,
     clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
+    clearScreenHistory: (typeof clearScreenHistory === 'function') ? clearScreenHistory : undefined,
+    __getScreenHistory: function () { try { return screenHistory.map(function (s) { return s.name; }); } catch (e) { return null; } },
     __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },
     matchRegistrationChoiceByLabel: (typeof matchRegistrationChoiceByLabel === 'function') ? matchRegistrationChoiceByLabel : undefined,
     loadPendingRegistrationLabel: (typeof loadPendingRegistrationLabel === 'function') ? loadPendingRegistrationLabel : undefined,
