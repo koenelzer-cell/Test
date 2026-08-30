@@ -12,7 +12,7 @@ import { useInterval } from '../hooks/useInterval.js';
 // Nu hoort hij bij dit scherm en stopt hij vanzelf als je hier weg navigeert.
 export function ReadyToSaveScreen({
   textNodes, toggleNode, tokens, onBack, onSave, saveDisabled, showUursoortNote,
-  onWatchTick, watchIntervalMs, onUndo,
+  onWatchTick, watchIntervalMs, onUndo, overlapNote,
 }) {
   useInterval(onWatchTick, watchIntervalMs);
   return (
@@ -35,6 +35,17 @@ export function ReadyToSaveScreen({
             accent="#a3241f"
             accentWash="#fbeceb"
           />
+        </div>
+      ) : null}
+      {overlapNote ? (
+        <div
+          style={{
+            fontSize: 12, color: tokens.bad, fontWeight: 600, lineHeight: 1.4,
+            margin: '8px 0 0', padding: '8px 10px', borderRadius: 8,
+            background: tokens.badWash, border: '1px solid ' + tokens.bad + '44',
+          }}
+        >
+          {overlapNote}
         </div>
       ) : null}
       {showUursoortNote ? (
