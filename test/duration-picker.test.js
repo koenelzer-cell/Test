@@ -80,3 +80,50 @@ test('de schuifregelaar start op de meegegeven beginwaarde', () => {
   assert.ok(api.mkDurationPicker([0, 5, 10], () => {}, 'slider', 0));
   assert.ok(api.mkDurationPicker(WEINIG, () => {}, 'slider'));
 });
+
+// ── Korte reeksen: geen zinloze uren-stap ────────────────────────────────────
+// Bij de vraag "hoeveel directe/indirecte tijd zat er in deze registratie?" gaat
+// het om minuten binnen één registratie. De uren-stap leverde daar de keuze
+// tussen "0 uur" en "1 uur" op.
+const PORTIE = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]; // 5 t/m 60 min
+
+test('een reeks tot en met een uur vraagt meteen om minuten', () => {
+  const api = pickers();
+  const node = api.mkDurationPicker(PORTIE, () => {}, 'hourMinute');
+  const tekst = node.textContent || '';
+  assert.match(tekst, /minuten/i, 'de vraag hoort meteen over minuten te gaan');
+  assert.doesNotMatch(tekst, /aantal uren/i,
+    'bij een bereik tot 60 minuten is "kies eerst het aantal uren" zinloos');
+  assert.doesNotMatch(tekst, /0 uur/,
+    '"0 uur" is geen begrijpelijke keuze');
+});
+
+test('alle waarden van een korte reeks zijn in één keer te kiezen', () => {
+  const api = pickers();
+  const node = api.mkDurationPicker(PORTIE, () => {}, 'hourMinute');
+  const knoppen = node.querySelectorAll('button');
+  assert.equal(knoppen.length, PORTIE.length,
+    'elke minutenwaarde hoort direct aanklikbaar te zijn, kreeg ' + knoppen.length);
+});
+
+test('een korte reeks kiest de juiste waarde', () => {
+  const api = pickers();
+  let gekozen = null;
+  const node = api.mkDurationPicker(PORTIE, (v) => { gekozen = v; }, 'hourMinute');
+  const knoppen = [...node.querySelectorAll('button')];
+  const knop = knoppen.find((b) => /^30 min/.test(b.textContent || ''));
+  assert.ok(knop, 'er hoort een knop voor 30 minuten te zijn');
+  knop.click();
+  assert.equal(gekozen, 30);
+});
+
+test('een lange reeks houdt de uren-stap, met een begrijpelijk label', () => {
+  const api = pickers();
+  const lang = [];
+  for (let m = 15; m <= 480; m += 15) lang.push(m);
+  const node = api.mkDurationPicker(lang, () => {}, 'hourMinute');
+  const tekst = node.textContent || '';
+  assert.match(tekst, /aantal uren/i, 'bij acht uur is de uren-stap juist nuttig');
+  assert.doesNotMatch(tekst, /(^|[^<]\s)0 uur/, 'de eerste groep hoort "< 1 uur" te heten');
+  assert.match(tekst, /< 1 uur/, 'de groep onder het uur moet begrijpelijk zijn');
+});

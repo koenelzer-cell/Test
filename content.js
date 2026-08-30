@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.183'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.184'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -4966,6 +4966,23 @@
       Object.assign(grid.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: '7px' });
       return grid;
     }
+    // Alle waarden in één rooster, zonder uren-stap. Voor korte reeksen (bv. de
+    // directe/indirecte tijd binnen een registratie) is "kies eerst het aantal
+    // uren" zinloos: je zou moeten kiezen tussen "0 uur" en "1 uur".
+    function renderAlleMinuten() {
+      cap.textContent = 'Aantal minuten:';
+      stage.innerHTML = '';
+      const grid = mkGrid();
+      values.slice().sort((a, b) => a - b).forEach((v) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = v + ' min.';
+        styleChipButton(btn);
+        btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPick(v); });
+        grid.appendChild(btn);
+      });
+      stage.appendChild(grid);
+    }
     function renderHours() {
       cap.textContent = 'Aantal uren:';
       stage.innerHTML = '';
@@ -4974,7 +4991,9 @@
         const mins = byHour.get(h);
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = h + ' uur';
+        // "0 uur" zegt niets; bij een reeks die onder het uur begint is
+        // "< 1 uur" de begrijpelijke omschrijving.
+        btn.textContent = h === 0 ? '< 1 uur' : (h + ' uur');
         styleChipButton(btn);
         btn.addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
@@ -5002,7 +5021,10 @@
       });
       stage.append(back, grid);
     }
-    renderHours();
+    // De uren-stap heeft alleen zin als er méér dan een uur te kiezen valt.
+    const grootste = values.length ? Math.max.apply(null, values) : 0;
+    if (hours.length <= 1 || grootste <= 60) renderAlleMinuten();
+    else renderHours();
     return wrap;
   }
   function mkTimePicker(values, initial, onPick) {
@@ -8205,15 +8227,26 @@
   function choicePrefix(c) {
     return (c && c.reportPrefix && String(c.reportPrefix).trim()) ? String(c.reportPrefix).trim() : (c ? c.label : '');
   }
+  // Een prefix van één regel komt vóór de rapportage te staan als "prefix - tekst".
+  // Bevat de prefix regeleindes, dan is het een sjabloon: dat hoort als blok
+  // bovenaan te staan met de rapportage eronder, niet met een streepje erachter.
+  function _prefixIsSjabloon(p) { return /\n/.test(String(p || '')); }
+  function _prefixScheiding(p) { return _prefixIsSjabloon(p) ? '\n' : ' - '; }
+  function _escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  // Het staartstuk waarmee een prefix van de rapportage wordt gescheiden.
+  function _prefixStaartRe(p) { return _prefixIsSjabloon(p) ? '\\s*' : '\\s*-\\s*'; }
   function registrationPrefixRegex() {
+    // Langste eerst: anders matcht een korte prefix die het begin is van een
+    // langere (bv. "MDO" binnen "MDO overleg") de verkeerde.
     const parts = REGISTRATION_CHOICES.map((c) => choicePrefix(c)).filter(Boolean)
-      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    return new RegExp(`^\\s*(?:${parts.join('|')})\\s*-\\s*`, 'i');
+      .slice().sort((a, b) => b.length - a.length)
+      .map((p) => _escapeRe(p) + _prefixStaartRe(p));
+    return new RegExp(`^\\s*(?:${parts.join('|')})`, 'i');
   }
   function registrationChoicePrefixRegex(choice) {
     const p = choicePrefix(choice);
     if (!p) return null;
-    return new RegExp(`^\\s*${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*-\\s*`, 'i');
+    return new RegExp(`^\\s*${_escapeRe(p)}${_prefixStaartRe(p)}`, 'i');
   }
   function registrationReportNeedsContent() {
     const field = registrationPrimaryReportField();
@@ -8235,7 +8268,7 @@
     const prefixRe = registrationPrefixRegex();
     const current = registrationReportTextValue(field);
     const rest = current.replace(prefixRe, '');
-    const ok = setRegistrationReportTextValue(field, `${label} - ${rest}`);
+    const ok = setRegistrationReportTextValue(field, `${label}${_prefixScheiding(label)}${rest}`);
     setTimeout(updateRegistrationSubmitGuard, 0);
     return ok;
   }
@@ -8261,7 +8294,7 @@
       otherPrefixRe.test(current);
     if (!looksEmptyOrBrokenPrefix) return false;
     const rest = otherPrefixRe.test(current) ? current.replace(otherPrefixRe, '') : '';
-    const ok = setRegistrationReportTextValue(target, `${pfx} - ${rest}`);
+    const ok = setRegistrationReportTextValue(target, `${pfx}${_prefixScheiding(pfx)}${rest}`);
     setTimeout(updateRegistrationSubmitGuard, 0);
     return ok;
   }
@@ -10477,6 +10510,11 @@
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
     renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
+    // Rapportageprefix: één regel vs. sjabloon met regeleindes.
+    _prefixScheiding: (typeof _prefixScheiding === 'function') ? _prefixScheiding : undefined,
+    registrationPrefixRegex: (typeof registrationPrefixRegex === 'function') ? registrationPrefixRegex : undefined,
+    registrationChoicePrefixRegex: (typeof registrationChoicePrefixRegex === 'function') ? registrationChoicePrefixRegex : undefined,
+    choicePrefix: (typeof choicePrefix === 'function') ? choicePrefix : undefined,
     // Dubbele-registratiecontrole.
     _tijdvakkenOverlappen: (typeof _tijdvakkenOverlappen === 'function') ? _tijdvakkenOverlappen : undefined,
     overlappendeRegistratie: (typeof overlappendeRegistratie === 'function') ? overlappendeRegistratie : undefined,

@@ -743,7 +743,8 @@
   <dialog id="formExtraDialog" class="link-dialoog" style="width:min(460px,calc(100vw - 30px))">
     <header><h1>Overige instellingen — <span id="fedName"></span></h1></header>
     <div class="inhoud">
-      <label class="beheer-veld"><span>Rapportageprefix (leeg = de vorm-naam als prefix)</span><input id="fedPrefix" type="text" autocomplete="off"></label>
+      <label class="beheer-veld"><span>Rapportageprefix (leeg = de vorm-naam als prefix)</span><textarea id="fedPrefix" rows="5" autocomplete="off" spellcheck="false" style="resize:vertical;min-height:76px;font:inherit;line-height:1.4"></textarea></label>
+      <p class="uitleg" style="margin:6px 0 0">Eén regel wordt vóór de rapportage gezet als “prefix - tekst”. Meerdere regels worden als blok bovenaan de rapportage geplaatst, met de rapportage op de regel eronder — handig voor een vast sjabloon.</p>
       <label class="beheer-veld" style="margin-top:10px"><span>Eindtijd = begintijd + … minuten</span><input id="fedEndPlus" type="number" min="0" max="1440" placeholder="Uit Ons"></label>
       <p class="uitleg" style="margin:8px 0 0">Eindtijd leeg = eindtijd overnemen uit ONS. Een getal = eindtijd wordt begintijd + dat aantal minuten.</p>
     </div>
