@@ -4521,7 +4521,6 @@
   let userPos = null, dragging = false, dragDX = 0, dragDY = 0, popupDragMoved = false;
   // Stabiliteit van de standaard rechterpositie: zie defaultPopupRight() hieronder.
   let _lastRightPanel = null, _lastRightValue = null;
-  let manualUursoortAutoTimer = null;
   let pendingChoice = null, clientWaitTimer = null, activeAppointmentDurationMinutes = null, activeAppointmentStartTimeText = '', appointmentTimeGuardTimers = [];
   // Eindtijd-guard: `helperEndText` = de laatste eindtijd die de hulp zelf schreef.
   // Wijkt de eindtijd daar later van af, dan heeft de medewerker hem handmatig
@@ -4553,8 +4552,10 @@
   // waarschuwing loopt via het algemene meldingenkanaal (helperQualityIssues);
   // een lichte bewaking hertekent de opslaanpagina zodra de blokkade omslaat
   // (herhaling gekozen/weggehaald), zodat knop en status live meelopen.
-  let appointmentDoorplannen = false, doorplannenSaveWatch = null, doorplannenLastBlocked = null, doorplannenSuppressAutoUntil = 0, doorplannenLastRecurrenceSet = false, doorplannenLastExpanded = false;
-  function stopDoorplannenSaveWatch() { if (doorplannenSaveWatch) { clearInterval(doorplannenSaveWatch); doorplannenSaveWatch = null; } }
+  let appointmentDoorplannen = false, doorplannenLastBlocked = null, doorplannenSuppressAutoUntil = 0, doorplannenLastRecurrenceSet = false, doorplannenLastExpanded = false;
+  // Idem voor de doorplannen-bewaking: die hoort nu bij het opslaanscherm en
+  // wordt door React opgeruimd bij weg navigeren.
+  function stopDoorplannenSaveWatch() {}
   let knownClientNames = new Set(), autoSelectingNewClient = false;
   let appointmentAvailabilityConfirmedPeople = new Set(), appointmentForceChoiceOnce = false;
   let activeMode = null, registrationTravelClicked = false;
@@ -5271,6 +5272,9 @@
   // nooit een verouderd scherm blijft staan en de terugval het overneemt —
   // precies zoals het vóór de state-machine ook ging.
   function clearScreenMark() { currentScreen = null; }
+  // Staat dit scherm nu? Vervangt checks die vroeger afgingen op het bestaan van
+  // een timer of op de tekst in het paneel.
+  function isScreen(name) { return !!currentScreen && currentScreen.name === name; }
   // Maakt de hulp-body leeg vóór een vanilla-scherm. React beheert dezelfde
   // container, dus die root moet er eerst netjes af: anders blijft React denken
   // dat hij nog eigenaar is van knopen die hier zojuist zijn weggegooid.
@@ -6363,7 +6367,8 @@
     if (appointmentAwaitingManualUursoort && hasAppointmentPrereqs()) {
       // Het uursoort-wachtscherm werkt zichzelf bij via zijn eigen poll-lus;
       // hier alleen herstellen als dat scherm (door een refresh) verdwenen is.
-      if (!manualUursoortAutoTimer) showManualUursoortInstruction();
+      // Dat weten we nu uit de schermtoestand i.p.v. uit het bestaan van een timer.
+      if (!isScreen('manualUursoortInstruction')) showManualUursoortInstruction();
       return;
     }
     if (appointmentSaveScreenActive) {
@@ -6628,7 +6633,54 @@
       }));
     }
     const freeTitle = nonClient && !!activeNonClientOption.freeTitle;
+    // Lichte bewaking op de opslaanpagina (snel, 250ms):
+    //  1) zet de toggle AAN zodra de medewerker de herhaling-kaart zelf opent of
+    //     een herhaling kiest;
+    //  2) herteken zodra de doorplannen-blokkade omslaat, zodat knop/status/ONS-
+    //     knop live meelopen.
+    // De lus draait in het React-scherm en stopt vanzelf bij weg navigeren.
+    const _doorplannenActief = !(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false);
+    if (_doorplannenActief) {
+      doorplannenLastBlocked = doorplannenBlocksSave();
+      doorplannenLastRecurrenceSet = recurrenceIsSet();
+      doorplannenLastExpanded = recurrenceHeaderExpanded();
+    }
+    const onWatchTick = () => safe(() => {
+      if (!helperEnabled || !appointmentSaveScreenActive) return;
+      const suppressed = Date.now() < doorplannenSuppressAutoUntil;
+      const nowSet = recurrenceIsSet();
+      const expanded = recurrenceHeaderExpanded();
+      // Flankdetectie: reageer op de OMSLAG, niet op het niveau. Zo blijft
+      // 'medewerker zet op Niet' (dalende flank) uit staan, ook als de kaart
+      // open blijft (dat is geen nieuwe stijgende flank).
+      const roseSet = nowSet && !doorplannenLastRecurrenceSet;
+      const roseExpanded = expanded && !doorplannenLastExpanded;
+      const fellSet = !nowSet && doorplannenLastRecurrenceSet;
+      const fellExpanded = !expanded && doorplannenLastExpanded;
+      if (!suppressed) {
+        // Auto-AAN: medewerker opent de herhaling-kaart zelf of kiest een herhaling.
+        if (!appointmentDoorplannen && (roseSet || roseExpanded)) {
+          appointmentDoorplannen = true;
+          doorplannenLastRecurrenceSet = nowSet; doorplannenLastExpanded = expanded;
+          showAppointmentReadyToSave(); return;
+        }
+        // Auto-UIT: medewerker zet de herhaling zelf terug op 'Niet' of klapt de kaart in.
+        if (appointmentDoorplannen && (fellSet || fellExpanded)) {
+          appointmentDoorplannen = false; doorplannenSuppressAutoUntil = Date.now() + 800;
+          doorplannenLastRecurrenceSet = nowSet; doorplannenLastExpanded = expanded;
+          showAppointmentReadyToSave(); return;
+        }
+      }
+      doorplannenLastRecurrenceSet = nowSet;
+      doorplannenLastExpanded = expanded;
+      // Herteken zodra de blokkade omslaat, zodat knop/status/ONS-knop meelopen.
+      if (appointmentDoorplannen && doorplannenBlocksSave() !== doorplannenLastBlocked) {
+        showAppointmentReadyToSave();
+      }
+    });
     window.__onsahReact.renderWizardScreen(body, 'readyToSave', {
+      onWatchTick: onWatchTick,
+      watchIntervalMs: _doorplannenActief ? 250 : 0,
       textNodes: [
         mkText('afspraak_klaar_regel1', 'Voeg eventueel nog een locatie en notitie toe.', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '4px 0 2px' }),
         mkText('afspraak_klaar_regel2', 'Als de instellingen kloppen, kun je de afspraak opslaan', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '0 0 8px' }),
@@ -6660,54 +6712,12 @@
     else setStatus(ready ? 'Klaar om op te slaan' : (freeTitle ? 'Vul de titel aan' : (nonClient ? 'Voeg nog een uursoort toe' : 'Voeg eerst bij elke client een uursoort toe')), ready);
     updateSubmitGuard(); // ONS-eigen opslaanknop mee-blokkeren bij doorplannen+Niet
     appointmentSaveScreenActive = true; // opslaanpagina staat; refresh laat 'm met rust
-    // Lichte bewaking op de opslaanpagina (snel, 250ms):
-    //  1) zet de toggle AAN zodra de medewerker de herhaling-kaart zelf opent of
-    //     een herhaling kiest;
-    //  2) herteken zodra de doorplannen-blokkade omslaat, zodat knop/status/ONS-
-    //     knop live meelopen.
-    stopDoorplannenSaveWatch();
-    if (!(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false)) {
-      doorplannenLastBlocked = doorplannenBlocksSave();
-      doorplannenLastRecurrenceSet = recurrenceIsSet();
-      doorplannenLastExpanded = recurrenceHeaderExpanded();
-      doorplannenSaveWatch = setInterval(() => safe(() => {
-        if (!helperEnabled || !appointmentSaveScreenActive) { stopDoorplannenSaveWatch(); return; }
-        const suppressed = Date.now() < doorplannenSuppressAutoUntil;
-        const nowSet = recurrenceIsSet();
-        const expanded = recurrenceHeaderExpanded();
-        // Flankdetectie: reageer op de OMSLAG, niet op het niveau. Zo blijft
-        // 'medewerker zet op Niet' (dalende flank) uit staan, ook als de kaart
-        // open blijft (dat is geen nieuwe stijgende flank).
-        const roseSet = nowSet && !doorplannenLastRecurrenceSet;
-        const roseExpanded = expanded && !doorplannenLastExpanded;
-        const fellSet = !nowSet && doorplannenLastRecurrenceSet;
-        const fellExpanded = !expanded && doorplannenLastExpanded;
-        if (!suppressed) {
-          // Auto-AAN: medewerker opent de herhaling-kaart zelf of kiest een herhaling.
-          if (!appointmentDoorplannen && (roseSet || roseExpanded)) {
-            appointmentDoorplannen = true;
-            doorplannenLastRecurrenceSet = nowSet; doorplannenLastExpanded = expanded;
-            stopDoorplannenSaveWatch(); showAppointmentReadyToSave(); return;
-          }
-          // Auto-UIT: medewerker zet de herhaling zelf terug op 'Niet' of klapt de kaart in.
-          if (appointmentDoorplannen && (fellSet || fellExpanded)) {
-            appointmentDoorplannen = false; doorplannenSuppressAutoUntil = Date.now() + 800;
-            doorplannenLastRecurrenceSet = nowSet; doorplannenLastExpanded = expanded;
-            stopDoorplannenSaveWatch(); showAppointmentReadyToSave(); return;
-          }
-        }
-        doorplannenLastRecurrenceSet = nowSet;
-        doorplannenLastExpanded = expanded;
-        // Herteken zodra de blokkade omslaat, zodat knop/status/ONS-knop meelopen.
-        if (appointmentDoorplannen && doorplannenBlocksSave() !== doorplannenLastBlocked) {
-          stopDoorplannenSaveWatch(); showAppointmentReadyToSave();
-        }
-      }), 250);
-    }
   }
-  function stopManualUursoortAutoCheck() {
-    if (manualUursoortAutoTimer) { clearInterval(manualUursoortAutoTimer); manualUursoortAutoTimer = null; }
-  }
+  // De uursoort-controlelus draait sinds de React-omzetting in het scherm zelf
+  // (useInterval) en stopt automatisch zodra dat scherm verdwijnt. Deze functie
+  // blijft alleen als expliciete "stop nu"-aanroep vanuit niet-React-paden; er
+  // is geen losse timer meer om op te ruimen.
+  function stopManualUursoortAutoCheck() {}
   function clientsMissingUursoort() {
     return findClientEntries()
       .filter((entry) => !entryUursoortIsSet(entry))
@@ -6734,6 +6744,13 @@
     try { highlightField(getUursoortTrigger() || (typeof findClientUursoortTrigger === 'function' ? findClientUursoortTrigger() : null)); } catch (e) {}
     // De lijst ontbrekende cliënten ververst elke 600ms; voorheen schreef de timer
     // rechtstreeks in de DOM, nu gaat hij als prop mee in een hertekening.
+    // Elke tik: opnieuw kijken wie nog een uursoort mist en het scherm daarmee
+    // hertekenen. De lus zelf draait in het React-scherm (useInterval) en stopt
+    // vanzelf zodra we hier weg navigeren — geen losse stop-aanroepen meer nodig.
+    const onWatchTick = () => safe(() => {
+      if (!helperEnabled || activeMode === 'registrations' || _infoPanelRestore) return;
+      checkNow();
+    });
     const renderMissing = () => {
       const names = clientsMissingUursoort();
       window.__onsahReact.renderWizardScreen(body, 'manualUursoort', {
@@ -6743,24 +6760,20 @@
         tokens: ONSAH_TOKENS,
         onBack: function () {
           suppressAutoUntil = Date.now() + 1200;
-          safe(() => { stopManualUursoortAutoCheck(); appointmentAwaitingManualUursoort = false; appointmentForceChoiceOnce = true; showChoices(); });
+          safe(() => { appointmentAwaitingManualUursoort = false; appointmentForceChoiceOnce = true; showChoices(); });
         },
+        onWatchTick: onWatchTick,
+        watchIntervalMs: 600,
       });
       return names;
     };
     const checkNow = () => {
       invalidateClientEntries();
       const names = renderMissing();
-      if (!names.length && hasUursoortSelected()) { stopManualUursoortAutoCheck(); showAppointmentReadyToSave(); return true; }
+      if (!names.length && hasUursoortSelected()) { showAppointmentReadyToSave(); return true; }
       setStatus(names.length ? `Wacht op uursoort: ${names.join(', ')}` : 'Uursoort gevonden', !names.length);
       return false;
     };
-    // Live bijwerken + automatisch doorschakelen zodra elke client een uursoort heeft.
-    stopManualUursoortAutoCheck();
-    manualUursoortAutoTimer = setInterval(() => safe(() => {
-      if (!helperEnabled || activeMode === 'registrations' || _infoPanelRestore) return;
-      checkNow();
-    }), 600);
     checkNow();
   }
   function showUursoort(options, afterPick, clientContext = null) {
@@ -9097,7 +9110,19 @@
     updateSubmitGuard();
     reposition();
   }
-  function removePopup() { if (popupEl) { popupEl.remove(); popupEl = null; } }
+  // Eerst de React-root netjes afbouwen, dán pas het paneel uit de DOM halen.
+  // Een element uit de DOM trekken is voor React geen signaal: zonder deze
+  // unmount blijven de opruimacties van de schermen (o.a. hun controle-lussen)
+  // achterwege en tikt er een timer door op een paneel dat niet meer bestaat.
+  function removePopup() {
+    if (!popupEl) return;
+    try {
+      const body = popupEl.querySelector('[data-body]');
+      if (body && window.__onsahReact) window.__onsahReact.unmount(body);
+    } catch (e) {}
+    popupEl.remove();
+    popupEl = null;
+  }
 
   /*  activeren per route  */
   let _mountRaf = 0;
@@ -9204,9 +9229,10 @@
     registrationAutoChoice = null;
     registrationFromAppointment = false;
     registrationAutoApplied = false;
-    if (manualUursoortAutoTimer) { clearInterval(manualUursoortAutoTimer); manualUursoortAutoTimer = null; }
+    clearScreenMark();
     activeMode = null;
-    removePopup();
+    removePopup(); // ruimt ook de React-root op, incl. de controle-lussen
+
   }
   // Optionele domein-allowlist uit de config. Leeg = actief op elk domein dat
   // het manifest toelaat. Gevuld = alleen actief op deze domeinen (kan de

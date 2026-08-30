@@ -1,5 +1,6 @@
 import { BackButton } from './BackButton.jsx';
 import { VanillaNode, VanillaNodes } from './VanillaNode.jsx';
+import { useInterval } from '../hooks/useInterval.js';
 
 const Pink = ({ children }) => (
   <span style={{ color: '#cc087d', fontWeight: 700 }}>{children}</span>
@@ -44,7 +45,11 @@ export function ReportPromptScreen({ msgNode, completenessNode, submitNode, toke
 
 // "Kies zelf de uursoort" — de lijst ontbrekende cliënten wordt elke 600ms
 // ververst; die tekst komt als prop binnen i.p.v. dat een timer in de DOM schrijft.
-export function ManualUursoortScreen({ missingText, subNode, instructionNode, tokens, onBack }) {
+// De controle-lus hoort nu bij dit scherm en stopt vanzelf bij weg navigeren.
+export function ManualUursoortScreen({
+  missingText, subNode, instructionNode, tokens, onBack, onWatchTick, watchIntervalMs,
+}) {
+  useInterval(onWatchTick, watchIntervalMs);
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
