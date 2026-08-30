@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.187'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.188'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -3543,47 +3543,6 @@
     const total = (isFinite(a) ? a : 0) + (isFinite(b) ? b : 0);
     return total > 0 ? total : null;
   }
-  // Alles wat straks wordt opgeslagen, in één overzicht. Puur lezen: deze
-  // functie verandert niets aan de afspraak. Wordt gebruikt voor de controle
-  // vóór opslaan, zodat de medewerker ziet wat de hulp heeft ingevuld.
-  function appointmentPreviewRows() {
-    const rijen = [];
-    const push = (label, waarde, ok) => rijen.push({ label: label, waarde: waarde, ok: ok !== false, ontbreekt: !waarde });
-
-    const titel = OnsAdapter.afspraak.titel();
-    const start = (() => { try { return appointmentCurrentStartTimeText() || ''; } catch (e) { return ''; } })();
-    const eind = OnsAdapter.afspraak.eindtijd();
-
-    const nietClient = !hasClientInAppointment() && !!activeNonClientOption;
-    const type = nietClient
-      ? (activeNonClientOption.display || activeNonClientOption.label || '')
-      : ((pendingChoice && pendingChoice.label) || '');
-    if (type) push('Type', type);
-
-    if (titel) push('Titel', titel);
-    if (start || eind) push('Tijd', (start || '?') + ' – ' + (eind || '?'), !!(start && eind));
-
-    if (activeAppointmentDurationMinutes > 0) push('Duur', registrationDurationLabel(activeAppointmentDurationMinutes));
-
-    const reis = OnsAdapter.afspraak.reistijdTotaal();
-    if (reis != null) push('Reistijd', registrationDurationLabel(reis) + ' totaal');
-
-    // Labels zoals ze nu op de afspraak staan.
-    const namen = OnsAdapter.afspraak.labels();
-    if (namen.length) push('Label', namen.join(', '));
-
-    // Per cliënt de gekozen uursoort — het veld waar het in de praktijk misgaat.
-    if (!nietClient) {
-      try {
-        OnsAdapter.clienten.ververs();
-        (OnsAdapter.clienten.lijst() || []).forEach((entry) => {
-          const tekst = OnsAdapter.clienten.uursoort(entry);
-          push('Uursoort ' + (entry.firstName || entry.name || ''), tekst, !!tekst);
-        });
-      } catch (e) {}
-    }
-    return rijen;
-  }
   function entryUursoortIsSet(entry) {
     if (!entry) return false;
     if (entry.card) {
@@ -5132,9 +5091,13 @@
       });
       stage.append(back, grid);
     }
-    // De uren-stap heeft alleen zin als er méér dan een uur te kiezen valt.
-    const grootste = values.length ? Math.max.apply(null, values) : 0;
-    if (hours.length <= 1 || grootste <= 60) renderAlleMinuten();
+    // De uren-stap bestaat om een láánge lijst te vermijden. Bij een
+    // overzichtelijk aantal waarden is een rooster met alle minuten duidelijker:
+    // je denkt bij "hoeveel indirecte tijd zat hierin?" in minuten, niet in
+    // uren. Een registratie van twee uur geeft 24 keuzes van 5 minuten — dat
+    // past prima in één rooster.
+    const PICKER_UUR_DREMPEL = 30;
+    if (hours.length <= 1 || values.length <= PICKER_UUR_DREMPEL) renderAlleMinuten();
     else renderHours();
     return wrap;
   }
@@ -5357,66 +5320,14 @@
   // Alleen 'echte' schermen melden zich — tijdelijke overlays (laden, info,
   // uitgeschakeld) juist niet, want daar mag je nooit naar terugkeren.
   let currentScreen = null;
-  // Waar je vandaan kwam. Voorheen had elk scherm één vast Terug-doel; vanuit
-  // het reistijdscherm belandde je daardoor in het keuzemenu terwijl je van de
-  // duurkeuze kwam. De stapel bewaart de werkelijke route.
-  //
-  // Belangrijk: Terug maakt niets ongedaan. De wizard schrijft onderweg in ONS
-  // (eindtijd, label, uursoort), en teruggaan haalt dat niet weg. De stapel
-  // bepaalt alléén wélk scherm je weer ziet; de opruiming per scherm blijft
-  // staan waar die stond.
-  const SCREEN_HISTORY_MAX = 20;
-  let screenHistory = [];
-  let _navigatingBack = false;
-  function markScreen(name, args) {
-    const vorige = currentScreen;
-    currentScreen = { name: name, args: args || {} };
-    // Tijdens een Terug-navigatie niets bijschrijven, anders groeit de stapel
-    // eindeloos en kom je nooit verder terug dan één stap.
-    if (_navigatingBack) return;
-    if (!vorige || vorige.name === name) return;
-    screenHistory.push(vorige);
-    if (screenHistory.length > SCREEN_HISTORY_MAX) screenHistory.shift();
-  }
-  function clearScreenHistory() { screenHistory = []; }
-  // Tekent het vorige scherm. Geeft false als er niets is om naar terug te
-  // gaan, zodat de aanroeper op zijn eigen vaste doel kan terugvallen.
-  function goBackScreen() {
-    while (screenHistory.length) {
-      const doel = screenHistory.pop();
-      _navigatingBack = true;
-      let ok = false;
-      try { ok = renderMarkedScreen(doel); } catch (e) { ok = false; }
-      _navigatingBack = false;
-      if (ok) { currentScreen = doel; return true; }
-    }
-    return false;
-  }
-  // Terug-handler: eerst de opruiming van dít scherm, dan het vorige scherm —
-  // en als de stapel leeg is (bv. na een herstel) het oude vaste doel.
-  function backHandler(opruimen, vastDoel) {
-    return function () {
-      suppressAutoUntil = Date.now() + 1200;
-      safe(function () {
-        if (typeof opruimen === 'function') opruimen();
-        if (goBackScreen()) return;
-        if (typeof vastDoel === 'function') vastDoel();
-      });
-    };
-  }
+  function markScreen(name, args) { currentScreen = { name: name, args: args || {} }; }
   // Voor schermen die (nog) niet herstelbaar zijn: markering wissen, zodat er
   // nooit een verouderd scherm blijft staan en de terugval het overneemt —
   // precies zoals het vóór de state-machine ook ging.
   // Het scherm dat je verlaat is zelf niet herstelbaar, maar de route ernaartoe
   // wél: het scherm waar je vandaan kwam gaat op de stapel, zodat Terug niet
   // een stap overslaat.
-  function clearScreenMark() {
-    if (currentScreen && !_navigatingBack) {
-      screenHistory.push(currentScreen);
-      if (screenHistory.length > SCREEN_HISTORY_MAX) screenHistory.shift();
-    }
-    currentScreen = null;
-  }
+  function clearScreenMark() { currentScreen = null; }
   // Staat dit scherm nu? Vervangt checks die vroeger afgingen op het bestaan van
   // een timer of op de tekst in het paneel.
   function isScreen(name) { return !!currentScreen && currentScreen.name === name; }
@@ -5783,16 +5694,12 @@
     OnsAdapter.afspraak.labelVeld();
     OnsAdapter.afspraak.datumVeld();
     OnsAdapter.afspraak.begintijdVeld();
-    // Deze zijn alleen relevant zodra er een cliënt in de afspraak zit.
-    if (OnsAdapter.context.heeftClient()) {
-      OnsAdapter.clienten.ververs();
-      const rijen = OnsAdapter.clienten.lijst() || [];
-      rijen.forEach((entry) => {
-        if (!OnsAdapter.clienten.uursoortVeld(entry)) {
-          _onsGemist.add('uursoortveld ' + (entry.firstName || entry.name || ''));
-        }
-      });
-    }
+    // BEWUST NIET: het uursoort-veld per cliënt. Dat veld bestaat pas zodra de
+    // cliëntkaart is uitgeklapt, en de wachtrij klapt die zelf op het juiste
+    // moment open. Meenemen leverde een waarschuwing op terwijl de hulp de
+    // uursoort even later gewoon invulde — een melding over een probleem dat
+    // er niet was. Gemiste uitlezingen komen nog wél in het register
+    // (onsGemisteVelden), alleen niet in de banner voor de medewerker.
     return onsGemisteVelden();
   }
   // Bundelt de kwaliteitssignalen (onvolledige registratie) en zelfdiagnose
@@ -6748,7 +6655,7 @@
     renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
-      onBack: backHandler(null, showChoices),
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
       pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle),
     });
   }
@@ -6762,7 +6669,7 @@
     renderScreen(body, 'duration', {
       title: 'Totale reistijd (heen en terug):',
       tokens: ONSAH_TOKENS,
-      onBack: backHandler(null, showChoices),
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
       pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
         appointmentFlowBusy = true;
         const ok = setAppointmentTravelTotalMinutes(minutes);
@@ -6957,9 +6864,6 @@
       }
     });
     renderScreen(body, 'readyToSave', {
-      // Controle vóór opslaan: laat zien wat de hulp heeft ingevuld, zodat een
-      // stille fout zichtbaar wordt vóórdat er iets wordt vastgelegd.
-      previewRows: (function () { try { return appointmentPreviewRows(); } catch (e) { return []; } })(),
       // Alleen aanbieden als er iets is om naar terug te keren.
       onUndo: hasAppointmentSnapshot() ? function () {
         suppressAutoUntil = Date.now() + 1200;
@@ -6985,17 +6889,15 @@
       ],
       toggleNode: _dpBox,
       tokens: ONSAH_TOKENS,
-      onBack: backHandler(
-        function () {
+      onBack: function () {
+        suppressAutoUntil = Date.now() + 1200;
+        safe(function () {
           appointmentSaveScreenActive = false; // bewust weg van de opslaanpagina
           stopDoorplannenSaveWatch();
-          appointmentForceChoiceOnce = true;
-        },
-        function () {
           if (nonClient) { showAppointmentNeedsPrereqs(); return; }
-          showChoices();
-        }
-      ),
+          appointmentForceChoiceOnce = true; showChoices();
+        });
+      },
       saveDisabled: doorplannenBlocksSave(),
       onSave: () => safe(() => {
         if (doorplannenBlocksSave()) {
@@ -7637,7 +7539,7 @@
     renderScreen(body, 'duration', {
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
-      onBack: backHandler(null, showRegistrationChoices),
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
       pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => {
         const endOk = setRegistrationEndTimePlusMinutes(minutes);
         // verdeling opnieuw toepassen op de nieuwe (nu bekende) duur
@@ -7778,7 +7680,7 @@
       title: 'Totale reistijd (heen en terug):',
       backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
       tokens: ONSAH_TOKENS,
-      onBack: backHandler(null, showRegistrationChoices),
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
       pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
         registrationFlowBusy = true;
         const ok = setRegistrationTravelTotalMinutes(minutes);
@@ -9514,7 +9416,6 @@
     registrationFromAppointment = false;
     registrationAutoApplied = false;
     clearScreenMark();
-    clearScreenHistory(); // nieuwe sessie begint zonder route van de vorige
     activeMode = null;
     removePopup(); // ruimt ook de React-root op, incl. de controle-lussen
 
@@ -10745,8 +10646,6 @@
     takeAppointmentSnapshot: (typeof takeAppointmentSnapshot === 'function') ? takeAppointmentSnapshot : undefined,
     hasAppointmentSnapshot: (typeof hasAppointmentSnapshot === 'function') ? hasAppointmentSnapshot : undefined,
     clearAppointmentSnapshot: (typeof clearAppointmentSnapshot === 'function') ? clearAppointmentSnapshot : undefined,
-    // Controle vóór opslaan.
-    appointmentPreviewRows: (typeof appointmentPreviewRows === 'function') ? appointmentPreviewRows : undefined,
     entryUursoortText: (typeof entryUursoortText === 'function') ? entryUursoortText : undefined,
     // Rapportageprefix: één regel vs. sjabloon met regeleindes.
     _prefixScheiding: (typeof _prefixScheiding === 'function') ? _prefixScheiding : undefined,
@@ -10759,8 +10658,6 @@
     __setWeekRegDetails: function (rows) { try { _weekRegDetailsCache = rows || []; } catch (e) {} },
     PICKER_CHIP_LIMIT: (typeof PICKER_CHIP_LIMIT !== 'undefined') ? PICKER_CHIP_LIMIT : undefined,
     clearScreenMark: (typeof clearScreenMark === 'function') ? clearScreenMark : undefined,
-    clearScreenHistory: (typeof clearScreenHistory === 'function') ? clearScreenHistory : undefined,
-    __getScreenHistory: function () { try { return screenHistory.map(function (s) { return s.name; }); } catch (e) { return null; } },
     __getCurrentScreen: function () { try { return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null; } catch (e) { return null; } },
     matchRegistrationChoiceByLabel: (typeof matchRegistrationChoiceByLabel === 'function') ? matchRegistrationChoiceByLabel : undefined,
     loadPendingRegistrationLabel: (typeof loadPendingRegistrationLabel === 'function') ? loadPendingRegistrationLabel : undefined,

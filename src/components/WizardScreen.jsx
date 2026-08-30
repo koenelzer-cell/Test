@@ -12,7 +12,6 @@ import {
   NeedsClientScreen, SubmitOnlyScreen, ReportPromptScreen, ManualUursoortScreen,
 } from './RegistrationScreens.jsx';
 import { NavButton } from './NavButton.jsx';
-export { PreviewList } from './PreviewList.jsx';
 
 // Eén ingang voor alle wizardschermen: content.js zegt wélk scherm het is
 // (dezelfde namen als markScreen gebruikt) en levert de gegevens; hier wordt
