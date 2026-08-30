@@ -799,135 +799,11 @@
       '<div style="font-size:13px;font-weight:800;color:' + fg + '">' + value + '</div>';
     return d;
   }
-  function _agSubTitle(text) {
-    var h = document.createElement('div'); h.textContent = text;
-    h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';text-transform:uppercase;letter-spacing:.03em;margin:10px 0 5px';
-    return h;
-  }
-  // Groot statvak (voor de hoofd-splitsing cliënttijd vs niet-cliënttijd). Wit
-  // met een gekleurde identiteitsrand links; `interactive` voegt een dunne
-  // roze rand + chevron toe (klikbaar naar de opbouw-modal) en hover-lift.
-  function _agBigStat(label, value, fg, interactive) {
-    var T = ONSAH_TOKENS;
-    var d = document.createElement('div');
-    d.style.cssText = 'position:relative;flex:1 1 0;min-width:0;box-sizing:border-box;background:#fff;border:1px solid ' + (interactive ? T.brand : T.line) + ';border-radius:10px;padding:9px ' + (interactive ? '20px' : '11px') + ' 9px 14px;transition:transform .12s ease, box-shadow .12s ease';
-    var edge = document.createElement('span');
-    edge.style.cssText = 'position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:' + fg;
-    d.appendChild(edge);
-    var l = document.createElement('div'); l.textContent = label;
-    l.style.cssText = 'font-size:10px;font-weight:700;color:' + T.inkSoft + ';text-transform:uppercase;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    d.appendChild(l);
-    var v = document.createElement('div'); v.textContent = value;
-    v.style.cssText = 'font-size:16px;font-weight:800;color:' + fg + ';font-variant-numeric:tabular-nums;margin-top:1px';
-    d.appendChild(v);
-    if (interactive) {
-      // Chevron als hoek-icoon i.p.v. inline naast de waarde: zo hoeft de
-      // waarde (bv. "5 u 20 m") nooit samen met het icoon op één regel te
-      // passen in een smalle tegel, en blijft de tegel compact.
-      var chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
-      chev.setAttribute('width', '12'); chev.setAttribute('height', '12');
-      chev.style.cssText = 'position:absolute;right:8px;top:10px;width:12px;height:12px;color:' + T.brand;
-      d.appendChild(chev);
-      d.addEventListener('mouseenter', function () { d.style.transform = 'translateY(-1px)'; d.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.25)'; });
-      d.addEventListener('mouseleave', function () { d.style.transform = 'none'; d.style.boxShadow = 'none'; });
-    }
-    return d;
-  }
-  // Bouwt het overzicht-paneel (DOM) uit een summarizeAgendaWeek-resultaat.
-  function agendaWeekPanelEl(summary, opts) {
-    opts = opts || {};
-    var s = summary || { count: 0, totalMinutes: 0, clientMinutes: 0, nonClientMinutes: 0, directMinutes: 0, indirectMinutes: 0, unknownMinutes: 0, travelMinutes: 0, directPct: 0, directTargetPct: 80, byType: [], byDate: [] };
-    var box = document.createElement('div'); box.setAttribute('data-ons-week-panel', '1');
-    box.style.cssText = 'font-size:12px;color:#222';
-    var scopeLabel = (opts.scope === 'dag' ? 'Dagoverzicht' : 'Weekoverzicht');
-    var titleText = scopeLabel + (opts.week ? ', week ' + opts.week : '');
-    if (opts.embedded) {
-      var t0 = document.createElement('div');
-      t0.textContent = titleText + ' ';
-      var hintEl = document.createElement('span');
-      hintEl.textContent = '· ' + (opts.headerHint || 'indicatief');
-      hintEl.style.cssText = 'font-weight:400;color:#999;font-size:10px';
-      t0.appendChild(hintEl);
-      t0.style.cssText = 'font-weight:700;font-size:13px;color:#cc087d;margin-bottom:8px';
-      box.appendChild(t0);
-    } else {
-      var head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
-      var title = document.createElement('div'); title.textContent = titleText;
-      title.style.cssText = 'font-weight:700;font-size:14px;color:#cc087d';
-      var close = document.createElement('button'); close.type = 'button'; close.textContent = '×';
-      close.title = 'Sluiten'; close.style.cssText = 'border:0;background:transparent;font-size:18px;line-height:1;cursor:pointer;color:#666';
-      close.addEventListener('click', function () { var p = document.getElementById('onsAgendaWeekPanel'); if (p) p.remove(); });
-      head.append(title, close); box.appendChild(head);
-    }
-
-    // 1) Hoofd-splitsing: cliënttijd (KLIK = opbouw in een modal) vs niet-cliënttijd.
-    // Zo blijft het paneel kort; de opbouw direct/indirect/reistijd/overig staat in de modal.
-    var split = document.createElement('div');
-    split.style.cssText = 'display:flex;gap:6px;margin-bottom:5px';
-    var clientBox = _agBigStat('Cliënttijd', _agFmtMin(s.clientMinutes), '#166a37', true);
-    clientBox.style.cursor = 'pointer';
-    clientBox.title = 'Klik voor de opbouw (direct / indirect / reistijd / overig)';
-    clientBox.addEventListener('click', function () { try { showAgendaBreakdownModal(s, opts); } catch (e) {} });
-    split.append(clientBox, _agBigStat('Niet-cliënttijd', _agFmtMin(s.nonClientMinutes), '#6b6367'));
-    box.appendChild(split);
-    var tot = document.createElement('div');
-    tot.style.cssText = 'font-size:11px;color:#6b6367;font-weight:600;margin:0 0 8px;font-variant-numeric:tabular-nums';
-    tot.textContent = 'Totaal: ' + _agFmtMin(s.totalMinutes);
-    box.appendChild(tot);
-
-    // 2) Per afspraaktype (planning) of per uursoort (registraties). Cliëntgebonden uursoorten
-    // tonen we; niet-cliënt (* of #) staan onder een inklapbare 'Overig'.
-    box.appendChild(_agSubTitle(opts.perLabel || 'Per afspraaktype'));
-    var allRows = s.byType || [];
-    var clientRows = [], overigRows = [];
-    allRows.forEach(function (r) { if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r); else clientRows.push(r); });
-    box.appendChild(_agBarList(clientRows));
-    if (overigRows.length) box.appendChild(_agCollapsibleOverig(overigRows));
-
-    // 5) Knop: "Hoe is dit berekend?" -> apart scherm met de daadwerkelijke cijfers.
-    // mkButton (zelfde tegel-stijl/hover-lift/focus-ring als de andere knoppen
-    // in de hulp — voorheen een losse, ongeanimeerde knop met roze tekst).
-    var calcBtn = mkButton('Verhouding per uursoort', function () { try { showAgendaCalcModal(s, opts); } catch (e) {} }, { tick: false });
-    calcBtn.style.marginTop = '10px';
-    box.appendChild(calcBtn);
-
-    // 6) Link naar de declarabiliteit-berekening (op de /registrations-pagina).
-    if (opts.embedded) {
-      var link = document.createElement('a');
-      link.textContent = 'Bekijk declarabiliteit →';
-      try { link.href = (location.origin || '') + '/registrations?date=' + encodeURIComponent(opts.date || currentAgendaDate()); } catch (e) { link.href = '/registrations'; }
-      link.style.cssText = 'display:inline-block;margin-top:8px;color:#cc087d;text-decoration:underline;font-size:12px;font-weight:700';
-      box.appendChild(link);
-    }
-    return box;
-  }
-  // Inklapbare 'Overig'-sectie met de niet-cliënt uursoorten (* of #). Standaard dicht.
-  function _agCollapsibleOverig(rows) {
-    var T = ONSAH_TOKENS;
-    var wrap = document.createElement('div');
-    var total = rows.reduce(function (a, r) { return a + (r.minutes || 0); }, 0);
-    var head = document.createElement('div');
-    head.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;font-size:11px;color:' + T.brand + ';margin:10px 0 5px;padding:2px 0;user-select:none;transition:opacity .1s ease';
-    var chev = svgIcon('M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z');
-    chev.setAttribute('width', '12'); chev.setAttribute('height', '12');
-    chev.style.cssText = 'width:12px;height:12px;flex:0 0 auto;transition:transform .15s ease';
-    var lbl = document.createElement('span'); lbl.textContent = 'Overig (' + rows.length + ')'; lbl.style.flex = '1 1 auto'; lbl.style.textTransform = 'uppercase'; lbl.style.letterSpacing = '.03em';
-    var tm = document.createElement('span'); tm.textContent = _agFmtMin(total); tm.style.cssText = 'font-weight:800;color:' + T.ink + ';font-variant-numeric:tabular-nums';
-    head.append(chev, lbl, tm);
-    var body = document.createElement('div'); body.style.display = 'none';
-    body.appendChild(_agBarList(rows));
-    var open = false;
-    head.addEventListener('click', function () {
-      open = !open;
-      body.style.display = open ? 'block' : 'none';
-      chev.style.transform = open ? 'rotate(90deg)' : 'none';
-    });
-    head.addEventListener('mouseenter', function () { head.style.opacity = '.7'; });
-    head.addEventListener('mouseleave', function () { head.style.opacity = '1'; });
-    wrap.append(head, body);
-    return wrap;
-  }
+  // Bouwt het weekoverzicht-paneel (React). _agSubTitle/_agBigStat/
+  // agendaWeekPanelEl/_agCollapsibleOverig zijn vervangen door
+  // src/components/AgendaWeekPanel.jsx (zie dist/react-bundle.js);
+  // de cliënt/overig-split blijft hier (renderPanel, refreshAgendaWeekApi)
+  // staan als domeinlogica.
   // Eén gedeelde modal-schil (spine + kop + sluitknop + Esc/klik-buiten) voor
   // alle onderbrekende dialogen. Voorheen bouwden de twee modals hieronder
   // deze schil allebei apart, bijna letterlijk gelijk.
@@ -965,115 +841,22 @@
     return { overlay: overlay, body: body, close: closeModal };
   }
   // Modal met de tijd-OPBOUW (geopend door op de Cliënttijd-kaart te klikken).
+  // Body is React (src/components/BreakdownModalBody.jsx); de schil
+  // (overlay/kop/sluitknop/Esc) blijft mkModalShell.
   function showAgendaBreakdownModal(s, opts) {
     opts = opts || {}; s = s || {};
-    var fmt = _agFmtMin;
     var shell = mkModalShell('onsAgendaBreakdownModal', 'Waar de tijd uit bestaat' + (opts.week ? ', week ' + opts.week : ''));
-    var body = shell.body;
-    function row(label, val, opt) {
-      opt = opt || {};
-      var r = document.createElement('div');
-      r.style.cssText = 'display:flex;justify-content:space-between;gap:10px;padding:4px 0' + (opt.top ? '' : ';border-bottom:1px dotted #eee') + (opt.strong ? ';font-weight:800' : '') + (opt.indent ? ';padding-left:12px' : '');
-      var a = document.createElement('span'); a.textContent = label; a.style.color = opt.strong ? '#166a37' : '#333';
-      var b = document.createElement('span'); b.textContent = val; b.style.cssText = 'font-variant-numeric:tabular-nums;white-space:nowrap';
-      r.append(a, b); return r;
-    }
-    body.appendChild(row('Cliënttijd', fmt(s.clientMinutes), { strong: true }));
-    body.appendChild(row('Direct', fmt(s.directMinutes), { indent: true }));
-    body.appendChild(row('Indirect', fmt(s.indirectMinutes), { indent: true }));
-    body.appendChild(row('Reistijd', fmt(s.travelMinutes), { indent: true }));
-    var oth = (s.unknownMinutes != null ? s.unknownMinutes : (s.otherMinutes || 0));
-    body.appendChild(row('Niet-cliënttijd (' + (opts.unknownLabel || 'overig').toLowerCase() + ')', fmt(oth), { strong: true }));
-    body.appendChild(row('Totaal', fmt(s.totalMinutes), { strong: true }));
+    window.__onsahReact.renderBreakdownBody(shell.body, s, opts, _agFmtMin);
   }
   // Apart scherm (overlay) dat laat zien HOE de cijfers zijn opgebouwd — met de
   // daadwerkelijke minuten. Puur getallen/labels uit de summary; geen cliënt-PII.
+  // Body is React (src/components/CalcModalBody.jsx); de cliëntgebonden-filter
+  // (_isClientUursoortName) blijft hier staan als domeinlogica.
   function showAgendaCalcModal(s, opts) {
     opts = opts || {}; s = s || {};
-    var registered = (opts.headerHint === 'geregistreerd');
-    var fmt = _agFmtMin;
     var shell = mkModalShell('onsAgendaCalcModal', 'Verhouding per uursoort' + (opts.week ? ', week ' + opts.week : ''), { maxWidth: '460px' });
-    var body = shell.body;
-
-    function note(t) { var e = document.createElement('div'); e.textContent = t; e.style.cssText = 'color:#777;font-size:11px;margin:3px 0 0'; return e; }
-    body.appendChild(note('Verhouding direct / indirect / reistijd per cliëntgebonden uursoort. Niet-cliënturen (met "' + _nonClientMarker() + '") tellen hier niet mee.'));
-
-    // Alleen cliëntgebonden uursoorten: uursoorten met de niet-cliënt-markering (beheerscherm,
-    // standaard '*') eruit filteren.
     var rows = (s.byType || []).filter(function (r) { return r && r.type && _isClientUursoortName(r.type); });
-    // Alleen tonen als we de opbouw (direct/indirect/reistijd) per uursoort hebben.
-    var hasSplit = rows.some(function (r) { return (r.direct != null) || (r.indirect != null) || (r.travel != null); });
-
-    if (!rows.length) {
-      body.appendChild(note('Geen cliëntgebonden uursoorten in deze week.'));
-    } else if (!hasSplit) {
-      // Terugval (bv. planning): alleen minuten per uursoort.
-      rows.forEach(function (r) {
-        var line = document.createElement('div');
-        line.style.cssText = 'display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dotted #eee';
-        var a = document.createElement('span'); a.textContent = r.type; a.style.cssText = 'color:#333';
-        var b = document.createElement('span'); b.textContent = fmt(r.minutes); b.style.cssText = 'font-weight:700;font-variant-numeric:tabular-nums';
-        line.append(a, b); body.appendChild(line);
-      });
-    } else {
-      // ONS Agenda-kleuren (pastel): groen=direct, geel=indirect, blauw=reistijd.
-      var C = { direct: '#B5F4BB', indirect: '#FFE1B5', travel: '#CAE9FC' };
-      rows.forEach(function (r) {
-        var d = r.direct || 0, i = r.indirect || 0, t = r.travel || 0;
-        var sum = d + i + t; if (sum <= 0) return;
-        var block = document.createElement('div'); block.style.cssText = 'margin:12px 0 6px';
-        // Kop: naam + totaal cliënttijd.
-        var top = document.createElement('div'); top.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:4px';
-        var nm = document.createElement('span'); nm.textContent = r.type; nm.style.cssText = 'font-weight:700;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-        var tot = document.createElement('span'); tot.textContent = fmt(sum); tot.style.cssText = 'font-weight:700;white-space:nowrap;color:#222';
-        top.append(nm, tot); block.appendChild(top);
-        // Dikke, gestapelde verhoudingsbalk (100% breed = de interne verhouding),
-        // met het percentage IN de kleur.
-        // Donkere balk-achtergrond geeft hoog contrast met de pastel-segmenten.
-        var bar = document.createElement('div'); bar.style.cssText = 'display:flex;height:26px;border-radius:6px;overflow:hidden;background:#1f2937';
-        [['direct', d], ['indirect', i], ['travel', t]].forEach(function (seg) {
-          if (seg[1] <= 0) return;
-          var pct = Math.round(seg[1] / sum * 100);
-          var sd = document.createElement('div');
-          // Donkere tekst op de lichte pastel-segmenten (hoog contrast, leesbaar).
-          sd.style.cssText = 'height:100%;width:' + (seg[1] / sum * 100) + '%;background:' + C[seg[0]]
-            + ';display:flex;align-items:center;justify-content:center;color:#14202b;font-weight:800;font-size:12px;overflow:hidden';
-          if (pct >= 8) sd.textContent = pct + '%'; // te smal segment: geen tekst
-          bar.appendChild(sd);
-        });
-        block.appendChild(bar);
-        // Legenda met de cijfers (u:m) onder de balk.
-        var leg = document.createElement('div'); leg.style.cssText = 'display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#555;margin-top:4px';
-        function chip(label, val, col) {
-          var sp = document.createElement('span'); sp.style.cssText = 'display:inline-flex;align-items:center;gap:5px';
-          var dot = document.createElement('span'); dot.style.cssText = 'width:10px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,.18);background:' + col;
-          var tx = document.createElement('span'); tx.textContent = label + ' ' + fmt(val); tx.style.fontWeight = '600';
-          sp.append(dot, tx); return sp;
-        }
-        leg.append(chip('Direct', d, C.direct), chip('Indirect', i, C.indirect), chip('Reistijd', t, C.travel));
-        block.appendChild(leg);
-        body.appendChild(block);
-      });
-    }
-  }
-  // Lijst met mini-balken, gesorteerd (langste bovenaan) — schaalt op het grootste item.
-  function _agBarList(rows) {
-    var T = ONSAH_TOKENS;
-    var wrap = document.createElement('div');
-    if (!rows.length) return onsahEmptyState('Geen gegevens voor deze periode.');
-    var max = rows.reduce(function (m, r) { return Math.max(m, r.minutes || 0); }, 0) || 1;
-    rows.forEach(function (r) {
-      var row = document.createElement('div'); row.style.cssText = 'margin:0 0 6px';
-      var top = document.createElement('div'); top.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:12px';
-      var a = document.createElement('span'); a.textContent = r.type; a.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:' + (r.type === 'Niet-gedefinieerd' ? T.inkSoft : T.ink);
-      var b = document.createElement('span'); b.textContent = _agFmtMin(r.minutes); b.style.cssText = 'font-weight:700;white-space:nowrap;color:' + T.ink + ';font-variant-numeric:tabular-nums';
-      top.append(a, b); row.appendChild(top);
-      var track = document.createElement('div'); track.style.cssText = 'height:5px;border-radius:3px;background:' + T.line + ';overflow:hidden;margin-top:2px';
-      var fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:' + Math.max(3, Math.round((r.minutes || 0) / max * 100)) + '%;background:' + (r.type === 'Niet-gedefinieerd' ? '#c7bfbc' : T.brand);
-      track.appendChild(fl); row.appendChild(track);
-      wrap.appendChild(row);
-    });
-    return wrap;
+    window.__onsahReact.renderCalcBody(shell.body, rows, _nonClientMarker(), _agFmtMin);
   }
   // Sectie 'Afgerond (geregistreerd)' — de ECHTE directe/indirecte/reistijd uit de
   // registratie-widget (sessie-gebruiker, per dag).
@@ -2191,12 +1974,42 @@
     if (inp) { inp.focus(); setInputText(inp, text); return true; }
     return false;
   }
+  // Zit `el` (ook door shadow roots heen) binnen `host`?
+  function deepContains(host, el) {
+    if (!host || !el) return false;
+    let n = el;
+    for (let i = 0; i < 200 && n; i++) {
+      if (n === host) return true;
+      n = n.parentElement || (n.getRootNode && n.getRootNode().host) || null;
+    }
+    return false;
+  }
+  // Hoort dit zoekveld bij DEZE combobox? Bij meerdere cliëntkaarten staan er
+  // identieke uursoort-comboboxen onder elkaar; zonder deze koppeling kan het
+  // zoekveld van een ándere cliënt worden gebruikt (uursoort bij de verkeerde
+  // cliënt). Twee vormen zijn geldig:
+  //  1) het zoekveld zit ín de combobox zelf (labels: inline chip-invoer);
+  //  2) het zoekveld staat in het uitklappaneel bij deze combobox.
+  // Let op: alleen "eronder" is te streng — de labelinvoer ligt op dezelfde
+  // hoogte als het veld zelf. Vandaar de band vanaf iets boven de bovenkant.
+  function inputBelongsToTrigger(inp, tr, triggerEl) {
+    if (!inp) return false;
+    if (triggerEl && deepContains(triggerEl, inp)) return true;
+    if (!tr) return false;
+    const r = rect(inp);
+    const horizontallyNear = r.left <= tr.right + 260 && r.right >= tr.left - 120;
+    return horizontallyNear && r.top >= tr.top - 8 && r.top <= tr.bottom + 170;
+  }
   function searchInputForTrigger(trigger) {
     const tr = trigger ? rect(trigger) : null;
     const activeEl = deepActive();
     if (activeEl && /input|textarea/i.test(activeEl.tagName || '') && visible(activeEl) && !isOwnPopup(activeEl) && !isProtectedAppointmentStartInput(activeEl)) {
       const ph = clean((activeEl.getAttribute('placeholder') || '') + ' ' + (activeEl.getAttribute('aria-label') || ''));
-      if (!ph.includes('afspraken') && !ph.includes('clienten') && (/zoeken|zoek/.test(ph) || ph === '')) return activeEl;
+      // Focus alleen vertrouwen als het veld ook echt bij deze trigger hoort:
+      // een nog openstaande dropdown van een vorige cliënt houdt de focus vast
+      // en werd voorheen klakkeloos overgenomen (uursoort bij verkeerde cliënt).
+      const focusUsable = !tr || inputBelongsToTrigger(activeEl, tr, trigger);
+      if (focusUsable && !ph.includes('afspraken') && !ph.includes('clienten') && (/zoeken|zoek/.test(ph) || ph === '')) return activeEl;
     }
     for (const root of optionSearchRoots(trigger)) {
       const input = deepQueryAll('input', root).find((inp) => {
@@ -2212,8 +2025,7 @@
       if (!visible(inp) || isOwnPopup(inp) || isProtectedAppointmentStartInput(inp)) return false;
       const ph = clean((inp.getAttribute('placeholder') || '') + ' ' + (inp.getAttribute('aria-label') || ''));
       if (ph.includes('afspraken') || ph.includes('clienten')) return false;
-      const r = rect(inp);
-      return r.top >= tr.bottom - 18 && r.top <= tr.bottom + 170 && r.left <= tr.right + 260 && r.right >= tr.left - 120;
+      return inputBelongsToTrigger(inp, tr, trigger);
     }) || null;
   }
   function openTypePick(getTrigger, text, onResult) {
@@ -2555,15 +2367,13 @@
   }
   function showFreeDayInactive() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    const msg = document.createElement('div');
-    msg.textContent = 'Vrije dag';
-    Object.assign(msg.style, { fontWeight: '700', fontSize: '14px', color: '#555', padding: '4px 0 2px' });
-    body.appendChild(msg);
-    const sub = document.createElement('div');
-    sub.textContent = 'Deze dag is grijs gemarkeerd. De afspraakhulp is hier niet actief.';
-    Object.assign(sub.style, { fontSize: '12px', color: '#666', lineHeight: '1.35' });
-    body.appendChild(sub);
+    clearScreenMark();
+    window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+      title: 'Vrije dag',
+      titleStyle: { fontWeight: 700, fontSize: 14, color: '#555', padding: '4px 0 2px' },
+      body: 'Deze dag is grijs gemarkeerd. De afspraakhulp is hier niet actief.',
+      bodyStyle: { lineHeight: 1.35 },
+    });
     setSubmitBlocked(false);
     setStatus('Vrije dag — hulp inactief', false);
   }
@@ -4845,7 +4655,7 @@
   // host-pagina een geïnjecteerde stylesheet kan negeren.
   function showLoadingState(text) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
+    resetBody(body);
     const T = ONSAH_TOKENS;
     const wrap = document.createElement('div');
     Object.assign(wrap.style, { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', color: T.ink, fontWeight: '700', fontSize: '13px' });
@@ -4882,7 +4692,7 @@
   }
   function showDisabledState() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
+    resetBody(body);
     const msg = document.createElement('div');
     msg.textContent = 'Uitgeschakeld';
     Object.assign(msg.style, { fontWeight: '700', fontSize: '14px', color: '#555', padding: '4px 0 2px' });
@@ -5447,18 +5257,58 @@
     Object.assign(b.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px', textAlign: 'left', width: '100%' });
     return b;
   }
-  function mkNavButton(label, onClick) {
-    const b = mkButton(label, onClick);
-    b.textContent = '';
-    const span = document.createElement('span');
-    span.textContent = label;
-    span.style.flex = '1';
-    b.appendChild(span);
-    b.appendChild(svgIcon('M4 11h12.2l-5.6-5.6L12 4l8 8-8 8-1.4-1.4L16.2 13H4z'));
-    Object.assign(b.style, { display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', textAlign: 'left', width: '100%' });
-    return b;
+  // ===== Welk hulpscherm staat er nu? (één bron van waarheid) =====
+  // Voorheen werd dit achteraf afgeleid door de schermTEKST met patronen te
+  // ontleden (zie de terugvallogica onderin createCurrentScreenRestore). Dat is
+  // fragiel: precies die zinnen zijn in het beheerscherm aanpasbaar, dus een
+  // gewijzigde tekst brak stilletjes de schermherkenning. Elk scherm meldt zich
+  // nu zelf aan; herstellen is dan simpelweg datzelfde scherm opnieuw tekenen.
+  // Alleen 'echte' schermen melden zich — tijdelijke overlays (laden, info,
+  // uitgeschakeld) juist niet, want daar mag je nooit naar terugkeren.
+  let currentScreen = null;
+  function markScreen(name, args) { currentScreen = { name: name, args: args || {} }; }
+  // Voor schermen die (nog) niet herstelbaar zijn: markering wissen, zodat er
+  // nooit een verouderd scherm blijft staan en de terugval het overneemt —
+  // precies zoals het vóór de state-machine ook ging.
+  function clearScreenMark() { currentScreen = null; }
+  // Maakt de hulp-body leeg vóór een vanilla-scherm. React beheert dezelfde
+  // container, dus die root moet er eerst netjes af: anders blijft React denken
+  // dat hij nog eigenaar is van knopen die hier zojuist zijn weggegooid.
+  function resetBody(body) {
+    if (!body) return;
+    try { if (window.__onsahReact) window.__onsahReact.unmount(body); } catch (e) {}
+    body.innerHTML = '';
+  }
+  // Tekent een eerder gemarkeerd scherm opnieuw. Geeft false bij een onbekende
+  // naam, zodat de aanroeper op de oude tekstherkenning kan terugvallen.
+  function renderMarkedScreen(screen) {
+    if (!screen || !screen.name) return false;
+    const a = screen.args || {};
+    switch (screen.name) {
+      case 'registrationNoShowPrompt': showRegistrationNoShowPrompt(); return true;
+      case 'registrationNeedsClient': showRegistrationNeedsClient(); return true;
+      case 'registrationDurationAsk': showRegistrationDurationAsk(a.choice); return true;
+      case 'registrationPortionQuestion': showRegistrationPortionQuestion(a.choice); return true;
+      case 'registrationPortionDuration': showRegistrationPortionDuration(a.choice); return true;
+      case 'registrationTravelSelection': showRegistrationTravelSelection(a.choice); return true;
+      case 'registrationHourTypeSelection': showRegistrationHourTypeSelection(a.index != null ? a.index : (activeRegistrationHourTypeIndex || 0)); return true;
+      case 'registrationReportPrompt': showRegistrationReportPrompt(a.choice); return true;
+      case 'registrationChoices': showRegistrationChoices(); return true;
+      case 'nonClientFreeTitlePrompt': showNonClientFreeTitlePrompt(a.opt); return true;
+      case 'nonClientDurationSelection': showNonClientDurationSelection(a.opt); return true;
+      case 'appointmentNeedsPrereqs': showAppointmentNeedsPrereqs(); return true;
+      case 'appointmentReadyToSave': showAppointmentReadyToSave(); return true;
+      case 'appointmentDurationSelection': showAppointmentDurationSelection(a.choice); return true;
+      case 'appointmentTravelSelection': showAppointmentTravelSelection(a.choice); return true;
+      case 'manualUursoortInstruction': showManualUursoortInstruction(); return true;
+      case 'choices': showChoices(); return true;
+      default: return false;
+    }
   }
   function createCurrentScreenRestore() {
+    // Het gemarkeerde scherm is leidend. De tekstherkenning hieronder blijft
+    // alleen nog als vangnet staan voor een scherm dat (nog) niets meldt.
+    const marked = currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null;
     const body = $body();
     const currentText = clean((body && body.textContent) || '');
     const registrationChoice = activeRegistrationChoice;
@@ -5486,6 +5336,7 @@
       readyToSave: /als de instellingen kloppen|voeg eventueel nog een locatie/.test(currentText),
     };
     return () => {
+      if (renderMarkedScreen(marked)) return; // scherm meldde zich zelf aan: geen giswerk nodig
       if (activeMode === 'registrations') {
         if (registrationScreen.noShowPrompt) { showRegistrationNoShowPrompt(); return; }
         if (registrationScreen.needsClient) { showRegistrationNeedsClient(); return; }
@@ -5528,7 +5379,7 @@
     if (_infoPanelRestore) return; // al open: niet opnieuw opbouwen
     _infoPanelRestore = helperEnabled ? createCurrentScreenRestore() : () => showDisabledState();
     const statusEl = popupEl && popupEl.querySelector('[data-status]');
-    body.innerHTML = '';
+    resetBody(body);
     body.appendChild(mkBackButton(() => safe(closeInfoPanel), 'Terug'));
 
     const title = document.createElement('div');
@@ -5585,7 +5436,7 @@
     noBtn.addEventListener('click', () => safe(() => {
       shell.close();
       _availabilityRestore = null;
-      body.innerHTML = '';
+      resetBody(body);
       const msg2 = document.createElement('div');
       msg2.textContent = 'Plan een andere datum/tijdstip in of sluit het scherm af.';
       Object.assign(msg2.style, { fontSize: '13px', color: '#333', lineHeight: '1.45', padding: '4px 0 8px' });
@@ -5722,14 +5573,12 @@
   // keuzelijst. Het team kies je in de extensie-popup (kleurprofiel).
   function showNeedsTeamChoice() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    const t = document.createElement('div');
-    Object.assign(t.style, { fontSize: '13px', color: '#333', lineHeight: '1.4', padding: '6px 0' });
-    t.textContent = 'Kies eerst je team om de hulp te gebruiken.';
-    const sub = document.createElement('div');
-    Object.assign(sub.style, { fontSize: '12px', color: '#666', lineHeight: '1.4' });
-    sub.textContent = 'Open de extensie (het pictogram naast de adresbalk) en kies je team/kleurprofiel. Daarna verschijnen de afspraaktypes en registraties hier.';
-    body.appendChild(t); body.appendChild(sub);
+    clearScreenMark();
+    window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+      title: 'Kies eerst je team om de hulp te gebruiken.',
+      titleStyle: { padding: '6px 0' },
+      body: 'Open de extensie (het pictogram naast de adresbalk) en kies je team/kleurprofiel. Daarna verschijnen de afspraaktypes en registraties hier.',
+    });
     setStatus('Kies eerst je team', false);
   }
   function showChoices() {
@@ -5742,7 +5591,9 @@
     nonClientFreeTitleScreenActive = false;
     appointmentAwaitingManualUursoort = false;
     activeNonClientOption = null; // terug naar clientflow
-    body.innerHTML = '';
+    // Geen resetBody hier: ook dit scherm wordt door de refresh-lus herhaald
+    // getekend, en leegmaken vóór de asynchrone React-render geeft een lege
+    // flits. De vanilla-banner-route hieronder maakt de body zelf leeg.
     const forceChoice = appointmentForceChoiceOnce;
     appointmentForceChoiceOnce = false;
     if (!hasAppointmentPrereqs()) {
@@ -5757,6 +5608,7 @@
       showAppointmentReadyToSave();
       return;
     }
+    markScreen('choices');
     if (clientWaitTimer) { clearTimeout(clientWaitTimer); clientWaitTimer = null; }
     // Is er al een afspraaktype ECHT toegepast? Dan de andere types BLOKKEREN
     // i.p.v. proberen te overschrijven - dat was onbetrouwbaar. De gebruiker
@@ -5771,38 +5623,58 @@
     });
     // #2 - Zelftest: waarschuw proactief als een kern-hook niet herkend wordt
     // (bv. na een ONS-wijziging), zodat een stille detectiefout meteen opvalt.
+    // Deze banner gebruikt beheerbare tekst (mkText); die zeldzame foutsituatie
+    // houdt daarom de oude, volledig vanilla opbouw aan.
     const _missingHooks = appointmentMissingHooks();
     if (_missingHooks.length) {
+      resetBody(body); // vanilla-route: hier wél eerst leegmaken
       body.appendChild(mkProblemBanner(_missingHooks));
       logStep('zelftest: hooks niet herkend', false, _missingHooks.join(', '));
+      CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
+        pendingChoice = choice;
+        prepareClientAndHandleChoice(choice);
+      }), { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) })));
+      addResetButton(body);
+      setStatus('');
+      return;
     }
-    CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
-      pendingChoice = choice;
-      prepareClientAndHandleChoice(choice);
-    }), { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) })));
-    addResetButton(body);
+    renderChoicesReact(body, false);
     setStatus('');
   }
-  function renderChoicesBlocked(body) {
-    const note = document.createElement('div');
-    note.textContent = 'Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.';
-    Object.assign(note.style, { fontSize: '13px', color: '#b3261e', lineHeight: '1.35', padding: '4px 0 8px' });
-    body.appendChild(note);
-    CONFIG.choices.forEach((choice, i) => {
-      const b = mkButton(choice.label, () => {}, { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) });
-      try { b.disabled = true; } catch (e) {}
-      b.setAttribute('aria-disabled', 'true');
-      Object.assign(b.style, { opacity: '0.45', cursor: 'not-allowed' });
-      body.appendChild(b);
+  // Gedeelde React-render voor het keuzemenu, in beide standen: gewoon (klikbaar)
+  // en geblokkeerd (types uitgeschakeld omdat er al instellingen zijn toegepast).
+  function renderChoicesReact(body, blocked) {
+    const choices = CONFIG.choices.map((choice, i) => ({
+      label: choice.label,
+      tick: onsahChoiceDotColor(choice, i),
+      meta: onsahChoiceDirectIndirectLabel(choice),
+    }));
+    window.__onsahReact.renderWizardScreen(body, 'choices', {
+      choices: choices,
+      blocked: !!blocked,
+      blockedNote: 'Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.',
+      tokens: ONSAH_TOKENS,
+      onPick: function (i) {
+        safe(function () {
+          const choice = CONFIG.choices[i];
+          pendingChoice = choice;
+          prepareClientAndHandleChoice(choice);
+        });
+      },
+      onReset: function () { safe(clearSettings); },
+      showSaveNav: !!blocked && appointmentReadyToSave(),
+      onSaveNav: function () {
+        safe(function () {
+          appointmentForceChoiceOnce = false;
+          showAppointmentReadyToSave();
+        });
+      },
     });
-    addResetButton(body);
-    // "Naar opslaan" alleen tonen als er ook écht opgeslagen kan worden.
-    if (appointmentReadyToSave()) {
-      body.appendChild(mkNavButton('Naar opslaan', () => safe(() => {
-        appointmentForceChoiceOnce = false;
-        showAppointmentReadyToSave();
-      })));
-    }
+  }
+  // "Naar opslaan" verschijnt binnen het component alleen als er ook écht
+  // opgeslagen kan worden (showSaveNav in renderChoicesReact).
+  function renderChoicesBlocked(body) {
+    renderChoicesReact(body, true);
     setStatus('Verwijder eerst de instellingen', false);
   }
   // Goedkope route: de "+ Toevoegen"-knop staat als light-DOM <uc-button> in de
@@ -5957,34 +5829,20 @@
       for (const type of STRAY_ADD_EVENTS) el.addEventListener(type, inviteeAddButtonGuard, true);
     }
   }
-  function mkAddClientButton() {
-    const b = document.createElement('button');
-    b.type = 'button';
-    applyOnsahPillStyle(b);
-    Object.assign(b.style, { width: '100%', marginBottom: '8px' });
-    // add-icoon (zelfde pad als ONS)
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', '16'); svg.setAttribute('height', '16'); svg.setAttribute('aria-hidden', 'true');
-    const p = document.createElementNS(svgNS, 'path');
-    p.setAttribute('fill', 'currentColor');
-    p.setAttribute('d', 'M18 13h-5v5c0 .55-.45 1-1 1s-1-.45-1-1v-5H6c-.55 0-1-.45-1-1s.45-1 1-1h5V6c0-.55.45-1 1-1s1 .45 1 1v5h5c.55 0 1 .45 1 1s-.45 1-1 1');
-    svg.appendChild(p);
-    b.appendChild(svg);
-    b.appendChild(document.createTextNode('Cli\u00ebnt toevoegen'));
-    b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); safe(clickAddClientButton); });
-    return b;
-  }
   function showAppointmentNeedsPrereqs() {
     const body = $body(); if (!body) return;
     nonClientFreeTitleScreenActive = false;
-    body.innerHTML = '';
+    markScreen('appointmentNeedsPrereqs');
+    // Bewust GEEN resetBody hier: dit scherm wordt door de wachtlus herhaald
+    // getekend. Leegmaken vóór een (asynchrone) React-render geeft elke tik een
+    // lege flits; React hertekent dezelfde root gewoon in place.
     const dateTimeReady = hasAppointmentDate() && hasAppointmentStartTime();
     if (!dateTimeReady) {
-      const msg = document.createElement('div');
-      msg.textContent = 'Vul begintijd en datum in.';
-      Object.assign(msg.style, { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '4px 0 8px' });
-      body.appendChild(msg);
+      window.__onsahReact.renderWizardScreen(body, 'infoScreen', {
+        title: 'Vul begintijd en datum in.',
+        titleStyle: { lineHeight: 1.35, padding: '4px 0 8px' },
+        body: '',
+      });
       setStatus('Wacht op begintijd en datum');
       return;
     }
@@ -5993,27 +5851,23 @@
       showChoices();
       return;
     }
-    body.appendChild(mkAddClientButton());
-    // Niet-clientgerelateerde categorieën staan altijd open.
-    const head = document.createElement('div');
-    head.textContent = 'Niet cliëntgerelateerde afspraken';
-    Object.assign(head.style, { fontWeight: '700', fontSize: '13px', color: '#333', margin: '2px 0 6px' });
-    body.appendChild(head);
     // Beheerde categorieën uit config.nonClientCategories hebben voorrang (incl.
     // informatielabel/duur per type); leeg = ingebouwde lijst.
-    (nonClientCategoriesActive()).forEach(function (cat) {
-      body.appendChild(mkNavButton(cat.label, function () { return safe(function () {
-        if (cat.directOption) handleNonClientOption(cat.directOption);
-        else showNonClientCategory(cat);
-      }); }));
+    const _cats = nonClientCategoriesActive();
+    window.__onsahReact.renderWizardScreen(body, 'needsPrereqs', {
+      categories: _cats.map(function (cat) { return { label: cat.label }; }),
+      tokens: ONSAH_TOKENS,
+      onAddClient: function () { safe(clickAddClientButton); },
+      onPickCategory: function (i) {
+        safe(function () {
+          const cat = _cats[i];
+          if (cat.directOption) handleNonClientOption(cat.directOption);
+          else showNonClientCategory(cat);
+        });
+      },
+      onReset: function () { safe(clearNonClientSettings); },
     });
-    addNonClientResetButton(body);
     setStatus('Kies een categorie of voeg een cliënt toe');
-  }
-  function addNonClientResetButton(body) {
-    const reset = mkButton('Verwijder instellingen', function () { return safe(clearNonClientSettings); }, { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
-    reset.style.marginTop = '6px';
-    body.appendChild(reset);
   }
   function findNonClientUursoortTrigger() {
     // Het uursoort-veld op afspraakniveau, via het label "Uursoort" in Afspraakdetails.
@@ -6171,34 +6025,15 @@
   }
   function showNonClientCategory(cat) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(function () { return safe(showAppointmentNeedsPrereqs); }, 'Terug'));
-    const head = document.createElement('div');
-    head.textContent = cat.label;
-    Object.assign(head.style, { fontWeight: '700', fontSize: '13px', color: '#333', margin: '2px 0 6px' });
-    body.appendChild(head);
-    (cat.options || []).forEach(function (opt) {
-      if (opt.info) {
-        const row = document.createElement('div');
-        Object.assign(row.style, { display: 'flex', gap: '4px', marginBottom: '4px' });
-        const mainBtn = mkButton(opt.display, function () { return safe(function () { handleNonClientOption(opt); }); });
-        mainBtn.style.flex = '1';
-        mainBtn.style.margin = '0';
-        const infoBtn = document.createElement('button');
-        infoBtn.textContent = 'ℹ';
-        Object.assign(infoBtn.style, {
-          flexShrink: '0', width: '28px', height: '28px', padding: '0',
-          border: '1px solid #e91e8c', borderRadius: '6px', background: '#fff',
-          color: '#e91e8c', fontSize: '14px', cursor: 'pointer', lineHeight: '1',
-        });
-        infoBtn.title = 'Meer info over ' + opt.display;
-        infoBtn.addEventListener('click', function (e) { e.stopPropagation(); safe(function () { showNonClientOptionInfo(opt); }); });
-        row.appendChild(mainBtn);
-        row.appendChild(infoBtn);
-        body.appendChild(row);
-      } else {
-        body.appendChild(mkButton(opt.display, function () { return safe(function () { handleNonClientOption(opt); }); }));
-      }
+    clearScreenMark();
+    const _opts = cat.options || [];
+    window.__onsahReact.renderWizardScreen(body, 'category', {
+      heading: cat.label,
+      options: _opts.map(function (opt) { return { display: opt.display, info: !!opt.info }; }),
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showAppointmentNeedsPrereqs); },
+      onPick: function (i) { safe(function () { handleNonClientOption(_opts[i]); }); },
+      onInfo: function (i) { safe(function () { showNonClientOptionInfo(_opts[i]); }); },
     });
     setStatus('Kies een optie');
   }
@@ -6403,36 +6238,37 @@
   }
   function showNonClientNoUursoort(opt) {
     const body = $body(); if (!body) return;
+    clearScreenMark();
     nonClientBusy = false;
     nonClientNoUursoortActive = true;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(function () { return safe(function () {
-      nonClientNoUursoortActive = false;
-      showAppointmentNeedsPrereqs();
-    }); }, 'Terug'));
-    const msg = document.createElement('div');
-    msg.textContent = 'Geen uursoorten gevonden!';
-    Object.assign(msg.style, { fontWeight: '700', fontSize: '14px', margin: '4px 0 4px', color: '#b3261e' });
-    body.appendChild(msg);
-    const sub = document.createElement('div');
-    sub.textContent = 'Controleer zelf of er uursoorten in de lijst staan en neem contact op met EPD.';
-    Object.assign(sub.style, { fontSize: '13px', color: '#333', lineHeight: '1.4', margin: '0 0 8px' });
-    body.appendChild(sub);
-    body.appendChild(mkButton('Afsluiten', function () { return safe(closeOnsModal); }));
+    window.__onsahReact.renderWizardScreen(body, 'messageScreen', {
+      title: 'Geen uursoorten gevonden!',
+      titleStyle: { color: '#b3261e' },
+      body: 'Controleer zelf of er uursoorten in de lijst staan en neem contact op met EPD.',
+      actionLabel: 'Afsluiten',
+      tokens: ONSAH_TOKENS,
+      onBack: function () {
+        suppressAutoUntil = Date.now() + 1200;
+        safe(function () {
+          nonClientNoUursoortActive = false;
+          showAppointmentNeedsPrereqs();
+        });
+      },
+      onAction: function () { safe(closeOnsModal); },
+    });
     setStatus('Geen uursoorten gevonden', false);
   }
   function showNonClientDurationSelection(opt) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(function () { return safe(showAppointmentNeedsPrereqs); }, 'Terug'));
-    const title = document.createElement('div');
-    title.textContent = opt.display + ' duur:';
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
+    markScreen('nonClientDurationSelection', { opt: opt });
     const durStep = opt.durationStep > 0 ? opt.durationStep : gsNum('durationStepMin', 15);
     const durMax = opt.maxDuration > 0 ? opt.maxDuration : gsNum('appointmentMaxMin', 480);
     const durValues = []; for (let m = durStep; m <= durMax; m += durStep) durValues.push(m);
-    body.appendChild(mkDurationPicker(durValues, function (m) { return safe(function () {
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: opt.display + ' duur:',
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showAppointmentNeedsPrereqs); },
+      pickerNode: mkDurationPicker(durValues, function (m) { return safe(function () {
       // Zelfde opzet als de cliëntflow: eerst eindtijd zetten + plannen, dan
       // na 80ms de uursoort/label-stappen (die elk de eindtijd opnieuw afdwingen).
       const endOk = applyNonClientEndTime(m);
@@ -6444,7 +6280,8 @@
         scheduleAppointmentEndTime(m);
         [100, 300].forEach(function (d) { setTimeout(function () { safe(function () { enforceAppointmentEndTime(m); }); }, d); });
       }); }, 50);
-    }); }, opt.pickerStyle));
+      }); }, opt.pickerStyle),
+    });
     setStatus('Kies de duur');
   }
   // 'Overig': geen uursoort. Eis dat de gebruiker de titel "Overig - ..." aanvult;
@@ -6453,6 +6290,7 @@
     const body = $body(); if (!body) return;
     nonClientBusy = false;
     nonClientFreeTitleScreenActive = true;
+    markScreen('nonClientFreeTitlePrompt', { opt: opt });
     const prefix = nonClientFreeTitlePrefix(opt);
     // Label JG Overig zetten en de titel voorzien van de prefix (alleen als de
     // gebruiker nog niets eigens heeft ingevuld).
@@ -6462,20 +6300,24 @@
       if (!cur || cur === clean(opt.display) || cur === clean(prefix)) setAppointmentTitleText(prefix);
       scheduleAppointmentEndTime(activeAppointmentDurationMinutes);
     });
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(function () { return safe(function () { nonClientFreeTitleScreenActive = false; showAppointmentNeedsPrereqs(); }); }, 'Terug'));
-    const msg = document.createElement('div');
-    msg.textContent = 'Vul de titel aan na "' + prefix + '".';
-    Object.assign(msg.style, { fontWeight: '700', fontSize: '13px', margin: '4px 0 2px', color: '#333' });
-    body.appendChild(msg);
-    const sub = document.createElement('div');
-    sub.textContent = 'Zodra je een titel hebt ingevuld, kun je opslaan.';
-    Object.assign(sub.style, { fontSize: '12px', color: '#666', lineHeight: '1.35', margin: '0 0 8px' });
-    body.appendChild(sub);
-    const setTitelBtn = mkButton('Zet titel', function () { return safe(function () {
-      ensureNonClientFreeTitlePrefix(opt);
-    }); }, { chevron: false, accent: '#1a7f37', accentWash: '#eaf6ee' });
-    body.appendChild(setTitelBtn);
+    // Geen resetBody: dit scherm wordt door refreshAppointmentPrereqScreen
+    // herhaald getekend terwijl de gebruiker de titel typt.
+    window.__onsahReact.renderWizardScreen(body, 'messageScreen', {
+      title: 'Vul de titel aan na "' + prefix + '".',
+      titleStyle: { fontSize: 13, margin: '4px 0 2px', color: '#333' },
+      body: 'Zodra je een titel hebt ingevuld, kun je opslaan.',
+      bodyStyle: { fontSize: 12, color: '#666', lineHeight: 1.35, margin: '0 0 8px' },
+      actionLabel: 'Zet titel',
+      actionAccent: '#1a7f37',
+      actionAccentWash: '#eaf6ee',
+      actionChevron: false,
+      tokens: ONSAH_TOKENS,
+      onBack: function () {
+        suppressAutoUntil = Date.now() + 1200;
+        safe(function () { nonClientFreeTitleScreenActive = false; showAppointmentNeedsPrereqs(); });
+      },
+      onAction: function () { safe(function () { ensureNonClientFreeTitlePrefix(opt); }); },
+    });
     updateSubmitGuard();
     // Geen Opslaan-knop hier: zodra er inhoud na de prefix staat, leidt
     // refreshAppointmentPrereqScreen automatisch door naar de generieke opslaanpagina.
@@ -6615,36 +6457,36 @@
   function showAppointmentDurationSelection(choice) {
     const body = $body(); if (!body) return;
     if (!hasAppointmentPrereqs()) { showAppointmentNeedsPrereqs(); return; }
+    markScreen('appointmentDurationSelection', { choice: choice });
     appointmentFlowBusy = false;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(showChoices), 'Terug'));
-    const title = document.createElement('div');
-    title.textContent = `${choice.label} duur:`;
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
     const _st = (choice.durationStep>0?choice.durationStep:gsNum('durationStepMin',15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum('registrationMaxMin',180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle));
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: `${choice.label} duur:`,
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle),
+    });
   }
   function showAppointmentTravelSelection(choice) {
     const body = $body(); if (!body) return;
+    markScreen('appointmentTravelSelection', { choice: choice });
     appointmentFlowBusy = false;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(showChoices), 'Terug'));
-    const title = document.createElement('div');
-    title.textContent = 'Totale reistijd (heen en terug):';
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
     const _ts = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelStepMin>0?APP_CONFIG.generalSettings.travelStepMin:5);
     const _tm = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelMaxMin>0?APP_CONFIG.generalSettings.travelMaxMin:60);
     const _travelValues = []; for (let m=0; m<=_tm; m+=_ts) _travelValues.push(m);
-    body.appendChild(mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
-      appointmentFlowBusy = true;
-      const ok = setAppointmentTravelTotalMinutes(minutes);
-      setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
-      setTimeout(() => handleChoice(choice), 70);
-    })));
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: 'Totale reistijd (heen en terug):',
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
+        appointmentFlowBusy = true;
+        const ok = setAppointmentTravelTotalMinutes(minutes);
+        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
+        setTimeout(() => handleChoice(choice), 70);
+      })),
+    });
   }
   function submitAppointmentFromHelper() {
     updateSubmitGuard();
@@ -6763,29 +6605,20 @@
   }
   function showAppointmentReadyToSave() {
     const body = $body(); if (!body) return;
+    markScreen('appointmentReadyToSave');
     appointmentFlowBusy = false;
     if (typeof stopManualUursoortAutoCheck === 'function') stopManualUursoortAutoCheck();
     appointmentAwaitingManualUursoort = false;
     scheduleAppointmentEndTime(activeAppointmentDurationMinutes);
     const nonClient = !hasClientInAppointment() && !!activeNonClientOption;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(() => {
-      appointmentSaveScreenActive = false; // bewust weg van de opslaanpagina
-      stopDoorplannenSaveWatch();
-      if (nonClient) { showAppointmentNeedsPrereqs(); return; }
-      appointmentForceChoiceOnce = true; showChoices();
-    }), 'Terug'));
-    const msg = mkText('afspraak_klaar_regel1', 'Voeg eventueel nog een locatie en notitie toe.', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '4px 0 2px' });
-    body.appendChild(msg);
-    const msg2 = mkText('afspraak_klaar_regel2', 'Als de instellingen kloppen, kun je de afspraak opslaan', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '0 0 8px' });
-    body.appendChild(msg2);
     // 'Afspraak doorplannen?'-kader boven de opslaanknop. Aan = klik de
     // 'Herhaling'-kop open en markeer het recurrence-type keuzeveld roze. Blijft
     // de herhaling op 'Niet', dan verschijnt een aandachtspunt in het algemene
     // meldingenkanaal én blokkeert opslaan tot je een herhaling kiest of de
     // toggle weer uitzet.
+    let _dpBox = null;
     if (!(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false)) {
-      const dpBox = mkToggleBox('doorplannen_vraag', 'Afspraak doorplannen?', appointmentDoorplannen, (on) => safe(() => {
+      _dpBox = mkToggleBox('doorplannen_vraag', 'Afspraak doorplannen?', appointmentDoorplannen, (on) => safe(() => {
         appointmentDoorplannen = on;
         // Even geen auto-detectie terwijl de programmatische klik (uit/inklappen)
         // nog moet 'settelen', anders slaat de spiegel meteen weer om.
@@ -6793,25 +6626,35 @@
         if (on) expandRecurrence(); else collapseRecurrence();
         showAppointmentReadyToSave(); // herteken: opslaanknop/status volgen de nieuwe stand
       }));
-      body.appendChild(dpBox);
     }
-    const saveBtn = mkButton('Opslaan', () => safe(() => {
-      if (doorplannenBlocksSave()) {
-        try { highlightField(findRecurrenceField() || findRecurrenceHeader(), 5000); } catch (e) {}
-        setStatus('Stel de herhaling in of zet doorplannen uit', false);
-        return; // niet opslaan zolang doorplannen aan staat en herhaling op 'Niet'
-      }
-      submitAppointmentFromHelper();
-    }));
-    if (doorplannenBlocksSave()) { saveBtn.style.opacity = '0.55'; saveBtn.style.cursor = 'not-allowed'; saveBtn.setAttribute('aria-disabled', 'true'); }
-    body.appendChild(saveBtn);
     const freeTitle = nonClient && !!activeNonClientOption.freeTitle;
-    if (nonClient && !freeTitle && !nonClientUursoortSet()) {
-      const usNote = document.createElement('div');
-      usNote.textContent = 'Let op: voeg nog een uursoort toe.';
-      Object.assign(usNote.style, { fontSize: '12px', color: '#b3261e', margin: '6px 0 0', fontWeight: '700' });
-      body.appendChild(usNote);
-    }
+    window.__onsahReact.renderWizardScreen(body, 'readyToSave', {
+      textNodes: [
+        mkText('afspraak_klaar_regel1', 'Voeg eventueel nog een locatie en notitie toe.', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '4px 0 2px' }),
+        mkText('afspraak_klaar_regel2', 'Als de instellingen kloppen, kun je de afspraak opslaan', { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '0 0 8px' }),
+      ],
+      toggleNode: _dpBox,
+      tokens: ONSAH_TOKENS,
+      onBack: function () {
+        suppressAutoUntil = Date.now() + 1200;
+        safe(() => {
+          appointmentSaveScreenActive = false; // bewust weg van de opslaanpagina
+          stopDoorplannenSaveWatch();
+          if (nonClient) { showAppointmentNeedsPrereqs(); return; }
+          appointmentForceChoiceOnce = true; showChoices();
+        });
+      },
+      saveDisabled: doorplannenBlocksSave(),
+      onSave: () => safe(() => {
+        if (doorplannenBlocksSave()) {
+          try { highlightField(findRecurrenceField() || findRecurrenceHeader(), 5000); } catch (e) {}
+          setStatus('Stel de herhaling in of zet doorplannen uit', false);
+          return; // niet opslaan zolang doorplannen aan staat en herhaling op 'Niet'
+        }
+        submitAppointmentFromHelper();
+      }),
+      showUursoortNote: nonClient && !freeTitle && !nonClientUursoortSet(),
+    });
     const ready = freeTitle ? nonClientFreeTitleComplete(activeNonClientOption) : (nonClient ? nonClientUursoortSet() : hasUursoortSelected());
     if (doorplannenBlocksSave()) setStatus('Stel de herhaling in of zet doorplannen uit', false);
     else setStatus(ready ? 'Klaar om op te slaan' : (freeTitle ? 'Vul de titel aan' : (nonClient ? 'Voeg nog een uursoort toe' : 'Voeg eerst bij elke client een uursoort toe')), ready);
@@ -6879,22 +6722,30 @@
   }
   function showManualUursoortInstruction() {
     const body = $body(); if (!body) return;
+    markScreen('manualUursoortInstruction');
     appointmentFlowBusy = false;
     appointmentAwaitingManualUursoort = true;
     scheduleAppointmentEndTime(activeAppointmentDurationMinutes);
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(() => { stopManualUursoortAutoCheck(); appointmentAwaitingManualUursoort = false; appointmentForceChoiceOnce = true; showChoices(); }), 'Terug'));
-    const msg = document.createElement('div');
-    Object.assign(msg.style, { fontSize: '13px', color: '#333', lineHeight: '1.35', padding: '4px 0 2px', fontWeight: '700' });
-    body.appendChild(msg);
-    const sub = mkText('afspraak_uursoort_sub', 'Daarna gaat de afspraak vanzelf verder.', { fontSize: '12px', color: '#666', lineHeight: '1.35', padding: '0 0 8px' });
-    body.appendChild(sub);
+    // Beheerbare teksten blijven mkText-knopen; ze worden één keer gebouwd en
+    // bij elke hertekening hergebruikt.
+    const _subNode = mkText('afspraak_uursoort_sub', 'Daarna gaat de afspraak vanzelf verder.', { fontSize: '12px', color: '#666', lineHeight: '1.35', padding: '0 0 8px' });
     // #3 - Vriendelijke, instelbare instructie + markeer het uursoortveld.
-    body.appendChild(mkText('probleem_uursoort_zelf', 'Kies zelf de uursoort in het gemarkeerde veld hieronder.', { fontSize: '12px', color: '#704b00', lineHeight: '1.35', padding: '0 0 8px' }));
+    const _instrNode = mkText('probleem_uursoort_zelf', 'Kies zelf de uursoort in het gemarkeerde veld hieronder.', { fontSize: '12px', color: '#704b00', lineHeight: '1.35', padding: '0 0 8px' });
     try { highlightField(getUursoortTrigger() || (typeof findClientUursoortTrigger === 'function' ? findClientUursoortTrigger() : null)); } catch (e) {}
+    // De lijst ontbrekende cliënten ververst elke 600ms; voorheen schreef de timer
+    // rechtstreeks in de DOM, nu gaat hij als prop mee in een hertekening.
     const renderMissing = () => {
       const names = clientsMissingUursoort();
-      msg.textContent = missingUursoortText(names);
+      window.__onsahReact.renderWizardScreen(body, 'manualUursoort', {
+        missingText: missingUursoortText(names),
+        subNode: _subNode,
+        instructionNode: _instrNode,
+        tokens: ONSAH_TOKENS,
+        onBack: function () {
+          suppressAutoUntil = Date.now() + 1200;
+          safe(() => { stopManualUursoortAutoCheck(); appointmentAwaitingManualUursoort = false; appointmentForceChoiceOnce = true; showChoices(); });
+        },
+      });
       return names;
     };
     const checkNow = () => {
@@ -6914,38 +6765,38 @@
   }
   function showUursoort(options, afterPick, clientContext = null) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => { autoSelectingNewClient = false; showChoices(); }, 'Terug'));
-    const title = document.createElement('div');
-    title.textContent = clientContext ? `Uursoort ${clientContext.firstName}` : 'Kies uursoort';
-    Object.assign(title.style, { fontWeight: '600', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
-    if (!options || !options.length) {
-      const msg = document.createElement('div');
-      msg.textContent = 'Geen uursoorten gevonden - open het veld handmatig.';
-      Object.assign(msg.style, { fontSize: '12px', color: '#b3261e' });
-      body.appendChild(msg);
-    } else {
-      options.forEach((o) => body.appendChild(mkButton(o, () => safe(() => {
-        setStatus('Bezig...');
-        const freshTrigger = clientContext ? freshUursoortTriggerForContext(clientContext) : null;
-        if (clientContext && !freshTrigger) {
-          setStatus(`uursoort-veld voor ${clientContext.firstName} niet gevonden`, false);
-          return;
-        }
-        chooseUursoort(o, (ok) => {
-          const done = () => {
-            showAppointmentReadyToSave();
-            setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
-          };
-          // Altijd via de wachtrij verder (ook als de verificatie ok=false gaf):
-          // anders sprong de hulp naar de opslaanpagina en werd cliënt 2+
-          // overgeslagen. De wachtrij herbekijkt zelf wie nog een uursoort mist.
-          if (afterPick) afterPick(done);
-          else done();
-        }, freshTrigger || null);
-      }))));
-    }
+    clearScreenMark();
+    window.__onsahReact.renderWizardScreen(body, 'pickList', {
+      title: clientContext ? `Uursoort ${clientContext.firstName}` : 'Kies uursoort',
+      titleWeight: 600,
+      loading: false,
+      options: options,
+      emptyMessage: 'Geen uursoorten gevonden - open het veld handmatig.',
+      emptyColor: '#b3261e',
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; autoSelectingNewClient = false; showChoices(); },
+      onPick: function (o) {
+        safe(function () {
+          setStatus('Bezig...');
+          const freshTrigger = clientContext ? freshUursoortTriggerForContext(clientContext) : null;
+          if (clientContext && !freshTrigger) {
+            setStatus(`uursoort-veld voor ${clientContext.firstName} niet gevonden`, false);
+            return;
+          }
+          chooseUursoort(o, (ok) => {
+            const done = () => {
+              showAppointmentReadyToSave();
+              setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
+            };
+            // Altijd via de wachtrij verder (ook als de verificatie ok=false gaf):
+            // anders sprong de hulp naar de opslaanpagina en werd cliënt 2+
+            // overgeslagen. De wachtrij herbekijkt zelf wie nog een uursoort mist.
+            if (afterPick) afterPick(done);
+            else done();
+          }, freshTrigger || null);
+        });
+      },
+    });
   }
   function handleChoice(choice) {
     appointmentTypeApplied = true; // vanaf hier worden titel/label/uursoort gezet
@@ -7287,7 +7138,7 @@
   }
   function showRegistrationReportPrompt(choice) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
+    markScreen('registrationReportPrompt', { choice: choice });
     const backTo = () => {
       registrationRestoredToReport = false; // bewust weg van het (herstelde) rapportagescherm
       if (choice && choice.label !== 'No show') {
@@ -7295,7 +7146,6 @@
         showRegistrationHourTypeSelection(Math.max(0, contexts.length - 1));
       } else { activeRegistrationChoice = null; showRegistrationChoices(); }
     };
-    body.appendChild(mkBackButton(() => safe(backTo), 'Terug'));
     const msg = mkText('registratie_rapportage_titel', 'Schrijf nu je rapportage, volgens ', { fontWeight: '700', fontSize: '14px', margin: '8px 0 6px' });
     const guidelineEnabled = !APP_CONFIG.features || APP_CONFIG.features.reportGuidelineLink !== false;
     if (!guidelineEnabled) msg.querySelectorAll('a').forEach((anchor) => anchor.replaceWith(document.createTextNode(anchor.textContent || '')));
@@ -7308,29 +7158,13 @@
       Object.assign(link.style, { color: '#cc087d', textDecoration: 'underline' });
       msg.appendChild(link);
     }
-    body.appendChild(msg);
-    const groupNote = document.createElement('div');
-    Object.assign(groupNote.style, { fontSize: '12px', color: '#555', margin: '0 0 8px' });
-    groupNote.appendChild(document.createTextNode('Let in het geval van groepsregistraties ook op de '));
-    const generalReport = document.createElement('span');
-    generalReport.textContent = 'algemene rapportage';
-    generalReport.style.color = '#cc087d';
-    generalReport.style.fontWeight = '700';
-    groupNote.appendChild(generalReport);
-    groupNote.appendChild(document.createTextNode(' en de '));
-    const individualReport = document.createElement('span');
-    individualReport.textContent = 'individuele rapportage';
-    individualReport.style.color = '#cc087d';
-    individualReport.style.fontWeight = '700';
-    groupNote.appendChild(individualReport);
-    groupNote.appendChild(document.createTextNode('.'));
-    body.appendChild(groupNote);
-    body.appendChild(document.createElement('br'));
-    appendRegistrationCompleteness(body);
-    const submit = mkPillButton('Indienen', () => safe(submitRegistrationFromHelper));
-    submit.style.width = '100%';
-    submit.setAttribute('data-registration-helper-submit', '');
-    body.appendChild(submit);
+    window.__onsahReact.renderWizardScreen(body, 'reportPrompt', {
+      msgNode: msg,
+      completenessNode: mkRegistrationCompletenessNode(),
+      submitNode: mkRegistrationSubmitNode(),
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(backTo); },
+    });
     updateRegistrationReportSubmitButton();
     const usMissing = !hasRegistrationHourTypeSelected();
     setStatus(usMissing ? 'Voeg nog een uursoort toe' : (choice ? `${choice.label} duur afgerond` : ''), !usMissing);
@@ -7343,12 +7177,11 @@
   }
   function showRegistrationSubmitOnly() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    appendRegistrationCompleteness(body);
-    const submit = mkPillButton('Indienen', () => safe(submitRegistrationFromHelper));
-    submit.style.width = '100%';
-    submit.setAttribute('data-registration-helper-submit', '');
-    body.appendChild(submit);
+    clearScreenMark();
+    window.__onsahReact.renderWizardScreen(body, 'submitOnly', {
+      completenessNode: mkRegistrationCompletenessNode(),
+      submitNode: mkRegistrationSubmitNode(),
+    });
     updateRegistrationReportSubmitButton();
     setStatus('Klaar om in te dienen', true);
   }
@@ -7415,6 +7248,21 @@
     }
     return issues;
   }
+  // De Indienen-knop blijft een vanilla-knoop: updateRegistrationReportSubmitButton
+  // werkt hem live bij (tekst/kleur volgen de rapportagestatus). React plaatst hem
+  // alleen; zou React hem zelf tekenen, dan overschreef de volgende render dat.
+  function mkRegistrationSubmitNode() {
+    const submit = mkPillButton('Indienen', () => safe(submitRegistrationFromHelper));
+    submit.style.width = '100%';
+    submit.setAttribute('data-registration-helper-submit', '');
+    return submit;
+  }
+  // Compleetheidsvak als losse knoop (null als er niets te melden is).
+  function mkRegistrationCompletenessNode() {
+    const holder = document.createElement('div');
+    appendRegistrationCompleteness(holder);
+    return holder.firstChild ? holder.firstChild : null;
+  }
   function appendRegistrationCompleteness(body) {
     let issues = [];
     try { issues = registrationCompletenessIssues(); } catch (e) { return; }
@@ -7444,23 +7292,23 @@
       setTimeout(() => safe(() => { if (activeRegistrationChoice === choice) showRegistrationDurationAsk(choice); }), 500);
       return;
     }
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(showRegistrationChoices), 'Terug'));
-    const title = document.createElement('div');
-    title.textContent = `${choice.label} duur:`;
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
+    markScreen('registrationDurationAsk', { choice: choice });
     const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => {
-      const endOk = setRegistrationEndTimePlusMinutes(minutes);
-      // verdeling opnieuw toepassen op de nieuwe (nu bekende) duur
-      applyRegistrationSplitForChoice(choice);
-      scheduleReapplyRegistrationSplit();
-      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : 'Eindtijd niet gezet', endOk);
-      setTimeout(() => routeAfterRegistrationDuration(choice), 200);
-    }), choice.pickerStyle));
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: `${choice.label} duur:`,
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => {
+        const endOk = setRegistrationEndTimePlusMinutes(minutes);
+        // verdeling opnieuw toepassen op de nieuwe (nu bekende) duur
+        applyRegistrationSplitForChoice(choice);
+        scheduleReapplyRegistrationSplit();
+        setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : 'Eindtijd niet gezet', endOk);
+        setTimeout(() => routeAfterRegistrationDuration(choice), 200);
+      }), choice.pickerStyle),
+    });
     setStatus('Kies de duur');
   }
   function routeAfterRegistrationDuration(choice) {
@@ -7517,120 +7365,111 @@
   }
   function showRegistrationPortionQuestion(choice) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(() => showRegistrationDurationAsk(choice)), 'Terug'));
+    markScreen('registrationPortionQuestion', { choice: choice });
     const woord = registrationPortionWord(choice);
-    const q = document.createElement('div');
-    q.textContent = `${woord.charAt(0).toUpperCase() + woord.slice(1)} tijd aanwezig in deze registratie?`;
-    Object.assign(q.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', lineHeight: '1.35' });
-    body.appendChild(q);
-    const hint = document.createElement('div');
-    const woordBijw = choice.askIndirectPortion ? 'indirect' : 'direct';
-    const startTxt = registrationLiveTimeValue(registrationTimeInput('declaration_start_time_display')) || 'begintijd';
-    const endTxt = registrationLiveTimeValue(registrationTimeInput('declaration_end_time_display')) || 'eindtijd';
-    const pink = (txt) => {
-      const s = document.createElement('span');
-      s.textContent = txt;
-      Object.assign(s.style, { color: '#cc087d', fontWeight: '700' });
-      return s;
-    };
-    Object.assign(hint.style, { fontWeight: '400', fontSize: '12px', color: '#555', lineHeight: '1.4', margin: '0 0 8px' });
-    hint.appendChild(document.createTextNode(`Gebruik dit alleen wanneer er tussen `));
-    hint.appendChild(pink(startTxt));
-    hint.appendChild(document.createTextNode(' en '));
-    hint.appendChild(pink(endTxt));
-    hint.appendChild(document.createTextNode(` ook een ${woordBijw} zorgmoment heeft plaatsgevonden. Is dit op een ander moment, maak dan een aparte afspraak aan.`));
-    body.appendChild(hint);
-    body.appendChild(mkButton('Ja', () => safe(() => showRegistrationPortionDuration(choice))));
-    body.appendChild(mkButton('Nee', () => safe(() => {
-      // door zoals nu: volledige hoofdtijd, geen tegen-tijd
-      activeRegistrationPortionMinutes = null;
-      applyRegistrationSplitForChoice(choice);
-      scheduleReapplyRegistrationSplit();
-      setStatus(`${choice.label} gezet`);
-      continueAfterRegistrationChoice(choice);
-    })));
     // Uit een afspraak: 'No show' blijft onder 'Nee' bereikbaar (de vorm-keuze
     // is immers overgeslagen). Bij een losse registratie zonder afspraak staat
     // No show al in de keuzelijst, dus dan tonen we deze knop niet.
-    if (registrationFromAppointment) {
-      const ns = REGISTRATION_CHOICES.find((x) => x.label === 'No show');
-      if (ns) {
-        const nsBtn = mkButton('No show', () => safe(() => applyRegistrationChoice(ns)), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
-        body.appendChild(nsBtn);
-      }
-    }
+    const _ns = registrationFromAppointment ? REGISTRATION_CHOICES.find((x) => x.label === 'No show') : null;
+    window.__onsahReact.renderWizardScreen(body, 'portionQuestion', {
+      question: `${woord.charAt(0).toUpperCase() + woord.slice(1)} tijd aanwezig in deze registratie?`,
+      woordBijw: choice.askIndirectPortion ? 'indirect' : 'direct',
+      startText: registrationLiveTimeValue(registrationTimeInput('declaration_start_time_display')) || 'begintijd',
+      endText: registrationLiveTimeValue(registrationTimeInput('declaration_end_time_display')) || 'eindtijd',
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(() => showRegistrationDurationAsk(choice)); },
+      onYes: function () { safe(() => showRegistrationPortionDuration(choice)); },
+      onNo: function () {
+        safe(function () {
+          // door zoals nu: volledige hoofdtijd, geen tegen-tijd
+          activeRegistrationPortionMinutes = null;
+          applyRegistrationSplitForChoice(choice);
+          scheduleReapplyRegistrationSplit();
+          setStatus(`${choice.label} gezet`);
+          continueAfterRegistrationChoice(choice);
+        });
+      },
+      onNoShow: _ns ? function () { safe(() => applyRegistrationChoice(_ns)); } : null,
+    });
     setStatus(`${woord} tijd?`);
   }
   function showRegistrationPortionDuration(choice) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    body.appendChild(mkBackButton(() => safe(() => showRegistrationPortionQuestion(choice)), 'Terug'));
+    markScreen('registrationPortionDuration', { choice: choice });
     const woord = registrationPortionWord(choice);
     const total = registrationDurationMinutes();
-    const title = document.createElement('div');
-    title.textContent = `Duur ${woord} tijd:`;
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
+    const onBack = function () { suppressAutoUntil = Date.now() + 1200; safe(() => showRegistrationPortionQuestion(choice)); };
     if (total === null || total < 5) {
-      const msg = document.createElement('div');
-      msg.textContent = 'Registratieduur onbekend of te kort.';
-      Object.assign(msg.style, { fontSize: '12px', color: '#b3261e' });
-      body.appendChild(msg);
+      window.__onsahReact.renderWizardScreen(body, 'duration', {
+        title: `Duur ${woord} tijd:`,
+        tokens: ONSAH_TOKENS,
+        onBack: onBack,
+        errorMessage: 'Registratieduur onbekend of te kort.',
+      });
       return;
     }
     // Stapgrootte uit config (standaard 5 min), maximaal de registratieduur.
     const _ps = (APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.portionStepMin > 0) ? APP_CONFIG.generalSettings.portionStepMin : 5;
     const max = Math.floor(total / _ps) * _ps;
-    for (let minutes = _ps; minutes <= max; minutes += _ps) {
-      body.appendChild(mkButton(registrationDurationLabel(minutes), () => safe(() => {
-        activeRegistrationPortionMinutes = minutes;
-        const ok = applyRegistrationPortion(choice, minutes);
-        scheduleReapplyRegistrationSplit();
-        setStatus(ok ? `${choice.label} | ${woord} tijd ${registrationDurationLabel(minutes)}` : 'Verdeling niet gezet', ok);
-        continueAfterRegistrationChoice(choice);
-      })));
-    }
+    const _opts = [];
+    for (let minutes = _ps; minutes <= max; minutes += _ps) _opts.push({ value: minutes, label: registrationDurationLabel(minutes) });
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: `Duur ${woord} tijd:`,
+      tokens: ONSAH_TOKENS,
+      onBack: onBack,
+      options: _opts,
+      onPick: function (minutes) {
+        safe(function () {
+          activeRegistrationPortionMinutes = minutes;
+          const ok = applyRegistrationPortion(choice, minutes);
+          scheduleReapplyRegistrationSplit();
+          setStatus(ok ? `${choice.label} | ${woord} tijd ${registrationDurationLabel(minutes)}` : 'Verdeling niet gezet', ok);
+          continueAfterRegistrationChoice(choice);
+        });
+      },
+    });
   }
   function showRegistrationTravelSelection(choice) {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    const title = document.createElement('div');
-    title.textContent = 'Totale reistijd (heen en terug):';
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
-    body.appendChild(mkBackButton(() => safe(showRegistrationChoices), 'Terug'));
+    markScreen('registrationTravelSelection', { choice: choice });
     const _ts = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelStepMin>0?APP_CONFIG.generalSettings.travelStepMin:5);
     const _tm = (APP_CONFIG.generalSettings&&APP_CONFIG.generalSettings.travelMaxMin>0?APP_CONFIG.generalSettings.travelMaxMin:60);
     const _travelValues = []; for (let m=0; m<=_tm; m+=_ts) _travelValues.push(m);
-    body.appendChild(mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
-      registrationFlowBusy = true;
-      const ok = setRegistrationTravelTotalMinutes(minutes);
-      setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
-      setTimeout(() => { registrationFlowBusy = false; safe(() => proceedToReportOrHourType(activeRegistrationChoice)); }, 250);
-    })));
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: 'Totale reistijd (heen en terug):',
+      backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
+      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
+        registrationFlowBusy = true;
+        const ok = setRegistrationTravelTotalMinutes(minutes);
+        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
+        setTimeout(() => { registrationFlowBusy = false; safe(() => proceedToReportOrHourType(activeRegistrationChoice)); }, 250);
+      })),
+    });
   }
   function showRegistrationDurationSelection(choice) {
     const body = $body(); if (!body) return;
     if (!hasRegistrationPrereqs()) { showRegistrationNeedsClient(); return; }
-    body.innerHTML = '';
-    const title = document.createElement('div');
-    title.textContent = `${choice.label} duur:`;
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
-    body.appendChild(mkBackButton(() => safe(showRegistrationChoices), 'Terug'));
+    clearScreenMark();
     const _st = (choice.durationStep>0?choice.durationStep:gsNum("durationStepMin",15));
     const _mx = (choice.maxDuration>0?choice.maxDuration:gsNum("registrationMaxMin",180));
     const _durValues = []; for (let m=_st; m<=_mx; m+=_st) _durValues.push(m);
-    body.appendChild(mkDurationPicker(_durValues, (minutes) => safe(() => {
-      activeRegistrationChoice = choice;
-      const endOk = setRegistrationEndTimePlusMinutes(minutes);
-      const splitOk = applyRegistrationSplitForChoice(choice);
-      scheduleReapplyRegistrationSplit();
-      setStatus(`${choice.label} ${registrationDurationLabel(minutes)}${endOk && splitOk ? '' : ' | tijd/verdeling deels gezet'}`, endOk && splitOk);
-      registrationFlowBusy = true;
-      setTimeout(() => { registrationFlowBusy = false; safe(() => choice.addTravelTime ? showRegistrationTravelSelection(choice) : showRegistrationHourTypeSelection()); }, 320);
-    }), choice.pickerStyle));
+    window.__onsahReact.renderWizardScreen(body, 'duration', {
+      title: `${choice.label} duur:`,
+      backFirst: false, // dit scherm zette de titel altijd al bóven de terugknop
+      tokens: ONSAH_TOKENS,
+      onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showRegistrationChoices); },
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => {
+        activeRegistrationChoice = choice;
+        const endOk = setRegistrationEndTimePlusMinutes(minutes);
+        const splitOk = applyRegistrationSplitForChoice(choice);
+        scheduleReapplyRegistrationSplit();
+        setStatus(`${choice.label} ${registrationDurationLabel(minutes)}${endOk && splitOk ? '' : ' | tijd/verdeling deels gezet'}`, endOk && splitOk);
+        registrationFlowBusy = true;
+        setTimeout(() => { registrationFlowBusy = false; safe(() => choice.addTravelTime ? showRegistrationTravelSelection(choice) : showRegistrationHourTypeSelection()); }, 320);
+      }), choice.pickerStyle),
+    });
   }
   function selectHourTypeInNativeSelects(text) {
     const selects = deepQueryAll('select')
@@ -7938,47 +7777,40 @@
       return;
     }
     activeRegistrationHourTypeIndex = selectedIndex;
-    body.innerHTML = '';
-    const title = document.createElement('div');
-    title.textContent = context ? `Uursoort ${context.firstName}` : 'Uursoortselectie';
-    Object.assign(title.style, { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px' });
-    body.appendChild(title);
-    body.appendChild(mkBackButton(() => safe(() => backFromRegistrationHourTypeSelection(selectedIndex)), 'Terug'));
+    markScreen('registrationHourTypeSelection', { index: selectedIndex });
+    const title = context ? `Uursoort ${context.firstName}` : 'Uursoortselectie';
+    const onBack = () => { suppressAutoUntil = Date.now() + 1200; safe(() => backFromRegistrationHourTypeSelection(selectedIndex)); };
+    window.__onsahReact.renderWizardScreen(body, 'pickList', {
+      title: title, loading: true, options: null, tokens: ONSAH_TOKENS, onBack: onBack,
+      emptyMessage: 'Geen uursoorten gevonden',
+    });
     setStatus('Uursoorten laden...');
     listRegistrationHourTypeOptions((options) => {
-      body.innerHTML = '';
-      body.appendChild(title);
-      body.appendChild(mkBackButton(() => safe(() => backFromRegistrationHourTypeSelection(selectedIndex)), 'Terug'));
-      if (!options.length) {
-        const msg = document.createElement('div');
-        msg.textContent = 'Geen uursoorten gevonden';
-        Object.assign(msg.style, { color: '#c62828', fontSize: '12px' });
-        body.appendChild(msg);
-      } else {
-        for (const opt of options) {
-          body.appendChild(mkButton(opt, () => safe(() => {
-            setRegistrationHourTypeForContext(opt, context, (ok) => {
-              if (ok && registrationTextHasNoShowCue(opt)) {
-                registrationNoShowPromptSuppressed = false;
-                registrationNoShowPromptAfterNo = () => {
-                  if (context && selectedIndex + 1 < contexts.length) showRegistrationHourTypeSelection(selectedIndex + 1);
-                  else if (hasRegistrationHourTypeSelected()) showRegistrationReportPrompt(activeRegistrationChoice);
-                  else showRegistrationHourTypeSelection();
-                };
-                showRegistrationNoShowPrompt();
-                setStatus(`No show-uursoort gekozen voor ${context ? context.firstName : 'client'}`, false);
-                return;
-              }
-              if (ok && context && selectedIndex + 1 < contexts.length) {
-                showRegistrationHourTypeSelection(selectedIndex + 1);
-              } else if (ok && hasRegistrationHourTypeSelected()) {
-                showRegistrationReportPrompt(activeRegistrationChoice);
-              }
-              setStatus(ok ? `Uursoort gezet voor ${context ? context.firstName : 'client'}: ${opt}` : `Uursoort niet gevonden voor ${context ? context.firstName : 'client'}: ${opt}`, ok);
-            });
-          })));
-        }
-      }
+      const onPickOption = (opt) => safe(() => {
+        setRegistrationHourTypeForContext(opt, context, (ok) => {
+          if (ok && registrationTextHasNoShowCue(opt)) {
+            registrationNoShowPromptSuppressed = false;
+            registrationNoShowPromptAfterNo = () => {
+              if (context && selectedIndex + 1 < contexts.length) showRegistrationHourTypeSelection(selectedIndex + 1);
+              else if (hasRegistrationHourTypeSelected()) showRegistrationReportPrompt(activeRegistrationChoice);
+              else showRegistrationHourTypeSelection();
+            };
+            showRegistrationNoShowPrompt();
+            setStatus(`No show-uursoort gekozen voor ${context ? context.firstName : 'client'}`, false);
+            return;
+          }
+          if (ok && context && selectedIndex + 1 < contexts.length) {
+            showRegistrationHourTypeSelection(selectedIndex + 1);
+          } else if (ok && hasRegistrationHourTypeSelected()) {
+            showRegistrationReportPrompt(activeRegistrationChoice);
+          }
+          setStatus(ok ? `Uursoort gezet voor ${context ? context.firstName : 'client'}: ${opt}` : `Uursoort niet gevonden voor ${context ? context.firstName : 'client'}: ${opt}`, ok);
+        });
+      });
+      window.__onsahReact.renderWizardScreen(body, 'pickList', {
+        title: title, loading: false, options: options, tokens: ONSAH_TOKENS, onBack: onBack,
+        onPick: onPickOption, emptyMessage: 'Geen uursoorten gevonden',
+      });
       setStatus(options.length ? 'Kies uursoort' : 'Uursoorten niet gevonden', !!options.length);
     }, context);
   }
@@ -8135,11 +7967,15 @@
   }
   function showRegistrationNeedsClient() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
-    const line1 = mkText('registratie_prereq_regel1', 'Voor cliëntgebonden registraties: vul cliënt, datum en begintijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' });
-    body.appendChild(line1);
-    const line2 = mkText('registratie_prereq_regel2', 'Voor niet cliëntgebonden registraties: vul datum, begintijd en eindtijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' });
-    body.appendChild(line2);
+    markScreen('registrationNeedsClient');
+    // Geen resetBody: dit scherm wordt herhaald getekend terwijl op cliënt/datum
+    // gewacht wordt. Beheerbare teksten blijven mkText-knopen.
+    window.__onsahReact.renderWizardScreen(body, 'needsClient', {
+      nodes: [
+        mkText('registratie_prereq_regel1', 'Voor cliëntgebonden registraties: vul cliënt, datum en begintijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' }),
+        mkText('registratie_prereq_regel2', 'Voor niet cliëntgebonden registraties: vul datum, begintijd en eindtijd in.', { fontWeight: '700', fontSize: '13px', margin: '2px 0 4px', color: '#c0006a' }),
+      ],
+    });
     setStatus('Wacht op cliënt, begintijd en datum');
   }
   // "Is de registratiepagina uitgerenderd/rustig?" -> document geladen én ~0,5s geen
@@ -8474,27 +8310,31 @@
   function showRegistrationNoShowPrompt() {
     const body = $body(); if (!body || registrationNoShowPromptOpen) return;
     registrationNoShowPromptOpen = true;
-    body.innerHTML = '';
-    const q = document.createElement('div');
-    q.textContent = 'No show?';
-    Object.assign(q.style, { fontWeight: '700', fontSize: '14px', margin: '2px 0 4px' });
-    body.appendChild(q);
-    body.appendChild(mkButton('Ja', () => safe(() => {
-      registrationNoShowPromptOpen = false;
-      registrationNoShowPromptSuppressed = true;
-      applyRegistrationNoShow();
-      setTimeout(showRegistrationChoices, 350);
-    })));
-    body.appendChild(mkButton('Nee', () => safe(() => {
-      registrationNoShowPromptOpen = false;
-      registrationNoShowPromptSuppressed = true;
-      const afterNo = registrationNoShowPromptAfterNo;
-      registrationNoShowPromptAfterNo = null;
-      if (afterNo) afterNo();
-      else if (activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(activeRegistrationChoice);
-      else showRegistrationChoices();
-      setStatus('No show overgeslagen | ga verder');
-    })));
+    markScreen('registrationNoShowPrompt');
+    window.__onsahReact.renderWizardScreen(body, 'prompt', {
+      question: 'No show?',
+      tokens: ONSAH_TOKENS,
+      onYes: function () {
+        safe(function () {
+          registrationNoShowPromptOpen = false;
+          registrationNoShowPromptSuppressed = true;
+          applyRegistrationNoShow();
+          setTimeout(showRegistrationChoices, 350);
+        });
+      },
+      onNo: function () {
+        safe(function () {
+          registrationNoShowPromptOpen = false;
+          registrationNoShowPromptSuppressed = true;
+          const afterNo = registrationNoShowPromptAfterNo;
+          registrationNoShowPromptAfterNo = null;
+          if (afterNo) afterNo();
+          else if (activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(activeRegistrationChoice);
+          else showRegistrationChoices();
+          setStatus('No show overgeslagen | ga verder');
+        });
+      },
+    });
     setStatus('Triggerwoord gevonden');
   }
   function checkRegistrationNoShowText(sourceEl) {
@@ -8579,38 +8419,39 @@
   function showRegistrationEpisodesPrompt() {
     const body = $body(); if (!body || registrationEpisodesPromptOpen) return;
     registrationEpisodesPromptOpen = true;
-    body.innerHTML = '';
-    const q = document.createElement('div');
-    q.textContent = 'Afschermen via Episodes?';
-    Object.assign(q.style, { fontWeight: '700', fontSize: '14px', margin: '2px 0 4px' });
-    body.appendChild(q);
-    const hint = document.createElement('div');
-    hint.textContent = 'Kopieer en plak de af te schermen zin(nen) onder de juiste episode.';
-    Object.assign(hint.style, { fontSize: '12px', margin: '0 0 8px', color: '#555' });
-    body.appendChild(hint);
-    body.appendChild(mkButton('Ja', () => safe(() => {
-      registrationEpisodesPromptOpen = false;
-      registrationEpisodesPromptSuppressed = true;
-      const clientNumber = getRegistrationClientNumber();
-      if (!clientNumber) { setStatus('Cliëntnummer niet gevonden', false); showRegistrationChoices(); return; }
-      setStatus('Dossier zoeken...');
-      doEpisodesSearch(clientNumber, (url) => {
-        if (url) {
-          window.open(url, '_blank');
-          setStatus('Episodes geopend');
-        } else {
-          setStatus('Dossierlink niet gevonden', false);
-        }
-        showRegistrationChoices();
-      });
-    })));
-    body.appendChild(mkButton('Nee', () => safe(() => {
-      registrationEpisodesPromptOpen = false;
-      registrationEpisodesPromptSuppressed = true;
-      if (activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(activeRegistrationChoice);
-      else showRegistrationChoices();
-      setStatus('Episodes overgeslagen');
-    })));
+    clearScreenMark();
+    window.__onsahReact.renderWizardScreen(body, 'prompt', {
+      question: 'Afschermen via Episodes?',
+      hint: 'Kopieer en plak de af te schermen zin(nen) onder de juiste episode.',
+      tokens: ONSAH_TOKENS,
+      onYes: function () {
+        safe(function () {
+          registrationEpisodesPromptOpen = false;
+          registrationEpisodesPromptSuppressed = true;
+          const clientNumber = getRegistrationClientNumber();
+          if (!clientNumber) { setStatus('Cliëntnummer niet gevonden', false); showRegistrationChoices(); return; }
+          setStatus('Dossier zoeken...');
+          doEpisodesSearch(clientNumber, (url) => {
+            if (url) {
+              window.open(url, '_blank');
+              setStatus('Episodes geopend');
+            } else {
+              setStatus('Dossierlink niet gevonden', false);
+            }
+            showRegistrationChoices();
+          });
+        });
+      },
+      onNo: function () {
+        safe(function () {
+          registrationEpisodesPromptOpen = false;
+          registrationEpisodesPromptSuppressed = true;
+          if (activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(activeRegistrationChoice);
+          else showRegistrationChoices();
+          setStatus('Episodes overgeslagen');
+        });
+      },
+    });
     setStatus('Triggerwoord gevonden: Moeder/Vader');
   }
   function checkRegistrationEpisodesText() {
@@ -8852,8 +8693,11 @@
   }
   function showRegistrationChoices() {
     const body = $body(); if (!body) return;
-    body.innerHTML = '';
+    // Geen resetBody: dit scherm wordt herhaald getekend door de refresh-lus.
+    // Leegmaken vóór de asynchrone React-render zou elke tik een lege flits geven;
+    // de doorverwijzingen hieronder maken de body zelf leeg waar dat nodig is.
     if (helperNeedsTeamChoice()) { showNeedsTeamChoice(); return; }
+    markScreen('registrationChoices');
     if (!hasRegistrationPrereqs()) { showRegistrationNeedsClient(); return; }
     // Na een refresh hersteld: de vorm is al toegepast -> direct het rapportagescherm
     // tonen i.p.v. het keuzemenu (ook als de rapportage nog leeg is). Maar pas als de
@@ -8879,11 +8723,18 @@
       showRegistrationReportPrompt(activeRegistrationChoice);
       return;
     }
-    REGISTRATION_CHOICES.forEach((choice, i) => {
-      body.appendChild(mkButton(choice.label, () => safe(() => applyRegistrationChoice(choice)), { tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i), meta: choice.directIndirectLabel }));
+    window.__onsahReact.renderWizardScreen(body, 'choices', {
+      choices: REGISTRATION_CHOICES.map((choice, i) => ({
+        label: choice.label,
+        tick: onsahCategoryColor(onsahRegistrationIsDirect(choice), i),
+        meta: choice.directIndirectLabel,
+      })),
+      blocked: false,
+      tokens: ONSAH_TOKENS,
+      resetLabel: 'Instellingen verwijderen',
+      onPick: function (i) { safe(function () { applyRegistrationChoice(REGISTRATION_CHOICES[i]); }); },
+      onReset: function () { safe(clearRegistrationSettings); },
     });
-    const reset = mkButton('Instellingen verwijderen', () => safe(clearRegistrationSettings), { chevron: false, accent: '#a3241f', accentWash: '#fbeceb' });
-    body.appendChild(reset);
     setStatus('');
   }
   function safe(fn) { try { fn(); } catch (e) { setStatus('Er ging iets mis', false); } }
@@ -10240,23 +10091,29 @@
       const id = currentInviteeId();
       const view = currentCalendarView();
       const date = currentAgendaDate();
-      if (!id) { cont.innerHTML = ''; _agWeekKey = null; _agWeekLoaded = false; return; }
+      if (!id) { if (window.__onsahReact) window.__onsahReact.unmount(cont); cont.innerHTML = ''; _agWeekKey = null; _agWeekLoaded = false; return; }
       const key = id + '|' + date + '|' + view;
       if (key === _agWeekKey && _agWeekLoaded) return;   // niets veranderd
       if (_agWeekBusy && key === _agWeekKey) return;      // al bezig met deze
       _agWeekBusy = true; _agWeekKey = key;
-      if (cont.getAttribute('data-key') !== key) cont.textContent = 'Overzicht laden…';
+      if (cont.getAttribute('data-key') !== key) { if (window.__onsahReact) window.__onsahReact.unmount(cont); cont.textContent = 'Overzicht laden…'; }
       var prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
       var renderPanel = function (summary, extraOpts) {
-        cont.innerHTML = '';
         var o = { week: agendaWeekNumber(date), embedded: true, scope: (view === 'day' ? 'dag' : 'week'), profile: prof, date: date };
         if (extraOpts) { for (var k in extraOpts) if (Object.prototype.hasOwnProperty.call(extraOpts, k)) o[k] = extraOpts[k]; }
-        cont.appendChild(agendaWeekPanelEl(summary, o));
+        var allRows = summary.byType || [];
+        var clientRows = [], overigRows = [];
+        allRows.forEach(function (r) { if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r); else clientRows.push(r); });
+        window.__onsahReact.renderWeekPanel(cont, summary, o, ONSAH_TOKENS, clientRows, overigRows, _agFmtMin, {
+          onOpenBreakdown: function () { try { showAgendaBreakdownModal(summary, o); } catch (e) {} },
+          onOpenCalc: function () { try { showAgendaCalcModal(summary, o); } catch (e) {} },
+        });
         cont.setAttribute('data-key', key);
         _agWeekLoaded = true;
       };
       var errHandler = function (e) {
         if (_agWeekKey !== key) return;
+        if (window.__onsahReact) window.__onsahReact.unmount(cont);
         cont.innerHTML = '';
         const err = document.createElement('div');
         err.style.cssText = 'color:#b3261e;font-weight:600;font-size:12px';
@@ -10583,7 +10440,6 @@
     summarizeAgendaWeek: (typeof summarizeAgendaWeek === 'function') ? summarizeAgendaWeek : undefined,
     agendaEntryType: (typeof agendaEntryType === 'function') ? agendaEntryType : undefined,
     labelToAfspraaktype: (typeof labelToAfspraaktype === 'function') ? labelToAfspraaktype : undefined,
-    agendaWeekPanelEl: (typeof agendaWeekPanelEl === 'function') ? agendaWeekPanelEl : undefined,
     _agFmtMin: (typeof _agFmtMin === 'function') ? _agFmtMin : undefined,
     parseStartVerdeling: (typeof parseStartVerdeling === 'function') ? parseStartVerdeling : undefined,
     entryToVorm: (typeof entryToVorm === 'function') ? entryToVorm : undefined,

@@ -1,0 +1,14 @@
+{
+  "name": "ons-agendahulp",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/react-entry.jsx --bundle --minify --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --outfile=dist/react-bundle.js --format=iife --target=chrome100"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
