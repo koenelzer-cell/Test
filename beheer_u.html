@@ -421,6 +421,8 @@
     <h3 style="font-size:13px;margin:16px 0 6px">Standaardduur (als een type geen eigen ⚙ instelling heeft)</h3>
     <div class="beheer-grid" style="max-width:520px">
       <label class="beheer-veld"><span>Stapgrootte duur (min)</span><input id="genDurationStep" type="number" min="1" max="120" onchange="markDirty()"></label>
+      <label class="beheer-veld"><span>Weergave duurkeuze</span><select id="genDurationLabel" onchange="markDirty()"><option value="urenMinuten">Uren en minuten (1 uur 15 min.)</option><option value="minuten">Alleen minuten (75 min.)</option></select></label>
+      <label class="beheer-veld"><span>Weergave reistijdkeuze</span><select id="genTravelLabel" onchange="markDirty()"><option value="minuten">Alleen minuten (45 min.)</option><option value="urenMinuten">Uren en minuten (1 uur 15 min.)</option></select></label>
       <label class="beheer-veld"><span>Max. duur afspraak (min)</span><input id="genAppointmentMax" type="number" min="5" max="1440" onchange="markDirty()"></label>
       <label class="beheer-veld"><span>Max. duur registratie (min)</span><input id="genRegistrationMax" type="number" min="5" max="1440" onchange="markDirty()"></label>
       <label class="beheer-veld"><span>Vaste pauzeduur (min)</span><input id="genPauseMin" type="number" min="1" max="240" onchange="markDirty()"></label>
@@ -1059,7 +1061,7 @@ const DEFAULTS = {
       { question:'Zijn er kinderen in het gezin?', rule:'vraag_verplicht', condition:'leeftijd', op:'<', value:18 },
     ] },
   ],
-  generalSettings: { travelStepMin:5, travelMaxMin:60, portionStepMin:5, lateThresholdHours:24, durationStepMin:15, appointmentMaxMin:480, registrationMaxMin:180, pauseFixedMin:30, nonClientMarker:'*', countWeekends:false, nonClientUursoorten:[], excludedRegistrationStatuses:['do_not_declare'], excludedCalendarTypes:['unavailability','presence'] },
+  generalSettings: { durationLabelStyle:'urenMinuten', travelLabelStyle:'minuten', travelStepMin:5, travelMaxMin:60, portionStepMin:5, lateThresholdHours:24, durationStepMin:15, appointmentMaxMin:480, registrationMaxMin:180, pauseFixedMin:30, nonClientMarker:'*', countWeekends:false, nonClientUursoorten:[], excludedRegistrationStatuses:['do_not_declare'], excludedCalendarTypes:['unavailability','presence'] },
   apiEndpoints: {
     weekEvents: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events',
     weekRegistrations: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created',
@@ -1541,7 +1543,8 @@ function readGeneralSettings() {
   const marker = markerEl ? String(markerEl.value || '').trim() : '';
   const wkEl = $('#genCountWeekends');
   const exStat = _listG('#genExclStatuses'); const exTypes = _listG('#genExclTypes');
-  return { travelStepMin:_numG('#genTravelStep', d.travelStepMin), travelMaxMin:_numG('#genTravelMax', d.travelMaxMin), portionStepMin:_numG('#genPortionStep', d.portionStepMin), lateThresholdHours:_numG('#genLateHours', d.lateThresholdHours), durationStepMin:_numG('#genDurationStep', d.durationStepMin), appointmentMaxMin:_numG('#genAppointmentMax', d.appointmentMaxMin), registrationMaxMin:_numG('#genRegistrationMax', d.registrationMaxMin), pauseFixedMin:_numG('#genPauseMin', d.pauseFixedMin), nonClientMarker:(marker || d.nonClientMarker), countWeekends:!!(wkEl && wkEl.checked), nonClientUursoorten:_listG('#genNonClientList'), excludedRegistrationStatuses:(exStat.length?exStat:d.excludedRegistrationStatuses.slice()), excludedCalendarTypes:(exTypes.length?exTypes:d.excludedCalendarTypes.slice()) };
+  const _lbl = (sel, dflt) => { const el = $(sel); const v = el ? String(el.value || '') : ''; return (v === 'minuten' || v === 'urenMinuten') ? v : dflt; };
+  return { durationLabelStyle:_lbl('#genDurationLabel', d.durationLabelStyle), travelLabelStyle:_lbl('#genTravelLabel', d.travelLabelStyle), travelStepMin:_numG('#genTravelStep', d.travelStepMin), travelMaxMin:_numG('#genTravelMax', d.travelMaxMin), portionStepMin:_numG('#genPortionStep', d.portionStepMin), lateThresholdHours:_numG('#genLateHours', d.lateThresholdHours), durationStepMin:_numG('#genDurationStep', d.durationStepMin), appointmentMaxMin:_numG('#genAppointmentMax', d.appointmentMaxMin), registrationMaxMin:_numG('#genRegistrationMax', d.registrationMaxMin), pauseFixedMin:_numG('#genPauseMin', d.pauseFixedMin), nonClientMarker:(marker || d.nonClientMarker), countWeekends:!!(wkEl && wkEl.checked), nonClientUursoorten:_listG('#genNonClientList'), excludedRegistrationStatuses:(exStat.length?exStat:d.excludedRegistrationStatuses.slice()), excludedCalendarTypes:(exTypes.length?exTypes:d.excludedCalendarTypes.slice()) };
 }
 // Declarabiliteit-grondslag: 'profiel => direct|clientgebonden' per regel.
 function readDeclarabiliteitRules() {
@@ -1587,6 +1590,9 @@ function renderGeneralSettings(g) {
   set('#genNonClientMarker', g.nonClientMarker);
   const wkEl = $('#genCountWeekends'); if (wkEl) wkEl.checked = !!g.countWeekends;
   set('#genNonClientList', (g.nonClientUursoorten || []).join(', '));
+  const _setSel = (sel, v, dflt) => { const el = $(sel); if (el) el.value = (v === 'minuten' || v === 'urenMinuten') ? v : dflt; };
+  _setSel('#genDurationLabel', g.durationLabelStyle, 'urenMinuten');
+  _setSel('#genTravelLabel', g.travelLabelStyle, 'minuten');
   set('#genExclStatuses', (g.excludedRegistrationStatuses || DEFAULTS.generalSettings.excludedRegistrationStatuses).join(', '));
   set('#genExclTypes', (g.excludedCalendarTypes || DEFAULTS.generalSettings.excludedCalendarTypes).join(', '));
 }

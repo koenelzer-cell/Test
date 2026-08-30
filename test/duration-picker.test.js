@@ -94,11 +94,11 @@ test('een reeks tot en met een uur vraagt meteen om minuten', () => {
   const api = pickers();
   const node = api.mkDurationPicker(PORTIE, () => {}, 'hourMinute');
   const tekst = node.textContent || '';
-  assert.match(tekst, /minuten/i, 'de vraag hoort meteen over minuten te gaan');
   assert.doesNotMatch(tekst, /aantal uren/i,
     'bij een bereik tot 60 minuten is "kies eerst het aantal uren" zinloos');
   assert.doesNotMatch(tekst, /0 uur/,
     '"0 uur" is geen begrijpelijke keuze');
+  assert.match(tekst, /5 min/, 'de losse minuten horen direct kiesbaar te zijn');
 });
 
 test('alle waarden van een korte reeks zijn in één keer te kiezen', () => {
@@ -142,7 +142,9 @@ test('een registratie van twee uur vraagt de portie in stappen van 5 minuten', (
   const knoppen = [...node.querySelectorAll('button')];
   assert.equal(knoppen.length, 24, 'alle 24 stappen van 5 minuten horen direct kiesbaar te zijn');
   assert.ok(knoppen.some((b) => /^5 min/.test(b.textContent || '')), 'de kleinste stap is 5 minuten');
-  assert.ok(knoppen.some((b) => /^120 min/.test(b.textContent || '')), 'de grootste is de volledige duur');
+  // De weergave volgt de instelling; standaard is dat uren en minuten.
+  assert.ok(knoppen.some((b) => /^2 uur$/.test((b.textContent || '').trim())),
+    'de grootste keuze is de volledige duur van twee uur');
 });
 
 test('bij een echt lange reeks blijft de uren-stap bestaan', () => {
@@ -151,4 +153,47 @@ test('bij een echt lange reeks blijft de uren-stap bestaan', () => {
   for (let m = 15; m <= 480; m += 15) lang.push(m); // afspraakduur tot 8 uur = 32 keuzes
   const tekst = (api.mkDurationPicker(lang, () => {}, 'hourMinute').textContent || '');
   assert.match(tekst, /aantal uren/i, 'daar is de uren-stap juist wél zinvol');
+});
+
+// ── Weergave van de keuzeknoppen ────────────────────────────────────────────
+// Bij een afspraakduur denk je in uren ("1 uur 15 min."), bij reistijd in
+// minuten ("45 min."). Beide zijn instelbaar in het beheerscherm.
+
+test('duur wordt standaard in uren en minuten getoond', () => {
+  const api = pickers();
+  assert.equal(api.durationChipLabel(75, 'urenMinuten'), '1 uur 15 min.');
+  assert.equal(api.durationChipLabel(60, 'urenMinuten'), '1 uur');
+  assert.equal(api.durationChipLabel(45, 'urenMinuten'), '45 min.');
+});
+
+test('de minuten-weergave laat het uur achterwege', () => {
+  const api = pickers();
+  assert.equal(api.durationChipLabel(75, 'minuten'), '75 min.');
+  assert.equal(api.durationChipLabel(120, 'minuten'), '120 min.');
+});
+
+test('zonder instelling: duur in uren, reistijd in minuten', () => {
+  const api = pickers();
+  assert.equal(api.durationLabelStyle('duur'), 'urenMinuten');
+  assert.equal(api.durationLabelStyle('reistijd'), 'minuten',
+    'voor reistijd was de minuten-weergave juist prettig');
+});
+
+test('de chips van een afspraakduur tonen uren en minuten', () => {
+  const api = pickers();
+  const waarden = [15, 30, 45, 60, 75, 90];
+  const node = api.mkDurationPicker(waarden, () => {}, undefined, undefined, 'urenMinuten');
+  const tekst = node.textContent || '';
+  assert.match(tekst, /1 uur 15 min/, 'dit was de weergave die verdween');
+  assert.doesNotMatch(tekst, /75 min/, 'en niet de kale minuten');
+});
+
+test('het platte minutenrooster volgt dezelfde weergave', () => {
+  const api = pickers();
+  const waarden = Array.from({ length: 24 }, (_, i) => (i + 1) * 5); // portie van 2 uur
+  const uren = api.mkDurationPicker(waarden, () => {}, 'hourMinute', undefined, 'urenMinuten');
+  assert.match(uren.textContent || '', /1 uur 15 min/,
+    'ook bij de portievraag hoort de ingestelde weergave te gelden');
+  const min = api.mkDurationPicker(waarden, () => {}, 'hourMinute', undefined, 'minuten');
+  assert.match(min.textContent || '', /75 min/);
 });

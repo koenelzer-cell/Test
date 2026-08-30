@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.188'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.189'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -5000,13 +5000,27 @@
     chip.addEventListener('mouseleave', () => { chip.style.transform = 'none'; chip.style.boxShadow = 'none'; chip.style.background = '#fff'; chip.style.borderColor = T.line; });
     onsahFocusRing(chip);
   }
-  function mkChipGrid(values, onPick) {
+  // Hoe een aantal minuten op een keuzeknop komt te staan. 'urenMinuten' geeft
+  // "1 uur 15 min.", 'minuten' geeft "75 min.". Instelbaar omdat het per vraag
+  // verschilt: bij een afspraakduur denk je in uren, bij reistijd in minuten.
+  function durationChipLabel(minutes, stijl) {
+    return stijl === 'minuten' ? (minutes + ' min.') : registrationDurationLabel(minutes);
+  }
+  // De ingestelde weergave, met een verstandige standaard per soort vraag.
+  function durationLabelStyle(soort) {
+    const g = _agGenSettings();
+    const key = soort === 'reistijd' ? 'travelLabelStyle' : 'durationLabelStyle';
+    const v = g[key];
+    if (v === 'minuten' || v === 'urenMinuten') return v;
+    return soort === 'reistijd' ? 'minuten' : 'urenMinuten';
+  }
+  function mkChipGrid(values, onPick, labelStijl) {
     const grid = document.createElement('div');
     Object.assign(grid.style, { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '7px' });
     values.forEach((m) => {
       const chip = document.createElement('button');
       chip.type = 'button';
-      chip.textContent = registrationDurationLabel(m);
+      chip.textContent = durationChipLabel(m, labelStijl);
       styleChipButton(chip);
       chip.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPick(m); });
       grid.appendChild(chip);
@@ -5018,7 +5032,7 @@
   // lange lijst of een schuifregelaar. Alternatieve fallback voor afspraakduur
   // naast mkTimePicker; werkt voor elke stapgrootte, ook als die geen mooie
   // deler van 60 is (dan wisselt het aantal minuutopties per uur gewoon mee).
-  function mkHourMinutePicker(values, onPick) {
+  function mkHourMinutePicker(values, onPick, labelStijl) {
     const byHour = new Map();
     values.forEach((v) => {
       const h = Math.floor(v / 60);
@@ -5040,13 +5054,13 @@
     // directe/indirecte tijd binnen een registratie) is "kies eerst het aantal
     // uren" zinloos: je zou moeten kiezen tussen "0 uur" en "1 uur".
     function renderAlleMinuten() {
-      cap.textContent = 'Aantal minuten:';
+      cap.textContent = 'Kies de duur:';
       stage.innerHTML = '';
       const grid = mkGrid();
       values.slice().sort((a, b) => a - b).forEach((v) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = v + ' min.';
+        btn.textContent = durationChipLabel(v, labelStijl);
         styleChipButton(btn);
         btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onPick(v); });
         grid.appendChild(btn);
@@ -5141,7 +5155,7 @@
   // Reistijdkeuze: dezelfde stijlkeuze als de duurvragen. Zonder stijl valt hij
   // terug op het automatische gedrag van vóór deze wijziging.
   function mkValuePicker(values, initial, onPick, style) {
-    return mkDurationPicker(values, onPick, style, initial);
+    return mkDurationPicker(values, onPick, style, initial, durationLabelStyle('reistijd'));
   }
   // Uren en minuten als twee kolommen náást elkaar (i.p.v. na elkaar zoals
   // mkHourMinutePicker): je ziet meteen het hele bereik van beide, kiest in
@@ -5229,15 +5243,15 @@
   // omdat dat óók de standaardwaarde is, werd de ingestelde stijl bij 16 of
   // minder opties genegeerd. Dezelfde fout was eerder al voor 'slider' en
   // 'columns' hersteld; dit is de derde.
-  function mkDurationPicker(values, onPick, style, initial) {
+  function mkDurationPicker(values, onPick, style, initial, labelStijl) {
     const start = (initial != null) ? initial : values[0];
     if (style === 'slider') return mkTimePicker(values, start, onPick);
     if (style === 'columns') return mkTwoColumnDurationPicker(values, onPick);
-    if (style === 'hourMinute') return mkHourMinutePicker(values, onPick);
+    if (style === 'hourMinute') return mkHourMinutePicker(values, onPick, labelStijl);
     // Geen (of onbekende) stijl: automatisch — compacte chips bij een
     // overzichtelijk aantal opties, anders uren-dan-minuten.
-    if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick);
-    return mkHourMinutePicker(values, onPick);
+    if (values.length <= PICKER_CHIP_LIMIT) return mkChipGrid(values, onPick, labelStijl);
+    return mkHourMinutePicker(values, onPick, labelStijl);
   }
   // Aan/uit-schakelaar (role=switch) in de eigen roze huisstijl. `onChange(bool)`
   // krijgt de nieuwe stand; `.setChecked(bool)` zet de stand van buitenaf.
@@ -6467,7 +6481,7 @@
         scheduleAppointmentEndTime(m);
         [100, 300].forEach(function (d) { setTimeout(function () { safe(function () { enforceAppointmentEndTime(m); }); }, d); });
       }); }, 50);
-      }); }, opt.pickerStyle),
+      }); }, opt.pickerStyle, undefined, durationLabelStyle('duur')),
     });
     setStatus('Kies de duur');
   }
@@ -6656,7 +6670,7 @@
       title: `${choice.label} duur:`,
       tokens: ONSAH_TOKENS,
       onBack: function () { suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
-      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle),
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, undefined, durationLabelStyle('duur')),
     });
   }
   function showAppointmentTravelSelection(choice) {
@@ -6675,7 +6689,7 @@
         const ok = setAppointmentTravelTotalMinutes(minutes);
         setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
         setTimeout(() => handleChoice(choice), 70);
-      }), choice.pickerStyle),
+      }), choice.pickerStyle, undefined, durationLabelStyle('duur')),
     });
   }
   function submitAppointmentFromHelper() {
@@ -7547,7 +7561,7 @@
         scheduleReapplyRegistrationSplit();
         setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : 'Eindtijd niet gezet', endOk);
         setTimeout(() => routeAfterRegistrationDuration(choice), 200);
-      }), choice.pickerStyle),
+      }), choice.pickerStyle, undefined, durationLabelStyle('duur')),
     });
     setStatus('Kies de duur');
   }
@@ -7667,7 +7681,7 @@
           setStatus(ok ? `${choice.label} | ${woord} tijd ${registrationDurationLabel(minutes)}` : 'Verdeling niet gezet', ok);
           continueAfterRegistrationChoice(choice);
         });
-      }, choice.pickerStyle),
+      }, choice.pickerStyle, undefined, durationLabelStyle('duur')),
     });
   }
   function showRegistrationTravelSelection(choice) {
@@ -7686,7 +7700,7 @@
         const ok = setRegistrationTravelTotalMinutes(minutes);
         setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
         setTimeout(() => { registrationFlowBusy = false; safe(() => proceedToReportOrHourType(activeRegistrationChoice)); }, 250);
-      }), choice.pickerStyle),
+      }), choice.pickerStyle, undefined, durationLabelStyle('duur')),
     });
   }
   function selectHourTypeInNativeSelects(text) {
@@ -10637,6 +10651,8 @@
     markScreen: (typeof markScreen === 'function') ? markScreen : undefined,
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
+    durationChipLabel: (typeof durationChipLabel === 'function') ? durationChipLabel : undefined,
+    durationLabelStyle: (typeof durationLabelStyle === 'function') ? durationLabelStyle : undefined,
     renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
     // ONS-adapter: de gedocumenteerde naad naar ONS.
     OnsAdapter: (typeof OnsAdapter !== 'undefined') ? OnsAdapter : undefined,
