@@ -1,6 +1,7 @@
 import { BackButton } from './BackButton.jsx';
 import { TileButton } from './TileButton.jsx';
 import { VanillaNode, VanillaNodes } from './VanillaNode.jsx';
+import { PreviewList } from './PreviewList.jsx';
 import { useInterval } from '../hooks/useInterval.js';
 
 // Opslaanscherm van de Afspraakhulp. De twee tekstregels zijn beheerbaar
@@ -12,7 +13,7 @@ import { useInterval } from '../hooks/useInterval.js';
 // Nu hoort hij bij dit scherm en stopt hij vanzelf als je hier weg navigeert.
 export function ReadyToSaveScreen({
   textNodes, toggleNode, tokens, onBack, onSave, saveDisabled, showUursoortNote,
-  onWatchTick, watchIntervalMs,
+  onWatchTick, watchIntervalMs, previewRows, onUndo,
 }) {
   useInterval(onWatchTick, watchIntervalMs);
   return (
@@ -21,10 +22,23 @@ export function ReadyToSaveScreen({
         <BackButton label="Terug" onClick={onBack} tokens={tokens} />
       </div>
       <VanillaNodes nodes={textNodes} />
+      <PreviewList rows={previewRows} tokens={tokens} />
       <VanillaNode node={toggleNode} />
       <div style={{ marginTop: 6 }}>
         <TileButton label="Opslaan" onClick={onSave} tokens={tokens} disabled={saveDisabled} />
       </div>
+      {onUndo ? (
+        <div style={{ marginTop: 6 }}>
+          <TileButton
+            label="Ongedaan maken"
+            onClick={onUndo}
+            tokens={tokens}
+            chevron={false}
+            accent="#a3241f"
+            accentWash="#fbeceb"
+          />
+        </div>
+      ) : null}
       {showUursoortNote ? (
         <div style={{ fontSize: 12, color: '#b3261e', margin: '6px 0 0', fontWeight: 700 }}>
           Let op: voeg nog een uursoort toe.

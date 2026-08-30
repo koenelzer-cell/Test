@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.184'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.185'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
@@ -3261,6 +3261,62 @@
     for (const field of fields) setInputTextQuiet(field, '0');
     return true;
   }
+  // ===== Ongedaan maken =====
+  // Vóór de hulp velden gaat invullen, leggen we vast wat er stond. "Verwijder
+  // instellingen" maakt alles leeg; dit zet terug wat de medewerker zelf al had
+  // ingevuld — een titel die je zelf typte hoort niet te verdwijnen omdat je het
+  // verkeerde afspraaktype aanklikte.
+  let _appointmentSnapshot = null;
+  function takeAppointmentSnapshot() {
+    try {
+      const lees = (el) => (el ? String(inputTextValue(el) || '') : null);
+      let labels = [];
+      try {
+        labels = (labelChips(getEtiketTrigger()) || [])
+          .map((c) => String(c.name || '').trim()).filter(Boolean);
+      } catch (e) {}
+      _appointmentSnapshot = {
+        titel: lees(getTitleInput()),
+        eind: lees(getEndTimeInput()),
+        heen: lees(appointmentTravelInput('heen')),
+        terug: lees(appointmentTravelInput('terug')),
+        labels: labels,
+      };
+    } catch (e) { _appointmentSnapshot = null; }
+    return _appointmentSnapshot;
+  }
+  function hasAppointmentSnapshot() { return !!_appointmentSnapshot; }
+  function clearAppointmentSnapshot() { _appointmentSnapshot = null; }
+  // Zet de vastgelegde waarden terug. De uursoorten worden geleegd en niet
+  // opnieuw gezet: die kiezen verloopt via de combobox van ONS en is precies de
+  // route die onbetrouwbaar is — liever leeg laten dan een verkeerde waarde
+  // terugzetten.
+  function restoreAppointmentSnapshot(onDone) {
+    const snap = _appointmentSnapshot;
+    if (!snap) { if (onDone) onDone(false); return; }
+    const zet = (el, waarde) => { if (el && waarde != null) setInputTextOns(el, waarde); };
+    try {
+      zet(getTitleInput(), snap.titel);
+      zet(getEndTimeInput(), snap.eind);
+      zet(appointmentTravelInput('heen'), snap.heen);
+      zet(appointmentTravelInput('terug'), snap.terug);
+    } catch (e) {}
+    // Labels: eerst de door de hulp gezette labels eraf, dan terug wat er stond.
+    clearKnownLabels(function () {
+      const terug = (snap.labels || []).slice();
+      const volgende = function () {
+        if (!terug.length) {
+          clearAllUursoorten(function () {
+            clearAppointmentSnapshot();
+            if (onDone) onDone(true);
+          });
+          return;
+        }
+        setLabel(terug.shift(), volgende);
+      };
+      volgende();
+    });
+  }
   function clearSettings() {
     appointmentClearingSettings = true;
     appointmentAwaitingManualUursoort = false;
@@ -3473,6 +3529,69 @@
   //  1) een gekozen uursoort verschijnt als light-DOM samenvatting in de kaart
   //     (div[slot="sub"] > [class*="_summary_"]); een leeg veld heeft die niet.
   //  2) backup: de uc-select-combobox houdt class "placeholder" zolang leeg.
+  // De uursoort zoals die in de cliëntkaart staat (de samenvatting die ONS toont
+  // zodra er iets gekozen is). Leeg als er nog niets staat.
+  function entryUursoortText(entry) {
+    if (!entry || !entry.card) return '';
+    const summary = deepQueryAll('[class*="_summary_"]', entry.card)
+      .find((el) => !isOwnPopup(el) && clean(el.textContent || ''));
+    return summary ? (summary.textContent || '').replace(/\s+/g, ' ').trim() : '';
+  }
+  // De ingevulde reistijd (heen + terug) in minuten, of null als de velden er
+  // niet zijn. Leest wat er staat, ongeacht wie het heeft ingevuld.
+  function appointmentTravelTotalMinutes() {
+    const there = appointmentTravelInput('heen');
+    const back = appointmentTravelInput('terug');
+    if (!there || !back) return null;
+    const a = parseInt(inputTextValue(there), 10);
+    const b = parseInt(inputTextValue(back), 10);
+    const total = (isFinite(a) ? a : 0) + (isFinite(b) ? b : 0);
+    return total > 0 ? total : null;
+  }
+  // Alles wat straks wordt opgeslagen, in één overzicht. Puur lezen: deze
+  // functie verandert niets aan de afspraak. Wordt gebruikt voor de controle
+  // vóór opslaan, zodat de medewerker ziet wat de hulp heeft ingevuld.
+  function appointmentPreviewRows() {
+    const rijen = [];
+    const push = (label, waarde, ok) => rijen.push({ label: label, waarde: waarde, ok: ok !== false, ontbreekt: !waarde });
+
+    const titel = (() => { try { const i = getTitleInput(); return i ? String(inputTextValue(i) || '').trim() : ''; } catch (e) { return ''; } })();
+    const start = (() => { try { return appointmentCurrentStartTimeText() || ''; } catch (e) { return ''; } })();
+    const eind = (() => { try { const i = getEndTimeInput(); return i ? String(inputTextValue(i) || '').trim() : ''; } catch (e) { return ''; } })();
+
+    const nietClient = !hasClientInAppointment() && !!activeNonClientOption;
+    const type = nietClient
+      ? (activeNonClientOption.display || activeNonClientOption.label || '')
+      : ((pendingChoice && pendingChoice.label) || '');
+    if (type) push('Type', type);
+
+    if (titel) push('Titel', titel);
+    if (start || eind) push('Tijd', (start || '?') + ' – ' + (eind || '?'), !!(start && eind));
+
+    if (activeAppointmentDurationMinutes > 0) push('Duur', registrationDurationLabel(activeAppointmentDurationMinutes));
+
+    const reis = appointmentTravelTotalMinutes();
+    if (reis != null) push('Reistijd', registrationDurationLabel(reis) + ' totaal');
+
+    // Labels zoals ze nu op de afspraak staan.
+    try {
+      const chips = labelChips(getEtiketTrigger()) || [];
+      const namen = chips.map((c) => String(c.name || '').trim()).filter(Boolean);
+      if (namen.length) push('Label', namen.join(', '));
+    } catch (e) {}
+
+    // Per cliënt de gekozen uursoort — het veld waar het in de praktijk misgaat.
+    if (!nietClient) {
+      try {
+        invalidateClientEntries();
+        findClientEntries().forEach((entry) => {
+          const tekst = entryUursoortText(entry);
+          push('Uursoort ' + (entry.firstName || entry.name || ''), tekst, !!tekst);
+        });
+      } catch (e) {}
+    }
+    return rijen;
+  }
   function entryUursoortIsSet(entry) {
     if (!entry) return false;
     if (entry.card) {
@@ -6489,6 +6608,8 @@
   function prepareClientAndHandleChoice(choice) {
     setStatus(''); // wis o.a. de 'verwijder zelf nog de uursoorten' melding
     if (!hasAppointmentPrereqs()) { showAppointmentNeedsPrereqs(); return; }
+    // Vastleggen wat er stond, vóórdat de hulp velden gaat invullen.
+    takeAppointmentSnapshot();
     appointmentFlowBusy = true;
     if (!choice.addTravelTime) clearAppointmentTravelTimes();
     busyWhile(6000, (done) => {
@@ -6750,6 +6871,26 @@
       }
     });
     renderScreen(body, 'readyToSave', {
+      // Controle vóór opslaan: laat zien wat de hulp heeft ingevuld, zodat een
+      // stille fout zichtbaar wordt vóórdat er iets wordt vastgelegd.
+      previewRows: (function () { try { return appointmentPreviewRows(); } catch (e) { return []; } })(),
+      // Alleen aanbieden als er iets is om naar terug te keren.
+      onUndo: hasAppointmentSnapshot() ? function () {
+        suppressAutoUntil = Date.now() + 1200;
+        safe(function () {
+          appointmentSaveScreenActive = false;
+          stopDoorplannenSaveWatch();
+          showLoadingState('Terugdraaien...');
+          restoreAppointmentSnapshot(function (ok) {
+            setStatus(ok ? 'Instellingen teruggedraaid' : 'Terugdraaien niet gelukt', ok);
+            appointmentForceChoiceOnce = true;
+            pendingChoice = null;
+            appointmentTypeApplied = false;
+            activeAppointmentDurationMinutes = null;
+            showChoices();
+          });
+        });
+      } : null,
       onWatchTick: onWatchTick,
       watchIntervalMs: _doorplannenActief ? 250 : 0,
       textNodes: [
@@ -10510,6 +10651,13 @@
     // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
     mkDurationPicker: (typeof mkDurationPicker === 'function') ? mkDurationPicker : undefined,
     renderScreen: (typeof renderScreen === 'function') ? renderScreen : undefined,
+    // Ongedaan maken.
+    takeAppointmentSnapshot: (typeof takeAppointmentSnapshot === 'function') ? takeAppointmentSnapshot : undefined,
+    hasAppointmentSnapshot: (typeof hasAppointmentSnapshot === 'function') ? hasAppointmentSnapshot : undefined,
+    clearAppointmentSnapshot: (typeof clearAppointmentSnapshot === 'function') ? clearAppointmentSnapshot : undefined,
+    // Controle vóór opslaan.
+    appointmentPreviewRows: (typeof appointmentPreviewRows === 'function') ? appointmentPreviewRows : undefined,
+    entryUursoortText: (typeof entryUursoortText === 'function') ? entryUursoortText : undefined,
     // Rapportageprefix: één regel vs. sjabloon met regeleindes.
     _prefixScheiding: (typeof _prefixScheiding === 'function') ? _prefixScheiding : undefined,
     registrationPrefixRegex: (typeof registrationPrefixRegex === 'function') ? registrationPrefixRegex : undefined,
