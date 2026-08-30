@@ -4,7 +4,7 @@
 
   // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
   const SCRIPT_VERSION = (function () {
-    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.189'; }
+    try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.190'; }
   })();
 
   // ===== Centrale ONS-selectors/markers =====
