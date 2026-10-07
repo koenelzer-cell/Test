@@ -1423,7 +1423,7 @@
         weekHost.appendChild(noteBox("Weekoverzicht kon niet laden (bundel ontbreekt).", "bad"));
         return;
       }
-      b.renderWeekPanel(weekHost, w.summary, w.opts || {}, T, w.clientRows || [], w.overigRows || [], fmtMin, {
+      b.renderWeekPanel(weekHost, w.summary, Object.assign({}, w.opts || {}, { perInvitee: w.perInvitee || null }), T, w.clientRows || [], w.overigRows || [], fmtMin, {
         onOpenClientTime: function() {
           naarPagina("clienttijd");
         }
@@ -1537,10 +1537,39 @@
       }));
     }
     var liveHost = null;
-    function losKoppelen() {
+    var liveSubs = {}, liveSleutel = "";
+    function subsLos() {
       var b = bridge();
-      if (liveHost && b && b.unmount) b.unmount(liveHost);
+      Object.keys(liveSubs).forEach(function(k) {
+        if (b && b.unmount) b.unmount(liveSubs[k]);
+      });
+      liveSubs = {};
+      liveSleutel = "";
+    }
+    function losKoppelen() {
+      subsLos();
       liveHost = null;
+    }
+    function subsVoor(personen) {
+      var sleutel = personen.map(function(p) {
+        return p.id + ":" + p.name;
+      }).join("|");
+      if (sleutel !== liveSleutel) {
+        subsLos();
+        liveHost.innerHTML = "";
+        personen.forEach(function(p, i) {
+          var blok = el("div", { marginTop: i ? "14px" : "0" });
+          if (p.name) blok.appendChild(el("div", Object.assign({}, TYPE.label, { margin: "0 0 6px", color: T.ink }), p.name));
+          var sub = el("div");
+          blok.appendChild(sub);
+          liveHost.appendChild(blok);
+          liveSubs[p.id || "p" + i] = sub;
+        });
+        liveSleutel = sleutel;
+      }
+      return personen.map(function(p, i) {
+        return liveSubs[p.id || "p" + i];
+      });
     }
     function naarPagina(p) {
       losKoppelen();
@@ -1626,12 +1655,15 @@
           liveHost.appendChild(noteBox("Kon niet laden (bundel ontbreekt).", "bad"));
           return;
         }
-        b.renderCalcBody(liveHost, ratio.result.rows || [], state && state.nonClientMarker || "*", fmtMin, T, ratio.result.mode);
+        var rp = ratio.result.persons && ratio.result.persons.length > 1 ? ratio.result.persons : [{ id: "", name: "", rows: ratio.result.rows || [] }];
+        subsVoor(rp).forEach(function(sub, i) {
+          b.renderCalcBody(sub, rp[i].rows || [], state && state.nonClientMarker || "*", fmtMin, T, ratio.result.mode);
+        });
         return;
       }
       var w = state && state.week;
       if (!w || !w.summary) {
-        if (b && b.unmount) b.unmount(liveHost);
+        subsLos();
         liveHost.innerHTML = "";
         liveHost.appendChild(txt("help", state && state.weekLoading ? "Weekoverzicht wordt opgehaald…" : "Nog geen weekoverzicht beschikbaar."));
         return;
@@ -1641,7 +1673,12 @@
         liveHost.appendChild(noteBox("Kon niet laden (bundel ontbreekt).", "bad"));
         return;
       }
-      if (pagina === "clienttijd") b.renderBreakdownBody(liveHost, w.summary, w.opts || {}, fmtMin, T);
+      if (pagina === "clienttijd") {
+        var cp = w.perInvitee && w.perInvitee.length > 1 ? w.perInvitee : [{ id: "", name: "", summary: w.summary }];
+        subsVoor(cp).forEach(function(sub, i) {
+          b.renderBreakdownBody(sub, cp[i].summary, w.opts || {}, fmtMin, T);
+        });
+      }
     }
     function pageClientTime() {
       var box = el("div");
@@ -1667,10 +1704,30 @@
         var weken = prod.result.weeks || [];
         if (!weken.length) box.appendChild(noteBox("Geen weken in deze periode.", "warn"));
         else {
-          var grafiek = el("div", { marginTop: "14px" });
-          grafiek.appendChild(productionChart(weken));
-          grafiek.appendChild(productionTable(weken));
-          box.appendChild(grafiek);
+          var personen = prod.result.persons && prod.result.persons.length > 1 ? prod.result.persons : [{ id: "", name: "", weeks: weken }];
+          prod.tabelOpen = prod.tabelOpen || {};
+          personen.forEach(function(p, i) {
+            var grafiek = el("div", { marginTop: "14px", paddingTop: i ? "14px" : "0", borderTop: i ? "1px solid " + T.line : "0" });
+            grafiek.setAttribute("data-grafiek-persoon", p.id || "een");
+            if (p.name) grafiek.appendChild(txt("section", p.name));
+            grafiek.appendChild(productionChart(p.weeks));
+            var sleutel = p.id || "een";
+            var open = !!prod.tabelOpen[sleutel];
+            var wissel = tekstKnop(CHEV_RECHTS, open ? "Tabel verbergen" : "Tabel tonen", function() {
+              prod.tabelOpen[sleutel] = !open;
+              renderPagina();
+            });
+            wissel.setAttribute("aria-expanded", open ? "true" : "false");
+            wissel.style.margin = "8px 0 0 -6px";
+            var pijl = wissel.querySelector("svg");
+            if (pijl) {
+              pijl.style.transition = "transform .15s ease";
+              pijl.style.transform = open ? "rotate(90deg)" : "none";
+            }
+            grafiek.appendChild(wissel);
+            if (open) grafiek.appendChild(productionTable(p.weeks));
+            box.appendChild(grafiek);
+          });
         }
       }
       return box;
@@ -1841,7 +1898,7 @@
           var tijd = el("span", { fontWeight: "600", flex: "0 0 auto", textDecoration: klaar ? "line-through" : "none" }, ("0" + dt.getHours()).slice(-2) + ":" + ("0" + dt.getMinutes()).slice(-2));
           row.appendChild(tijd);
           row.appendChild(el("span", { color: T.inkSoft, flex: "0 0 auto" }, fmtMin(it.minutes)));
-          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, it.uursoort || ""));
+          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, (it.persoon ? it.persoon + " · " : "") + (it.uursoort || "")));
           if (klaar) {
             var v = vinkje();
             v.setAttribute("data-afgewerkt", "1");

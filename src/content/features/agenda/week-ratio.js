@@ -9,7 +9,7 @@
 //
 // PRIVACY: alleen uursoortnamen en minuten.
 
-import { currentInviteeId } from './navigation.js';
+import { inviteeName, viewedInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaWeekNumber, agendaYmd } from '../../core/datetime.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -41,12 +41,20 @@ export function plannedRatioRows(entries, forms) {
   }).sort(function (a, b) { return b.minutes - a.minutes; });
 }
 
-// date: een dag in de gewenste week. -> { weekStart, week, mode, rows }
+// date: een dag in de gewenste week. -> { weekStart, week, mode, rows, persons }
+// Bij meerdere agenda's naast elkaar: per collega (persons); rows is die van de eerste.
 export function fetchWeekRatio(date) {
-  var id = currentInviteeId(null) || resolveInviteeId();
-  if (id == null) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
+  var ids = viewedInviteeIds(resolveInviteeId());
+  if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   var start = weekStartsBetween(date, date)[0];
   if (!start) return Promise.reject(new Error('Ongeldige datum.'));
+  return Promise.all(ids.map(function (id) { return ratioVoor(id, start); })).then(function (lijst) {
+    var r = lijst[0];
+    r.persons = lijst.map(function (x, i) { return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : '', rows: x.rows }; });
+    return r;
+  });
+}
+function ratioVoor(id, start) {
   var vandaag = agendaYmd(new Date());
   var dezeWeek = weekStartsBetween(vandaag, vandaag)[0];
   var basis = { weekStart: start, week: agendaWeekNumber(start) };

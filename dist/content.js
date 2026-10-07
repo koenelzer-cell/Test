@@ -10234,7 +10234,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.215";
+      return "1.6.216";
     }
   }();
 
@@ -11506,11 +11506,31 @@
     const m = location.href.match(/\/invitees\/(\d+(?:,\d+)*)\/calendar/);
     return m ? m[1].split(",") : [];
   }
+  function inviteeName(id) {
+    try {
+      const kand = document.querySelectorAll('[data-invitee-id="' + id + '"]');
+      for (const el of kand) {
+        const n = el.getAttribute("data-invitee-name") || el.getAttribute("aria-label") || el.getAttribute("title") || "";
+        const t = String(n).replace(/\s+/g, " ").trim();
+        if (t && t.length <= 60) return t;
+      }
+      const naam = document.querySelector('[data-invitee-name][data-invitee-id="' + id + '"], [data-employee-id="' + id + '"][data-employee-name]');
+      if (naam) return (naam.getAttribute("data-invitee-name") || naam.getAttribute("data-employee-name") || "").trim() || "Medewerker " + id;
+    } catch (e) {
+    }
+    return "Medewerker " + id;
+  }
   function currentInviteeId(date) {
     const ids = currentInviteeIds();
     if (ids.length) return ids[0];
     const col = document.querySelector(ONS.dayColumn + (date ? '[data-date="' + date + '"]' : ""));
     return col ? col.getAttribute("data-invitee-id") : null;
+  }
+  function viewedInviteeIds(fallback) {
+    const ids = currentInviteeIds();
+    if (ids.length) return ids;
+    const een = currentInviteeId(null) || fallback;
+    return een != null ? [String(een)] : [];
   }
   function calendarUrl(view, date, inviteeId) {
     const ids = currentInviteeIds();
@@ -11656,6 +11676,7 @@
   function refreshAgendaWeekApi() {
     const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
     if (id) agendaPage._agLastInviteeId = id;
+    const ids = currentInviteeIds().length > 1 ? currentInviteeIds() : id ? [String(id)] : [];
     const view = currentCalendarView();
     const date = currentAgendaDate();
     if (!id) {
@@ -11665,7 +11686,7 @@
       agendaPage._agWeekError = "";
       return;
     }
-    const key = id + "|" + date + "|" + view;
+    const key = ids.join(",") + "|" + date + "|" + view;
     if (key === agendaPage._agWeekKey && agendaPage._agWeekLoaded) return;
     if (agendaPage._agWeekBusy && key === agendaPage._agWeekKey) return;
     const andereWeek = key !== agendaPage._agWeekKey;
@@ -11680,25 +11701,41 @@
     } catch (e) {
     }
     var prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
-    var bewaar = function(summary, extraOpts) {
-      var o = { week: agendaWeekNumber(date), embedded: true, scope: view === "day" ? "dag" : "week", profile: prof, date };
-      try {
-        agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summary, prof);
-      } catch (e) {
-        agendaPage._agLastDeclarabiliteit = null;
-      }
-      if (extraOpts) {
-        for (var k in extraOpts) if (Object.prototype.hasOwnProperty.call(extraOpts, k)) o[k] = extraOpts[k];
-      }
-      var allRows = summary.byType || [];
+    var toekomst = _agIsFutureWeek(date);
+    var basisOpts = function() {
+      return toekomst ? { week: agendaWeekNumber(date), embedded: true, scope: view === "day" ? "dag" : "week", profile: prof, date } : { week: agendaWeekNumber(date), embedded: true, scope: "week", profile: prof, date, perLabel: "Per uursoort", headerHint: "geregistreerd", unknownLabel: "Overig" };
+    };
+    var splits = function(summary) {
       var clientRows = [], overigRows = [];
-      allRows.forEach(function(r) {
+      (summary.byType || []).forEach(function(r) {
         if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r);
         else clientRows.push(r);
       });
-      agendaPage._agLastWeek = { summary, opts: o, clientRows, overigRows };
-      agendaPage._agWeekError = "";
-      agendaPage._agWeekLoaded = true;
+      return { clientRows, overigRows };
+    };
+    var haal = function(inv, eerste) {
+      if (!toekomst) {
+        if (eerste) {
+          fetchInviteeWeek(inv, date).then(function(entries) {
+            if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries || []).slice();
+          }, function() {
+          }).then(function() {
+            if (agendaPage._agWeekKey === key) safe(updateTotals);
+          });
+        }
+        return fetchWeekRegistrationDeclarabiliteit(inv, date);
+      }
+      return fetchInviteeWeek(inv, date).then(function(entries) {
+        if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries.slice();
+        if (view === "day") entries = entries.filter(function(e) {
+          return e.date === date;
+        });
+        var now = Date.now();
+        entries = entries.filter(function(e) {
+          return e.startMs == null || e.startMs >= now;
+        });
+        return summarizeAgendaWeek(entries);
+      });
     };
     var errHandler = function(e) {
       if (agendaPage._agWeekKey !== key) return;
@@ -11713,31 +11750,30 @@
       } catch (e) {
       }
     };
-    if (!_agIsFutureWeek(date)) {
-      fetchInviteeWeek(id, date).then(function(entries) {
-        if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries || []).slice();
-      }, function() {
-      }).then(function() {
-        if (agendaPage._agWeekKey === key) safe(updateTotals);
-      });
-      fetchWeekRegistrationDeclarabiliteit(id, date).then(function(summary) {
-        if (agendaPage._agWeekKey !== key) return;
-        bewaar(summary, { perLabel: "Per uursoort", headerHint: "geregistreerd", scope: "week", unknownLabel: "Overig" });
-      }).catch(errHandler).then(klaar);
-    } else {
-      fetchInviteeWeek(id, date).then(function(entries) {
-        if (agendaPage._agWeekKey !== key) return;
-        agendaPage._agLastEntries = entries.slice();
-        if (view === "day") entries = entries.filter(function(e) {
-          return e.date === date;
-        });
-        var now = Date.now();
-        entries = entries.filter(function(e) {
-          return e.startMs == null || e.startMs >= now;
-        });
-        bewaar(summarizeAgendaWeek(entries));
-      }).catch(errHandler).then(klaar);
-    }
+    Promise.all(ids.map(function(inv, i) {
+      return haal(inv, i === 0);
+    })).then(function(summaries) {
+      if (agendaPage._agWeekKey !== key) return;
+      var o = basisOpts();
+      try {
+        agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summaries[0], prof);
+      } catch (e) {
+        agendaPage._agLastDeclarabiliteit = null;
+      }
+      var eerste = splits(summaries[0]);
+      agendaPage._agLastWeek = {
+        summary: summaries[0],
+        opts: o,
+        clientRows: eerste.clientRows,
+        overigRows: eerste.overigRows,
+        // Per collega (ook bij één medewerker, dan met één element).
+        perInvitee: summaries.map(function(s, i) {
+          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", summary: s };
+        })
+      };
+      agendaPage._agWeekError = "";
+      agendaPage._agWeekLoaded = true;
+    }).catch(errHandler).then(klaar);
   }
 
   // src/content/features/agenda/unregistered-time.js
@@ -12210,16 +12246,69 @@
     return agendaYmd(d);
   }
   function checkOpenRange(fromYmd, toYmd, onProgress) {
-    var id = currentInviteeId(null) || resolveInviteeId();
-    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var ids = viewedInviteeIds(resolveInviteeId());
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     if (!fromYmd || !toYmd) return Promise.reject(new Error("Kies een begin- en einddatum."));
     if (fromYmd > toYmd) return Promise.reject(new Error("De begindatum ligt na de einddatum."));
-    return fetchEntriesForRange(id, fromYmd, toYmd, onProgress).then(function(entries) {
-      var r = summarizeOpenRange(entries, { from: fromYmd, to: toYmd, lateHours: lateHours() });
+    var voortgang = ids.map(function() {
+      return { done: 0, total: 0 };
+    });
+    var meld = function() {
+      if (!onProgress) return;
+      var d = 0, t = 0;
+      voortgang.forEach(function(v) {
+        d += v.done;
+        t += v.total;
+      });
+      onProgress(d, t);
+    };
+    return Promise.all(ids.map(function(id, i) {
+      return fetchEntriesForRange(id, fromYmd, toYmd, function(d, t) {
+        voortgang[i] = { done: d, total: t };
+        meld();
+      }).then(function(entries) {
+        return summarizeOpenRange(entries, { from: fromYmd, to: toYmd, lateHours: lateHours() });
+      });
+    })).then(function(lijst) {
+      var r = mergeOpenRangePerPersoon(lijst, ids, ids.length > 1 ? ids.map(inviteeName) : null);
       r.from = fromYmd;
       r.to = toYmd;
       return r;
     });
+  }
+  function mergeOpenRangePerPersoon(lijst, ids, namen) {
+    if (lijst.length === 1 && !namen) return lijst[0];
+    var dagen = /* @__PURE__ */ Object.create(null);
+    lijst.forEach(function(r, i) {
+      (r.days || []).forEach(function(d) {
+        var dag = dagen[d.date] || (dagen[d.date] = { date: d.date, client: 0, overig: 0, count: 0, lateCount: 0, items: [] });
+        dag.client += d.client;
+        dag.overig += d.overig;
+        dag.count += d.count;
+        dag.lateCount += d.lateCount;
+        d.items.forEach(function(it) {
+          dag.items.push(Object.assign({}, it, { key: ids[i] + ":" + it.key, persoon: namen ? namen[i] : "" }));
+        });
+      });
+    });
+    var days = Object.keys(dagen).sort().map(function(k) {
+      dagen[k].items.sort(function(a, b) {
+        return a.start - b.start;
+      });
+      return dagen[k];
+    });
+    return {
+      days,
+      totalMinutes: days.reduce(function(t, d) {
+        return t + d.client + d.overig;
+      }, 0),
+      totalCount: days.reduce(function(t, d) {
+        return t + d.count;
+      }, 0),
+      lateCount: days.reduce(function(t, d) {
+        return t + d.lateCount;
+      }, 0)
+    };
   }
 
   // src/content/features/agenda/week-ratio.js
@@ -12251,10 +12340,21 @@
     });
   }
   function fetchWeekRatio(date) {
-    var id = currentInviteeId(null) || resolveInviteeId();
-    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var ids = viewedInviteeIds(resolveInviteeId());
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     var start = weekStartsBetween(date, date)[0];
     if (!start) return Promise.reject(new Error("Ongeldige datum."));
+    return Promise.all(ids.map(function(id) {
+      return ratioVoor(id, start);
+    })).then(function(lijst) {
+      var r = lijst[0];
+      r.persons = lijst.map(function(x, i) {
+        return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", rows: x.rows };
+      });
+      return r;
+    });
+  }
+  function ratioVoor(id, start) {
     var vandaag = agendaYmd(/* @__PURE__ */ new Date());
     var dezeWeek = weekStartsBetween(vandaag, vandaag)[0];
     var basis = { weekStart: start, week: agendaWeekNumber(start) };
@@ -12320,8 +12420,8 @@
     };
   }
   function computeProduction(fromYmd, toYmd, onProgress) {
-    var id = currentInviteeId(null) || resolveInviteeId();
-    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var ids = viewedInviteeIds(resolveInviteeId());
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     if (!fromYmd || !toYmd) return Promise.reject(new Error("Kies een begin- en einddatum."));
     if (fromYmd > toYmd) return Promise.reject(new Error("De begindatum ligt na de einddatum."));
     var today = agendaYmd(/* @__PURE__ */ new Date());
@@ -12332,29 +12432,40 @@
     var prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
     var limiter = createLimiter(GELIJKTIJDIG);
     var klaar = 0;
+    var totaal = weeks.length * ids.length;
     var gedaan = function(row) {
       klaar++;
       if (onProgress) {
         try {
-          onProgress(klaar, weeks.length);
+          onProgress(klaar, totaal);
         } catch (e) {
         }
       }
       return row;
     };
-    return Promise.all(weeks.map(function(start) {
-      var p = start > dezeWeek ? limiter(function() {
-        return fetchInviteeWeek(id, start);
-      }).then(function(entries) {
-        return plannedProductionRow(start, entries);
-      }) : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter, ttlMs: WEEK_TTL_MS }).then(function(summary) {
-        return productionWeekRow(start, summary, prof);
-      });
-      return p.then(gedaan, function(e) {
-        throw new Error("Week " + (agendaWeekNumber(start) || start) + " kon niet worden opgehaald (" + (e && e.message || "fout") + ").");
-      });
-    })).then(function(rows) {
-      return { from: fromYmd, to: toYmd, weeks: rows };
+    var voor = function(id) {
+      return Promise.all(weeks.map(function(start) {
+        var p = start > dezeWeek ? limiter(function() {
+          return fetchInviteeWeek(id, start);
+        }).then(function(entries) {
+          return plannedProductionRow(start, entries);
+        }) : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter, ttlMs: WEEK_TTL_MS }).then(function(summary) {
+          return productionWeekRow(start, summary, prof);
+        });
+        return p.then(gedaan, function(e) {
+          throw new Error("Week " + (agendaWeekNumber(start) || start) + " kon niet worden opgehaald (" + (e && e.message || "fout") + ").");
+        });
+      }));
+    };
+    return Promise.all(ids.map(voor)).then(function(perPersoon) {
+      return {
+        from: fromYmd,
+        to: toYmd,
+        weeks: perPersoon[0],
+        persons: perPersoon.map(function(rows, i) {
+          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", weeks: rows };
+        })
+      };
     });
   }
 
@@ -14269,6 +14380,7 @@
       onsDateText,
       findFreeGaps,
       findFreeSlots,
+      mergeOpenRangePerPersoon,
       currentInviteeIds,
       jumpToDayVoorTest: jumpToDay,
       productionWeekRow,

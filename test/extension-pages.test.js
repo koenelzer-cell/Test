@@ -373,7 +373,10 @@ test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijng
   assert.match(document.body.textContent, /gepland/);
   assert.equal(svg.querySelectorAll('rect').length, 3, 'geen staven; alleen hover-vlakken per week');
   assert.match(document.body.textContent, /DirectIndirectReistijd/, 'legenda');
+  assert.equal(document.querySelector('table'), null, 'tabel standaard ingeklapt');
+  knop(document, 'Tabel tonen').click();
   assert.match(document.body.textContent, /42gepland12 u2 u30 m13 u 20 m4111 u2 u30 m13 u 20 m/, 'tabel met dezelfde getallen, nieuwste week bovenaan');
+  assert.ok(knop(document, 'Tabel verbergen'));
 });
 
 test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt bladeren', async () => {
@@ -514,6 +517,34 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   knop(document, 'Terug').click();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'terug naar de lijst vrije blokken');
   assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
+});
+
+test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
+  const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
+  const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {
+    summary: sum(600), opts: { week: 41, embedded: true, scope: 'week', headerHint: 'geregistreerd' }, clientRows: [], overigRows: [],
+    perInvitee: [{ id: '13970', name: 'Anna', summary: sum(600) }, { id: '45267', name: 'Bram', summary: sum(300) }] } };
+  const week = (w, d) => ({ week: w, weekStart: '2026-10-05', directMinutes: d, indirectMinutes: 60, travelMinutes: 0, clientMinutes: d + 60 });
+  const { document } = zijpaneelMetTools({ 'ag-production': (msg, cb) => cb({ ok: true, result: { from: msg.from, to: msg.to, weeks: [week(41, 500)],
+    persons: [{ id: '13970', name: 'Anna', weeks: [week(40, 400), week(41, 500)] }, { id: '45267', name: 'Bram', weeks: [week(40, 200), week(41, 250)] }] } }) }, state);
+  document.defaultView.eval(read('dist/react-bundle.js'));
+  env_update(document, state);
+  await tick();
+  const blokken = document.querySelectorAll('[data-ons-week-panel] [data-persoon]');
+  assert.equal(blokken.length, 2, 'per collega een blok in het weekoverzicht');
+  assert.match(blokken[0].textContent, /AnnaCliënttijd10 u/);
+  assert.match(blokken[1].textContent, /BramCliënttijd5 u/);
+  blokken[0].querySelector('[role="button"]').click();
+  await tick();
+  assert.match(document.body.textContent, /Anna.*Cliënttijd10 u.*Bram.*Cliënttijd5 u/s, 'opbouw per collega');
+  knop(document, 'Productieverloop berekenen').click();
+  const grafieken = document.querySelectorAll('[data-grafiek-persoon]');
+  assert.equal(grafieken.length, 2, 'een grafiek per collega');
+  assert.match(grafieken[0].textContent, /^Anna/);
+  assert.match(grafieken[1].textContent, /^Bram/);
+  assert.equal(document.querySelectorAll('table').length, 0, 'tabellen ingeklapt');
+  [...grafieken[1].querySelectorAll('button')].find((b) => b.textContent === 'Tabel tonen').click();
+  assert.equal(document.querySelectorAll('table').length, 1, 'alleen de tabel van Bram open');
 });
 
 test('nergens hoofdletterstijl in de extensie', () => {

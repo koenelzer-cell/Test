@@ -6,7 +6,7 @@
 //
 // PRIVACY: alleen minuten, weeknummers en datums. Geen namen.
 
-import { currentInviteeId } from './navigation.js';
+import { inviteeName, viewedInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaWeekNumber, agendaYmd } from '../../core/datetime.js';
 import { ACTIVE_PROFILE } from '../../config/app-config.js';
@@ -62,9 +62,11 @@ export function plannedProductionRow(weekStart, entries) {
 // alle aanroepen samen. onProgress(klaar, totaal). Een mislukte week laat de
 // berekening mislukken: een gat in de grafiek zou eruitzien als een week
 // zonder productie.
+// Bij meerdere agenda's naast elkaar: per collega een eigen reeks weken
+// (result.persons); result.weeks is die van de eerste.
 export function computeProduction(fromYmd, toYmd, onProgress) {
-  var id = currentInviteeId(null) || resolveInviteeId();
-  if (id == null) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
+  var ids = viewedInviteeIds(resolveInviteeId());
+  if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   if (!fromYmd || !toYmd) return Promise.reject(new Error('Kies een begin- en einddatum.'));
   if (fromYmd > toYmd) return Promise.reject(new Error('De begindatum ligt na de einddatum.'));
   var today = agendaYmd(new Date());
@@ -75,18 +77,27 @@ export function computeProduction(fromYmd, toYmd, onProgress) {
   var prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
   var limiter = createLimiter(GELIJKTIJDIG);
   var klaar = 0;
+  var totaal = weeks.length * ids.length;
   var gedaan = function (row) {
     klaar++;
-    if (onProgress) { try { onProgress(klaar, weeks.length); } catch (e) {} }
+    if (onProgress) { try { onProgress(klaar, totaal); } catch (e) {} }
     return row;
   };
-  return Promise.all(weeks.map(function (start) {
-    // Latere weken: planning. Deze week en eerder: registraties.
-    var p = start > dezeWeek
-      ? limiter(function () { return fetchInviteeWeek(id, start); }).then(function (entries) { return plannedProductionRow(start, entries); })
-      : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter: limiter, ttlMs: WEEK_TTL_MS }).then(function (summary) { return productionWeekRow(start, summary, prof); });
-    return p.then(gedaan, function (e) {
-      throw new Error('Week ' + (agendaWeekNumber(start) || start) + ' kon niet worden opgehaald (' + ((e && e.message) || 'fout') + ').');
-    });
-  })).then(function (rows) { return { from: fromYmd, to: toYmd, weeks: rows }; });
+  var voor = function (id) {
+    return Promise.all(weeks.map(function (start) {
+      // Latere weken: planning. Deze week en eerder: registraties.
+      var p = start > dezeWeek
+        ? limiter(function () { return fetchInviteeWeek(id, start); }).then(function (entries) { return plannedProductionRow(start, entries); })
+        : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter: limiter, ttlMs: WEEK_TTL_MS }).then(function (summary) { return productionWeekRow(start, summary, prof); });
+      return p.then(gedaan, function (e) {
+        throw new Error('Week ' + (agendaWeekNumber(start) || start) + ' kon niet worden opgehaald (' + ((e && e.message) || 'fout') + ').');
+      });
+    }));
+  };
+  return Promise.all(ids.map(voor)).then(function (perPersoon) {
+    return {
+      from: fromYmd, to: toYmd, weeks: perPersoon[0],
+      persons: perPersoon.map(function (rows, i) { return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : '', weeks: rows }; })
+    };
+  });
 }

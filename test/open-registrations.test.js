@@ -309,3 +309,15 @@ test('reistijd van een afspraak staat in minuten (echt voorbeeld uit ONS)', (t) 
   assert.equal(rij.travelMinutes, 60);
   assert.equal(rij.directMinutes, 75);
 });
+
+test('meerdere collega\'s: open registraties in één lijst per dag, met naam en eigen sleutel', () => {
+  const { api } = bootHelper();
+  const NU = Date.parse('2026-10-07T12:00:00');
+  const a = api.summarizeOpenRange([afspraak(1, '2026-10-05', '09:00', 60)], { from: '2026-10-01', to: '2026-10-07', now: NU });
+  const b = api.summarizeOpenRange([afspraak(1, '2026-10-05', '09:00', 60), afspraak(2, '2026-10-06', '10:00', 30)], { from: '2026-10-01', to: '2026-10-07', now: NU });
+  const r = api.mergeOpenRangePerPersoon([a, b], ['13970', '45267'], ['Anna', 'Bram']);
+  assert.equal(r.totalCount, 3, 'een gezamenlijke afspraak telt voor ieder');
+  assert.equal(r.days[0].items.length, 2);
+  assert.deepEqual([...r.days[0].items.map((i) => i.persoon)].sort(), ['Anna', 'Bram']);
+  assert.notEqual(r.days[0].items[0].key, r.days[0].items[1].key, 'eigen sleutel per collega (afwerklijst)');
+});

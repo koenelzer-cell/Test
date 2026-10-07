@@ -3,7 +3,7 @@
 
 import { pushPanelState } from './side-panel-bridge.js';
 import { agendaPage } from './state.js';
-import { currentCalendarView, currentInviteeId } from './navigation.js';
+import { currentCalendarView, currentInviteeId, currentInviteeIds, inviteeName } from './navigation.js';
 import { updateTotals } from './extension-sync.js';
 import { currentAgendaDate, resolveInviteeId } from '../../ons/agenda-location.js';
 import { ACTIVE_PROFILE } from '../../config/app-config.js';
@@ -35,10 +35,12 @@ export function refreshAgendaWeekApi() {
   // weekoverzicht weg.
   const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
   if (id) agendaPage._agLastInviteeId = id;
+  // Meerdere agenda's naast elkaar: het overzicht per collega.
+  const ids = currentInviteeIds().length > 1 ? currentInviteeIds() : (id ? [String(id)] : []);
   const view = currentCalendarView();
   const date = currentAgendaDate();
   if (!id) { agendaPage._agWeekKey = null; agendaPage._agWeekLoaded = false; agendaPage._agLastWeek = null; agendaPage._agWeekError = ''; return; }
-  const key = id + '|' + date + '|' + view;
+  const key = ids.join(',') + '|' + date + '|' + view;
   if (key === agendaPage._agWeekKey && agendaPage._agWeekLoaded) return;   // niets veranderd
   if (agendaPage._agWeekBusy && key === agendaPage._agWeekKey) return;      // al bezig met deze
   const andereWeek = (key !== agendaPage._agWeekKey);
@@ -52,16 +54,32 @@ export function refreshAgendaWeekApi() {
   try { pushPanelState(true); } catch (e) {}   // 'bezig' meteen zichtbaar
 
   var prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
-  var bewaar = function (summary, extraOpts) {
-    var o = { week: agendaWeekNumber(date), embedded: true, scope: (view === 'day' ? 'dag' : 'week'), profile: prof, date: date };
-    try { agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summary, prof); } catch (e) { agendaPage._agLastDeclarabiliteit = null; }
-    if (extraOpts) { for (var k in extraOpts) if (Object.prototype.hasOwnProperty.call(extraOpts, k)) o[k] = extraOpts[k]; }
-    var allRows = summary.byType || [];
+  var toekomst = _agIsFutureWeek(date);
+  var basisOpts = function () {
+    return toekomst ? { week: agendaWeekNumber(date), embedded: true, scope: (view === 'day' ? 'dag' : 'week'), profile: prof, date: date }
+      : { week: agendaWeekNumber(date), embedded: true, scope: 'week', profile: prof, date: date, perLabel: 'Per uursoort', headerHint: 'geregistreerd', unknownLabel: 'Overig' };
+  };
+  var splits = function (summary) {
     var clientRows = [], overigRows = [];
-    allRows.forEach(function (r) { if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r); else clientRows.push(r); });
-    agendaPage._agLastWeek = { summary: summary, opts: o, clientRows: clientRows, overigRows: overigRows };
-    agendaPage._agWeekError = '';
-    agendaPage._agWeekLoaded = true;
+    (summary.byType || []).forEach(function (r) { if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r); else clientRows.push(r); });
+    return { clientRows: clientRows, overigRows: overigRows };
+  };
+  // Eén medewerker: geregistreerd (deze week en eerder) of gepland (later).
+  var haal = function (inv, eerste) {
+    if (!toekomst) {
+      if (eerste) {
+        // De afspraken ook ophalen, zodat de ongeregistreerde tijd per dag blijft werken.
+        fetchInviteeWeek(inv, date).then(function (entries) { if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries || []).slice(); }, function () {}).then(function () { if (agendaPage._agWeekKey === key) safe(updateTotals); });
+      }
+      return fetchWeekRegistrationDeclarabiliteit(inv, date);
+    }
+    return fetchInviteeWeek(inv, date).then(function (entries) {
+      if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries.slice();
+      if (view === 'day') entries = entries.filter(function (e) { return e.date === date; });
+      var now = Date.now();
+      entries = entries.filter(function (e) { return e.startMs == null || e.startMs >= now; });
+      return summarizeAgendaWeek(entries);
+    });
   };
   var errHandler = function (e) {
     if (agendaPage._agWeekKey !== key) return;
@@ -72,24 +90,17 @@ export function refreshAgendaWeekApi() {
   };
   var klaar = function () { agendaPage._agWeekBusy = false; try { pushPanelState(true); } catch (e) {} };
 
-  if (!_agIsFutureWeek(date)) {
-    // DEZE WEEK of VERLEDEN: de ECHT geschreven tijd per uursoort uit de
-    // registratie-details. De afspraken halen we óók op, zodat
-    // 'Ongeregistreerde tijd per dag' blijft werken.
-    fetchInviteeWeek(id, date).then(function (entries) { if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries || []).slice(); }, function () {}).then(function () { if (agendaPage._agWeekKey === key) safe(updateTotals); });
-    fetchWeekRegistrationDeclarabiliteit(id, date).then(function (summary) {
-      if (agendaPage._agWeekKey !== key) return;
-      bewaar(summary, { perLabel: 'Per uursoort', headerHint: 'geregistreerd', scope: 'week', unknownLabel: 'Overig' });
-    }).catch(errHandler).then(klaar);
-  } else {
-    // TOEKOMSTIGE week: planning per afspraaktype, alleen aankomende afspraken.
-    fetchInviteeWeek(id, date).then(function (entries) {
-      if (agendaPage._agWeekKey !== key) return; // ondertussen genavigeerd
-      agendaPage._agLastEntries = entries.slice();
-      if (view === 'day') entries = entries.filter(function (e) { return e.date === date; });
-      var now = Date.now();
-      entries = entries.filter(function (e) { return e.startMs == null || e.startMs >= now; });
-      bewaar(summarizeAgendaWeek(entries));
-    }).catch(errHandler).then(klaar);
-  }
+  Promise.all(ids.map(function (inv, i) { return haal(inv, i === 0); })).then(function (summaries) {
+    if (agendaPage._agWeekKey !== key) return;
+    var o = basisOpts();
+    try { agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summaries[0], prof); } catch (e) { agendaPage._agLastDeclarabiliteit = null; }
+    var eerste = splits(summaries[0]);
+    agendaPage._agLastWeek = {
+      summary: summaries[0], opts: o, clientRows: eerste.clientRows, overigRows: eerste.overigRows,
+      // Per collega (ook bij één medewerker, dan met één element).
+      perInvitee: summaries.map(function (s, i) { return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : '', summary: s }; })
+    };
+    agendaPage._agWeekError = '';
+    agendaPage._agWeekLoaded = true;
+  }).catch(errHandler).then(klaar);
 }

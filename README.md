@@ -105,6 +105,11 @@ herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 
 ### Zijpaneel
 
+Staan er meerdere agenda's naast elkaar open (/invitees/13970,45267/...), dan
+rekent het zijpaneel alles per collega: het weekoverzicht en de opbouw van de
+cliënttijd per collega, de verhouding per collega, een grafiek productieverloop
+per collega, en bij open registraties de naam bij elke afspraak.
+
 Het lipje aan de rechterrand opent het zijpaneel. In rust tikt de pijl af en toe
 even naar links; bij het verschijnen schuift het lipje uit de rand.
 

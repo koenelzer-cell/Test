@@ -17,6 +17,8 @@ export function AgendaWeekPanel({ summary, opts, tokens, fmtMin, onOpenClientTim
   const T = tokens;
   const scopeLabel = o.scope === 'dag' ? 'Dagoverzicht' : 'Weekoverzicht';
 
+  // Meerdere agenda's naast elkaar: per collega een blok met naam.
+  const personen = (o.perInvitee && o.perInvitee.length > 1) ? o.perInvitee : [{ id: '', name: '', summary: s }];
   return (
     <div data-ons-week-panel="1" style={{ fontSize: 13, color: T.ink }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '0 0 8px' }}>
@@ -26,13 +28,21 @@ export function AgendaWeekPanel({ summary, opts, tokens, fmtMin, onOpenClientTim
         <span style={{ fontSize: 12, fontWeight: 400, color: T.inkSoft }}>{o.headerHint || 'indicatief'}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-        <BigStat label="Cliënttijd" value={fmtMin(s.clientMinutes)} fg={T.ok} interactive tokens={T} onClick={onOpenClientTime} />
-        <BigStat label="Niet-cliënttijd" value={fmtMin(s.nonClientMinutes)} fg={T.inkSoft} tokens={T} />
-      </div>
-      <div style={{ fontSize: 12, color: T.inkSoft, margin: 0, fontVariantNumeric: 'tabular-nums' }}>
-        Totaal {fmtMin(s.totalMinutes)}
-      </div>
+      {personen.map((p, i) => {
+        const ps = p.summary || {};
+        return (
+          <div key={p.id || i} data-persoon={p.id || undefined} style={{ marginTop: i ? 12 : 0 }}>
+            {p.name ? <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, margin: '0 0 6px' }}>{p.name}</div> : null}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+              <BigStat label="Cliënttijd" value={fmtMin(ps.clientMinutes)} fg={T.ok} interactive tokens={T} onClick={onOpenClientTime} />
+              <BigStat label="Niet-cliënttijd" value={fmtMin(ps.nonClientMinutes)} fg={T.inkSoft} tokens={T} />
+            </div>
+            <div style={{ fontSize: 12, color: T.inkSoft, margin: 0, fontVariantNumeric: 'tabular-nums' }}>
+              Totaal {fmtMin(ps.totalMinutes)}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
