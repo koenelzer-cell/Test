@@ -7,7 +7,7 @@
 // (detect_overlap). Zegt een van beide 'overlap', dan krijg je eerst een
 // waarschuwing.
 
-import { currentInviteeId, spaNavigate } from './navigation.js';
+import { currentInviteeId, currentInviteeIds, spaNavigate } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { timeTextToMinutes } from '../../core/datetime.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
@@ -15,8 +15,13 @@ import { fetchOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { storePendingAppointment } from '../appointment/prefill.js';
 
+// Eén of meer invitees: bij meerdere komt invitee_ids[] er voor elk in, zodat
+// de afspraak voor iedereen in de agenda staat.
 export function newEventUrl(inviteeId) {
-  return _apiUrl('newEvent', { inviteeId: inviteeId });
+  var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
+  var url = _apiUrl('newEvent', { inviteeId: ids[0] });
+  for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, '$1&invitee_ids%5B%5D=' + encodeURIComponent(ids[i]));
+  return url;
 }
 // Planhulp: het afspraakformulier van ONS openen en datum en begintijd laten
 // invullen zodra het er staat (features/appointment/prefill.js). De
@@ -25,10 +30,11 @@ export function openNewEvent(req) {
   req = req || {};
   var ymd = String(req.date || ''), hhmm = String(req.time || ''), minutes = parseInt(req.minutes, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: 'Ongeldig tijdstip.' };
-  var id = currentInviteeId(ymd) || resolveInviteeId();
-  if (id == null) return { ok: false, error: 'Open eerst je agenda in ONS.' };
+  var ids = currentInviteeIds();
+  if (!ids.length) { var id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
+  if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
   storePendingAppointment({ date: ymd, time: hhmm });
-  spaNavigate(location.origin + newEventUrl(id));
+  spaNavigate(location.origin + newEventUrl(ids));
   return { ok: true };
 }
 export function quickRegisterUrl(inviteeId, ymd, hhmm, minutes) {

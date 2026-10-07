@@ -7,7 +7,7 @@ import { agendaPage, STORE_GREY_ENABLED } from './state.js';
 import { openOccurrence } from './occurrences.js';
 import { computeTotals, computeTotalsApi, listUnfinished } from './unregistered-time.js';
 import { editableWindowStart, windowStatusForDate } from './edit-window.js';
-import { currentCalendarView, jumpToDay, jumpToWeek } from './navigation.js';
+import { currentCalendarView, currentInviteeIds, jumpToDay, jumpToWeek } from './navigation.js';
 import { safe } from '../../screen/status.js';
 import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
@@ -72,6 +72,8 @@ function agPanelState() {
     inviteeId: agendaPage._agLastInviteeId != null ? String(agendaPage._agLastInviteeId) : null,
     // De bekeken datum: startpunt voor bladeren per week.
     viewDate: currentAgendaDate(),
+    // Hoeveel agenda's er naast elkaar open staan (planhulp zoekt dan gezamenlijke tijd).
+    inviteeCount: currentInviteeIds().length || 1,
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
     productionDefaultFrom: defaultProductionFrom(),

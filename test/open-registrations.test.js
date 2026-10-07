@@ -247,3 +247,40 @@ test('planhulp: Outlook-afspraken tellen mee volgens show_as', (t) => {
     '2026-10-09 480-540',   // vr 08:00-09:00, daarna afwezig (oof) tot 17:00
   ]);
 });
+
+const MEER = 'https://impegno.onsagenda.nl/invitees/13970,45267/calendar/day?date=2026-10-30';
+
+test('meerdere invitees: alle agenda\'s uit de URL, ook bij springen en afspraak maken', () => {
+  const { api, window } = bootHelper({ url: MEER });
+  assert.deepEqual([...api.currentInviteeIds()], ['13970', '45267']);
+  const geklikt = [];
+  window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
+  api.jumpToDayVoorTest('2026-11-02', true);
+  assert.match(geklikt.at(-1), /\/invitees\/13970,45267\/calendar\/day\?date=2026-11-02$/, 'beide agenda\'s blijven in beeld');
+  assert.equal(api.newEventUrl(['13970', '45267']), '/events/new?invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267&redirect_to_calendar=true');
+  api.openNewEvent({ date: '2026-11-02', time: '10:00', minutes: 60 });
+  assert.match(geklikt.at(-1), /invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267/);
+});
+
+test('meerdere invitees: de planhulp zoekt tijd waarop iedereen vrij is', async (t) => {
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { api, window } = bootHelper({ url: MEER });
+  const gevraagd = new Set();
+  const afs = (dag, van, tot) => ({ id: dag + van, date: dag, type: 'event', start_time: dag + 'T' + van + ':00+01:00', end_time: dag + 'T' + tot + ':00+01:00', time_slot: {} });
+  window.fetch = (url) => {
+    const id = /invitee\/(\d+)\//.exec(url)[1];
+    gevraagd.add(id);
+    const laag = /layer=(\w+)/.exec(url)[1];
+    const data = laag !== 'events' ? [] : id === '13970' ? [afs('2026-11-02', '09:00', '12:00')] : [afs('2026-11-02', '13:00', '17:00')];
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ data }) });
+  };
+  const r = await api.findFreeSlots(60, 1);
+  assert.deepEqual([...gevraagd].sort(), ['13970', '45267'], 'beide agenda\'s opgehaald');
+  assert.equal(r.invitees, 2);
+  // De rekenregel op de samengevoegde agenda's, op een vaste datum.
+  const beide = api.mapAgendaWeekResponse({ data: [afs('2026-11-02', '09:00', '12:00'), afs('2026-11-02', '13:00', '17:00')] });
+  const gaps = api.findFreeGaps(beide, { now: Date.parse('2026-11-02T07:00:00+01:00'), days: 1, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 });
+  assert.deepEqual([...gaps.map((g) => g.startMin + '-' + g.endMin)], ['480-540', '720-780'], 'alleen 08:00-09:00 en 12:00-13:00 zijn voor allebei vrij');
+});

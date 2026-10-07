@@ -2,14 +2,25 @@ import { ONS } from '../../ons/selectors.js';
 
 // Naar een dag of week in de agenda springen (via de router van ONS).
 
+// Alle invitees in de URL: /invitees/13970,45267/calendar/day toont meerdere
+// agenda's naast elkaar.
+export function currentInviteeIds() {
+  const m = location.href.match(/\/invitees\/(\d+(?:,\d+)*)\/calendar/);
+  return m ? m[1].split(',') : [];
+}
+// De (eerste) invitee: voor onderdelen die over één medewerker gaan, zoals het
+// weekoverzicht.
 export function currentInviteeId(date) {
-  const m = location.href.match(/\/invitees\/(\d+)\/calendar/);
-  if (m) return m[1];
+  const ids = currentInviteeIds();
+  if (ids.length) return ids[0];
   const col = document.querySelector(ONS.dayColumn + (date ? '[data-date="' + date + '"]' : ''));
   return col ? col.getAttribute('data-invitee-id') : null;
 }
+// Bij meerdere invitees blijven ze allemaal in beeld na het springen.
 function calendarUrl(view, date, inviteeId) {
-  return location.origin + '/invitees/' + inviteeId + '/calendar/' + view + '?date=' + date;
+  const ids = currentInviteeIds();
+  const deel = ids.length > 1 ? ids.join(',') : inviteeId;
+  return location.origin + '/invitees/' + deel + '/calendar/' + view + '?date=' + date;
 }
 export function currentCalendarView() {
   const m = location.href.match(/\/calendar\/(\w+)/);

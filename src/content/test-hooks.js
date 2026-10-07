@@ -174,6 +174,8 @@ import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/
 import { newEventUrl, openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
 import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps } from './domain/free-slots.js';
+import { findFreeSlots } from './features/agenda/free-slots.js';
+import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest } from './features/agenda/navigation.js';
 import { plannedProductionRow, productionWeekRow } from './features/agenda/production.js';
 import { plannedRatioRows } from './features/agenda/week-ratio.js';
 import { createLimiter } from './services/ons-api/calendar.js';
@@ -352,6 +354,9 @@ export function exposeTestApi() {
     openNewEvent,
     onsDateText,
     findFreeGaps,
+    findFreeSlots,
+    currentInviteeIds,
+    jumpToDayVoorTest: _jumpToDayVoorTest,
     productionWeekRow,
     plannedProductionRow,
     plannedRatioRows,

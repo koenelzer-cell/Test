@@ -134,7 +134,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   binnen je werktijden. Alleen wat er echt in de agenda staat telt als bezet:
   ONS-afspraken (met reistijd), onbeschikbaarheid, geplande bezoeken en
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
-  het werk' tellen niet). Klik op een blok voor de
+  het werk' tellen niet). Staan er meerdere agenda's naast elkaar open
+  (/invitees/13970,45267/...), dan zoekt hij tijd waarop iedereen vrij is, en
+  opent 'Afspraak maken' het formulier met alle personen erin. Klik op een blok voor de
   opties: een begintijd kiezen en een nieuwe afspraak openen (de hulp vult de
   datum en begintijd in het ONS-formulier in), of naar die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het

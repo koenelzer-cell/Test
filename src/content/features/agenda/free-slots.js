@@ -3,7 +3,7 @@
 // onbeschikbaarheid, Outlook-afspraken, geplande bezoeken) en rekent in
 // domain/free-slots.js.
 
-import { currentInviteeId } from './navigation.js';
+import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { activeZones } from './zones.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
@@ -26,9 +26,13 @@ export function workWindow() {
 }
 
 // minutes: gewenste duur; weeks: hoe ver vooruit (1-8).
+// Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
+// tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
+// bezet.
 export function findFreeSlots(minutes, weeks) {
-  var id = currentInviteeId(null) || resolveInviteeId();
-  if (id == null) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
+  var ids = currentInviteeIds();
+  if (!ids.length) { var een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
+  if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
   if (!(minutes >= 5)) return Promise.reject(new Error('Kies een duur.'));
   weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
@@ -36,26 +40,30 @@ export function findFreeSlots(minutes, weeks) {
   var tot = new Date(vandaag); tot.setDate(tot.getDate() + weeks * 7 - 1);
   var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(tot));
   var limiet = createLimiter(4);
-  var haal = function (sjabloon, laag, start) {
+  var haal = function (sjabloon, laag, start, id) {
     return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
       .then(function (j) { return mapAgendaWeekResponse(j).map(function (e) { e.layer = laag; return e; }); });
   };
   var zonder = function () { return []; };
-  return Promise.all(weken.map(function (start) {
-    return Promise.all([
-      haal('weekEvents', 'events', start),
-      // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
-      haal('weekUnavailabilities', 'unavailabilities', start).catch(zonder),
-      haal('weekOutlook', 'outlook_appointments', start).catch(zonder),
-      haal('weekPlannedVisits', 'planned_visits', start).catch(zonder)
-    ]);
-  })).then(function (perWeek) {
+  var taken = [];
+  ids.forEach(function (id) {
+    weken.forEach(function (start) {
+      taken.push(Promise.all([
+        haal('weekEvents', 'events', start, id),
+        // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
+        haal('weekUnavailabilities', 'unavailabilities', start, id).catch(zonder),
+        haal('weekOutlook', 'outlook_appointments', start, id).catch(zonder),
+        haal('weekPlannedVisits', 'planned_visits', start, id).catch(zonder)
+      ]));
+    });
+  });
+  return Promise.all(taken).then(function (perWeek) {
     var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: Date.now(), days: weeks * 7, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: 12
     });
-    return { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps };
+    return { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length };
   });
 }

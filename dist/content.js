@@ -1050,6 +1050,7 @@
     // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
     // Nieuw afspraakformulier, zoals ONS het zelf opent. Datum en begintijd
     // vult de hulp daarna in het formulier in (features/appointment/prefill.js).
+    // Meer invitees: {inviteeId} wordt herhaald (zie newEventUrl).
     newEvent: "/events/new?invitee_ids%5B%5D={inviteeId}&redirect_to_calendar=true",
     newRegistration: "/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true"
   };
@@ -10231,7 +10232,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.213";
+      return "1.6.214";
     }
   }();
 
@@ -11499,14 +11500,20 @@
   }
 
   // src/content/features/agenda/navigation.js
+  function currentInviteeIds() {
+    const m = location.href.match(/\/invitees\/(\d+(?:,\d+)*)\/calendar/);
+    return m ? m[1].split(",") : [];
+  }
   function currentInviteeId(date) {
-    const m = location.href.match(/\/invitees\/(\d+)\/calendar/);
-    if (m) return m[1];
+    const ids = currentInviteeIds();
+    if (ids.length) return ids[0];
     const col = document.querySelector(ONS.dayColumn + (date ? '[data-date="' + date + '"]' : ""));
     return col ? col.getAttribute("data-invitee-id") : null;
   }
   function calendarUrl(view, date, inviteeId) {
-    return location.origin + "/invitees/" + inviteeId + "/calendar/" + view + "?date=" + date;
+    const ids = currentInviteeIds();
+    const deel = ids.length > 1 ? ids.join(",") : inviteeId;
+    return location.origin + "/invitees/" + deel + "/calendar/" + view + "?date=" + date;
   }
   function currentCalendarView() {
     const m = location.href.match(/\/calendar\/(\w+)/);
@@ -12438,8 +12445,12 @@
     return { start, end };
   }
   function findFreeSlots(minutes, weeks) {
-    var id = currentInviteeId(null) || resolveInviteeId();
-    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var ids = currentInviteeIds();
+    if (!ids.length) {
+      var een = currentInviteeId(null) || resolveInviteeId();
+      if (een != null) ids = [String(een)];
+    }
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
     if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
     weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
@@ -12448,7 +12459,7 @@
     tot.setDate(tot.getDate() + weeks * 7 - 1);
     var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(tot));
     var limiet = createLimiter(4);
-    var haal = function(sjabloon, laag, start) {
+    var haal = function(sjabloon, laag, start, id) {
       return limiet(function() {
         return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start }));
       }).then(function(j) {
@@ -12461,15 +12472,19 @@
     var zonder = function() {
       return [];
     };
-    return Promise.all(weken.map(function(start) {
-      return Promise.all([
-        haal("weekEvents", "events", start),
-        // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
-        haal("weekUnavailabilities", "unavailabilities", start).catch(zonder),
-        haal("weekOutlook", "outlook_appointments", start).catch(zonder),
-        haal("weekPlannedVisits", "planned_visits", start).catch(zonder)
-      ]);
-    })).then(function(perWeek) {
+    var taken = [];
+    ids.forEach(function(id) {
+      weken.forEach(function(start) {
+        taken.push(Promise.all([
+          haal("weekEvents", "events", start, id),
+          // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
+          haal("weekUnavailabilities", "unavailabilities", start, id).catch(zonder),
+          haal("weekOutlook", "outlook_appointments", start, id).catch(zonder),
+          haal("weekPlannedVisits", "planned_visits", start, id).catch(zonder)
+        ]));
+      });
+    });
+    return Promise.all(taken).then(function(perWeek) {
       var alles = [].concat.apply([], perWeek.map(function(w) {
         return [].concat.apply([], w);
       }));
@@ -12483,22 +12498,29 @@
         windowEnd: win.end,
         maxResults: 12
       });
-      return { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps };
+      return { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length };
     });
   }
 
   // src/content/features/agenda/quick-register.js
   function newEventUrl(inviteeId) {
-    return _apiUrl("newEvent", { inviteeId });
+    var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
+    var url = _apiUrl("newEvent", { inviteeId: ids[0] });
+    for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, "$1&invitee_ids%5B%5D=" + encodeURIComponent(ids[i]));
+    return url;
   }
   function openNewEvent(req) {
     req = req || {};
     var ymd2 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
-    var id = currentInviteeId(ymd2) || resolveInviteeId();
-    if (id == null) return { ok: false, error: "Open eerst je agenda in ONS." };
+    var ids = currentInviteeIds();
+    if (!ids.length) {
+      var id = currentInviteeId(ymd2) || resolveInviteeId();
+      if (id != null) ids = [String(id)];
+    }
+    if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
     storePendingAppointment({ date: ymd2, time: hhmm });
-    spaNavigate(location.origin + newEventUrl(id));
+    spaNavigate(location.origin + newEventUrl(ids));
     return { ok: true };
   }
   function quickRegisterUrl(inviteeId, ymd2, hhmm, minutes) {
@@ -12578,6 +12600,8 @@
       inviteeId: agendaPage._agLastInviteeId != null ? String(agendaPage._agLastInviteeId) : null,
       // De bekeken datum: startpunt voor bladeren per week.
       viewDate: currentAgendaDate(),
+      // Hoeveel agenda's er naast elkaar open staan (planhulp zoekt dan gezamenlijke tijd).
+      inviteeCount: currentInviteeIds().length || 1,
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
       productionDefaultFrom: defaultProductionFrom(),
@@ -14242,6 +14266,9 @@
       openNewEvent,
       onsDateText,
       findFreeGaps,
+      findFreeSlots,
+      currentInviteeIds,
+      jumpToDayVoorTest: jumpToDay,
       productionWeekRow,
       plannedProductionRow,
       plannedRatioRows,

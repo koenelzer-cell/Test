@@ -40,6 +40,7 @@ const _API_DEFAULTS = {
   // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
   // Nieuw afspraakformulier, zoals ONS het zelf opent. Datum en begintijd
   // vult de hulp daarna in het formulier in (features/appointment/prefill.js).
+  // Meer invitees: {inviteeId} wordt herhaald (zie newEventUrl).
   newEvent: '/events/new?invitee_ids%5B%5D={inviteeId}&redirect_to_calendar=true',
   newRegistration: '/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}'
     + '&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true',

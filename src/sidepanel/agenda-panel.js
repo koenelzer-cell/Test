@@ -1109,6 +1109,9 @@ export function create(host, actions) {
   // je werktijden.
   function pagePlan() {
     var planBox = el('div');
+    var meer = (state && state.inviteeCount > 1) ? state.inviteeCount : 0;
+    if (meer) planBox.appendChild(noteBox('Er staan ' + meer + ' agenda\u2019s open: de planhulp zoekt tijd waarop iedereen vrij is.', 'ok'));
+    if (meer) planBox.lastChild.style.margin = '0 0 10px';
     planBox.appendChild(txt('help', 'Zoek vrije tijd voor een afspraak binnen je werktijden' +
       ((state && state.windowLabel) ? ' (' + state.windowLabel + ')' : '') + '. Afspraken (ook uit Outlook, met reistijd) en onbeschikbaarheid tellen als bezet.', { margin: '0 0 10px' }));
     var duur = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' });
