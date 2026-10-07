@@ -1210,6 +1210,10 @@ export function create(host, actions) {
     renderPagina();
     mainCol.scrollTop = 0;
     if (p === 'verhouding') { ratio.offset = 0; laadRatio(); }
+    // Meteen tonen wat er (vooraf geladen) klaarstaat: geen knop nodig.
+    if (p === 'clienttijd' && !prod.result && !prod.busy && !prod.error) { vulStandaarden(); startProduction(); }
+    if (p === 'open' && !range.result && !range.busy && !range.error) { vulStandaarden(); startRangeCheck(); }
+    if (p === 'plan' && !plan.result && !plan.busy && !plan.error) startPlan();
   }
 
   // Tekstknop met icoon (Terug, Lijst bijwerken): licht, roze, geen rand.
@@ -1253,8 +1257,9 @@ export function create(host, actions) {
     if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
     if (!range.to && state.today) range.to = state.today;
     if (!prod.from && state.productionDefaultFrom) prod.from = state.productionDefaultFrom;
-    // Standaard tot vier weken vooruit, zodat ook de planning zichtbaar is.
-    if (!prod.to && state.today) prod.to = plusWeken(state.today, 4);
+    // Standaard tot vier weken vooruit, zodat ook de planning zichtbaar is
+    // (dezelfde periode die de pagina vooraf heeft geladen).
+    if (!prod.to && state.today) prod.to = state.productionDefaultTo || plusWeken(state.today, 4);
     if (!quick.date && state.today) quick.date = state.today;
   }
 
@@ -1637,6 +1642,9 @@ export function create(host, actions) {
       if (res && res.ok && res.result) range.result = { from: res.result.from, to: res.result.to, days: res.result.days.map(function (d) { return { date: d.date, items: d.items }; }) };
       else range.error = (res && res.error) || 'Controleren mislukt.';
       if (pagina === 'open') renderPagina();
+      // Vooraf geladen lijst: meteen tonen, en direct vers bijwerken zodat wat
+      // intussen geregistreerd is, al afgevinkt staat.
+      if (res && res.ok && res.uitCache) { range.laatst = 0; hercontrole(); }
     });
   }
   // Dezelfde periode opnieuw controleren en de lijst afvinken. Stil: de lijst
@@ -1650,7 +1658,7 @@ export function create(host, actions) {
       range.laatst = Date.now();
       if (res && res.ok && res.result && range.result) range.result = mergeOpenRange(range.result, res.result, range.afgewerkt);
       if (pagina === 'open') renderPagina();
-    });
+    }, true);
   }
   // Terug in het zijpaneel (na iets in ONS te hebben gedaan): lijst bijwerken.
   function bijFocus() {

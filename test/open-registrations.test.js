@@ -321,3 +321,22 @@ test('meerdere collega\'s: open registraties in één lijst per dag, met naam en
   assert.deepEqual([...r.days[0].items.map((i) => i.persoon)].sort(), ['Anna', 'Bram']);
   assert.notEqual(r.days[0].items[0].key, r.days[0].items[1].key, 'eigen sleutel per collega (afwerklijst)');
 });
+
+test('vooraf laden: een lopende berekening wordt gedeeld, met voortgang; vers haalt opnieuw op', async () => {
+  const { api, window } = bootHelper();
+  api._clearPreloadCache();
+  let aanroepen = 0;
+  window.fetch = () => { aanroepen++; return new Promise((r) => setTimeout(() => r({ ok: true, json: () => Promise.resolve({ data: [] }) }), 5)); };
+  const vooraf = api.cachedOpenRange('2026-09-28', '2026-10-07');            // vooraf laden (2 weken)
+  const voortgang = [];
+  const paneel = api.cachedOpenRange('2026-09-28', '2026-10-07', (d, t) => voortgang.push(d + '/' + t)); // het zijpaneel vraagt hetzelfde
+  assert.equal(vooraf, paneel, 'dezelfde berekening');
+  await paneel;
+  assert.equal(aanroepen, 2, 'niet dubbel opgehaald');
+  assert.deepEqual(voortgang, ['1/2', '2/2'], 'voortgang ook voor wie later aanhaakt');
+  assert.equal(api.isCached('open', '2026-09-28|2026-10-07'), true);
+  await api.cachedOpenRange('2026-09-28', '2026-10-07');
+  assert.equal(aanroepen, 2, 'uit het geheugen');
+  await api.cachedOpenRange('2026-09-28', '2026-10-07', null, true);
+  assert.equal(aanroepen, 4, 'vers: opnieuw opgehaald (afwerklijst bijwerken)');
+});

@@ -105,6 +105,13 @@ herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 
 ### Zijpaneel
 
+Terwijl de agenda open staat, laadt de extensie op de achtergrond al wat het
+zijpaneel nodig heeft (verhouding van de bekeken week, planhulp, open
+registraties en productieverloop met de standaardinstellingen), rustig na
+elkaar en hooguit eens per vijf minuten. Open je daarna een pagina, dan staat
+het resultaat er meteen; die pagina's starten ook vanzelf. Open registraties
+uit het geheugen worden direct daarna vers bijgewerkt.
+
 Staan er meerdere agenda's naast elkaar open (/invitees/13970,45267/...), dan
 rekent het zijpaneel alles per collega: het weekoverzicht en de opbouw van de
 cliënttijd per collega, de verhouding per collega, een grafiek productieverloop

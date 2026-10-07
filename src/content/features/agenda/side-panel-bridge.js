@@ -11,10 +11,9 @@ import { currentCalendarView, currentInviteeIds, jumpToDay, jumpToWeek } from '.
 import { safe } from '../../screen/status.js';
 import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
-import { checkOpenRange, defaultRangeFrom } from './open-range.js';
-import { computeProduction, defaultProductionFrom } from './production.js';
-import { fetchWeekRatio } from './week-ratio.js';
-import { findFreeSlots } from './free-slots.js';
+import { defaultRangeFrom } from './open-range.js';
+import { defaultProductionFrom } from './production.js';
+import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, isCached } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { agendaYmd } from '../../core/datetime.js';
@@ -77,6 +76,7 @@ function agPanelState() {
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
     productionDefaultFrom: defaultProductionFrom(),
+    productionDefaultTo: defaultProductionTo(),
     // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
     nonClientMarker: _nonClientMarker(),
     today: agendaYmd(new Date())
@@ -139,10 +139,12 @@ export function listenForSidePanelMessages() {
           safe(function () { if (leaveRequestEnabled()) openLeaveDialog(); });
           return;
         case MSG.AGENDA_CHECK_RANGE:
-          checkOpenRange(msg.from, msg.to, function (done, total) {
+          var uitCache = !msg.vers && isCached('open', msg.from + '|' + msg.to);
+          cachedOpenRange(msg.from, msg.to, function (done, total) {
             try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'open', done: done, total: total }); } catch (e) {}
-          }).then(function (result) {
-            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, !!msg.vers).then(function (result) {
+            // uitCache: vooraf geladen; het zijpaneel werkt de lijst dan meteen vers bij.
+            try { sendResponse({ ok: true, result: result, uitCache: uitCache }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Controleren mislukt.' }); } catch (e2) {}
           });
@@ -151,21 +153,21 @@ export function listenForSidePanelMessages() {
           try { sendResponse(openNewEvent(msg)); } catch (e) { try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {} }
           return;
         case MSG.AGENDA_FREE_SLOTS:
-          findFreeSlots(msg.minutes, msg.weeks).then(function (result) {
+          cachedFreeSlots(msg.minutes, msg.weeks).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Zoeken mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_WEEK_RATIO:
-          fetchWeekRatio(msg.date).then(function (result) {
+          cachedWeekRatio(msg.date).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Ophalen mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_PRODUCTION:
-          computeProduction(msg.from, msg.to, function (done, total) {
+          cachedProduction(msg.from, msg.to, function (done, total) {
             try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'productie', done: done, total: total }); } catch (e) {}
           }).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}

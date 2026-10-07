@@ -10234,7 +10234,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.216";
+      return "1.6.217";
     }
   }();
 
@@ -12615,6 +12615,106 @@
     });
   }
 
+  // src/content/features/agenda/preload.js
+  var TTL = { ratio: 5 * 6e4, plan: 5 * 6e4, open: 10 * 6e4, productie: 30 * 6e4 };
+  var VOORAF_INTERVAL = 5 * 6e4;
+  var _cache = /* @__PURE__ */ Object.create(null);
+  function idsSleutel() {
+    return viewedInviteeIds(resolveInviteeId()).join(",");
+  }
+  function isCached(soort, sleutel) {
+    const c = _cache[soort + "|" + idsSleutel() + "|" + sleutel];
+    return !!(c && !c.bezig && Date.now() - c.ts < TTL[soort]);
+  }
+  function onthouden(soort, sleutel, werk, onProgress, vers) {
+    const k = soort + "|" + idsSleutel() + "|" + sleutel;
+    const c = _cache[k];
+    const geldig = c && (c.bezig || Date.now() - c.ts < TTL[soort]);
+    if (geldig && !vers) {
+      if (onProgress) {
+        if (c.bezig) {
+          c.luisteraars.push(onProgress);
+          if (c.laatst) onProgress(c.laatst[0], c.laatst[1]);
+        }
+      }
+      return c.promise;
+    }
+    const nieuw = { ts: Date.now(), bezig: true, luisteraars: onProgress ? [onProgress] : [], laatst: null, promise: null };
+    nieuw.promise = werk(function(d, t) {
+      nieuw.laatst = [d, t];
+      nieuw.luisteraars.forEach(function(fn) {
+        try {
+          fn(d, t);
+        } catch (e) {
+        }
+      });
+    }).then(
+      function(r) {
+        nieuw.bezig = false;
+        nieuw.ts = Date.now();
+        return r;
+      },
+      function(e) {
+        delete _cache[k];
+        throw e;
+      }
+    );
+    _cache[k] = nieuw;
+    return nieuw.promise;
+  }
+  function cachedOpenRange(from, to, onProgress, vers) {
+    return onthouden("open", from + "|" + to, function(p) {
+      return checkOpenRange(from, to, p);
+    }, onProgress, vers);
+  }
+  function cachedProduction(from, to, onProgress) {
+    return onthouden("productie", from + "|" + to, function(p) {
+      return computeProduction(from, to, p);
+    }, onProgress);
+  }
+  function cachedWeekRatio(date) {
+    return onthouden("ratio", String(date), function() {
+      return fetchWeekRatio(date);
+    });
+  }
+  function cachedFreeSlots(minutes, weeks) {
+    return onthouden("plan", minutes + "|" + weeks, function() {
+      return findFreeSlots(minutes, weeks);
+    });
+  }
+  function defaultProductionTo() {
+    const d = /* @__PURE__ */ new Date();
+    d.setDate(d.getDate() + 28);
+    return agendaYmd(d);
+  }
+  var _laatstVooraf = 0;
+  var _voorafSleutel = "";
+  var _bezig2 = false;
+  function preloadPanelData(force) {
+    if (_bezig2) return;
+    if (document.visibilityState !== "visible") return;
+    const sleutel = idsSleutel() + "|" + currentAgendaDate();
+    if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
+    if (!idsSleutel()) return;
+    _bezig2 = true;
+    _voorafSleutel = sleutel;
+    _laatstVooraf = Date.now();
+    const vandaag = agendaYmd(/* @__PURE__ */ new Date());
+    const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
+    });
+    Promise.resolve().then(stap(() => cachedWeekRatio(currentAgendaDate()))).then(stap(() => cachedFreeSlots(60, 2))).then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
+      _bezig2 = false;
+    }, () => {
+      _bezig2 = false;
+    });
+  }
+  function _clearPreloadCache() {
+    Object.keys(_cache).forEach((k) => delete _cache[k]);
+    _laatstVooraf = 0;
+    _voorafSleutel = "";
+    _bezig2 = false;
+  }
+
   // src/content/features/agenda/quick-register.js
   function newEventUrl(inviteeId) {
     var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
@@ -12718,6 +12818,7 @@
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
       productionDefaultFrom: defaultProductionFrom(),
+      productionDefaultTo: defaultProductionTo(),
       // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
       nonClientMarker: _nonClientMarker(),
       today: agendaYmd(/* @__PURE__ */ new Date())
@@ -12791,14 +12892,15 @@
             });
             return;
           case MSG.AGENDA_CHECK_RANGE:
-            checkOpenRange(msg.from, msg.to, function(done, total) {
+            var uitCache = !msg.vers && isCached("open", msg.from + "|" + msg.to);
+            cachedOpenRange(msg.from, msg.to, function(done, total) {
               try {
                 chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: "open", done, total });
               } catch (e) {
               }
-            }).then(function(result) {
+            }, !!msg.vers).then(function(result) {
               try {
-                sendResponse({ ok: true, result });
+                sendResponse({ ok: true, result, uitCache });
               } catch (e) {
               }
             }, function(e) {
@@ -12819,7 +12921,7 @@
             }
             return;
           case MSG.AGENDA_FREE_SLOTS:
-            findFreeSlots(msg.minutes, msg.weeks).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {
@@ -12832,7 +12934,7 @@
             });
             return true;
           case MSG.AGENDA_WEEK_RATIO:
-            fetchWeekRatio(msg.date).then(function(result) {
+            cachedWeekRatio(msg.date).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {
@@ -12845,7 +12947,7 @@
             });
             return true;
           case MSG.AGENDA_PRODUCTION:
-            computeProduction(msg.from, msg.to, function(done, total) {
+            cachedProduction(msg.from, msg.to, function(done, total) {
               try {
                 chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: "productie", done, total });
               } catch (e) {
@@ -12968,6 +13070,7 @@
         pushBadge(cnt);
         updateTotals(res);
         refreshAgendaWeekApi();
+        if (agendaPage._agWeekLoaded && !agendaPage._agWeekBusy) preloadPanelData();
       } catch (e) {
       }
     }, 300);
@@ -14381,6 +14484,9 @@
       findFreeGaps,
       findFreeSlots,
       mergeOpenRangePerPersoon,
+      cachedOpenRange,
+      isCached,
+      _clearPreloadCache,
       currentInviteeIds,
       jumpToDayVoorTest: jumpToDay,
       productionWeekRow,

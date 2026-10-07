@@ -7,6 +7,7 @@ import { loadProfileFromStorage } from './profile.js';
 import { computeTotals } from './unregistered-time.js';
 import { pushBadge, updateTotals } from './extension-sync.js';
 import { refreshAgendaWeekApi } from './week-overview.js';
+import { preloadPanelData } from './preload.js';
 import { clearPendingRegistration } from '../registration/pending.js';
 import { APP_CONFIG, CONFIG } from '../../config/app-config.js';
 import { MSG } from '../../../shared/messages.js';
@@ -55,6 +56,8 @@ function activateAgendaPage() {
       pushBadge(cnt);
       updateTotals(res);
       refreshAgendaWeekApi(); // API-weekoverzicht (dedupe: haalt alleen bij wijziging)
+      // Daarna rustig vooraf laden voor het zijpaneel (hooguit eens per 2 min).
+      if (agendaPage._agWeekLoaded && !agendaPage._agWeekBusy) preloadPanelData();
     } catch (e) {}
   }, 300);
 }

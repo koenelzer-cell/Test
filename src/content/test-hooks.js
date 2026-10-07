@@ -176,6 +176,7 @@ import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps } from './domain/free-slots.js';
 import { findFreeSlots } from './features/agenda/free-slots.js';
 import { mergeOpenRangePerPersoon } from './features/agenda/open-range.js';
+import { _clearPreloadCache, cachedOpenRange, isCached } from './features/agenda/preload.js';
 import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest } from './features/agenda/navigation.js';
 import { plannedProductionRow, productionWeekRow } from './features/agenda/production.js';
 import { plannedRatioRows } from './features/agenda/week-ratio.js';
@@ -357,6 +358,9 @@ export function exposeTestApi() {
     findFreeGaps,
     findFreeSlots,
     mergeOpenRangePerPersoon,
+    cachedOpenRange,
+    isCached,
+    _clearPreloadCache,
     currentInviteeIds,
     jumpToDayVoorTest: _jumpToDayVoorTest,
     productionWeekRow,

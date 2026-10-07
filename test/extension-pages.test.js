@@ -306,7 +306,7 @@ test('zijpaneel: open registraties is een eigen pagina met terug-knop', async ()
   assert.deepEqual(datums, ['2026-08-10', '2026-10-07'], 'standaard: begin aanpasvenster t/m vandaag');
   assert.match(document.body.textContent, /ma 10 aug 2026/, 'datum voluit in het veld');
   assert.equal(document.querySelectorAll('input[type="date"]').length, 0, 'geen keuzevenster van de browser');
-  knop(document, 'Controleren').click();
+  // De controle start vanzelf bij het openen (vooraf geladen = meteen klaar).
   const vraag = verzonden.find((m) => m.type === 'ag-check-range');
   assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-08-10', to: '2026-10-07' });
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-range-progress', kind: 'open', done: 2, total: 9 }, { tab: { id: 5 } }));
@@ -330,8 +330,7 @@ test('zijpaneel: open registraties wordt een afwerklijst, ook na een paginawisse
   });
   await tick();
   navKnop(document, 'Open registraties').click();
-  knop(document, 'Controleren').click();
-  assert.match(document.body.textContent, /0 van 2/);
+  assert.match(document.body.textContent, /0 van 2/, 'start vanzelf bij het openen');
   // Naar een registratieformulier: de agenda is even weg, het paneel wordt opnieuw opgebouwd.
   const tab = { id: 5, url: 'https://impegno.onsagenda.nl/invitees/1/registrations/new' };
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-gone' }, { tab }));
@@ -418,7 +417,6 @@ test('zijpaneel: afwerklijst werkt zichzelf bij als de agenda verandert', async 
   });
   await tick();
   navKnop(document, 'Open registraties').click();
-  knop(document, 'Controleren').click();
   await new Promise((r) => setTimeout(r, 3100)); // niet vaker dan eens per paar seconden
   // ONS markeert een afspraak als geregistreerd: de toestand van de pagina verandert.
   env_update(document, { ...AGENDA_STATE_TOOLS, past: { '2026-10-05': { client: 30, overig: 0, lateMin: 0, lateCount: 0 } } });
@@ -429,16 +427,17 @@ test('zijpaneel: afwerklijst werkt zichzelf bij als de agenda verandert', async 
 });
 
 test('zijpaneel: een andere medewerker in de URL begint opnieuw', async () => {
-  const { document } = zijpaneelMetTools({ 'ag-check-range': (msg, cb) => cb({ ok: true, result: RESULT([ITEM_A]) }) },
+  let controles = 0;
+  const { document } = zijpaneelMetTools({ 'ag-check-range': (msg, cb) => { controles++; cb({ ok: true, result: RESULT(controles === 1 ? [ITEM_A] : []) }); } },
     { ...AGENDA_STATE_TOOLS, inviteeId: '1' });
   await tick();
   navKnop(document, 'Open registraties').click();
-  knop(document, 'Controleren').click();
   assert.match(document.body.textContent, /1 afspraak open/);
   env_update(document, { ...AGENDA_STATE_TOOLS, inviteeId: '2' });
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agendahulp', 'terug naar de hoofdpagina');
   navKnop(document, 'Open registraties').click();
-  assert.doesNotMatch(document.body.textContent, /afspraak open/, 'geen resultaten van de vorige medewerker');
+  assert.equal(controles, 2, 'opnieuw gecontroleerd voor de nieuwe medewerker');
+  assert.doesNotMatch(document.body.textContent, /1 afspraak open/, 'geen resultaten van de vorige medewerker');
 });
 
 test('zijpaneel: het weekoverzicht toont geen lijst per uursoort meer (staat op Verhouding)', async () => {

@@ -1588,6 +1588,15 @@
         ratio.offset = 0;
         laadRatio();
       }
+      if (p === "clienttijd" && !prod.result && !prod.busy && !prod.error) {
+        vulStandaarden();
+        startProduction();
+      }
+      if (p === "open" && !range.result && !range.busy && !range.error) {
+        vulStandaarden();
+        startRangeCheck();
+      }
+      if (p === "plan" && !plan.result && !plan.busy && !plan.error) startPlan();
     }
     function tekstKnop(icoon, tekst, onClick, disabled) {
       var b = document.createElement("button");
@@ -1638,7 +1647,7 @@
       if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
       if (!range.to && state.today) range.to = state.today;
       if (!prod.from && state.productionDefaultFrom) prod.from = state.productionDefaultFrom;
-      if (!prod.to && state.today) prod.to = plusWeken(state.today, 4);
+      if (!prod.to && state.today) prod.to = state.productionDefaultTo || plusWeken(state.today, 4);
       if (!quick.date && state.today) quick.date = state.today;
     }
     function weekNaam() {
@@ -2096,6 +2105,10 @@
         }) };
         else range.error = res && res.error || "Controleren mislukt.";
         if (pagina === "open") renderPagina();
+        if (res && res.ok && res.uitCache) {
+          range.laatst = 0;
+          hercontrole();
+        }
       });
     }
     function hercontrole() {
@@ -2107,7 +2120,7 @@
         range.laatst = Date.now();
         if (res && res.ok && res.result && range.result) range.result = mergeOpenRange(range.result, res.result, range.afgewerkt);
         if (pagina === "open") renderPagina();
-      });
+      }, true);
     }
     function bijFocus() {
       if (pagina === "open" && range.result && Date.now() - range.laatst > 3e3) hercontrole();
@@ -2607,8 +2620,8 @@
     onRequestLeave: function() {
       naarTab({ type: MSG.AGENDA_OPEN_LEAVE });
     },
-    onCheckRange: function(from, to, cb) {
-      vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from, to }, cb);
+    onCheckRange: function(from, to, cb, vers) {
+      vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from, to, vers: !!vers }, cb);
     },
     onNewEvent: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb);
