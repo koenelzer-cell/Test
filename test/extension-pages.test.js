@@ -498,8 +498,11 @@ test('zijpaneel: snel registreren is een eigen pagina; waarschuwt bij overlap en
   await tick();
   navKnop(document, 'Snel registreren').click();
   [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith('Kies een tijd')).click();
-  knop(document, '10').click();
-  knop(document, ':30').click();
+  const kolommen = document.querySelectorAll('[role="listbox"]');
+  assert.equal(kolommen.length, 2, 'twee scrollbare kolommen: uur en minuten');
+  assert.equal(kolommen[0].style.overflowY, 'auto');
+  [...kolommen[0].querySelectorAll('button')].find((b) => b.textContent === '10').click();
+  [...document.querySelectorAll('[role="listbox"]')[1].querySelectorAll('button')].find((b) => b.textContent === '30').click();
   assert.equal(document.querySelectorAll('input[type="time"]').length, 0, 'geen keuzevenster van de browser');
   knop(document, 'Formulier openen').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-quick-register', date: '2026-10-07', time: '10:30', minutes: '15', force: false });

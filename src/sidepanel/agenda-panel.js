@@ -468,10 +468,13 @@ export function maakKiezers() {
     return knop;
   }
 
-  // Tijdveld: uren en minuten als chips, net als de duurkiezer van de hulp.
+  // Tijdveld: twee scrollbare kolommen (uren en minuten), zoals de
+  // twee-koloms-kiezer van de hulp (src/content/ui/duration-picker.js). Kies je
+  // een uur, dan blijft de kiezer open voor de minuten; kies je de minuten, dan
+  // sluit hij.
   function tijd(waarde, onChange, opties) {
     opties = opties || {};
-    var van = opties.vanUur != null ? opties.vanUur : 7, tot = opties.totUur != null ? opties.totUur : 20;
+    var stap = opties.minutenStap || 5;
     var huidig = waarde;
     var knop = veldKnop(huidig || 'Kies een tijd', !huidig, ICON_QUICK);
     knop.setAttribute('aria-haspopup', 'dialog');
@@ -483,35 +486,77 @@ export function maakKiezers() {
       knop.style.color = T.ink;
       onChange(huidig);
     }
+    function itemKnop(tekst, gekozen, onClick) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = tekst;
+      b.setAttribute('data-gekozen', gekozen ? '1' : '0');
+      Object.assign(b.style, {
+        width: '100%', flex: '0 0 auto', padding: '7px 6px', borderRadius: '9px', boxSizing: 'border-box',
+        border: '1px solid ' + (gekozen ? T.brand : T.line), background: gekozen ? T.brand : '#fff',
+        color: gekozen ? '#fff' : T.ink, font: '600 13px/1 ' + FONT, fontVariantNumeric: 'tabular-nums',
+        textAlign: 'center', cursor: 'pointer', transition: 'background .12s ease, border-color .12s ease'
+      });
+      if (!gekozen) {
+        b.addEventListener('mouseenter', function () { b.style.background = T.brandWash; b.style.borderColor = 'transparent'; });
+        b.addEventListener('mouseleave', function () { b.style.background = '#fff'; b.style.borderColor = T.line; });
+      }
+      focusRing(b);
+      b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); onClick(); });
+      return b;
+    }
+    function kolom(titel) {
+      var col = el('div', { flex: '1 1 0', minWidth: '0', display: 'flex', flexDirection: 'column' });
+      col.appendChild(txt('label', titel, { textAlign: 'center', margin: '0 0 6px' }));
+      var lijst = el('div', {
+        height: '196px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px',
+        padding: '2px 4px', boxSizing: 'border-box', overscrollBehavior: 'contain', scrollbarWidth: 'thin'
+      });
+      lijst.setAttribute('role', 'listbox');
+      lijst.setAttribute('aria-label', titel);
+      col.appendChild(lijst);
+      col._lijst = lijst;
+      return col;
+    }
     knop.addEventListener('click', function (e) {
       e.preventDefault();
       openVoor(knop, function (p) {
         p.setAttribute('role', 'dialog');
         p.setAttribute('aria-label', 'Kies een tijd');
-        function teken() {
+        var urenKol, minKol;
+        function scrollNaarKeuze(lijst, terug) {
+          var doel = lijst.querySelector('[data-gekozen="1"]') || lijst.children[terug] || null;
+          if (doel) lijst.scrollTop = Math.max(0, doel.offsetTop - lijst.offsetTop - 70);
+        }
+        function teken(behoudScroll) {
+          var su = urenKol ? urenKol._lijst.scrollTop : 0, sm = minKol ? minKol._lijst.scrollTop : 0;
           p.innerHTML = '';
           var dl = delen();
-          p.appendChild(txt('label', 'Uur', { margin: '0 0 6px' }));
-          var uren = el('div', { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '10px' });
-          for (var u = van; u <= tot; u++) {
+          var rij = el('div', { display: 'flex', gap: '10px' });
+          urenKol = kolom('Uur');
+          for (var u = 0; u < 24; u++) {
             (function (u) {
-              uren.appendChild(chipKnop(('0' + u).slice(-2), dl.u === u, function () { zet(u, dl.m == null ? 0 : dl.m); teken(); },
-                { width: '100%', border: '1px solid ' + (dl.u === u ? T.brand : T.line) }));
+              urenKol._lijst.appendChild(itemKnop(('0' + u).slice(-2), dl.u === u, function () { zet(u, dl.m == null ? 0 : dl.m); teken(true); }));
             })(u);
           }
-          p.appendChild(uren);
-          p.appendChild(txt('label', 'Minuten', { margin: '0 0 6px' }));
-          var min = el('div', { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' });
-          for (var m = 0; m < 60; m += 5) {
+          minKol = kolom('Minuten');
+          for (var m = 0; m < 60; m += stap) {
             (function (m) {
-              min.appendChild(chipKnop(':' + ('0' + m).slice(-2), dl.m === m && dl.u != null, function () {
+              minKol._lijst.appendChild(itemKnop(('0' + m).slice(-2), dl.m === m && dl.u != null, function () {
                 zet(dl.u == null ? 9 : dl.u, m); sluit(); knop.focus();
-              }, { width: '100%', border: '1px solid ' + (dl.m === m && dl.u != null ? T.brand : T.line) }));
+              }));
             })(m);
           }
-          p.appendChild(min);
+          rij.appendChild(urenKol); rij.appendChild(minKol);
+          p.appendChild(rij);
+          // Na een klik op een uur blijft de scrollpositie staan; bij openen
+          // springt elke kolom naar de gekozen waarde (anders 09:00).
+          setTimeout(function () {
+            if (behoudScroll) { urenKol._lijst.scrollTop = su; minKol._lijst.scrollTop = sm; }
+            else { scrollNaarKeuze(urenKol._lijst, 9); scrollNaarKeuze(minKol._lijst, 0); }
+          }, 0);
         }
-        teken();
+        teken(false);
       });
     });
     return knop;

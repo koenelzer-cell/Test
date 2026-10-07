@@ -128,7 +128,8 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   zet je hem op *niet registreren*, dan wordt hij vanzelf afgevinkt zodra de
   agenda dat laat zien. De lijst blijft bewaard zolang het zijpaneel open is.
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
-  de hulp, niet met het keuzevenster van de browser.
+  de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
+  keuzevenster van de browser.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 
