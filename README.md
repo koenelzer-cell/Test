@@ -132,7 +132,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   keuzevenster van de browser.
 - **Planhulp**: kies een duur en hoe ver vooruit, en zie de vrije blokken
   binnen je werktijden. Alleen wat er echt in de agenda staat telt als bezet:
-  afspraken (met reistijd) en onbeschikbaarheid. Klik op een blok voor de
+  ONS-afspraken (met reistijd), onbeschikbaarheid, geplande bezoeken en
+  Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
+  het werk' tellen niet). Klik op een blok voor de
   opties: een begintijd kiezen en een nieuwe afspraak openen (de hulp vult de
   datum en begintijd in het ONS-formulier in), of naar die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het

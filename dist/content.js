@@ -857,6 +857,9 @@
       travelBefore: ts.travel_time_before != null ? ts.travel_time_before : null,
       travelAfter: ts.travel_time_after != null ? ts.travel_time_after : null,
       type: e.type || null,
+      // Outlook: hoe de afspraak de agenda bezet (busy/oof/tentative/free/
+      // workingElsewhere). Geen persoonsgegeven; de planhulp gebruikt het.
+      showAs: e.show_as != null ? String(e.show_as) : null,
       // Alleen de echte uursoort; NIET e.title als fallback — die bevat bij
       // registraties de cliëntnaam (PII).
       hourType: e.hour_type || "",
@@ -1033,6 +1036,8 @@
   var _API_DEFAULTS = {
     weekEvents: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events",
     weekUnavailabilities: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=unavailabilities",
+    weekOutlook: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=outlook_appointments",
+    weekPlannedVisits: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=planned_visits",
     weekRegistrations: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created",
     registrationDetails: "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
@@ -10226,7 +10231,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.212";
+      return "1.6.213";
     }
   }();
 
@@ -12364,6 +12369,8 @@
     var bezet = /* @__PURE__ */ Object.create(null), heleDag = /* @__PURE__ */ Object.create(null);
     (entries || []).forEach(function(e) {
       if (!e || !e.date) return;
+      var toon = String(e.showAs || "").toLowerCase();
+      if (toon === "free" || toon === "workingelsewhere") return;
       if (e.allDay || e.layer === "unavailabilities") {
         if (e.allDay || e.startMs == null || e.endMs == null) {
           heleDag[e.date] = true;
@@ -12451,17 +12458,20 @@
         });
       });
     };
+    var zonder = function() {
+      return [];
+    };
     return Promise.all(weken.map(function(start) {
       return Promise.all([
         haal("weekEvents", "events", start),
-        // Afwezigheid (verlof): mislukt dat, dan gewoon zonder.
-        haal("weekUnavailabilities", "unavailabilities", start).catch(function() {
-          return [];
-        })
+        // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
+        haal("weekUnavailabilities", "unavailabilities", start).catch(zonder),
+        haal("weekOutlook", "outlook_appointments", start).catch(zonder),
+        haal("weekPlannedVisits", "planned_visits", start).catch(zonder)
       ]);
     })).then(function(perWeek) {
       var alles = [].concat.apply([], perWeek.map(function(w) {
-        return w[0].concat(w[1]);
+        return [].concat.apply([], w);
       }));
       var win = workWindow();
       var gaps = findFreeGaps(alles, {

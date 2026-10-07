@@ -1453,7 +1453,7 @@
     }
     function pagePlan() {
       var planBox = el("div");
-      planBox.appendChild(txt("help", "Zoek vrije tijd voor een afspraak binnen je werktijden" + (state && state.windowLabel ? " (" + state.windowLabel + ")" : "") + ". Afspraken (met reistijd) en onbeschikbaarheid in je agenda tellen als bezet.", { margin: "0 0 10px" }));
+      planBox.appendChild(txt("help", "Zoek vrije tijd voor een afspraak binnen je werktijden" + (state && state.windowLabel ? " (" + state.windowLabel + ")" : "") + ". Afspraken (ook uit Outlook, met reistijd) en onbeschikbaarheid tellen als bezet.", { margin: "0 0 10px" }));
       var duur = el("div", { display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" });
       [30, 45, 60, 90, 120].forEach(function(m) {
         var g = plan.minutes === m;

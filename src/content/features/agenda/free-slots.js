@@ -1,5 +1,6 @@
 // Planhulp: vrije tijd in de komende weken voor een afspraak van een gekozen
-// duur. Haalt per week de afspraken en de afwezigheid op en rekent in
+// duur. Haalt per week alles op wat tijd kan bezetten (ONS-afspraken,
+// onbeschikbaarheid, Outlook-afspraken, geplande bezoeken) en rekent in
 // domain/free-slots.js.
 
 import { currentInviteeId } from './navigation.js';
@@ -39,14 +40,17 @@ export function findFreeSlots(minutes, weeks) {
     return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
       .then(function (j) { return mapAgendaWeekResponse(j).map(function (e) { e.layer = laag; return e; }); });
   };
+  var zonder = function () { return []; };
   return Promise.all(weken.map(function (start) {
     return Promise.all([
       haal('weekEvents', 'events', start),
-      // Afwezigheid (verlof): mislukt dat, dan gewoon zonder.
-      haal('weekUnavailabilities', 'unavailabilities', start).catch(function () { return []; })
+      // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
+      haal('weekUnavailabilities', 'unavailabilities', start).catch(zonder),
+      haal('weekOutlook', 'outlook_appointments', start).catch(zonder),
+      haal('weekPlannedVisits', 'planned_visits', start).catch(zonder)
     ]);
   })).then(function (perWeek) {
-    var alles = [].concat.apply([], perWeek.map(function (w) { return w[0].concat(w[1]); }));
+    var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: Date.now(), days: weeks * 7, minMinutes: minutes, stepMin: 15,

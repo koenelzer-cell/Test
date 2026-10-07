@@ -19,11 +19,14 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   unavailabilities                  verlof vastleggen (POST)             (unavailability.js)
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
 //   weekUnavailabilities              afwezigheid, voor de planhulp         (free-slots.js)
+//   weekOutlook, weekPlannedVisits    Outlook-afspraken en geplande bezoeken (free-slots.js)
 //   newEvent                          nieuw afspraakformulier (planhulp)     (paginaroute, geen API)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
 const _API_DEFAULTS = {
   weekEvents: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events',
   weekUnavailabilities: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=unavailabilities',
+  weekOutlook: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=outlook_appointments',
+  weekPlannedVisits: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=planned_visits',
   weekRegistrations: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created',
   registrationDetails: '/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details',
   eventDetails: '/calendar/invitee/{inviteeId}/events/{occurrenceId}/details',

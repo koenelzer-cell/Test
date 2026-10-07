@@ -221,3 +221,29 @@ test('planhulp: geen vaste pauze; zonder afspraken is de hele werkdag vrij', () 
   assert.equal(gaps.length, 1);
   assert.deepEqual([gaps[0].startMin, gaps[0].endMin], [480, 1020], '08:00-17:00 aaneengesloten');
 });
+
+test('planhulp: Outlook-afspraken tellen mee volgens show_as', (t) => {
+  // ONS stuurt tijden met +02:00; de medewerker zit in Nederland.
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { api } = bootHelper();
+  const NU = Date.parse('2026-10-08T07:00:00');
+  // Het antwoord van ONS (entries/week, laag outlook_appointments), zoals het binnenkomt.
+  const ruw = { data: [
+    { id: 'A', date: '2026-10-09', start_time: '2026-10-09T09:00:00.000+02:00', end_time: '2026-10-09T17:00:00.000+02:00',
+      time_slot: { all_day: false, duration: 28800, travel_time_before: 0, travel_time_after: 0 }, type: 'outlook_appointment', name: 'Afwezig', show_as: 'oof' },
+    { id: 'B', date: '2026-10-08', start_time: '2026-10-08T10:00:00.000+02:00', end_time: '2026-10-08T11:00:00.000+02:00',
+      time_slot: { all_day: false, duration: 3600 }, type: 'outlook_appointment', show_as: 'busy' },
+    { id: 'C', date: '2026-10-08', start_time: '2026-10-08T13:00:00.000+02:00', end_time: '2026-10-08T15:00:00.000+02:00',
+      time_slot: { all_day: false, duration: 7200 }, type: 'outlook_appointment', show_as: 'free' },
+  ] };
+  const entries = api.mapAgendaWeekResponse(ruw);
+  const gaps = api.findFreeGaps(entries, { now: NU, days: 2, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 });
+  const tekst = [...gaps.map((g) => g.date + ' ' + g.startMin + '-' + g.endMin)];
+  assert.deepEqual(tekst, [
+    '2026-10-08 480-600',   // do 08:00-10:00
+    '2026-10-08 660-1020',  // do 11:00-17:00 (13-15 'free' blijft vrij)
+    '2026-10-09 480-540',   // vr 08:00-09:00, daarna afwezig (oof) tot 17:00
+  ]);
+});

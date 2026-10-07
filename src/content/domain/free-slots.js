@@ -5,7 +5,10 @@
 // wat er echt in de agenda staat:
 //   - een afspraak (inclusief reistijd ervoor en erna),
 //   - onbeschikbaarheid (verlof e.d.): met tijden alleen dat stuk, zonder
-//     tijden of als hele dag de hele dag.
+//     tijden of als hele dag de hele dag,
+//   - een Outlook-afspraak die bezet, afwezig (oof) of voorlopig is; 'free' en
+//     'workingElsewhere' houden je beschikbaar,
+//   - een gepland bezoek.
 // Geen vaste pauzes of andere aannames: de kleurzones van de dagindeling
 // tellen niet mee.
 
@@ -34,6 +37,10 @@ export function findFreeGaps(entries, opts) {
   var bezet = Object.create(null), heleDag = Object.create(null);
   (entries || []).forEach(function (e) {
     if (!e || !e.date) return;
+    // Outlook: alleen wat je agenda echt bezet. 'free' en 'workingElsewhere'
+    // (op een andere plek aan het werk) laten de tijd vrij.
+    var toon = String(e.showAs || '').toLowerCase();
+    if (toon === 'free' || toon === 'workingelsewhere') return;
     if (e.allDay || e.layer === 'unavailabilities') {
       if (e.allDay || e.startMs == null || e.endMs == null) { heleDag[e.date] = true; return; }
     }

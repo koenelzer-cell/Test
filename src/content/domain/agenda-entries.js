@@ -23,6 +23,9 @@ export function mapAgendaEntry(e) {
     travelBefore: (ts.travel_time_before != null ? ts.travel_time_before : null),
     travelAfter: (ts.travel_time_after != null ? ts.travel_time_after : null),
     type: e.type || null,
+    // Outlook: hoe de afspraak de agenda bezet (busy/oof/tentative/free/
+    // workingElsewhere). Geen persoonsgegeven; de planhulp gebruikt het.
+    showAs: (e.show_as != null ? String(e.show_as) : null),
     // Alleen de echte uursoort; NIET e.title als fallback — die bevat bij
     // registraties de cliëntnaam (PII).
     hourType: e.hour_type || '',
