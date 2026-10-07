@@ -1,34 +1,50 @@
 # ONS Agendahulp
 
-Browser-extensie (Manifest V3, Chrome/Edge) die helpt bij het maken van afspraken
-en registraties in ONS Agenda, en de dagindeling inkleurt.
+Browser-extensie (Manifest V3, Chrome/Edge) die helpt bij het maken van
+afspraken en registraties in ONS Agenda, de dagindeling inkleurt, de
+ongeregistreerde tijd bijhoudt en op ONS Dossier controleert of verplichte
+vragenlijstvragen zijn ingevuld.
+
+Hoe het in elkaar zit: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Belangrijk: er is een bouwstap
 
-De schermen van de hulp zijn React-componenten in `src/`. De browser laadt die
-niet rechtstreeks — hij laadt `dist/react-bundle.js`. **Wijzig je iets in `src/`,
-dan moet je bouwen voordat je de extensie herlaadt:**
+Alle broncode staat in `src/`. De browser laadt die niet rechtstreeks, maar
+`dist/` — gebouwd met esbuild. **Wijzig je iets in `src/`, bouw dan voordat je
+de extensie herlaadt:**
 
 ```bash
 npm install     # eenmalig
 npm run dev     # bouwt en blijft meekijken tijdens het werken
 ```
 
-`npm run dev` bouwt opnieuw zodra je iets in `src/` opslaat, zodat je het niet
-kunt vergeten. Doe je het met de hand (`npm run build`) en vergeet je het, dan
-draait de extensie op de vorige bundel en lijkt je wijziging geen effect te
-hebben.
-
-`dist/react-bundle.js` staat bewust in versiebeheer: de extensie wordt uitgepakt
-geladen en er is geen bouwstap bij de uitrol.
+`dist/` staat bewust in versiebeheer: de extensie wordt uitgepakt geladen en er
+is geen bouwstap bij de uitrol. CI faalt als de gecommitte `dist/` niet
+overeenkomt met `src/`.
 
 ## Ontwikkelen
 
 ```bash
-npm run dev     # bouwt en blijft meekijken
-npm test        # bouwt en draait de testsuite
-npm run check   # syntaxcontrole van content.js, popup.js en de bundel
+npm run dev     # bouwen + meekijken
+npm run build   # eenmalig bouwen (ook de testbundel)
+npm run check   # manifest, syntax, imports en laagindeling controleren
+npm test        # bouwen + testsuite (jsdom, geen browser of ONS nodig)
 ```
+
+`npm run check` controleert:
+
+- dat het manifest en de pagina's alleen naar bestaande bestanden verwijzen en
+  alles geldige syntax heeft (`scripts/check.mjs`);
+- dat onderdelen alleen via `src/shared/` code delen, dat elke import bestaat
+  en dat er geen import vergeten is (`scripts/check-imports.mjs`);
+- dat de modules van het content-script alleen naar beneden importeren
+  (`scripts/deps.mjs`; zonder `--strict` toont het een overzicht).
+
+### De extensie laden
+
+Ga in Chrome of Edge naar `chrome://extensions` respectievelijk
+`edge://extensions`, zet Ontwikkelaarsmodus aan en kies **Uitgepakte extensie
+laden** met deze map.
 
 ### Een versie uitbrengen
 
@@ -38,59 +54,58 @@ npm run release -- --minor # x.Y+1.0
 npm run release -- --dry   # tonen wat er zou gebeuren, niets wijzigen
 ```
 
-Dit hoogt het versienummer op (in `manifest.json` én de terugvalregel in
-`content.js`), bouwt, controleert de syntax, draait de tests, controleert dat
-het manifest naar bestaande bestanden verwijst en dat de bundel niet ouder is
-dan `src/`, en maakt daarna pas de ZIP. Gaat er iets mis, dan stopt het en
-wordt er niets ingepakt.
+Dit hoogt het versienummer op (in `manifest.json` én de terugvalwaarde in
+`src/shared/version.js`), bouwt, draait `check` en de tests, controleert dat
+het manifest compleet is en dat `dist/` niet ouder is dan `src/`, en maakt pas
+daarna de ZIP (`dist/`, `pages/`, `admin/`, `icons/`, `assets/`, manifest en
+configuratie). Gaat er iets mis, dan wordt er niets ingepakt.
 
-Die laatste twee controles vangen de fouten die met de hand het makkelijkst
-gebeuren: een ZIP met een oude bundel, of een versienummer dat niet is
-opgehoogd waardoor werkplekken niet updaten.
+## Mappen
 
-De tests draaien in jsdom en hebben geen browser of ONS-omgeving nodig.
-
-### De extensie laden
-
-Ga in Chrome of Edge naar `chrome://extensions` respectievelijk `edge://extensions`,
-zet Ontwikkelaarsmodus aan en kies **Uitgepakte extensie laden** met deze map.
-
-## Opbouw
-
-| Bestand | Rol |
+| Map | Wat |
 |---|---|
-| `manifest.json` | Wat er wordt geladen en waar |
-| `content.js` | De hulp zelf: leest en bestuurt het ONS-scherm |
-| `src/` | React-componenten voor de schermen van de hulp |
-| `dist/react-bundle.js` | Bouwresultaat van `src/` — dit laadt de browser |
-| `modules.js` + `mainworld.js` | Brug naar ONS' eigen paginacontext |
-| `popup.js` / `popup.html` | Keuze van bedrijfsonderdeel en team |
-| `beheer_u.html` | Beheerscherm: stelt `config.json` samen |
-| `config.json` | Afspraaktypes, registratievormen, teksten, kleuren |
-| `managed_schema.json` | Instellingen die via bedrijfsbeleid gezet kunnen worden |
-| `survey-required.js` | Vragenlijst-checklist |
-| `io-planning-block.js` | Blokkeert één knop op de IO-planning |
-| `background.js` | Zet het aantal openstaande dagen op het icoon |
-
-### Waar de schermtoestand vandaan komt
-
-De hulp houdt in één variabele bij welk scherm er staat (`markScreen` in
-`content.js`). Daardoor kan hij na uit- en weer inschakelen terug naar hetzelfde
-scherm zonder de schermtekst te hoeven herkennen — die teksten zijn namelijk in
-het beheerscherm aanpasbaar.
+| `src/content/` | de hulp op de ONS-pagina's (afspraken, registraties, agenda) |
+| `src/survey/` | de vragenlijst-checklist op ONS Dossier |
+| `src/background/` | de service worker (badge, herinnering, rechtermuismenu) |
+| `src/popup/`, `pages/popup.html` | de extensiepopup (bedrijfsonderdeel en team) |
+| `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel |
+| `src/main-world/`, `src/edge-tab/`, `src/io-planning-block/` | kleine content-scripts |
+| `src/react/` | React-schermen → `dist/react-bundle.js` |
+| `src/shared/` | berichttypes, opslagsleutels, ONS-hosts, versie |
+| `admin/` | beheerscherm: stelt `config.json` samen (open `admin/beheer_u.html` lokaal) |
+| `config.json` | afspraaktypes, registratievormen, teksten, kleuren, teams |
+| `managed_schema.json` | instellingen die via bedrijfsbeleid gezet kunnen worden |
+| `scripts/` | bouwen, controleren, uitbrengen |
+| `test/` | testsuite |
+| `docs/` | architectuur en het verslag van de herstructurering |
 
 ## Instellingen
 
-Er zijn drie lagen, in deze volgorde van voorrang:
+Lagen, oplopend in voorrang:
 
-1. `config.json` in de extensie (gemaakt met het beheerscherm)
-2. `chrome.storage.local` onder `onsHelperConfig` (voor tests)
-3. Bedrijfsbeleid via `chrome.storage.managed` — **wint altijd**
+1. de standaard in de code (`src/content/config/defaults.js`)
+2. `config.json` in de extensie (gemaakt met het beheerscherm)
+3. het gekozen bedrijfsonderdeel/team in de popup
+4. `chrome.storage.local` onder `onsHelperConfig` (voor tests)
+5. bedrijfsbeleid via `chrome.storage.managed` — **wint altijd**
 
-De sleutels van laag 3 staan in `managed_schema.json`.
+De sleutels van laag 5 staan in `managed_schema.json`.
+
+### Verlof aanvragen
+
+Rechtsonder in de agenda staat de knop **Verlof aanvragen**. De dialoog heeft
+dezelfde velden als *Onbeschikbaarheid toevoegen* in ONS: omschrijving,
+begindatum, begin- en eindtijd of *hele dag*, en herhaling (*niet*,
+*dagelijks* of *wekelijks* op gekozen weekdagen, iedere N dagen/weken, tot een
+datum). Bij opslaan legt de hulp de onbeschikbaarheid vast in ONS, opent AFAS
+in een nieuw tabblad en ververst de agenda. In `config.json` (`leaveRequest`)
+zijn de standaardomschrijving, het AFAS-adres, de maximale duur van een
+herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
+`features.leaveRequest: false` zet de knop uit.
 
 ## Gegevens
 
 De extensie stuurt niets naar externe servers. Alle serveraanroepen gaan naar
 ONS zelf via relatieve paden binnen de bestaande sessie; `host_permissions` in
-het manifest beperkt de toegang tot de ONS-domeinen.
+het manifest beperkt de toegang tot de ONS-domeinen. Zie
+[SECURITY.md](SECURITY.md).

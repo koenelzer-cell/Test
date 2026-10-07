@@ -1,18 +1,21 @@
 {
   "manifest_version": 3,
   "name": "ONS Agendahulp",
-  "version": "1.6.193",
+  "version": "1.6.204",
   "description": "Afspraak-/registratiehulp en gekleurde dagindeling voor ONS Agenda.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms", "notifications", "contextMenus", "sidePanel"],
   "storage": {
     "managed_schema": "managed_schema.json"
   },
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "pages/popup.html",
     "default_title": "ONS Agendahulp"
   },
+  "side_panel": {
+    "default_path": "pages/sidepanel.html"
+  },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.js"
   },
   "host_permissions": [
     "https://impegno.ons-dossier.nl/*",
@@ -44,7 +47,7 @@
         "https://impegno.ons-dossier.nl/*",
         "https://impegno-staging-staging.ons-dossier.nl/*"
       ],
-      "js": ["survey-required.js"],
+      "js": ["dist/survey.js"],
       "all_frames": true,
       "match_about_blank": true,
       "match_origin_as_fallback": true,
@@ -56,7 +59,7 @@
         "https://impegno.ons-dossier.nl/*",
         "https://impegno-staging-staging.ons-dossier.nl/*"
       ],
-      "js": ["modules.js", "dist/react-bundle.js", "content.js"],
+      "js": ["dist/react-bundle.js", "dist/content.js"],
       "run_at": "document_idle"
     },
     {
@@ -65,7 +68,16 @@
         "https://impegno.ons-dossier.nl/*",
         "https://impegno-staging-staging.ons-dossier.nl/*"
       ],
-      "js": ["mainworld.js"],
+      "js": ["dist/edge-tab.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.onsagenda.nl/*",
+        "https://impegno.ons-dossier.nl/*",
+        "https://impegno-staging-staging.ons-dossier.nl/*"
+      ],
+      "js": ["dist/main-world.js"],
       "world": "MAIN",
       "run_at": "document_idle"
     },
@@ -73,7 +85,7 @@
       "matches": [
         "https://*.ioservice.net/*"
       ],
-      "js": ["io-planning-block.js"],
+      "js": ["dist/io-planning-block.js"],
       "all_frames": true,
       "match_about_blank": true,
       "match_origin_as_fallback": true,

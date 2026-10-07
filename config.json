@@ -1,40 +1,49 @@
 {
   "choices": [
     {
-      "label": "Huisbezoek",
-      "etiket": "JG Huisbezoek",
+      "label": "Face 2 face",
+      "etiket": "Face to face",
       "clientPresent": true,
       "pickUursoort": true,
-      "addTravelTime": true,
-      "kleur": "rood",
-      "relevantForTeams": []
+      "addTravelTime": false,
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "hourMinute",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_45vp",
+      "volgorde": 1
     },
     {
       "label": "Digitaal",
-      "etiket": "ALL Beeldbellen",
+      "etiket": "Beeldbellen",
       "clientPresent": true,
       "pickUursoort": true,
       "addTravelTime": false,
-      "kleur": "blauw",
-      "relevantForTeams": []
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "columns",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_keg2",
+      "volgorde": 2
     },
     {
-      "label": "MDO",
-      "etiket": "JG MDO",
-      "clientPresent": false,
-      "pickUursoort": true,
-      "addTravelTime": false,
-      "kleur": "geel",
-      "relevantForTeams": []
-    },
-    {
-      "label": "Face 2 face",
-      "etiket": "JG Face to face kantoor",
+      "label": "Huisbezoek",
+      "etiket": "Huisbezoek",
       "clientPresent": true,
       "pickUursoort": true,
-      "addTravelTime": false,
-      "kleur": "blauw",
-      "relevantForTeams": []
+      "addTravelTime": true,
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "hourMinute",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_j95h",
+      "volgorde": 3
     },
     {
       "label": "Verslaglegging",
@@ -42,8 +51,14 @@
       "clientPresent": false,
       "pickUursoort": true,
       "addTravelTime": false,
-      "kleur": "geel",
-      "relevantForTeams": []
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "hourMinute",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_r50x",
+      "volgorde": 4
     },
     {
       "label": "Zorgcoördinatie",
@@ -51,8 +66,328 @@
       "clientPresent": false,
       "pickUursoort": true,
       "addTravelTime": false,
-      "kleur": "groen",
-      "relevantForTeams": []
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "hourMinute",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_0ua8",
+      "volgorde": 5
+    },
+    {
+      "label": "MDO",
+      "etiket": "MDO/Casuïstiek",
+      "clientPresent": false,
+      "pickUursoort": true,
+      "addTravelTime": false,
+      "defaultDuration": 0,
+      "durationStep": 15,
+      "maxDuration": 180,
+      "pickerStyle": "slider",
+      "info": "",
+      "relevantForTeams": [],
+      "kleur": "nieuwe_kleur_r50x",
+      "volgorde": 6
+    }
+  ],
+  "nonClientCategories": [
+    {
+      "label": "Werkzaamheden",
+      "options": [
+        {
+          "display": "Acquisitie",
+          "uursoort": "Acquisitie*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Werktijdenregeling",
+          "uursoort": "Werktijdenregeling*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Voorbereidende werkzaamheden",
+          "uursoort": "Voorbereidende werkzaamheden*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Verplichte nevenactiviteiten",
+          "uursoort": "verpl nevenact - Verplichte nevenactiviteiten*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Schoolcoaching",
+          "uursoort": "Schoolcoaching",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Schoolcoaching indirect",
+          "uursoort": "Schoolcoaching indirect #",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Reistijd",
+          "uursoort": "Reistijd",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Overleg & medezeggenschap",
+      "options": [
+        {
+          "display": "Overleg",
+          "uursoort": "Overleg*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "OR",
+          "uursoort": "OR (ondernemingsraad)*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "OR-training",
+          "uursoort": "OR-training*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "OR-vergadering",
+          "uursoort": "OR-vergadering*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "OR-voorbereiding en uitwerking",
+          "uursoort": "OR-voorbereiding en uitwerking*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Ontwikkeling & begeleiding",
+      "options": [
+        {
+          "display": "J&G verzorgen training extern",
+          "uursoort": "J&G verzorgen training extern",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Detachering",
+          "uursoort": "Detachering",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Inwerken",
+          "uursoort": "Inwerken*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Opleiding & ontwikkeling",
+          "uursoort": "Opleiding & ontwikkeling*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Werkbegeleiding",
+          "uursoort": "Werkbegeleiding*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Verlof & ouderschap",
+      "options": [
+        {
+          "display": "Verlof",
+          "uursoort": "Verlof*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 60,
+          "maxDuration": 480
+        },
+        {
+          "display": "Ouderschapverlof",
+          "uursoort": "Ouderschapverlof*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 60,
+          "maxDuration": 480
+        },
+        {
+          "display": "Kolven",
+          "uursoort": "Kolven*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Pauze, verzuim & gezondheid",
+      "options": [
+        {
+          "display": "Pauze",
+          "uursoort": "Pauze*",
+          "freeTitle": false,
+          "defaultDuration": 30,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Verzuim/ziekte",
+          "uursoort": "Verzuim/ziekte*",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Projecten J&G",
+      "options": [
+        {
+          "display": "J&G DH Kracht Basis",
+          "uursoort": "J&G DH Kracht Basis",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "J&G Den Haag Kracht",
+          "uursoort": "J&G Den Haag Kracht",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "J&G Ind Proeftuin Toekomstscenario",
+          "uursoort": "J&G Ind Proeftuin Toekomstscenario",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "J&G Kacht Transformatie",
+          "uursoort": "J&G Kacht Transformatie",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "J&G Kracht Preventie",
+          "uursoort": "J&G Kracht Preventie",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "J&G Project GGZ",
+          "uursoort": "J&G Project GGZ#",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "JBW project",
+          "uursoort": "JBW project",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Medendo C4",
+          "uursoort": "Medendo C4#",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "Medendo D4",
+          "uursoort": "Medendo D4#",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        },
+        {
+          "display": "PAST Project Gouda",
+          "uursoort": "PAST Project Gouda",
+          "freeTitle": false,
+          "defaultDuration": 0,
+          "durationStep": 15,
+          "maxDuration": 480
+        }
+      ]
+    },
+    {
+      "label": "Overig",
+      "directOption": {
+        "display": "Overig",
+        "uursoort": "",
+        "freeTitle": true,
+        "defaultDuration": 0,
+        "durationStep": 15,
+        "maxDuration": 480
+      }
     }
   ],
   "extraKnownLabels": [
@@ -76,12 +411,12 @@
       "startVerdeling": "100% indirect",
       "uursoort": "",
       "eindtijdBeginPlusMin": 0,
-      "rapportagePrefix": "",
+      "rapportagePrefix": "Verslaglegging\n\nEnzo\n\nEn meer",
       "vraagDirecteTijd": true,
       "vraagIndirecteTijd": false,
       "vraagReistijd": false,
       "labels": [
-        "JG Verslaglegging"
+        "Verslaglegging"
       ],
       "relevantForTeams": []
     },
@@ -95,7 +430,7 @@
       "vraagIndirecteTijd": false,
       "vraagReistijd": false,
       "labels": [
-        "JG MDO"
+        "MDO/Casuïstiek"
       ],
       "relevantForTeams": []
     },
@@ -123,7 +458,7 @@
       "vraagIndirecteTijd": true,
       "vraagReistijd": true,
       "labels": [
-        "JG Huisbezoek"
+        "Huisbezoek"
       ],
       "relevantForTeams": []
     },
@@ -137,7 +472,23 @@
       "vraagIndirecteTijd": true,
       "vraagReistijd": false,
       "labels": [
+        "Face to face",
         "JG Face to face kantoor"
+      ],
+      "relevantForTeams": []
+    },
+    {
+      "vorm": "Digitaal",
+      "startVerdeling": "100% direct",
+      "uursoort": "",
+      "eindtijdBeginPlusMin": 0,
+      "rapportagePrefix": "Digitaal",
+      "vraagDirecteTijd": false,
+      "vraagIndirecteTijd": true,
+      "vraagReistijd": false,
+      "labels": [
+        "Beeldbellen",
+        "ALL Beeldbellen"
       ],
       "relevantForTeams": []
     }
@@ -167,6 +518,31 @@
       "naam": "Paars",
       "fill": "rgba(150,50,200,0.18)",
       "legend": "rgba(150,50,200,0.50)"
+    },
+    "nieuwe_kleur_45vp": {
+      "naam": "labelGeel",
+      "fill": "rgba(255,250,181,0.18)",
+      "legend": "rgba(255,250,181,0.5)"
+    },
+    "nieuwe_kleur_keg2": {
+      "naam": "labelBlauw",
+      "fill": "rgba(218,229,250,0.18)",
+      "legend": "rgba(218,229,250,0.5)"
+    },
+    "nieuwe_kleur_j95h": {
+      "naam": "labelLichtBlauw",
+      "fill": "rgba(202,233,252,0.18)",
+      "legend": "rgba(202,233,252,0.5)"
+    },
+    "nieuwe_kleur_r50x": {
+      "naam": "labelPaars",
+      "fill": "rgba(227,226,253,0.18)",
+      "legend": "rgba(227,226,253,0.5)"
+    },
+    "nieuwe_kleur_0ua8": {
+      "naam": "labelGrijs",
+      "fill": "rgba(228,228,228,0.18)",
+      "legend": "rgba(228,228,228,0.5)"
     }
   },
   "profileSectors": {
@@ -228,7 +604,7 @@
     "J&O/JBG": [
       {
         "start": "08:00",
-        "end": "8:30",
+        "end": "08:30",
         "zone": "Administratie (indirect)",
         "color": "geel"
       },
@@ -363,30 +739,6 @@
       "italic": false,
       "sizePx": 13
     },
-    "probleem_hulp_werkt_niet": {
-      "text": "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.",
-      "html": "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.",
-      "color": "#b3261e",
-      "bold": true,
-      "italic": false,
-      "sizePx": 13
-    },
-    "probleem_uursoort_zelf": {
-      "text": "Kies zelf de uursoort in het gemarkeerde veld hieronder.",
-      "html": "Kies zelf de uursoort in het gemarkeerde veld hieronder.",
-      "color": "#704b00",
-      "bold": false,
-      "italic": false,
-      "sizePx": 13
-    },
-    "probleem_label_zelf": {
-      "text": "Controleer het label bovenaan de afspraak en pas het zo nodig zelf aan.",
-      "html": "Controleer het label bovenaan de afspraak en pas het zo nodig zelf aan.",
-      "color": "#704b00",
-      "bold": false,
-      "italic": false,
-      "sizePx": 13
-    },
     "doorplannen_vraag": {
       "text": "Afspraak doorplannen?",
       "html": "Afspraak doorplannen?",
@@ -449,276 +801,65 @@
           "condition": "leeftijd",
           "op": "<",
           "value": 12
-        },
-        {
-          "question": "Ouder - Cliënttevredenheid score",
-          "rule": "signaal_tonen",
-          "condition": "altijd",
-          "signal": {
-            "text": "{vraag} {clientNaam} {clientLeeftijd}",
-            "html": "{vraag} {clientNaam} {clientLeeftijd}",
-            "color": "#704b00",
-            "bold": true,
-            "italic": false,
-            "sizePx": 13
-          }
         }
       ]
     },
     {
-      "name": "BG Startvragenlijst",
+      "name": "Kindcheck",
       "questions": [
         {
-          "question": "Is het mogelijk om je huisdier in een andere ruimte te laten verblijven wanneer wij op huisbezoek komen?",
+          "question": "Zijn er kinderen in het gezin?",
           "rule": "vraag_verplicht",
           "condition": "leeftijd",
-          "op": ">=",
-          "value": 2
+          "op": "<",
+          "value": 18
         }
       ]
-    }
-  ],
-  "nonClientCategories": [
-    {
-      "label": "Werkzaamheden",
-      "options": [
-        {
-          "display": "Acquisitie",
-          "uursoort": "Acquisitie*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Werktijdenregeling",
-          "uursoort": "Werktijdenregeling*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Voorbereidende werkzaamheden",
-          "uursoort": "Voorbereidende werkzaamheden*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Verplichte nevenactiviteiten",
-          "uursoort": "verpl nevenact - Verplichte nevenactiviteiten*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Schoolcoaching",
-          "uursoort": "Schoolcoaching",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Schoolcoaching indirect",
-          "uursoort": "Schoolcoaching indirect #",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Reistijd",
-          "uursoort": "Reistijd",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Overleg & medezeggenschap",
-      "options": [
-        {
-          "display": "Overleg",
-          "uursoort": "Overleg*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "OR",
-          "uursoort": "OR (ondernemingsraad)*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "OR-training",
-          "uursoort": "OR-training*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "OR-vergadering",
-          "uursoort": "OR-vergadering*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "OR-voorbereiding en uitwerking",
-          "uursoort": "OR-voorbereiding en uitwerking*",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Ontwikkeling & begeleiding",
-      "options": [
-        {
-          "display": "J&G verzorgen training extern",
-          "uursoort": "J&G verzorgen training extern",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Detachering",
-          "uursoort": "Detachering",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Inwerken",
-          "uursoort": "Inwerken*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Opleiding & ontwikkeling",
-          "uursoort": "Opleiding & ontwikkeling*",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Werkbegeleiding",
-          "uursoort": "Werkbegeleiding*",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Verlof & ouderschap",
-      "options": [
-        {
-          "display": "Verlof",
-          "uursoort": "Verlof*",
-          "durationStep": 60,
-          "maxDuration": 480
-        },
-        {
-          "display": "Ouderschapverlof",
-          "uursoort": "Ouderschapverlof*",
-          "durationStep": 60,
-          "maxDuration": 480
-        },
-        {
-          "display": "Kolven",
-          "uursoort": "Kolven*",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Pauze, verzuim & gezondheid",
-      "options": [
-        {
-          "display": "Pauze",
-          "uursoort": "Pauze*",
-          "defaultDuration": 30,
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Verzuim/ziekte",
-          "uursoort": "Verzuim/ziekte*",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Projecten J&G",
-      "options": [
-        {
-          "display": "J&G DH Kracht Basis",
-          "uursoort": "J&G DH Kracht Basis",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "J&G Den Haag Kracht",
-          "uursoort": "J&G Den Haag Kracht",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "J&G Ind Proeftuin Toekomstscenario",
-          "uursoort": "J&G Ind Proeftuin Toekomstscenario",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "J&G Kacht Transformatie",
-          "uursoort": "J&G Kacht Transformatie",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "J&G Kracht Preventie",
-          "uursoort": "J&G Kracht Preventie",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "J&G Project GGZ",
-          "uursoort": "J&G Project GGZ#",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "JBW project",
-          "uursoort": "JBW project",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Medendo C4",
-          "uursoort": "Medendo C4#",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "Medendo D4",
-          "uursoort": "Medendo D4#",
-          "durationStep": 15,
-          "maxDuration": 480
-        },
-        {
-          "display": "PAST Project Gouda",
-          "uursoort": "PAST Project Gouda",
-          "durationStep": 15,
-          "maxDuration": 480
-        }
-      ]
-    },
-    {
-      "label": "Overig",
-      "directOption": {
-        "display": "Overig",
-        "uursoort": "",
-        "freeTitle": true,
-        "durationStep": 15,
-        "maxDuration": 480
-      }
     }
   ],
   "generalSettings": {
+    "durationLabelStyle": "urenMinuten",
+    "travelLabelStyle": "minuten",
     "travelStepMin": 5,
     "travelMaxMin": 60,
     "portionStepMin": 5,
-    "lateThresholdHours": 24
+    "lateThresholdHours": 24,
+    "durationStepMin": 15,
+    "appointmentMaxMin": 480,
+    "registrationMaxMin": 180,
+    "pauseFixedMin": 30,
+    "nonClientMarker": "*",
+    "countWeekends": false,
+    "nonClientUursoorten": [],
+    "excludedRegistrationStatuses": [
+      "do_not_declare"
+    ],
+    "excludedCalendarTypes": [
+      "unavailability",
+      "presence"
+    ]
   },
+  "apiEndpoints": {
+    "weekEvents": "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events",
+    "weekRegistrations": "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created",
+    "registrationDetails": "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
+    "searchClients": "/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1",
+    "productList": "/product_selection/product_list?date={date}&employee_ids[]={employeeId}&client_ids[]={clientId}"
+  },
+  "declarabiliteitRules": [
+    {
+      "match": "J&O/JBG",
+      "base": "direct"
+    },
+    {
+      "match": "J&O",
+      "base": "direct"
+    },
+    {
+      "match": "JBG",
+      "base": "direct"
+    }
+  ],
   "support": {
     "topdeskUrl": "https://impegno.topdesk.net/"
   },
@@ -730,5 +871,8 @@
   "rollout": {
     "enabled": false,
     "groups": {}
-  }
+  },
+  "uiSelectors": {},
+  "uursoortList": [],
+  "labelList": []
 }

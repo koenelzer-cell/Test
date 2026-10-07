@@ -36,10 +36,7 @@ function run(cmd, argv) {
 // niet mee — dus geen node_modules, geen tests, geen bronbestanden.
 const INHOUD = [
   'manifest.json', 'managed_schema.json', 'config.json',
-  'background.js', 'content.js', 'modules.js', 'mainworld.js',
-  'popup.js', 'popup.html', 'survey-required.js', 'surveyImport.js',
-  'io-planning-block.js', 'beheer_u.html',
-  'dist/react-bundle.js', 'icons', 'assets',
+  'dist', 'pages', 'admin', 'icons', 'assets',
 ];
 
 function volgendeVersie(huidig) {
@@ -60,12 +57,12 @@ try {
 
   if (!dry) {
     fs.writeFileSync(manifestPad, manifestTekst.replace(`"version": "${huidig}"`, `"version": "${nieuw}"`));
-    // content.js heeft een terugvalversie voor als getManifest() faalt; die moet
+    // src/shared/version.js heeft een terugvalversie voor als getManifest() faalt; die moet
     // meelopen, anders rapporteert de hulp straks een verkeerd nummer.
-    const contentPad = path.join(ROOT, 'content.js');
+    const contentPad = path.join(ROOT, 'src', 'shared', 'version.js');
     const content = fs.readFileSync(contentPad, 'utf8');
     if (!content.includes(`return '${huidig}'`)) {
-      console.log(rood('  Let op: de terugvalversie in content.js stond niet op ' + huidig + ' en is niet aangepast.'));
+      console.log(rood('  Let op: de terugvalversie in src/shared/version.js stond niet op ' + huidig + ' en is niet aangepast.'));
     } else {
       fs.writeFileSync(contentPad, content.replace(`return '${huidig}'`, `return '${nieuw}'`));
     }
@@ -75,7 +72,7 @@ try {
   kop('Bouwen');
   run('npm', ['run', 'build']);
 
-  kop('Syntaxcontrole');
+  kop('Syntax en manifest controleren');
   run('npm', ['run', 'check']);
 
   kop('Tests');
@@ -97,14 +94,15 @@ try {
   console.log(`  ${nodig.size} bestanden uit het manifest aanwezig`);
 
   // De bundel moet nieuwer zijn dan de bron, anders zip je een oude versie.
-  const bundel = fs.statSync(path.join(ROOT, 'dist/react-bundle.js')).mtimeMs;
+  const bundel = Math.min(...['dist/react-bundle.js', 'dist/content.js']
+    .map((f) => fs.statSync(path.join(ROOT, f)).mtimeMs));
   const bronnen = [];
   const loop = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
     const p = path.join(d, e.name);
     if (e.isDirectory()) loop(p); else bronnen.push(fs.statSync(p).mtimeMs);
   });
   loop(path.join(ROOT, 'src'));
-  if (Math.max(...bronnen) > bundel) throw new Error('dist/react-bundle.js is ouder dan src/ — de bundel is niet opnieuw gebouwd.');
+  if (Math.max(...bronnen) > bundel) throw new Error('dist/ is ouder dan src/ — de bundels zijn niet opnieuw gebouwd.');
   console.log('  bundel is actueel');
 
   // ── Inpakken ──────────────────────────────────────────────────────────────

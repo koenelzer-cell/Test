@@ -1,4 +1,4 @@
-// Testharnas: start een jsdom-omgeving waarin content.js kan draaien, en geeft
+// Testharnas: start een jsdom-omgeving waarin de content-scriptbundel (dist/content.js) kan draaien, en geeft
 // de interne test-API terug (window.__onsHelperTestApi).
 //
 // Twee dingen moeten hier gestubd worden:
@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CONTENT_JS = fs.readFileSync(path.join(ROOT, 'content.js'), 'utf8');
+const CONTENT_JS = fs.readFileSync(path.join(ROOT, 'dist', 'content.js'), 'utf8');
 
 export function fixture(name) {
   return fs.readFileSync(path.join(ROOT, 'test', 'fixtures', name), 'utf8');
@@ -27,14 +27,19 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
   });
   const w = dom.window;
 
-  // (1) chrome-API's
+  // (1) chrome-API's. Berichten worden bijgehouden: `sent` (wat het
+  // content-script verstuurt) en `deliver(msg)` (een bericht van de service
+  // worker of het zijpaneel aan het content-script geven).
+  const listeners = [];
+  const sent = [];
   w.chrome = {
     runtime: {
       id: 'test',
+      lastError: undefined,
       getManifest: () => ({ version: '1.6.181' }),
       getURL: (p) => 'chrome-extension://test/' + p,
-      onMessage: { addListener: () => {} },
-      sendMessage: () => {},
+      onMessage: { addListener: (fn) => listeners.push(fn) },
+      sendMessage: (msg, cb) => { sent.push(msg); if (typeof cb === 'function') cb(undefined); },
     },
     storage: {
       local: { get: (_k, cb) => cb && cb({}), set: (_v, cb) => cb && cb() },
@@ -74,5 +79,13 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
   w.__ONS_EXPOSE_FOR_TEST = true;
   w.eval(CONTENT_JS);
 
-  return { dom, window: w, document: w.document, api: w.__onsHelperTestApi || {} };
+  // Geeft het bericht aan alle onMessage-luisteraars; belooft het antwoord
+  // (of undefined als niemand antwoordt).
+  const deliver = (msg) => new Promise((resolve) => {
+    let async = false;
+    for (const fn of listeners) if (fn(msg, { id: 'test' }, resolve) === true) async = true;
+    if (!async) setTimeout(() => resolve(undefined), 0);
+  });
+
+  return { dom, window: w, document: w.document, api: w.__onsHelperTestApi || {}, sent, deliver };
 }

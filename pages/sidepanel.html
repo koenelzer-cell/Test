@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agendahulp</title>
+  <style>
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: #fff; color: #201d1f;
+      font: 14px/1.4 system-ui, sans-serif; overflow: hidden;
+    }
+    #paneel { height: 100%; display: flex; }
+    /* Meldingen als er (nog) geen ONS-agenda open staat. */
+    .melding {
+      padding: 14px; font-size: 12.5px; line-height: 1.45; color: #6b6367;
+    }
+    .melding b { display: block; color: #201d1f; margin-bottom: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div id="paneel"></div>
+  <!-- De React-bundel (window.__onsahReact) tekent het weekoverzicht in het
+       agendapaneel; daarom vóór sidepanel.js. -->
+  <script src="../dist/react-bundle.js"></script>
+  <script src="../dist/sidepanel.js"></script>
+</body>
+</html>
