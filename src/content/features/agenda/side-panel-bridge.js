@@ -17,7 +17,6 @@ import { quickRegister } from './quick-register.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
 import { MSG } from '../../../shared/messages.js';
-import { PAGE_LOCAL } from '../../../shared/storage-keys.js';
 
 const VERSION = SCRIPT_VERSION;
 /* ===== De Agendahulp in het zijpaneel =====
@@ -64,8 +63,6 @@ function agPanelState() {
     weekLoading: !!agendaPage._agWeekBusy,
     // Toont het zijpaneel de knop 'Verlof aanvragen'? (uit te zetten door beheer)
     leaveRequest: leaveRequestEnabled(),
-    // Open registraties volgens ONS zelf (null = onbekend of niet herkend).
-    onsOpenCount: agendaPage.onsOpenCount,
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
     today: agendaYmd(new Date())
@@ -149,9 +146,6 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e) {}
           });
           return true;
-        case MSG.AGENDA_UNREG_COLLAPSED:
-          try { storageSet(PAGE_LOCAL.UNREG_COLLAPSED, msg.value ? '1' : '0'); } catch (e) {}
-          return;
         default: return;
       }
     });

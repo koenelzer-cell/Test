@@ -39,8 +39,6 @@ test('de dagindeling aan/uit zetten vanuit het zijpaneel wordt onthouden', async
   await tick();
   await deliver({ type: 'ag-toggle-enabled', value: false });
   assert.equal(window.localStorage.getItem('onsHelper.greyEnabled'), '0');
-  await deliver({ type: 'ag-unreg-collapsed', value: true });
-  assert.equal(window.localStorage.getItem('onsHelper.unregCollapsed'), '1');
 });
 
 test('de registratievormen gaan naar de service worker (voor het rechtermuismenu)', async () => {

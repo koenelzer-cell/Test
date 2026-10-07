@@ -24,8 +24,5 @@ export const agendaPage = {
   // de momentopname hem kan meenemen.
   _agLastDeclarabiliteit: null,
   sidePanelOpen: false,
-  // Open registraties volgens ONS zelf (teller-endpoint); null = onbekend.
-  onsOpenCount: null,
-  _onsOpenCountTs: 0,         // tijdstip van de laatste ophaalpoging
   _agStateSig: '',            // laatst uitgezonden toestand (alleen bij wijziging zenden)
 };

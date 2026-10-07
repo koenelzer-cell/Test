@@ -105,13 +105,15 @@ herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 
 ### Zijpaneel: open registraties en snel registreren
 
-Het lipje aan de rechterrand opent het zijpaneel en toont hoeveel open
-registraties ONS zelf telt. In het zijpaneel staan twee hulpmiddelen:
+Het lipje aan de rechterrand opent het zijpaneel; bij het verschijnen schuift
+het kort uit de rand (en wiebelt het één keer per browsersessie). Onder het
+weekoverzicht staan twee knoppen die elk een eigen pagina in het zijpaneel
+openen, met **Terug** naar de hoofdpagina:
 
-- **Open registraties controleren**: kies een periode (standaard vanaf het begin
-  van het aanpasvenster van ONS tot vandaag, hooguit 26 weken). De hulp haalt
-  elke week op en toont per dag welke afgelopen afspraken nog niet geregistreerd
-  zijn; een klik op de dag opent die dag in de agenda.
+- **Open registraties**: kies een periode (standaard vanaf het begin van het
+  aanpasvenster van ONS tot vandaag, hooguit 26 weken). De hulp haalt elke week
+  op en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn;
+  een klik op de dag opent die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld. Overlapt het tijdvak met
   een bestaande registratie, dan volgt eerst een waarschuwing.

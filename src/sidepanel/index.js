@@ -67,7 +67,6 @@ const agendaActies = {
   onOpenOccurrence: function (id) { naarTab({ type: MSG.AGENDA_OPEN_OCCURRENCE, id: id }); },
   onOpenBreakdown: function () { naarTab({ type: MSG.AGENDA_OPEN_BREAKDOWN }); },
   onOpenCalc: function () { naarTab({ type: MSG.AGENDA_OPEN_CALC }); },
-  onUnregCollapsedChange: function (v) { naarTab({ type: MSG.AGENDA_UNREG_COLLAPSED, value: v }); },
   onRequestLeave: function () { naarTab({ type: MSG.AGENDA_OPEN_LEAVE }); },
   onCheckRange: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },

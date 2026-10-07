@@ -262,8 +262,6 @@
     // afspraak-/registratiehulp aan/uit ('1'/'0')
     GREY_ENABLED: "onsHelper.greyEnabled",
     // gekleurde dagindeling aan/uit ('1'/'0')
-    UNREG_COLLAPSED: "onsHelper.unregCollapsed",
-    // 'ongeregistreerd' ingeklapt in het zijpaneel
     SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth"
     // breedte vragenlijstpaneel (px)
   };
@@ -840,8 +838,6 @@
     // { id }
     AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
     AGENDA_OPEN_CALC: "ag-open-calc",
-    AGENDA_UNREG_COLLAPSED: "ag-unreg-collapsed",
-    // { value }
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
@@ -1352,7 +1348,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.205";
+      return "1.6.206";
     }
   }();
 

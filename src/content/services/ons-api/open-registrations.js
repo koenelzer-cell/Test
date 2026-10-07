@@ -1,21 +1,14 @@
-// Openstaande registraties bij ONS: de teller, de overlapcontrole van ONS zelf,
-// en de week-afspraken van een hele periode.
+// Openstaande registraties bij ONS: de overlapcontrole van ONS zelf en de
+// week-afspraken van een hele periode.
 //
-// De teller en de overlapcontrole zijn ongedocumenteerde endpoints. Wordt het
-// antwoord niet herkend, dan geven deze functies null en valt de aanroeper
-// terug op de eigen berekening.
+// De overlapcontrole is een ongedocumenteerd endpoint. Wordt het antwoord niet
+// herkend, dan geeft hij null en valt de aanroeper terug op de eigen
+// berekening.
 
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
-import { isoLocalWithOffset, parseDetectOverlap, parseOpenCount, weekStartsBetween } from '../../domain/open-registrations.js';
+import { isoLocalWithOffset, parseDetectOverlap, weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
-
-// Aantal open registraties volgens ONS, of null.
-export function fetchOpenRegistrationsCount() {
-  return getJson(_apiUrl('openRegistrationsCount'))
-    .then(parseOpenCount)
-    .catch(function () { return null; });
-}
 
 // Overlapcontrole door ONS: true, false of null (onbekend). Het antwoord wordt
 // een minuut onthouden, zodat het compleetheidsvak (dat vaak opnieuw tekent)

@@ -167,7 +167,6 @@ import {
   classifyAgendaEntry,
   isoLocalWithOffset,
   parseDetectOverlap,
-  parseOpenCount,
   summarizeOpenRange,
   weekStartsBetween,
 } from './domain/open-registrations.js';
@@ -335,11 +334,10 @@ export function exposeTestApi() {
     recurrenceIsSet,
     doorplannenWarnText,
     doorplannenBlocksSave,
-    // Open registraties: teller, periodecontrole, snel registreren.
+    // Open registraties: periodecontrole, snel registreren.
     classifyAgendaEntry,
     summarizeOpenRange,
     weekStartsBetween,
-    parseOpenCount,
     parseDetectOverlap,
     isoLocalWithOffset,
     fetchEntriesForRange,

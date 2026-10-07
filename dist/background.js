@@ -47,8 +47,6 @@
     // { id }
     AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
     AGENDA_OPEN_CALC: "ag-open-calc",
-    AGENDA_UNREG_COLLAPSED: "ag-unreg-collapsed",
-    // { value }
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",

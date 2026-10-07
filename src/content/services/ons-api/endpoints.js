@@ -17,7 +17,6 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   searchClients                     interne cliënt-id                    (clients.js)
 //   productList                       uursoorten bij een afspraak          (products.js)
 //   unavailabilities                  verlof vastleggen (POST)             (unavailability.js)
-//   openRegistrationsCount            teller open registraties             (open-registrations.js)
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
 const _API_DEFAULTS = {
@@ -31,7 +30,6 @@ const _API_DEFAULTS = {
   unavailabilities: '/calendar/unavailabilities',
   employeeRegistrations: '/gateway/api/v0/agenda/user/widgets/employee_registrations_overview/registrations'
     + '?date={date}&open=false&includeUnregistered=false&withoutClient=false&offset={offset}&limit={limit}',
-  openRegistrationsCount: '/gateway/api/v0/agenda/user/registrations/open/count',
   detectOverlap: '/worksheet/registrations/detect_overlap?date={date}&start_time={startTime}&end_time={endTime}&hour_type_id={hourTypeId}',
   // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
   newRegistration: '/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}'

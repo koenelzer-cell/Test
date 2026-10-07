@@ -7,7 +7,6 @@ import { loadProfileFromStorage } from './profile.js';
 import { computeTotals } from './unregistered-time.js';
 import { pushBadge, updateTotals } from './extension-sync.js';
 import { refreshAgendaWeekApi } from './week-overview.js';
-import { clearOnsOpenCount, refreshOnsOpenCount } from './open-count.js';
 import { clearPendingRegistration } from '../registration/pending.js';
 import { APP_CONFIG, CONFIG } from '../../config/app-config.js';
 import { MSG } from '../../../shared/messages.js';
@@ -22,7 +21,6 @@ function activateAgendaPage() {
   try { clearPendingRegistration(); } catch (e) {}
   loadProfileFromStorage();
   schedulePaint();
-  refreshOnsOpenCount(true);
   agendaPage.observer = new MutationObserver((muts) => {
     // negeer onze eigen overlay-mutaties
     const own = muts.every((m) => {
@@ -49,7 +47,6 @@ function activateAgendaPage() {
       pushBadge(cnt);
       updateTotals(res);
       refreshAgendaWeekApi(); // API-weekoverzicht (dedupe: haalt alleen bij wijziging)
-      refreshOnsOpenCount();  // teller van ONS (hooguit eens per vijf minuten)
     } catch (e) {}
   }, 300);
 }
@@ -60,7 +57,6 @@ export function deactivateAgendaPage() {
   if (agendaPage.pollTimer) { clearInterval(agendaPage.pollTimer); agendaPage.pollTimer = null; }
   if (agendaPage.totalsTimer) { clearInterval(agendaPage.totalsTimer); agendaPage.totalsTimer = null; }
   pushBadge(0); // badge wissen zodra we de agenda verlaten
-  clearOnsOpenCount();
   // Het zijpaneel toont anders een bevroren overzicht van een pagina die we
   // net verlaten hebben.
   try { agendaPage._agStateSig = ''; if (agendaPage.sidePanelOpen) chrome.runtime.sendMessage({ type: MSG.AGENDA_GONE }); } catch (e) {}

@@ -40,7 +40,6 @@ export const MSG = {
   AGENDA_OPEN_OCCURRENCE: 'ag-open-occurrence', // { id }
   AGENDA_OPEN_BREAKDOWN: 'ag-open-breakdown',
   AGENDA_OPEN_CALC: 'ag-open-calc',
-  AGENDA_UNREG_COLLAPSED: 'ag-unreg-collapsed', // { value }
   AGENDA_OPEN_LEAVE: 'ag-open-leave',   //                 verlofdialoog openen in de pagina
   AGENDA_CHECK_RANGE: 'ag-check-range', // { from, to } -> { ok, result | error }  open registraties in een periode
   AGENDA_QUICK_REGISTER: 'ag-quick-register', // { date, time, minutes, force } -> { ok, overlap?, error? }
@@ -62,7 +61,3 @@ export const PAGE_BRIDGE = {
   TO_MAIN: 'to-main',
   FROM_MAIN: 'from-main',
 };
-
-// Content-script (agenda) -> randlipje, binnen dezelfde pagina: het aantal open
-// registraties volgens ONS. CustomEvent op document, detail { count }.
-export const OPEN_COUNT_EVENT = 'onsah:open-count';

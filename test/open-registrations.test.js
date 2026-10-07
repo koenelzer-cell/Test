@@ -1,9 +1,8 @@
-// Open registraties: de teller van ONS, de controle over een periode en snel
-// registreren.
+// Open registraties: de controle over een periode en snel registreren.
 //
-// De teller en de overlapcontrole van ONS zijn ongedocumenteerde endpoints.
-// Deze tests leggen vast dat een onherkend antwoord nooit als 'nul' of 'geen
-// overlap' wordt gelezen, maar als 'onbekend' (null).
+// De overlapcontrole van ONS is een ongedocumenteerd endpoint. Deze tests
+// leggen vast dat een onherkend antwoord nooit als 'geen overlap' wordt
+// gelezen, maar als 'onbekend' (null).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bootHelper } from './helpers/harness.mjs';
@@ -16,23 +15,6 @@ const afspraak = (id, date, start, minuten, extra = {}) => {
     durationSec: minuten * 60, clientPresent: true, hourType: 'JG Huisbezoek', classes: 'not-declared', ...extra,
   };
 };
-
-test('teller: herkent een getal in de gangbare vormen', () => {
-  const { api } = bootHelper();
-  assert.equal(api.parseOpenCount(7), 7);
-  assert.equal(api.parseOpenCount('12'), 12);
-  assert.equal(api.parseOpenCount({ count: 3 }), 3);
-  assert.equal(api.parseOpenCount({ data: { total: 4 } }), 4);
-  assert.equal(api.parseOpenCount({ open_count: 0 }), 0);
-});
-
-test('teller: een onherkend antwoord is onbekend, niet nul', () => {
-  const { api } = bootHelper();
-  assert.equal(api.parseOpenCount(null), null);
-  assert.equal(api.parseOpenCount({ foo: 'bar' }), null);
-  assert.equal(api.parseOpenCount([1, 2]), null);
-  assert.equal(api.parseOpenCount(-1), null);
-});
 
 test('overlap van ONS: ja, nee en onbekend', () => {
   const { api } = bootHelper();

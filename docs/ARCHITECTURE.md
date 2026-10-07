@@ -174,15 +174,13 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 | `POST /calendar/unavailabilities` | verlof vastleggen (met of zonder herhaling) | `unavailability.js` | — (mislukt het, dan opent AFAS niet) |
 | `/search_panel/clients` | interne cliënt-id op naam | `clients.js` | id's in de cliëntkaart/URL |
 | `/product_selection/product_list` | uursoorten voor medewerker + cliënt(en) | `products.js` | dropdown openen en uitlezen (`ons/uursoort-options.js`) |
-| `/gateway/api/v0/agenda/user/registrations/open/count` | teller open registraties (lipje, zijpaneel) | `open-registrations.js` | geen getal tonen |
 | `/worksheet/registrations/detect_overlap` | overlapcontrole door ONS (alleen nieuwe registraties) | `open-registrations.js` | eigen vergelijking (`features/overlap.js`) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
 | `/invitees/{id}/registrations/new?declaration[…]` | snel registreren: ONS-formulier vooraf ingevuld (paginaroute, geen API) | `features/agenda/quick-register.js` | — |
 
-De teller en `detect_overlap` zijn niet gedocumenteerd. Hun antwoord wordt
-herkend waar dat kan (`domain/open-registrations.js`); anders geldt het als
-*onbekend*: dan verschijnt er geen getal, en blijft de eigen overlapcontrole
-leidend. Een 'nee' van `detect_overlap` onderdrukt nooit een eigen melding.
+`detect_overlap` is niet gedocumenteerd. Het antwoord wordt herkend waar dat
+kan (`domain/open-registrations.js`); anders geldt het als *onbekend* en blijft
+de eigen overlapcontrole leidend. Een 'nee' van `detect_overlap` onderdrukt nooit een eigen melding.
 
 Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
 (same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).

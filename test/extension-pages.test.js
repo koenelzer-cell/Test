@@ -233,18 +233,19 @@ test('service worker: opent alleen https-adressen in een nieuw tabblad naast het
   assert.equal(gemaakt.length, 1);
 });
 
-/* ── Open registraties, snel registreren en het randlipje ─────────────── */
+/* ── Zijpaneel-pagina's en het randlipje ──────────────────────────────── */
 
-const AGENDA_STATE_TOOLS = { ...AGENDA_STATE, onsOpenCount: 3, rangeDefaultFrom: '2026-08-10', today: '2026-10-07' };
+const AGENDA_STATE_TOOLS = { ...AGENDA_STATE, rangeDefaultFrom: '2026-08-10', today: '2026-10-07' };
 const knop = (document, tekst) => [...document.querySelectorAll('button')].find((b) => b.textContent === tekst);
+const navKnop = (document, kop) => [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith(kop));
 
-function zijpaneelMetTools(antwoord) {
+function zijpaneelMetTools(antwoord, state = AGENDA_STATE_TOOLS) {
   const verzonden = [];
   const r = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env) => {
     env.chrome.tabs.query = (q, cb) => cb([{ id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/invitees/1' }]);
     env.chrome.tabs.sendMessage = (id, msg, cb) => {
       verzonden.push(msg);
-      if (msg.type === 'ag-get-state') cb({ state: AGENDA_STATE_TOOLS });
+      if (msg.type === 'ag-get-state') cb({ state });
       else if (antwoord && antwoord[msg.type]) antwoord[msg.type](msg, cb);
       else if (cb) cb(null);
     };
@@ -253,26 +254,48 @@ function zijpaneelMetTools(antwoord) {
   return { ...r, verzonden };
 }
 
-test('zijpaneel: toont het aantal open registraties volgens ONS', async () => {
-  const { document } = zijpaneelMetTools();
+test('zijpaneel: geen "ongeregistreerde tijd per dag" en geen teller meer op de hoofdpagina', async () => {
+  const state = { ...AGENDA_STATE_TOOLS, past: { '2026-10-05': { client: 60, overig: 0, lateMin: 0, lateCount: 0 } } };
+  const { document } = zijpaneelMetTools(null, state);
   await tick();
-  assert.match(document.body.textContent, /3open registraties volgens ONS/);
+  assert.doesNotMatch(document.body.textContent, /Ongeregistreerde tijd per dag/);
+  assert.doesNotMatch(document.body.textContent, /volgens ONS/);
 });
 
-test('zijpaneel: open registraties controleren over een periode', async () => {
+test('zijpaneel: de knoppen naar de pagina\'s staan onder het weekoverzicht', async () => {
+  const { document } = zijpaneelMetTools();
+  await tick();
+  const open = navKnop(document, 'Open registraties');
+  const snel = navKnop(document, 'Snel registreren');
+  assert.ok(open && snel, 'beide knoppen');
+  // De inhoudskolom: kop, status, totalen, weekoverzicht, knoppen, pagina, verlofbalk.
+  const navBox = open.parentElement;
+  const weekBox = navBox.previousElementSibling;
+  assert.equal(weekBox.children.length, 2, 'direct erboven staat het weekoverzicht (laadstrook + overzicht)');
+  assert.ok(navBox.contains(snel));
+});
+
+test('zijpaneel: open registraties is een eigen pagina met terug-knop', async () => {
   let opgevangen;
   const { document, env, verzonden } = zijpaneelMetTools({
     'ag-check-range': (msg, cb) => { opgevangen = cb; },
   });
   await tick();
+  assert.equal(knop(document, 'Controleren'), undefined, 'niet op de hoofdpagina');
+  navKnop(document, 'Open registraties').click();
+  assert.match(document.body.textContent, /Open registraties/);
+  assert.equal(navKnop(document, 'Snel registreren').parentElement.style.display, 'none', 'hoofdpagina is verborgen');
+  assert.equal(knop(document, 'Verlof aanvragen').parentElement.style.display, 'none');
   const datums = [...document.querySelectorAll('input[type="date"]')].map((i) => i.value);
-  assert.deepEqual(datums.slice(0, 2), ['2026-08-10', '2026-10-07'], 'standaard: begin aanpasvenster t/m vandaag');
+  assert.deepEqual(datums, ['2026-08-10', '2026-10-07'], 'standaard: begin aanpasvenster t/m vandaag');
   knop(document, 'Controleren').click();
   const vraag = verzonden.find((m) => m.type === 'ag-check-range');
   assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-08-10', to: '2026-10-07' });
   assert.ok(knop(document, 'Bezig met controleren…').disabled);
-  // Voortgang van het tabblad.
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-range-progress', done: 2, total: 9 }, { tab: { id: 5 } }));
+  assert.match(document.body.textContent, /Week 2 van 9 opgehaald/);
+  // Een pagina-update tussendoor laat de pagina staan.
+  env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-state', state: AGENDA_STATE_TOOLS }, { tab: { id: 5 } }));
   assert.match(document.body.textContent, /Week 2 van 9 opgehaald/);
   opgevangen({ ok: true, result: {
     from: '2026-08-10', to: '2026-10-07', totalMinutes: 90, totalCount: 2, lateCount: 1,
@@ -283,10 +306,14 @@ test('zijpaneel: open registraties controleren over een periode', async () => {
   } });
   assert.match(document.body.textContent, /2 afspraken open · 1 u 30 m op 1 dag/);
   assert.match(document.body.textContent, /09:00/);
-  assert.match(document.body.textContent, /JG Huisbezoek/);
-  // Klik op de dag springt naar die dag, ook vanuit dagweergave.
   [...document.querySelectorAll('div')].find((d) => d.title === 'Klik om naar deze dag te gaan' && /5 okt/.test(d.textContent)).click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-05', always: true });
+  // Terug naar de hoofdpagina, en weer heen: het resultaat staat er nog.
+  knop(document, 'Terug').click();
+  assert.equal(navKnop(document, 'Snel registreren').parentElement.style.display, '');
+  assert.equal(knop(document, 'Verlof aanvragen').parentElement.style.display, '');
+  navKnop(document, 'Open registraties').click();
+  assert.match(document.body.textContent, /2 afspraken open/);
 });
 
 test('zijpaneel: controle zonder open afspraken meldt dat alles geregistreerd is', async () => {
@@ -294,16 +321,17 @@ test('zijpaneel: controle zonder open afspraken meldt dat alles geregistreerd is
     'ag-check-range': (msg, cb) => cb({ ok: true, result: { from: msg.from, to: msg.to, days: [], totalMinutes: 0, totalCount: 0, lateCount: 0 } }),
   });
   await tick();
+  navKnop(document, 'Open registraties').click();
   knop(document, 'Controleren').click();
   assert.match(document.body.textContent, /Alles geregistreerd van/);
 });
 
-test('zijpaneel: snel registreren waarschuwt bij overlap en kan daarna toch openen', async () => {
+test('zijpaneel: snel registreren is een eigen pagina; waarschuwt bij overlap en kan daarna toch openen', async () => {
   const { document, verzonden } = zijpaneelMetTools({
     'ag-quick-register': (msg, cb) => cb(msg.force ? { ok: true } : { ok: false, overlap: 'Let op: op deze dag staat al een registratie van 10:00 tot 11:00.' }),
   });
   await tick();
-  [...document.querySelectorAll('[role="button"]')].find((h) => /Snel registreren/.test(h.textContent)).click();
+  navKnop(document, 'Snel registreren').click();
   const tijd = document.querySelector('input[type="time"]');
   tijd.value = '10:30'; tijd.dispatchEvent(new document.defaultView.Event('input'));
   knop(document, 'Formulier openen').click();
@@ -314,34 +342,42 @@ test('zijpaneel: snel registreren waarschuwt bij overlap en kan daarna toch open
   assert.doesNotMatch(document.body.textContent, /10:00 tot 11:00/);
 });
 
-function laadLipje() {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { runScripts: 'outside-only', url: 'https://impegno.onsagenda.nl/invitees/1/calendar/week' });
+function laadLipje(setup) {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { runScripts: 'outside-only', url: 'https://impegno.onsagenda.nl/invitees/1/calendar/week', pretendToBeVisual: true });
   const env = fakeChrome();
+  if (setup) setup(env);
   dom.window.chrome = env.chrome;
   dom.window.eval(read('dist/edge-tab.js'));
   return { dom, document: dom.window.document, env };
 }
 
-test('randlipje: staand label, paneel-icoon en goed te vinden', () => {
+test('randlipje: het vertrouwde smalle lipje, met een korte animatie bij verschijnen', () => {
   const { document } = laadLipje();
   const tab = document.getElementById('onsah-edge-tab');
   assert.ok(tab, 'het lipje staat in de pagina');
-  assert.match(tab.textContent, /Agendahulp/);
-  assert.equal(tab.getAttribute('role'), 'button');
-  assert.equal(tab.style.width, '34px');
-  assert.ok(tab.querySelectorAll('svg').length >= 2, 'pijl en paneel-icoon');
-  assert.ok(document.getElementById('onsah-edge-tab-stijl'), 'hover- en focusstijl');
+  assert.equal(tab.style.width, '26px');
+  assert.equal(tab.getAttribute('aria-label'), 'Zijpaneel openen');
+  assert.ok(tab.classList.contains('onsah-in'), 'schuift uit de rand bij verschijnen');
+  const stijl = document.getElementById('onsah-edge-tab-stijl').textContent;
+  assert.match(stijl, /@keyframes onsahEdgeIn/);
+  assert.match(stijl, /prefers-reduced-motion: reduce/);
 });
 
-test('randlipje: toont het aantal open registraties dat de agenda doorgeeft', () => {
-  const { document, dom } = laadLipje();
+test('randlipje: wiebelt één keer per sessie', async () => {
+  const { dom, document } = laadLipje();
   const tab = document.getElementById('onsah-edge-tab');
-  const badge = [...tab.querySelectorAll('span')].find((s) => s.style.position === 'absolute');
-  assert.equal(badge.style.display, 'none', 'zonder getal geen teller');
-  document.dispatchEvent(new dom.window.CustomEvent('onsah:open-count', { detail: { count: 3 } }));
-  assert.equal(badge.textContent, '3');
-  assert.equal(badge.style.display, 'inline-flex');
-  assert.match(tab.getAttribute('aria-label'), /3 open registraties/);
-  document.dispatchEvent(new dom.window.CustomEvent('onsah:open-count', { detail: { count: null } }));
-  assert.equal(badge.style.display, 'none', 'agenda verlaten: teller weg');
+  await new Promise((r) => setTimeout(r, 1300));
+  assert.ok(tab.classList.contains('onsah-nudge'));
+  assert.equal(dom.window.sessionStorage.getItem('onsHelper.edgeTabNudged'), '1');
+});
+
+test('randlipje: verdwijnt als het zijpaneel open is en komt terug met animatie', () => {
+  const { document, env } = laadLipje();
+  const tab = document.getElementById('onsah-edge-tab');
+  env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', open: true }));
+  assert.equal(tab.style.display, 'none');
+  tab.classList.remove('onsah-in');
+  env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', open: false }));
+  assert.equal(tab.style.display, 'flex');
+  assert.ok(tab.classList.contains('onsah-in'));
 });

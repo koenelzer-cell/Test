@@ -1,6 +1,6 @@
 // Pure logica rond openstaande registraties: wat telt als 'nog te registreren',
-// welke weken een periode beslaat, en het lezen van de antwoorden van de
-// ONS-endpoints voor de teller en de overlapcontrole.
+// welke weken een periode beslaat, en het lezen van het antwoord van de
+// overlapcontrole van ONS.
 //
 // PRIVACY: alles hier werkt op tijden, datums, de uursoortnaam en een
 // wel/niet-cliënt-vlag. Geen namen, geen titels.
@@ -103,31 +103,11 @@ export function summarizeOpenRange(entries, opts) {
   };
 }
 
-/* ── Antwoorden van ONS lezen ────────────────────────────────────────────
-   Deze endpoints zijn niet gedocumenteerd. De vorm van het antwoord is
+/* ── Antwoord van ONS lezen ──────────────────────────────────────────────
+   Dit endpoint is niet gedocumenteerd. De vorm van het antwoord is
    afgeleid, niet gegarandeerd. Daarom: herkennen wat we kunnen en anders
    null teruggeven, zodat de aanroeper op zijn eigen berekening terugvalt in
    plaats van op een gok te handelen. */
-
-function nonNegInt(v) {
-  if (typeof v === 'number' && isFinite(v) && v >= 0) return Math.floor(v);
-  if (typeof v === 'string' && /^\d+$/.test(v.trim())) return parseInt(v, 10);
-  return null;
-}
-
-// /gateway/api/v0/agenda/user/registrations/open/count -> aantal, of null.
-export function parseOpenCount(json) {
-  var direct = nonNegInt(json);
-  if (direct != null) return direct;
-  if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
-  var keys = ['count', 'total', 'openCount', 'open_count', 'open', 'value', 'amount'];
-  for (var i = 0; i < keys.length; i++) {
-    var n = nonNegInt(json[keys[i]]);
-    if (n != null) return n;
-  }
-  if (json.data != null) return parseOpenCount(json.data);
-  return null;
-}
 
 // /worksheet/registrations/detect_overlap -> true (overlap), false (geen) of
 // null (antwoord niet herkend).

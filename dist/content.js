@@ -106,8 +106,6 @@
     // afspraak-/registratiehulp aan/uit ('1'/'0')
     GREY_ENABLED: "onsHelper.greyEnabled",
     // gekleurde dagindeling aan/uit ('1'/'0')
-    UNREG_COLLAPSED: "onsHelper.unregCollapsed",
-    // 'ongeregistreerd' ingeklapt in het zijpaneel
     SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth"
     // breedte vragenlijstpaneel (px)
   };
@@ -1030,7 +1028,6 @@
     calendarVariables: "/calendar/calendar_variables?date={date}",
     unavailabilities: "/calendar/unavailabilities",
     employeeRegistrations: "/gateway/api/v0/agenda/user/widgets/employee_registrations_overview/registrations?date={date}&open=false&includeUnregistered=false&withoutClient=false&offset={offset}&limit={limit}",
-    openRegistrationsCount: "/gateway/api/v0/agenda/user/registrations/open/count",
     detectOverlap: "/worksheet/registrations/detect_overlap?date={date}&start_time={startTime}&end_time={endTime}&hour_type_id={hourTypeId}",
     // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
     newRegistration: "/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true"
@@ -1127,8 +1124,6 @@
     // { id }
     AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
     AGENDA_OPEN_CALC: "ag-open-calc",
-    AGENDA_UNREG_COLLAPSED: "ag-unreg-collapsed",
-    // { value }
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
@@ -1148,7 +1143,6 @@
     TO_MAIN: "to-main",
     FROM_MAIN: "from-main"
   };
-  var OPEN_COUNT_EVENT = "onsah:open-count";
 
   // src/content/services/ons-api/event-details.js
   function _detailsBody(json) {
@@ -4986,23 +4980,6 @@
       }, 0)
     };
   }
-  function nonNegInt(v) {
-    if (typeof v === "number" && isFinite(v) && v >= 0) return Math.floor(v);
-    if (typeof v === "string" && /^\d+$/.test(v.trim())) return parseInt(v, 10);
-    return null;
-  }
-  function parseOpenCount(json) {
-    var direct = nonNegInt(json);
-    if (direct != null) return direct;
-    if (!json || typeof json !== "object" || Array.isArray(json)) return null;
-    var keys = ["count", "total", "openCount", "open_count", "open", "value", "amount"];
-    for (var i = 0; i < keys.length; i++) {
-      var n = nonNegInt(json[keys[i]]);
-      if (n != null) return n;
-    }
-    if (json.data != null) return parseOpenCount(json.data);
-    return null;
-  }
   function parseDetectOverlap(json) {
     if (typeof json === "boolean") return json;
     if (Array.isArray(json)) return json.length > 0;
@@ -5033,11 +5010,6 @@
   }
 
   // src/content/services/ons-api/open-registrations.js
-  function fetchOpenRegistrationsCount() {
-    return getJson(_apiUrl("openRegistrationsCount")).then(parseOpenCount).catch(function() {
-      return null;
-    });
-  }
   var OVERLAP_TTL_MS = 6e4;
   var _overlapCache = /* @__PURE__ */ Object.create(null);
   function overlapKey(ymd, startMin, endMin, hourTypeId) {
@@ -10225,7 +10197,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.205";
+      return "1.6.206";
     }
   }();
 
@@ -11111,10 +11083,6 @@
     // de momentopname hem kan meenemen.
     _agLastDeclarabiliteit: null,
     sidePanelOpen: false,
-    // Open registraties volgens ONS zelf (teller-endpoint); null = onbekend.
-    onsOpenCount: null,
-    _onsOpenCountTs: 0,
-    // tijdstip van de laatste ophaalpoging
     _agStateSig: ""
     // laatst uitgezonden toestand (alleen bij wijziging zenden)
   };
@@ -12198,8 +12166,6 @@
       weekLoading: !!agendaPage._agWeekBusy,
       // Toont het zijpaneel de knop 'Verlof aanvragen'? (uit te zetten door beheer)
       leaveRequest: leaveRequestEnabled(),
-      // Open registraties volgens ONS zelf (null = onbekend of niet herkend).
-      onsOpenCount: agendaPage.onsOpenCount,
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
       today: agendaYmd(/* @__PURE__ */ new Date())
@@ -12313,12 +12279,6 @@
               }
             });
             return true;
-          case MSG.AGENDA_UNREG_COLLAPSED:
-            try {
-              storageSet(PAGE_LOCAL.UNREG_COLLAPSED, msg.value ? "1" : "0");
-            } catch (e) {
-            }
-            return;
           default:
             return;
         }
@@ -12377,33 +12337,6 @@
     }
   }
 
-  // src/content/features/agenda/open-count.js
-  var INTERVAL_MS = 5 * 60 * 1e3;
-  var _busy = false;
-  function announce(count) {
-    try {
-      document.dispatchEvent(new CustomEvent(OPEN_COUNT_EVENT, { detail: { count } }));
-    } catch (e) {
-    }
-  }
-  function refreshOnsOpenCount(force) {
-    if (_busy) return;
-    if (!force && Date.now() - agendaPage._onsOpenCountTs < INTERVAL_MS) return;
-    _busy = true;
-    agendaPage._onsOpenCountTs = Date.now();
-    fetchOpenRegistrationsCount().then(function(n) {
-      _busy = false;
-      agendaPage.onsOpenCount = n == null ? null : n;
-      announce(agendaPage.onsOpenCount);
-      pushPanelState();
-    });
-  }
-  function clearOnsOpenCount() {
-    agendaPage.onsOpenCount = null;
-    agendaPage._onsOpenCountTs = 0;
-    announce(null);
-  }
-
   // src/content/features/agenda/lifecycle.js
   var NEEDLE = "/invitees";
   function activateAgendaPage() {
@@ -12415,7 +12348,6 @@
     }
     loadProfileFromStorage();
     schedulePaint();
-    refreshOnsOpenCount(true);
     agendaPage.observer = new MutationObserver((muts) => {
       const own = muts.every((m) => {
         const t = m.target;
@@ -12436,7 +12368,6 @@
         pushBadge(cnt);
         updateTotals(res);
         refreshAgendaWeekApi();
-        refreshOnsOpenCount();
       } catch (e) {
       }
     }, 300);
@@ -12457,7 +12388,6 @@
       agendaPage.totalsTimer = null;
     }
     pushBadge(0);
-    clearOnsOpenCount();
     try {
       agendaPage._agStateSig = "";
       if (agendaPage.sidePanelOpen) chrome.runtime.sendMessage({ type: MSG.AGENDA_GONE });
@@ -13836,11 +13766,10 @@
       recurrenceIsSet,
       doorplannenWarnText,
       doorplannenBlocksSave,
-      // Open registraties: teller, periodecontrole, snel registreren.
+      // Open registraties: periodecontrole, snel registreren.
       classifyAgendaEntry,
       summarizeOpenRange,
       weekStartsBetween,
-      parseOpenCount,
       parseDetectOverlap,
       isoLocalWithOffset,
       fetchEntriesForRange,

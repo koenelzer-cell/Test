@@ -13,9 +13,10 @@
    Onderaan staat de knop 'Verlof aanvragen'; die opent de verlofdialoog in de
    ONS-pagina (src/content/features/leave/).
 
-   Twee hulpmiddelen onder de totalen:
-   - 'Open registraties controleren': kies een periode; de ONS-pagina haalt de
-     weken op en meldt per dag wat er nog open staat
+   Onder het weekoverzicht staan twee knoppen die elk een eigen pagina in het
+   zijpaneel openen (met 'Terug' naar de hoofdpagina):
+   - 'Open registraties': kies een periode; de ONS-pagina haalt de weken op en
+     meldt per dag wat er nog open staat
      (src/content/features/agenda/open-range.js).
    - 'Snel registreren': opent het registratieformulier van ONS met datum,
      begintijd en duur al ingevuld, na een overlapcontrole
@@ -104,8 +105,11 @@ function svgPath(d, size) {
   p.setAttribute('fill', 'currentColor'); p.setAttribute('d', d);
   svg.appendChild(p); return svg;
 }
-// Chevron voor de uitklapbare sectie 'Ongeregistreerde tijd per dag'.
+// Pijl naar rechts op de knoppen die een andere pagina openen.
 var CHEV_DICHT = 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z';
+// Icoon 'Open registraties' (kalender met vinkje) en 'Snel registreren' (klok met plus).
+var ICON_RANGE = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm5.6 8.2-3.1-3.1 1.4-1.4 1.7 1.7 4.5-4.5 1.4 1.4z';
+var ICON_QUICK = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-13h-2v6l5 3 1-1.7-4-2.4z';
 
 function pill(label, value, bg, fg) {
   var s = el('span', {
@@ -194,7 +198,7 @@ export function create(host, actions) {
   actions = actions || {};
   var state = null;
   var infoOpen = false;
-  var unregCollapsed = true;   // sectie 'Ongeregistreerde tijd per dag'
+  var pagina = 'hoofd';        // 'hoofd' | 'open' (open registraties) | 'snel' (snel registreren)
 
   // Wortel: spine links, inhoud rechts — dezelfde rij-indeling als in de pagina.
   var root = el('div', {
@@ -279,6 +283,7 @@ export function create(host, actions) {
   focusRing(info);
   info.addEventListener('click', function (e) {
     e.preventDefault(); e.stopPropagation();
+    if (pagina !== 'hoofd') { pagina = 'hoofd'; infoOpen = false; render(); }
     infoOpen = !infoOpen;
     renderBody();
   });
@@ -297,8 +302,12 @@ export function create(host, actions) {
   var weekHost = el('div', { transition: 'opacity .15s ease' });
   weekBox.appendChild(laadStrook);
   weekBox.appendChild(weekHost);
-  var tools = el('div', { padding: '0 12px 12px', flex: '0 0 auto' });
-  mainCol.appendChild(body); mainCol.appendChild(totals); mainCol.appendChild(tools); mainCol.appendChild(weekBox);
+  // Knoppen naar de pagina's 'Open registraties' en 'Snel registreren', onder het weekoverzicht.
+  var navBox = el('div', { padding: '0 12px 12px', flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '8px' });
+  // De pagina zelf (alleen zichtbaar als je een van die knoppen kiest).
+  var tools = el('div', { padding: '12px', flex: '0 0 auto', display: 'none' });
+  mainCol.appendChild(body); mainCol.appendChild(totals); mainCol.appendChild(weekBox);
+  mainCol.appendChild(navBox); mainCol.appendChild(tools);
 
   // ── Verlof aanvragen ── blijft onderaan in beeld, ook als je scrolt.
   var leaveBar = el('div', {
@@ -410,39 +419,15 @@ export function create(host, actions) {
     }, 'Versie ' + ((state && state.version) || '')));
   }
 
-  // Wat ONS zelf telt aan open registraties (het getal achter de ONS-melding).
-  function renderOnsCount() {
-    var n = state && state.onsOpenCount;
-    if (n == null) return null;
-    var row = el('div', {
-      display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', padding: '8px 10px',
-      borderRadius: '10px', fontSize: '12.5px', fontWeight: '600', lineHeight: '1.35',
-      background: n > 0 ? T.brandWash : T.okWash, color: n > 0 ? T.brandDeep : T.ok
-    });
-    row.appendChild(el('span', {
-      minWidth: '22px', height: '22px', padding: '0 6px', boxSizing: 'border-box', borderRadius: '999px',
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto',
-      background: n > 0 ? T.brand : T.ok, color: '#fff', fontSize: '12px', fontWeight: '800',
-      fontVariantNumeric: 'tabular-nums'
-    }, String(n)));
-    row.appendChild(el('span', null, n === 1 ? 'open registratie volgens ONS' : 'open registraties volgens ONS'));
-    row.title = 'Het aantal dat ONS zelf telt (ververst elke vijf minuten).';
-    return row;
-  }
-
   function renderBody() {
     if (infoOpen) { renderInfo(); return; }
     body.innerHTML = '';
     body.appendChild(renderStatusCard());
-    var cnt = renderOnsCount();
-    if (cnt) body.appendChild(cnt);
   }
 
   function renderTotals() {
     totals.innerHTML = '';
     if (!state) return;
-    var past = state.past || {};
-    var dates = Object.keys(past).filter(function (d) { return (past[d].client + past[d].overig) > 0; }).sort();
     var view = state.view || '';
     var inDayView = view === 'day';
 
@@ -457,49 +442,7 @@ export function create(host, actions) {
       totals.appendChild(weekBtn);
     }
 
-    // Sectie 1: ongeregistreerde tijd per dag — inklapbaar, standaard dicht.
-    if (dates.length) {
-      var secHead = el('div', {
-        display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px',
-        fontWeight: '700', color: T.brand, textTransform: 'uppercase', letterSpacing: '.03em',
-        margin: '0 0 6px', borderTop: '1px solid ' + T.line, paddingTop: '9px', userSelect: 'none'
-      });
-      var secChev = svgPath(CHEV_DICHT, 11);
-      secChev.style.cssText = 'width:11px;height:11px;flex:0 0 auto;transition:transform .15s ease;transform:' + (unregCollapsed ? 'none' : 'rotate(90deg)');
-      var secLbl = el('span', { flex: '1 1 auto' }, 'Ongeregistreerde tijd per dag');
-      secHead.appendChild(secChev); secHead.appendChild(secLbl);
-      var secBody = el('div', {
-        display: unregCollapsed ? 'none' : 'flex', flexDirection: 'column', gap: '6px'
-      });
-      secHead.addEventListener('click', function () {
-        unregCollapsed = !unregCollapsed;
-        secBody.style.display = unregCollapsed ? 'none' : 'flex';
-        secChev.style.transform = unregCollapsed ? 'none' : 'rotate(90deg)';
-        if (actions.onUnregCollapsedChange) actions.onUnregCollapsedChange(unregCollapsed);
-      });
-      totals.appendChild(secHead); totals.appendChild(secBody);
-
-      dates.forEach(function (date) {
-        var t = past[date];
-        var card = el('div');
-        card.style.cssText = 'padding:7px 9px;border-radius:10px;background:#fff;border:1px solid ' + (inDayView ? T.line : T.brand) + ';cursor:' + (inDayView ? 'default' : 'pointer') + ';box-sizing:border-box;transition:transform .12s ease, box-shadow .12s ease';
-        if (!inDayView) {
-          card.title = 'Klik om naar deze dag te gaan';
-          liftOnHover(card);
-          card.addEventListener('click', function () { if (actions.onJumpToDay) actions.onJumpToDay(date); });
-        }
-        var d = el('div', { fontSize: '12px', fontWeight: '700', color: T.ink, marginBottom: '3px' }, dayLabel(date));
-        if (t.lateCount > 0) d.appendChild(miniTag('te laat: ' + t.lateCount, T.bad, T.badWash, '#f0b0b0'));
-        var ws = (state.windowStatus || {})[date];
-        if (ws === 'locked') d.appendChild(miniTag('vergrendeld', T.bad, T.badWash, '#f0b0b0'));
-        else if (ws === 'soon') d.appendChild(miniTag('verloopt binnenkort', '#8a5a00', '#fff6e0', '#f0d08a'));
-        card.appendChild(d);
-        card.appendChild(statLine(t.client, t.overig));
-        secBody.appendChild(card);
-      });
-    }
-
-    // Sectie 3: in dagweergave — nog te registreren (klikbaar).
+    // In dagweergave: nog te registreren (klikbaar).
     if (inDayView) {
       var items = state.unfinished || [];
       totals.appendChild(sectionTitle('Nog te registreren' + (items.length ? ' (' + items.length + ')' : '')));
@@ -611,8 +554,8 @@ export function create(host, actions) {
 
   // Eigen toestand, los van de pagina-toestand: die wordt bij elke update
   // vervangen, maar wat je hier invult of opvraagt moet blijven staan.
-  var range = { open: true, from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
-  var quick = { open: false, date: '', time: '', minutes: '15', busy: false, error: '', overlap: '' };
+  var range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
+  var quick = { date: '', time: '', minutes: '15', busy: false, error: '', overlap: '' };
 
   function fieldLabel(text, input) {
     var w = el('label', { display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 0', minWidth: '0', fontSize: '11px', fontWeight: '700', color: T.inkSoft });
@@ -653,23 +596,6 @@ export function create(host, actions) {
       marginTop: '8px', padding: '8px 10px', borderRadius: '10px', background: c[0], color: c[1],
       fontSize: '12.5px', fontWeight: '600', lineHeight: '1.4'
     }, text);
-  }
-  function toolHead(text, isOpen, onToggle) {
-    var h = el('div', {
-      display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11px',
-      fontWeight: '700', color: T.brand, textTransform: 'uppercase', letterSpacing: '.03em',
-      margin: '0 0 6px', borderTop: '1px solid ' + T.line, paddingTop: '9px', userSelect: 'none'
-    });
-    h.setAttribute('role', 'button');
-    h.setAttribute('tabindex', '0');
-    h.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    var chev = svgPath(CHEV_DICHT, 11);
-    chev.style.cssText = 'width:11px;height:11px;flex:0 0 auto;transition:transform .15s ease;transform:' + (isOpen ? 'rotate(90deg)' : 'none');
-    h.appendChild(chev);
-    h.appendChild(el('span', { flex: '1 1 auto' }, text));
-    h.addEventListener('click', onToggle);
-    h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } });
-    return h;
   }
   function clockText(ms) {
     var d = new Date(ms);
@@ -742,74 +668,140 @@ export function create(host, actions) {
     });
   }
 
-  function renderTools() {
-    tools.innerHTML = '';
-    if (!state) return;
-    if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
-    if (!range.to && state.today) range.to = state.today;
-    if (!quick.date && state.today) quick.date = state.today;
-
-    // ── Open registraties controleren ──
-    tools.appendChild(toolHead('Open registraties controleren', range.open, function () { range.open = !range.open; renderTools(); }));
-    if (range.open) {
-      var rBox = el('div');
-      var rRow = el('div', { display: 'flex', gap: '8px' });
-      rRow.appendChild(fieldLabel('Van', inputEl('date', range.from, function (v) { range.from = v; })));
-      rRow.appendChild(fieldLabel('Tot en met', inputEl('date', range.to, function (v) { range.to = v; })));
-      rBox.appendChild(rRow);
-      rBox.appendChild(el('div', { fontSize: '11px', color: T.inkSoft, marginTop: '5px', lineHeight: '1.35' },
-        'Haalt elke week in deze periode op bij ONS (hooguit 26 weken) en toont per dag wat nog niet geregistreerd is.'));
-      rBox.appendChild(primaryBtn(range.busy ? 'Bezig met controleren…' : 'Controleren', startRangeCheck, range.busy));
-      if (range.busy) {
-        zorgVoorStijl(tools.ownerDocument);
-        var p = el('div', { marginTop: '8px' });
-        p.appendChild(el('div', { fontSize: '11px', fontWeight: '700', color: T.inkSoft, marginBottom: '4px' },
-          range.total ? ('Week ' + range.done + ' van ' + range.total + ' opgehaald') : 'Weken ophalen…'));
-        if (range.total) {
-          var spoor = el('div', { height: '4px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden' });
-          spoor.setAttribute('role', 'progressbar');
-          spoor.setAttribute('aria-valuemin', '0'); spoor.setAttribute('aria-valuemax', String(range.total)); spoor.setAttribute('aria-valuenow', String(range.done));
-          spoor.appendChild(el('div', { height: '100%', width: Math.round(range.done / range.total * 100) + '%', background: T.brand, transition: 'width .2s ease' }));
-          p.appendChild(spoor);
-        } else {
-          p.appendChild(laadBalk());
-        }
-        rBox.appendChild(p);
-      }
-      if (range.error) rBox.appendChild(noteBox(range.error, 'bad'));
-      if (range.result && !range.busy) rBox.appendChild(rangeResultEl(range.result));
-      tools.appendChild(rBox);
-    }
-
-    // ── Snel registreren ──
-    tools.appendChild(toolHead('Snel registreren', quick.open, function () { quick.open = !quick.open; renderTools(); }));
-    if (quick.open) {
-      var qBox = el('div');
-      qBox.appendChild(el('div', { marginBottom: '6px' }, null)).appendChild(fieldLabel('Datum', inputEl('date', quick.date, function (v) { quick.date = v; quick.overlap = ''; })));
-      var qRow = el('div', { display: 'flex', gap: '8px' });
-      qRow.appendChild(fieldLabel('Begintijd', inputEl('time', quick.time, function (v) { quick.time = v; quick.overlap = ''; })));
-      var dur = inputEl('number', quick.minutes, function (v) { quick.minutes = v; quick.overlap = ''; });
-      dur.min = '5'; dur.max = '1440'; dur.step = '5';
-      qRow.appendChild(fieldLabel('Duur (min)', dur));
-      qBox.appendChild(qRow);
-      qBox.appendChild(el('div', { fontSize: '11px', color: T.inkSoft, marginTop: '5px', lineHeight: '1.35' },
-        'Opent het registratieformulier van ONS met deze tijden ingevuld. Registreer je een afspraak? Open dan de afspraak zelf, zodat de registratie eraan gekoppeld wordt.'));
-      if (quick.overlap) {
-        qBox.appendChild(noteBox(quick.overlap, 'warn'));
-        qBox.appendChild(primaryBtn(quick.busy ? 'Openen…' : 'Toch openen', function () { startQuickRegister(true); }, quick.busy));
-      } else {
-        qBox.appendChild(primaryBtn(quick.busy ? 'Controleren…' : 'Formulier openen', function () { startQuickRegister(false); }, quick.busy));
-      }
-      if (quick.error) qBox.appendChild(noteBox(quick.error, 'bad'));
-      tools.appendChild(qBox);
-    }
+  // Grote knop die een pagina in het zijpaneel opent.
+  function navKnop(icoon, kop, uitleg, doel) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    Object.assign(b.style, {
+      display: 'flex', alignItems: 'center', gap: '10px', width: '100%', boxSizing: 'border-box',
+      padding: '10px 11px', borderRadius: '12px', border: '1px solid ' + T.line, background: '#fff',
+      color: T.ink, cursor: 'pointer', textAlign: 'left', font: 'inherit',
+      transition: 'transform .12s ease, box-shadow .12s ease, border-color .12s ease'
+    });
+    var ic = el('span', {
+      width: '32px', height: '32px', borderRadius: '9px', background: T.brandWash, color: T.brand,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'
+    });
+    ic.appendChild(svgPath(icoon, 18));
+    b.appendChild(ic);
+    var tekst = el('span', { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2px' });
+    tekst.appendChild(el('span', { fontSize: '13px', fontWeight: '700' }, kop));
+    tekst.appendChild(el('span', { fontSize: '11.5px', color: T.inkSoft, lineHeight: '1.3' }, uitleg));
+    b.appendChild(tekst);
+    var pijl = svgPath(CHEV_DICHT, 16);
+    pijl.style.color = T.brand; pijl.style.flex = '0 0 auto';
+    b.appendChild(pijl);
+    b.addEventListener('mouseenter', function () { b.style.borderColor = T.brand; b.style.transform = 'translateY(-1px)'; b.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.22)'; });
+    b.addEventListener('mouseleave', function () { b.style.borderColor = T.line; b.style.transform = 'none'; b.style.boxShadow = 'none'; });
+    focusRing(b);
+    b.addEventListener('click', function (e) { e.preventDefault(); naarPagina(doel); });
+    return b;
+  }
+  function renderNav() {
+    navBox.innerHTML = '';
+    navBox.appendChild(navKnop(ICON_RANGE, 'Open registraties', 'Controleer een periode op afspraken die nog niet geregistreerd zijn', 'open'));
+    navBox.appendChild(navKnop(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', 'snel'));
   }
 
-  var toolsReady = false;
+  function naarPagina(p) {
+    pagina = p;
+    infoOpen = false;
+    var hoofd = pagina === 'hoofd';
+    [body, totals, weekBox, navBox].forEach(function (n) { n.style.display = hoofd ? '' : 'none'; });
+    tools.style.display = hoofd ? 'none' : '';
+    title.textContent = hoofd ? 'Agendahulp' : (pagina === 'open' ? 'Open registraties' : 'Snel registreren');
+    render();
+    mainCol.scrollTop = 0;
+  }
+
+  function terugKnop() {
+    var back = document.createElement('button');
+    back.type = 'button';
+    Object.assign(back.style, {
+      display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 10px',
+      borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + T.brand, background: '#fff',
+      color: T.brand, fontWeight: '600', fontSize: '13px', width: '100%', marginBottom: '12px',
+      boxSizing: 'border-box', transition: 'transform .12s ease, box-shadow .12s ease'
+    });
+    back.appendChild(svgPath('M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z'));
+    back.appendChild(document.createTextNode('Terug'));
+    liftOnHover(back);
+    focusRing(back);
+    back.addEventListener('click', function (e) { e.preventDefault(); naarPagina('hoofd'); });
+    return back;
+  }
+
+  function renderRangePage() {
+    var rBox = el('div');
+    rBox.appendChild(el('div', { fontSize: '12.5px', color: T.inkSoft, lineHeight: '1.4', margin: '0 0 10px' },
+      'Haalt elke week in deze periode op bij ONS (hooguit 26 weken) en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn.'));
+    var rRow = el('div', { display: 'flex', gap: '8px' });
+    rRow.appendChild(fieldLabel('Van', inputEl('date', range.from, function (v) { range.from = v; })));
+    rRow.appendChild(fieldLabel('Tot en met', inputEl('date', range.to, function (v) { range.to = v; })));
+    rBox.appendChild(rRow);
+    rBox.appendChild(primaryBtn(range.busy ? 'Bezig met controleren…' : 'Controleren', startRangeCheck, range.busy));
+    if (range.busy) {
+      zorgVoorStijl(tools.ownerDocument);
+      var p = el('div', { marginTop: '8px' });
+      p.appendChild(el('div', { fontSize: '11px', fontWeight: '700', color: T.inkSoft, marginBottom: '4px' },
+        range.total ? ('Week ' + range.done + ' van ' + range.total + ' opgehaald') : 'Weken ophalen…'));
+      if (range.total) {
+        var spoor = el('div', { height: '4px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden' });
+        spoor.setAttribute('role', 'progressbar');
+        spoor.setAttribute('aria-valuemin', '0'); spoor.setAttribute('aria-valuemax', String(range.total)); spoor.setAttribute('aria-valuenow', String(range.done));
+        spoor.appendChild(el('div', { height: '100%', width: Math.round(range.done / range.total * 100) + '%', background: T.brand, transition: 'width .2s ease' }));
+        p.appendChild(spoor);
+      } else {
+        p.appendChild(laadBalk());
+      }
+      rBox.appendChild(p);
+    }
+    if (range.error) rBox.appendChild(noteBox(range.error, 'bad'));
+    if (range.result && !range.busy) rBox.appendChild(rangeResultEl(range.result));
+    return rBox;
+  }
+
+  function renderQuickPage() {
+    var qBox = el('div');
+    qBox.appendChild(el('div', { fontSize: '12.5px', color: T.inkSoft, lineHeight: '1.4', margin: '0 0 10px' },
+      'Opent het registratieformulier van ONS met deze tijden ingevuld. Registreer je een afspraak? Open dan de afspraak zelf, zodat de registratie eraan gekoppeld wordt.'));
+    qBox.appendChild(el('div', { marginBottom: '8px' })).appendChild(fieldLabel('Datum', inputEl('date', quick.date, function (v) { quick.date = v; quick.overlap = ''; })));
+    var qRow = el('div', { display: 'flex', gap: '8px' });
+    qRow.appendChild(fieldLabel('Begintijd', inputEl('time', quick.time, function (v) { quick.time = v; quick.overlap = ''; })));
+    var dur = inputEl('number', quick.minutes, function (v) { quick.minutes = v; quick.overlap = ''; });
+    dur.min = '5'; dur.max = '1440'; dur.step = '5';
+    qRow.appendChild(fieldLabel('Duur (min)', dur));
+    qBox.appendChild(qRow);
+    if (quick.overlap) {
+      qBox.appendChild(noteBox(quick.overlap, 'warn'));
+      qBox.appendChild(primaryBtn(quick.busy ? 'Openen…' : 'Toch openen', function () { startQuickRegister(true); }, quick.busy));
+    } else {
+      qBox.appendChild(primaryBtn(quick.busy ? 'Controleren…' : 'Formulier openen', function () { startQuickRegister(false); }, quick.busy));
+    }
+    if (quick.error) qBox.appendChild(noteBox(quick.error, 'bad'));
+    return qBox;
+  }
+
+  // Tekent de open pagina opnieuw. Alleen bij een eigen actie (knop, voortgang,
+  // antwoord), niet bij elke pagina-update: dat zou een half ingevuld veld wissen.
+  function renderTools() {
+    tools.innerHTML = '';
+    if (pagina === 'hoofd') return;
+    if (state) {
+      if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
+      if (!range.to && state.today) range.to = state.today;
+      if (!quick.date && state.today) quick.date = state.today;
+    }
+    tools.appendChild(terugKnop());
+    tools.appendChild(pagina === 'open' ? renderRangePage() : renderQuickPage());
+  }
+
+  var getekendePagina = null;
   function render() {
-    // De hulpmiddelen alleen tekenen als ze er nog niet staan: bij elke
-    // pagina-update opnieuw tekenen zou een half ingevuld veld wissen.
-    if (!toolsReady && state) { toolsReady = true; renderTools(); }
+    // Een subpagina alleen (opnieuw) tekenen als je er net naartoe ging; de
+    // rest van de tijd tekent hij zelf bij een eigen actie.
+    if (pagina !== getekendePagina) { getekendePagina = pagina; renderTools(); }
+    if (pagina !== 'hoofd') { leaveBar.style.display = 'none'; paintOnoff(); return; }
     // Beheer kan de knop uitzetten (config.features.leaveRequest).
     leaveBar.style.display = (state && state.leaveRequest === false) ? 'none' : '';
     paintOnoff();
@@ -819,11 +811,11 @@ export function create(host, actions) {
   }
 
   paintOnoff();
+  renderNav();
   render();
 
   return {
     update: function (next) { state = next || null; render(); },
-    setUnregCollapsed: function (v) { unregCollapsed = !!v; renderTotals(); },
     setRangeProgress: function (done, total) {
       if (!range.busy) return;
       range.done = done; range.total = total;
