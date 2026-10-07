@@ -54,7 +54,7 @@ export function findFreeGaps(entries, opts) {
       var dStart = dag.getTime();
       if (dStart >= e.endMs) break;
       var key = ymd(dag);
-      var voor = (e.travelBefore || 0) / 60, na = (e.travelAfter || 0) / 60; // seconden -> minuten
+      var voor = e.travelBefore || 0, na = e.travelAfter || 0; // reistijd staat al in minuten
       var s = Math.max(0, minutenVanDag(e.startMs, dStart) - voor);
       var en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart) + na);
       if (en > s) (bezet[key] = bezet[key] || []).push([s, en]);

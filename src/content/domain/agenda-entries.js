@@ -20,6 +20,8 @@ export function mapAgendaEntry(e) {
     endMs: end ? Date.parse(end) : null,
     allDay: !!ts.all_day,
     durationSec: (typeof ts.duration === 'number') ? ts.duration : null,
+    // Reistijd in MINUTEN (let op: 'duration' is wél in seconden). Gecontroleerd
+    // op een echte afspraak: 09:00-10:15, duration 4500, travel_time_before/after 30.
     travelBefore: (ts.travel_time_before != null ? ts.travel_time_before : null),
     travelAfter: (ts.travel_time_after != null ? ts.travel_time_after : null),
     type: e.type || null,
@@ -117,9 +119,11 @@ export function entryToVorm(entry, forms) {
   }
   return null;
 }
-// Reistijd staat in time_slot.travel_time_* ; aanname: seconden (net als 'duration').
+// Reistijd staat in time_slot.travel_time_* in MINUTEN (niet in seconden zoals
+// 'duration'): een afspraak van 09:00-10:15 met een half uur reistijd heeft
+// duration 4500 en travel_time_before/after 30.
 // Klopt de schaal niet, zet deze deler op 1 (dan worden het minuten).
-var AGENDA_TRAVEL_DIVISOR = 60;
+var AGENDA_TRAVEL_DIVISOR = 1;
 // Splits de duur van één (geplande) entry in directe/indirecte minuten +
 // reistijd. Volgorde:
 //   1) het label hoort bij een registratievorm -> de startverdeling van die vorm;

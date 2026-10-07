@@ -854,6 +854,8 @@
       endMs: end ? Date.parse(end) : null,
       allDay: !!ts.all_day,
       durationSec: typeof ts.duration === "number" ? ts.duration : null,
+      // Reistijd in MINUTEN (let op: 'duration' is wél in seconden). Gecontroleerd
+      // op een echte afspraak: 09:00-10:15, duration 4500, travel_time_before/after 30.
       travelBefore: ts.travel_time_before != null ? ts.travel_time_before : null,
       travelAfter: ts.travel_time_after != null ? ts.travel_time_after : null,
       type: e.type || null,
@@ -951,7 +953,7 @@
     }
     return null;
   }
-  var AGENDA_TRAVEL_DIVISOR = 60;
+  var AGENDA_TRAVEL_DIVISOR = 1;
   function computeDirectIndirect(entry, forms) {
     var min = _entryMinutes(entry);
     var travelRaw = (entry && entry.travelBefore || 0) + (entry && entry.travelAfter || 0);
@@ -10232,7 +10234,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.214";
+      return "1.6.215";
     }
   }();
 
@@ -12391,7 +12393,7 @@
         var dStart2 = dag2.getTime();
         if (dStart2 >= e.endMs) break;
         var key2 = ymd(dag2);
-        var voor = (e.travelBefore || 0) / 60, na = (e.travelAfter || 0) / 60;
+        var voor = e.travelBefore || 0, na = e.travelAfter || 0;
         var s = Math.max(0, minutenVanDag(e.startMs, dStart2) - voor);
         var en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart2) + na);
         if (en > s) (bezet[key2] = bezet[key2] || []).push([s, en]);

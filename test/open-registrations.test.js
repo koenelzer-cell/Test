@@ -187,7 +187,7 @@ test('planhulp: vrije blokken binnen werktijd, rond afspraken en onbeschikbaarhe
   const afs = (date, van, tot, extra = {}) => ({ type: 'event', date, startMs: Date.parse(date + 'T' + van + ':00'), endMs: Date.parse(date + 'T' + tot + ':00'), ...extra });
   const gaps = api.findFreeGaps([
     afs('2026-10-07', '14:00', '15:00'),
-    afs('2026-10-08', '09:00', '10:00', { travelAfter: 1800 }),              // + 30 m reistijd
+    afs('2026-10-08', '09:00', '10:00', { travelAfter: 30 }),                // + 30 m reistijd (minuten)
     { type: 'event', date: '2026-10-09', allDay: true, layer: 'unavailabilities' }, // vrijdag verlof
     { type: 'unavailability', date: '2026-10-08', layer: 'unavailabilities',          // do 12:00-12:30 onbeschikbaar
       startMs: Date.parse('2026-10-08T12:00:00'), endMs: Date.parse('2026-10-08T12:30:00') },
@@ -283,4 +283,29 @@ test('meerdere invitees: de planhulp zoekt tijd waarop iedereen vrij is', async 
   const beide = api.mapAgendaWeekResponse({ data: [afs('2026-11-02', '09:00', '12:00'), afs('2026-11-02', '13:00', '17:00')] });
   const gaps = api.findFreeGaps(beide, { now: Date.parse('2026-11-02T07:00:00+01:00'), days: 1, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 });
   assert.deepEqual([...gaps.map((g) => g.startMin + '-' + g.endMin)], ['480-540', '720-780'], 'alleen 08:00-09:00 en 12:00-13:00 zijn voor allebei vrij');
+});
+
+test('reistijd van een afspraak staat in minuten (echt voorbeeld uit ONS)', (t) => {
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { api } = bootHelper();
+  // Uit entries/week?layer=events: 09:00-10:15, duration 4500 (seconden), reistijd 30/30 (minuten).
+  const ruw = { data: [{
+    id: '4435056', date: '2026-10-20', type: 'event', hour_type: 'JW BG WBO BH Ambulant', labels: [], clients: [{ id: 1 }],
+    start_time: '2026-10-20T09:00:00.000+02:00', end_time: '2026-10-20T10:15:00.000+02:00',
+    time_slot: { all_day: false, duration: 4500, start_time: '2026-10-20T09:00:00.000+02:00', end_time: '2026-10-20T10:15:00.000+02:00',
+      travel_time_before: 30, travel_time_after: 30 },
+  }] };
+  const entries = api.mapAgendaWeekResponse(ruw);
+  // Planhulp: bezet van 08:30 (reistijd heen) tot 10:45 (reistijd terug).
+  const gaps = api.findFreeGaps(entries, { now: Date.parse('2026-10-20T07:00:00+02:00'), days: 1, minMinutes: 30, stepMin: 15, windowStart: 480, windowEnd: 1020 });
+  assert.deepEqual([...gaps.map((g) => g.startMin + '-' + g.endMin)], ['480-510', '645-1020']);
+  // Gepland: 1 u 15 m direct (cliënt, geen label) + 1 u reistijd.
+  const di = api.computeDirectIndirect(entries[0], []);
+  assert.equal(di.directMin, 75);
+  assert.equal(di.travelMin, 60);
+  const rij = api.plannedProductionRow('2026-10-19', entries);
+  assert.equal(rij.travelMinutes, 60);
+  assert.equal(rij.directMinutes, 75);
 });
