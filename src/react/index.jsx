@@ -35,7 +35,7 @@ window.__onsahReact = {
   renderWeekPanel(container, summary, opts, tokens, clientRows, overigRows, fmtMin, callbacks) {
     getRoot(container).render(
       createElement(AgendaWeekPanel, {
-        summary, opts, tokens, clientRows, overigRows, fmtMin,
+        summary, opts, tokens, fmtMin,
         onOpenClientTime: callbacks && callbacks.onOpenClientTime,
       })
     );
@@ -44,8 +44,8 @@ window.__onsahReact = {
   renderBreakdownBody(container, summary, opts, fmtMin, tokens) {
     getRoot(container).render(createElement(BreakdownModalBody, { summary, opts, fmtMin, tokens }));
   },
-  renderCalcBody(container, rows, nonClientMarker, fmtMin, tokens) {
-    getRoot(container).render(createElement(CalcModalBody, { rows, nonClientMarker, fmtMin, tokens }));
+  renderCalcBody(container, rows, nonClientMarker, fmtMin, tokens, mode) {
+    getRoot(container).render(createElement(CalcModalBody, { rows, nonClientMarker, fmtMin, tokens, mode }));
   },
   // Wizardscherm op naam tekenen (namen komen overeen met markScreen in
   // content.js). Eén root per container, dus opeenvolgende schermen zijn een

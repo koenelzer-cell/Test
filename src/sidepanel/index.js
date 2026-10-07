@@ -67,6 +67,7 @@ const agendaActies = {
   onOpenOccurrence: function (id) { naarTab({ type: MSG.AGENDA_OPEN_OCCURRENCE, id: id }); },
   onRequestLeave: function () { naarTab({ type: MSG.AGENDA_OPEN_LEAVE }); },
   onCheckRange: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to }, cb); },
+  onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
 };

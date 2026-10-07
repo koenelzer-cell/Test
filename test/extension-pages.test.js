@@ -372,21 +372,76 @@ test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijng
   assert.match(document.body.textContent, /4111 u2 u30 m13 u 20 m4010 u2 u30 m13 u 20 m/, 'tabel met dezelfde getallen, nieuwste week bovenaan');
 });
 
-test('zijpaneel: verhouding per uursoort is een pagina, geen dialoog in ONS', async () => {
-  const state = { ...AGENDA_STATE_TOOLS, nonClientMarker: '*', week: {
-    summary: { clientMinutes: 690, byType: [] }, opts: { week: 41, embedded: true, scope: 'week' },
-    clientRows: [{ type: 'JW GGZ', minutes: 690, direct: 480, indirect: 150, travel: 60 }], overigRows: [] } };
-  const { document, verzonden } = zijpaneelMetTools(null, state);
+test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt bladeren', async () => {
+  const state = { ...AGENDA_STATE_TOOLS, nonClientMarker: '*', viewDate: '2026-10-07', week: {
+    summary: { clientMinutes: 690, byType: [] }, opts: { week: 41, embedded: true, scope: 'week' }, clientRows: [], overigRows: [] } };
+  const gevraagd = [];
+  const { document, verzonden } = zijpaneelMetTools({ 'ag-week-ratio': (msg, cb) => {
+    gevraagd.push(msg.date);
+    const toekomst = msg.date > '2026-10-11';
+    cb({ ok: true, result: { weekStart: toekomst ? '2026-10-12' : '2026-10-05', week: toekomst ? 42 : 41, mode: toekomst ? 'gepland' : 'geregistreerd',
+      rows: [{ type: 'JW GGZ', minutes: 700, direct: 480, indirect: 150, travel: 60, other: 10 }] } });
+  } }, state);
   document.defaultView.eval(read('dist/react-bundle.js'));
   env_update(document, state);
   await tick();
   navKnop(document, 'Verhouding per uursoort').click();
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Verhouding per uursoort');
-  assert.match(document.body.textContent, /JW GGZ/);
-  assert.match(document.body.textContent, /Direct8 u · 70%/);
-  assert.match(document.body.textContent, /Reistijd1 u · 9%/);
+  assert.deepEqual(gevraagd, ['2026-10-07'], 'begint bij de bekeken week');
+  assert.match(document.body.textContent, /Week 41geregistreerd/);
+  assert.match(document.body.textContent, /JW GGZ11 u 40 m/, 'totaal = direct + indirect + reistijd + overig');
+  assert.match(document.body.textContent, /Overig10 m · 1%/);
+  document.querySelector('button[aria-label="Volgende week"]').click();
+  await tick();
+  assert.equal(gevraagd.at(-1), '2026-10-14');
+  assert.match(document.body.textContent, /Week 42gepland/);
+  assert.match(document.body.textContent, /zonder label maar met een cliënt telt de afspraak als direct/);
+  knop(document, 'Naar de bekeken week').click();
+  document.querySelector('button[aria-label="Vorige week"]').click();
+  assert.equal(gevraagd.at(-1), '2026-09-30');
   assert.ok(!verzonden.some((m) => /open-(breakdown|calc)/.test(m.type)), 'geen dialoog meer in de ONS-pagina');
+});
+
+test('zijpaneel: afwerklijst werkt zichzelf bij als de agenda verandert', async () => {
+  let controles = 0;
+  const { document } = zijpaneelMetTools({
+    'ag-check-range': (msg, cb) => { controles++; cb({ ok: true, result: RESULT(controles === 1 ? [ITEM_A, ITEM_B] : [ITEM_B]) }); },
+  });
+  await tick();
+  navKnop(document, 'Open registraties').click();
+  knop(document, 'Controleren').click();
+  await new Promise((r) => setTimeout(r, 3100)); // niet vaker dan eens per paar seconden
+  // ONS markeert een afspraak als geregistreerd: de toestand van de pagina verandert.
+  env_update(document, { ...AGENDA_STATE_TOOLS, past: { '2026-10-05': { client: 30, overig: 0, lateMin: 0, lateCount: 0 } } });
+  env_update(document, { ...AGENDA_STATE_TOOLS, past: { '2026-10-05': { client: 0, overig: 0, lateMin: 0, lateCount: 0 } } });
+  await new Promise((r) => setTimeout(r, 1700));
+  assert.equal(controles, 2, 'zonder klikken bijgewerkt');
+  assert.match(document.body.textContent, /1 van 2/);
+});
+
+test('zijpaneel: een andere medewerker in de URL begint opnieuw', async () => {
+  const { document } = zijpaneelMetTools({ 'ag-check-range': (msg, cb) => cb({ ok: true, result: RESULT([ITEM_A]) }) },
+    { ...AGENDA_STATE_TOOLS, inviteeId: '1' });
+  await tick();
+  navKnop(document, 'Open registraties').click();
+  knop(document, 'Controleren').click();
+  assert.match(document.body.textContent, /1 afspraak open/);
+  env_update(document, { ...AGENDA_STATE_TOOLS, inviteeId: '2' });
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agendahulp', 'terug naar de hoofdpagina');
+  navKnop(document, 'Open registraties').click();
+  assert.doesNotMatch(document.body.textContent, /afspraak open/, 'geen resultaten van de vorige medewerker');
+});
+
+test('zijpaneel: het weekoverzicht toont geen lijst per uursoort meer (staat op Verhouding)', async () => {
+  const state = { ...AGENDA_STATE_TOOLS, week: { summary: { clientMinutes: 690, nonClientMinutes: 5, totalMinutes: 695, byType: [] },
+    opts: { week: 41, embedded: true, scope: 'week', perLabel: 'Per uursoort' }, clientRows: [{ type: 'JW GGZ', minutes: 690 }], overigRows: [{ type: 'Overleg *', minutes: 5 }] } };
+  const { document } = zijpaneelMetTools(null, state);
+  document.defaultView.eval(read('dist/react-bundle.js'));
+  env_update(document, state);
+  await tick();
+  assert.match(document.body.textContent, /Totaal 11 u 35 m/);
+  assert.doesNotMatch(document.body.textContent, /Per uursoort|Overig \(/);
 });
 
 test('zijpaneel: controle zonder open afspraken meldt dat alles geregistreerd is', async () => {

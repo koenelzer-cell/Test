@@ -117,15 +117,24 @@ export function entryToVorm(entry, forms) {
 // Reistijd staat in time_slot.travel_time_* ; aanname: seconden (net als 'duration').
 // Klopt de schaal niet, zet deze deler op 1 (dan worden het minuten).
 var AGENDA_TRAVEL_DIVISOR = 60;
-// Splits de duur van één entry in directe/indirecte minuten + reistijd. Kan het
-// label niet naar een registratievorm gemapt worden, dan telt de tijd als
-// "onbekend" (niet gokken op basis van cliënt-aanwezig).
+// Splits de duur van één (geplande) entry in directe/indirecte minuten +
+// reistijd. Volgorde:
+//   1) het label hoort bij een registratievorm -> de startverdeling van die vorm;
+//   2) het label zelf zegt 'direct' of 'indirect';
+//   3) geen label, wel een cliënt gekoppeld -> direct;
+//   4) anders "onbekend" (niet gokken).
 export function computeDirectIndirect(entry, forms) {
   var min = _entryMinutes(entry);
   var travelRaw = ((entry && entry.travelBefore) || 0) + ((entry && entry.travelAfter) || 0);
   var travel = travelRaw / AGENDA_TRAVEL_DIVISOR;
   var vorm = entryToVorm(entry, forms);
   var directPct = vorm ? parseStartVerdeling(vorm.startVerdeling) : null;
+  if (directPct == null) {
+    var labels = _agEntryLabels(entry).map(_agNorm);
+    if (labels.some(function (l) { return /\bindirect\b/.test(l); })) directPct = 0;
+    else if (labels.some(function (l) { return /\bdirect\b/.test(l); })) directPct = 100;
+    else if (!labels.length && entry && entry.clientPresent) directPct = 100;
+  }
   if (directPct == null) return { directMin: 0, indirectMin: 0, unknownMin: min, travelMin: travel };
   var directMin = min * directPct / 100;
   return { directMin: directMin, indirectMin: min - directMin, unknownMin: 0, travelMin: travel };

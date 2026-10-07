@@ -12,7 +12,12 @@ import { agendaWeekNumber, agendaYmd } from '../../core/datetime.js';
 import { ACTIVE_PROFILE } from '../../config/app-config.js';
 import { declarabiliteitPct } from '../../domain/declarabiliteit.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
-import { fetchWeekRegistrationDeclarabiliteit } from '../../services/ons-api/calendar.js';
+import { createLimiter, fetchWeekRegistrationDeclarabiliteit } from '../../services/ons-api/calendar.js';
+
+// Hooguit zoveel aanroepen tegelijk naar ONS, over alle weken samen.
+const GELIJKTIJDIG = 8;
+// Een week die je net hebt berekend, hoeft binnen tien minuten niet opnieuw.
+const WEEK_TTL_MS = 10 * 60 * 1000;
 
 export const MAX_PRODUCTION_WEEKS = 26;
 
@@ -40,10 +45,10 @@ export function productionWeekRow(weekStart, summary, profile) {
   };
 }
 
-// Week voor week ophalen (de berekening per week haalt zelf al tot zes
-// registraties tegelijk op; weken parallel zou ONS te zwaar belasten).
-// onProgress(klaar, totaal). Een mislukte week laat de controle mislukken:
-// een gat in de grafiek zou eruitzien als een week zonder productie.
+// Alle weken tegelijk ophalen, met één gedeelde begrenzer (GELIJKTIJDIG) voor
+// alle aanroepen samen. onProgress(klaar, totaal). Een mislukte week laat de
+// berekening mislukken: een gat in de grafiek zou eruitzien als een week
+// zonder productie.
 export function computeProduction(fromYmd, toYmd, onProgress) {
   var id = currentInviteeId(null) || resolveInviteeId();
   if (id == null) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
@@ -55,19 +60,15 @@ export function computeProduction(fromYmd, toYmd, onProgress) {
   if (!weeks.length) return Promise.reject(new Error('Ongeldige periode.'));
   if (weeks.length > MAX_PRODUCTION_WEEKS) return Promise.reject(new Error('Periode te lang (hooguit ' + MAX_PRODUCTION_WEEKS + ' weken).'));
   var prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
-  var rows = [];
-  var i = 0;
-  function volgende() {
-    if (i >= weeks.length) return Promise.resolve({ from: fromYmd, to: toYmd, weeks: rows });
-    var start = weeks[i];
-    return fetchWeekRegistrationDeclarabiliteit(id, start).then(function (summary) {
-      rows.push(productionWeekRow(start, summary, prof));
-      i++;
-      if (onProgress) { try { onProgress(i, weeks.length); } catch (e) {} }
-      return volgende();
+  var limiter = createLimiter(GELIJKTIJDIG);
+  var klaar = 0;
+  return Promise.all(weeks.map(function (start) {
+    return fetchWeekRegistrationDeclarabiliteit(id, start, { limiter: limiter, ttlMs: WEEK_TTL_MS }).then(function (summary) {
+      klaar++;
+      if (onProgress) { try { onProgress(klaar, weeks.length); } catch (e) {} }
+      return productionWeekRow(start, summary, prof);
     }, function (e) {
       throw new Error('Week ' + (agendaWeekNumber(start) || start) + ' kon niet worden opgehaald (' + ((e && e.message) || 'fout') + ').');
     });
-  }
-  return volgende();
+  })).then(function (rows) { return { from: fromYmd, to: toYmd, weeks: rows }; });
 }

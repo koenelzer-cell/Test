@@ -1,16 +1,13 @@
 import { BigStat } from './BigStat.jsx';
-import { SubTitle } from './SubTitle.jsx';
-import { BarList } from './BarList.jsx';
-import { CollapsibleOverig } from './CollapsibleOverig.jsx';
 
 // Het weekoverzicht in het zijpaneel, uit een summarizeAgendaWeek-resultaat.
-// De cliënt/overig-split (_isClientUursoortName) blijft domeinlogica in het
-// content-script en komt hier al gesplitst binnen als clientRows/overigRows.
+// De uitsplitsing per uursoort staat op de pagina 'Verhouding per uursoort'
+// (niet hier, dat was dubbel).
 //
 // Typografie volgt het zijpaneel (src/sidepanel/agenda-panel.js): kop 13px/700
 // in inkt, groepslabel 12px/600 gedempt, waarden 700. Kleur alleen voor
 // accenten, niet voor tekst.
-export function AgendaWeekPanel({ summary, opts, tokens, clientRows, overigRows, fmtMin, onOpenClientTime }) {
+export function AgendaWeekPanel({ summary, opts, tokens, fmtMin, onOpenClientTime }) {
   const s = summary || {
     count: 0, totalMinutes: 0, clientMinutes: 0, nonClientMinutes: 0,
     directMinutes: 0, indirectMinutes: 0, unknownMinutes: 0, travelMinutes: 0,
@@ -33,13 +30,9 @@ export function AgendaWeekPanel({ summary, opts, tokens, clientRows, overigRows,
         <BigStat label="Cliënttijd" value={fmtMin(s.clientMinutes)} fg={T.ok} interactive tokens={T} onClick={onOpenClientTime} />
         <BigStat label="Niet-cliënttijd" value={fmtMin(s.nonClientMinutes)} fg={T.inkSoft} tokens={T} />
       </div>
-      <div style={{ fontSize: 12, color: T.inkSoft, margin: '0 0 4px', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: 12, color: T.inkSoft, margin: 0, fontVariantNumeric: 'tabular-nums' }}>
         Totaal {fmtMin(s.totalMinutes)}
       </div>
-
-      <SubTitle tokens={T}>{o.perLabel || 'Per afspraaktype'}</SubTitle>
-      <BarList rows={clientRows} tokens={T} fmtMin={fmtMin} />
-      {overigRows.length > 0 && <CollapsibleOverig rows={overigRows} tokens={T} fmtMin={fmtMin} />}
     </div>
   );
 }

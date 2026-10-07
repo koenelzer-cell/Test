@@ -150,3 +150,23 @@ test('productieverloop: per week directe, indirecte en cliënttijd', () => {
   assert.equal(rij.travelMinutes, 60);
   assert.equal(rij.clientMinutes, 690);
 });
+
+test('gepland: label bepaalt direct/indirect; zonder label maar met cliënt is direct', () => {
+  const { api } = bootHelper();
+  const e = (extra) => ({ type: 'event', date: '2026-10-12', durationSec: 3600, clientPresent: true, hourType: 'JG Huisbezoek', labels: [], ...extra });
+  assert.equal(api.computeDirectIndirect(e(), []).directMin, 60, 'geen label + cliënt = direct');
+  assert.equal(api.computeDirectIndirect(e({ labels: [{ name: 'Indirect' }] }), []).indirectMin, 60);
+  assert.equal(api.computeDirectIndirect(e({ labels: ['Direct contact'] }), []).directMin, 60);
+  assert.equal(api.computeDirectIndirect(e({ clientPresent: false }), []).unknownMin, 60, 'geen cliënt, geen label: onbekend');
+  const rows = api.plannedRatioRows([e(), e({ labels: ['Indirect'] }), e({ hourType: 'Overleg *', clientPresent: false })], []);
+  assert.deepEqual(JSON.parse(JSON.stringify(rows)), [{ type: 'JG Huisbezoek', direct: 60, indirect: 60, travel: 0, other: 0, minutes: 120 }]);
+});
+
+test('productieverloop: weken lopen tegelijk, met een gedeelde limiet', async () => {
+  const { api } = bootHelper();
+  const limiet = api.createLimiter(3);
+  let tegelijk = 0, max = 0;
+  const taak = () => limiet(() => { tegelijk++; max = Math.max(max, tegelijk); return new Promise((r) => setTimeout(() => { tegelijk--; r(); }, 5)); });
+  await Promise.all(Array.from({ length: 10 }, taak));
+  assert.equal(max, 3);
+});

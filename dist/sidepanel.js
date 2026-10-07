@@ -51,6 +51,8 @@
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_WEEK_RATIO: "ag-week-ratio",
+    // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
@@ -648,8 +650,22 @@
     // die bij een latere controle niet meer open stonden.
     range: { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 },
     prod: { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" },
-    quick: { date: "", time: "", minutes: "15", busy: false, error: "", overlap: "" }
+    quick: { date: "", time: "", minutes: "15", busy: false, error: "", overlap: "" },
+    // Verhouding per uursoort: hoeveel weken vanaf de bekeken week (0 = die week).
+    ratio: { offset: 0, busy: false, result: null, error: "", voor: "" },
+    inviteeId: null
   };
+  function legeResultaten() {
+    BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
+    BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
+    BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
+  }
+  function plusWeken(ymd, n) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : /* @__PURE__ */ new Date();
+    d.setDate(d.getDate() + 7 * n);
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
   function mergeOpenRange(oud, nieuw, afgewerkt) {
     var open = {};
     (nieuw.days || []).forEach(function(d) {
@@ -712,6 +728,7 @@
     var state = null;
     var pagina = "hoofd";
     var vorigePagina = BEWAARD.pagina;
+    var vergelijkSig = "";
     var root = el("div", {
       background: "#fff",
       color: T.ink,
@@ -1056,6 +1073,10 @@
       info.style.color = pagina === "info" ? T.brand : T.inkSoft;
       renderPagina();
       mainCol.scrollTop = 0;
+      if (p === "verhouding") {
+        ratio.offset = 0;
+        laadRatio();
+      }
     }
     function tekstKnop(icoon, tekst, onClick, disabled) {
       var b = document.createElement("button");
@@ -1098,6 +1119,7 @@
     var range = BEWAARD.range;
     var prod = BEWAARD.prod;
     var quick = BEWAARD.quick;
+    var ratio = BEWAARD.ratio;
     function vulStandaarden() {
       if (!state) return;
       if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
@@ -1113,6 +1135,16 @@
     function renderLive() {
       if (!liveHost) return;
       var b = bridge();
+      if (pagina === "verhouding") {
+        if (!ratio.result) return;
+        if (!b) {
+          liveHost.innerHTML = "";
+          liveHost.appendChild(noteBox("Kon niet laden (bundel ontbreekt).", "bad"));
+          return;
+        }
+        b.renderCalcBody(liveHost, ratio.result.rows || [], state && state.nonClientMarker || "*", fmtMin, T, ratio.result.mode);
+        return;
+      }
       var w = state && state.week;
       if (!w || !w.summary) {
         if (b && b.unmount) b.unmount(liveHost);
@@ -1126,7 +1158,6 @@
         return;
       }
       if (pagina === "clienttijd") b.renderBreakdownBody(liveHost, w.summary, w.opts || {}, fmtMin, T);
-      else if (pagina === "verhouding") b.renderCalcBody(liveHost, w.clientRows || [], state && state.nonClientMarker || "*", fmtMin, T);
     }
     function pageClientTime() {
       var box = el("div");
@@ -1158,11 +1189,90 @@
       }
       return box;
     }
+    function ratioDatum() {
+      return plusWeken(state && state.viewDate || state && state.today, ratio.offset);
+    }
+    function laadRatio() {
+      if (!actions.onWeekRatio) return;
+      var datum = ratioDatum();
+      ratio.busy = true;
+      ratio.error = "";
+      ratio.voor = datum;
+      if (pagina === "verhouding") renderPagina();
+      actions.onWeekRatio(datum, function(res) {
+        if (ratio.voor !== datum) return;
+        ratio.busy = false;
+        if (res && res.ok && res.result) ratio.result = res.result;
+        else {
+          ratio.result = null;
+          ratio.error = res && res.error || "Ophalen mislukt.";
+        }
+        if (pagina === "verhouding") renderPagina();
+      });
+    }
+    function bladerKnop(icoon, label, onClick) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      Object.assign(b.style, {
+        width: "32px",
+        height: "32px",
+        borderRadius: "8px",
+        border: "1px solid " + T.line,
+        background: "#fff",
+        color: T.brand,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: "0 0 auto"
+      });
+      b.appendChild(svgPath(icoon, 18));
+      b.addEventListener("mouseenter", function() {
+        b.style.borderColor = T.brand;
+      });
+      b.addEventListener("mouseleave", function() {
+        b.style.borderColor = T.line;
+      });
+      focusRing(b);
+      b.addEventListener("click", function(e) {
+        e.preventDefault();
+        onClick();
+      });
+      return b;
+    }
     function pageRatio() {
       var box = el("div");
-      box.appendChild(sectionHead(weekNaam().charAt(0).toUpperCase() + weekNaam().slice(1), true));
-      liveHost = el("div");
+      var r0 = ratio.result;
+      var nav = el("div", { display: "flex", alignItems: "center", gap: "8px", margin: "0 0 12px" });
+      nav.appendChild(bladerKnop("M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z", "Vorige week", function() {
+        ratio.offset--;
+        laadRatio();
+      }));
+      var midden = el("div", { flex: "1 1 auto", textAlign: "center", minWidth: "0" });
+      var weeknr = r0 && r0.week ? "Week " + r0.week : "Week …";
+      midden.appendChild(el("div", TYPE.section, weeknr));
+      midden.lastChild.style.margin = "0";
+      midden.appendChild(txt("help", r0 ? (r0.mode === "gepland" ? "gepland" : "geregistreerd") + " · vanaf " + dayLabel(r0.weekStart) : " "));
+      nav.appendChild(midden);
+      nav.appendChild(bladerKnop(CHEV_RECHTS, "Volgende week", function() {
+        ratio.offset++;
+        laadRatio();
+      }));
+      box.appendChild(nav);
+      if (ratio.offset !== 0) {
+        var nu = tekstKnop(PIJL_TERUG, "Naar de bekeken week", function() {
+          ratio.offset = 0;
+          laadRatio();
+        });
+        nu.style.margin = "-4px 0 8px -6px";
+        box.appendChild(nu);
+      }
+      liveHost = el("div", { transition: "opacity .15s ease", opacity: ratio.busy ? ".45" : "1" });
       box.appendChild(liveHost);
+      if (ratio.busy && !r0) box.appendChild(laadBalk());
+      if (ratio.error) box.appendChild(noteBox(ratio.error, "bad"));
       return box;
     }
     function vinkje() {
@@ -1369,6 +1479,20 @@
       if (pagina === "open" && range.result && Date.now() - range.laatst > 3e3) hercontrole();
     }
     window.addEventListener("focus", bijFocus);
+    root.addEventListener("mouseenter", bijFocus);
+    function bijZichtbaar() {
+      if (document.visibilityState === "visible") bijFocus();
+    }
+    document.addEventListener("visibilitychange", bijZichtbaar);
+    var planTimer = null;
+    function planHercontrole() {
+      if (pagina !== "open" || !range.result) return;
+      if (planTimer) clearTimeout(planTimer);
+      planTimer = setTimeout(function() {
+        planTimer = null;
+        bijFocus();
+      }, 1500);
+    }
     function startProduction() {
       if (prod.busy || !actions.onProduction) return;
       prod.busy = true;
@@ -1419,8 +1543,24 @@
     }
     return {
       update: function(next) {
+        var vorigeSig = vergelijkSig;
         state = next || null;
+        var inv = state && state.inviteeId;
+        if (inv && BEWAARD.inviteeId && inv !== BEWAARD.inviteeId) {
+          legeResultaten();
+          range = BEWAARD.range;
+          prod = BEWAARD.prod;
+          ratio = BEWAARD.ratio;
+          BEWAARD.inviteeId = inv;
+          vergelijkSig = "";
+          naarPagina("hoofd");
+          render();
+          return;
+        }
+        if (inv) BEWAARD.inviteeId = inv;
         render();
+        vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : "";
+        if (vorigeSig && vergelijkSig !== vorigeSig) planHercontrole();
       },
       setRangeProgress: function(kind, done, total) {
         var doel = kind === "productie" ? prod : range;
@@ -1431,6 +1571,8 @@
       },
       destroy: function() {
         window.removeEventListener("focus", bijFocus);
+        document.removeEventListener("visibilitychange", bijZichtbaar);
+        if (planTimer) clearTimeout(planTimer);
         try {
           var b = bridge();
           if (b) {
@@ -1832,6 +1974,9 @@
     },
     onCheckRange: function(from, to, cb) {
       vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from, to }, cb);
+    },
+    onWeekRatio: function(date, cb) {
+      vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date }, cb);
     },
     onProduction: function(from, to, cb) {
       vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from, to }, cb);

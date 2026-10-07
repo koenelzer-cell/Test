@@ -953,6 +953,16 @@
     var travel = travelRaw / AGENDA_TRAVEL_DIVISOR;
     var vorm = entryToVorm(entry, forms);
     var directPct = vorm ? parseStartVerdeling(vorm.startVerdeling) : null;
+    if (directPct == null) {
+      var labels = _agEntryLabels(entry).map(_agNorm);
+      if (labels.some(function(l) {
+        return /\bindirect\b/.test(l);
+      })) directPct = 0;
+      else if (labels.some(function(l) {
+        return /\bdirect\b/.test(l);
+      })) directPct = 100;
+      else if (!labels.length && entry && entry.clientPresent) directPct = 100;
+    }
     if (directPct == null) return { directMin: 0, indirectMin: 0, unknownMin: min, travelMin: travel };
     var directMin = min * directPct / 100;
     return { directMin, indirectMin: min - directMin, unknownMin: 0, travelMin: travel };
@@ -985,17 +995,17 @@
       dateMap[d].travel += di.travelMin;
       dateMap[d].count += 1;
     });
-    var round = function(m) {
+    var round2 = function(m) {
       return Math.round(m);
     };
     var byType = Object.keys(typeMap).map(function(k) {
-      return { type: typeMap[k].type, minutes: round(typeMap[k].minutes), count: typeMap[k].count };
+      return { type: typeMap[k].type, minutes: round2(typeMap[k].minutes), count: typeMap[k].count };
     }).sort(function(a, b) {
       return b.minutes - a.minutes;
     });
     var byDate = Object.keys(dateMap).map(function(k) {
       var r = dateMap[k];
-      return { date: r.date, minutes: round(r.minutes), direct: round(r.direct), indirect: round(r.indirect), unknown: round(r.unknown), travel: round(r.travel), count: r.count };
+      return { date: r.date, minutes: round2(r.minutes), direct: round2(r.direct), indirect: round2(r.indirect), unknown: round2(r.unknown), travel: round2(r.travel), count: r.count };
     }).sort(function(a, b) {
       return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
     });
@@ -1003,13 +1013,13 @@
     var directPct = base > 0 ? directMin / base * 100 : 0;
     return {
       count: list.length,
-      totalMinutes: round(totalMin),
-      clientMinutes: round(clientMin),
-      nonClientMinutes: round(nonClientMin),
-      directMinutes: round(directMin),
-      indirectMinutes: round(indirectMin),
-      unknownMinutes: round(unknownMin),
-      travelMinutes: round(travelMin),
+      totalMinutes: round2(totalMin),
+      clientMinutes: round2(clientMin),
+      nonClientMinutes: round2(nonClientMin),
+      directMinutes: round2(directMin),
+      indirectMinutes: round2(indirectMin),
+      unknownMinutes: round2(unknownMin),
+      travelMinutes: round2(travelMin),
       directPct: Math.round(directPct * 10) / 10,
       directTargetPct: 80,
       byType,
@@ -1128,6 +1138,8 @@
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_WEEK_RATIO: "ag-week-ratio",
+    // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
@@ -10204,7 +10216,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.207";
+      return "1.6.208";
     }
   }();
 
@@ -10671,14 +10683,43 @@
       return null;
     });
   }
+  function createLimiter(n) {
+    var active = 0, queue = [];
+    function next() {
+      if (active >= n || !queue.length) return;
+      var job = queue.shift();
+      active++;
+      Promise.resolve().then(job.fn).then(job.resolve, job.reject).then(function() {
+        active--;
+        next();
+      });
+    }
+    return function(fn) {
+      return new Promise(function(resolve, reject) {
+        queue.push({ fn, resolve, reject });
+        next();
+      });
+    };
+  }
   var _weekRegCache = /* @__PURE__ */ Object.create(null);
-  function fetchWeekRegistrationDeclarabiliteit(inviteeId, date) {
+  function fetchWeekRegistrationDeclarabiliteit(inviteeId, date, opts) {
+    opts = opts || {};
     var d = agendaYmd(date) || agendaYmd(/* @__PURE__ */ new Date());
     var cacheKey = inviteeId + "|" + d;
     var cached = _weekRegCache[cacheKey];
-    if (cached && Date.now() - cached.ts < 12e4) return Promise.resolve(cached.summary);
-    return getJson(_apiUrl("weekRegistrations", { inviteeId, date: d })).then(function(j) {
+    var ttl = opts.ttlMs || 12e4;
+    if (cached && Date.now() - cached.ts < ttl) return Promise.resolve(cached.summary);
+    var limit = opts.limiter || null;
+    var lijst = function() {
+      return getJson(_apiUrl("weekRegistrations", { inviteeId, date: d }));
+    };
+    return (limit ? limit(lijst) : lijst()).then(function(j) {
       var occs = parseWeekRegistrationOccurrences(j).slice(0, 200);
+      if (limit) return Promise.all(occs.map(function(o) {
+        return limit(function() {
+          return fetchRegistrationDetails(inviteeId, o.occurrenceId);
+        });
+      }));
       return _mapPool(occs, 6, function(o) {
         return fetchRegistrationDetails(inviteeId, o.occurrenceId);
       });
@@ -12077,6 +12118,8 @@
   }
 
   // src/content/features/agenda/production.js
+  var GELIJKTIJDIG = 8;
+  var WEEK_TTL_MS = 10 * 60 * 1e3;
   var MAX_PRODUCTION_WEEKS = 26;
   function defaultProductionFrom() {
     var d = /* @__PURE__ */ new Date();
@@ -12110,26 +12153,75 @@
     if (!weeks.length) return Promise.reject(new Error("Ongeldige periode."));
     if (weeks.length > MAX_PRODUCTION_WEEKS) return Promise.reject(new Error("Periode te lang (hooguit " + MAX_PRODUCTION_WEEKS + " weken)."));
     var prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
-    var rows = [];
-    var i = 0;
-    function volgende() {
-      if (i >= weeks.length) return Promise.resolve({ from: fromYmd, to: toYmd, weeks: rows });
-      var start = weeks[i];
-      return fetchWeekRegistrationDeclarabiliteit(id, start).then(function(summary) {
-        rows.push(productionWeekRow(start, summary, prof));
-        i++;
+    var limiter = createLimiter(GELIJKTIJDIG);
+    var klaar = 0;
+    return Promise.all(weeks.map(function(start) {
+      return fetchWeekRegistrationDeclarabiliteit(id, start, { limiter, ttlMs: WEEK_TTL_MS }).then(function(summary) {
+        klaar++;
         if (onProgress) {
           try {
-            onProgress(i, weeks.length);
+            onProgress(klaar, weeks.length);
           } catch (e) {
           }
         }
-        return volgende();
+        return productionWeekRow(start, summary, prof);
       }, function(e) {
         throw new Error("Week " + (agendaWeekNumber(start) || start) + " kon niet worden opgehaald (" + (e && e.message || "fout") + ").");
       });
+    })).then(function(rows) {
+      return { from: fromYmd, to: toYmd, weeks: rows };
+    });
+  }
+
+  // src/content/features/agenda/week-ratio.js
+  function round(n) {
+    return Math.round(n || 0);
+  }
+  function plannedRatioRows(entries, forms) {
+    forms = forms || APP_CONFIG && APP_CONFIG.registrationForms || [];
+    var map = /* @__PURE__ */ Object.create(null);
+    (entries || []).forEach(function(e) {
+      if (!e || e.type !== "event" || e.allDay) return;
+      var naam = e.hourType && String(e.hourType).trim() || "";
+      if (!naam && !e.clientPresent) return;
+      if (naam && !_isClientUursoortName(naam)) return;
+      if (!naam) naam = "Zonder uursoort";
+      var di = computeDirectIndirect(e, forms);
+      var r = map[naam] || (map[naam] = { type: naam, direct: 0, indirect: 0, travel: 0, other: 0, minutes: 0 });
+      r.direct += di.directMin;
+      r.indirect += di.indirectMin;
+      r.travel += di.travelMin;
+      r.other += di.unknownMin;
+      r.minutes += _entryMinutes(e) + di.travelMin;
+    });
+    return Object.keys(map).map(function(k) {
+      var r = map[k];
+      return { type: r.type, direct: round(r.direct), indirect: round(r.indirect), travel: round(r.travel), other: round(r.other), minutes: round(r.minutes) };
+    }).sort(function(a, b) {
+      return b.minutes - a.minutes;
+    });
+  }
+  function fetchWeekRatio(date) {
+    var id = currentInviteeId(null) || resolveInviteeId();
+    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var start = weekStartsBetween(date, date)[0];
+    if (!start) return Promise.reject(new Error("Ongeldige datum."));
+    var vandaag = agendaYmd(/* @__PURE__ */ new Date());
+    var dezeWeek = weekStartsBetween(vandaag, vandaag)[0];
+    var basis = { weekStart: start, week: agendaWeekNumber(start) };
+    if (start > dezeWeek) {
+      return fetchInviteeWeek(id, start).then(function(entries) {
+        return Object.assign(basis, { mode: "gepland", rows: plannedRatioRows(entries) });
+      });
     }
-    return volgende();
+    return fetchWeekRegistrationDeclarabiliteit(id, start).then(function(s) {
+      var rows = (s && s.byHourType || []).filter(function(r) {
+        return r && r.type && _isClientUursoortName(r.type);
+      }).map(function(r) {
+        return { type: r.type, direct: r.direct || 0, indirect: r.indirect || 0, travel: r.travel || 0, other: r.other || 0, minutes: r.minutes || 0 };
+      });
+      return Object.assign(basis, { mode: "geregistreerd", rows });
+    });
   }
 
   // src/content/features/agenda/quick-register.js
@@ -12205,6 +12297,11 @@
       weekLoading: !!agendaPage._agWeekBusy,
       // Toont het zijpaneel de knop 'Verlof aanvragen'? (uit te zetten door beheer)
       leaveRequest: leaveRequestEnabled(),
+      // Welke agenda (invitee) er bekeken wordt: wisselt die, dan begint het
+      // zijpaneel opnieuw (resultaten van de vorige medewerker horen er niet).
+      inviteeId: agendaPage._agLastInviteeId != null ? String(agendaPage._agLastInviteeId) : null,
+      // De bekeken datum: startpunt voor bladeren per week.
+      viewDate: currentAgendaDate(),
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
       productionDefaultFrom: defaultProductionFrom(),
@@ -12294,6 +12391,19 @@
             }, function(e) {
               try {
                 sendResponse({ ok: false, error: e && e.message || "Controleren mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_WEEK_RATIO:
+            fetchWeekRatio(msg.date).then(function(result) {
+              try {
+                sendResponse({ ok: true, result });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Ophalen mislukt." });
               } catch (e2) {
               }
             });
@@ -13830,6 +13940,8 @@
       quickRegister,
       quickRegisterUrl,
       productionWeekRow,
+      plannedRatioRows,
+      createLimiter,
       __setOnsOverlap: _setOnsOverlapForTest,
       __setDoorplannen: function(v) {
         try {

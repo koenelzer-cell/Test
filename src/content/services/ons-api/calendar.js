@@ -60,15 +60,38 @@ function fetchRegistrationDetails(inviteeId, occurrenceId) {
     .then(parseRegistrationDetails)
     .catch(function () { return null; });
 }
+// Begrenzer die over meerdere weken heen geldt: hooguit `n` aanroepen tegelijk.
+// Zo kan het productieverloop alle weken tegelijk ophalen zonder ONS te
+// overspoelen (week voor week was traag: elke week wachtte op de vorige).
+export function createLimiter(n) {
+  var active = 0, queue = [];
+  function next() {
+    if (active >= n || !queue.length) return;
+    var job = queue.shift();
+    active++;
+    Promise.resolve().then(job.fn).then(job.resolve, job.reject).then(function () { active--; next(); });
+  }
+  return function (fn) {
+    return new Promise(function (resolve, reject) { queue.push({ fn: fn, resolve: resolve, reject: reject }); next(); });
+  };
+}
 var _weekRegCache = Object.create(null);
-export function fetchWeekRegistrationDeclarabiliteit(inviteeId, date) {
+// Weekcijfers uit de registratie-details. opts.limiter: een gedeelde begrenzer
+// (createLimiter); zonder begrenzer hooguit 6 details tegelijk. opts.ttlMs: hoe
+// lang een eerder opgehaalde week geldig blijft (standaard 2 minuten).
+export function fetchWeekRegistrationDeclarabiliteit(inviteeId, date, opts) {
+  opts = opts || {};
   var d = agendaYmd(date) || agendaYmd(new Date());
   var cacheKey = inviteeId + '|' + d;
   var cached = _weekRegCache[cacheKey];
-  if (cached && (Date.now() - cached.ts) < 120000) return Promise.resolve(cached.summary);
-  return getJson(_apiUrl('weekRegistrations', { inviteeId: inviteeId, date: d }))
+  var ttl = opts.ttlMs || 120000;
+  if (cached && (Date.now() - cached.ts) < ttl) return Promise.resolve(cached.summary);
+  var limit = opts.limiter || null;
+  var lijst = function () { return getJson(_apiUrl('weekRegistrations', { inviteeId: inviteeId, date: d })); };
+  return (limit ? limit(lijst) : lijst())
     .then(function (j) {
       var occs = parseWeekRegistrationOccurrences(j).slice(0, 200); // veiligheidsplafond
+      if (limit) return Promise.all(occs.map(function (o) { return limit(function () { return fetchRegistrationDetails(inviteeId, o.occurrenceId); }); }));
       return _mapPool(occs, 6, function (o) { return fetchRegistrationDetails(inviteeId, o.occurrenceId); });
     })
     .then(function (details) {

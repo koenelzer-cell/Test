@@ -51,6 +51,8 @@
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_WEEK_RATIO: "ag-week-ratio",
+    // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)

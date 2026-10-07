@@ -13,9 +13,11 @@ import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
 import { checkOpenRange, defaultRangeFrom } from './open-range.js';
 import { computeProduction, defaultProductionFrom } from './production.js';
+import { fetchWeekRatio } from './week-ratio.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { quickRegister } from './quick-register.js';
 import { agendaYmd } from '../../core/datetime.js';
+import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
 import { MSG } from '../../../shared/messages.js';
 
@@ -64,6 +66,11 @@ function agPanelState() {
     weekLoading: !!agendaPage._agWeekBusy,
     // Toont het zijpaneel de knop 'Verlof aanvragen'? (uit te zetten door beheer)
     leaveRequest: leaveRequestEnabled(),
+    // Welke agenda (invitee) er bekeken wordt: wisselt die, dan begint het
+    // zijpaneel opnieuw (resultaten van de vorige medewerker horen er niet).
+    inviteeId: agendaPage._agLastInviteeId != null ? String(agendaPage._agLastInviteeId) : null,
+    // De bekeken datum: startpunt voor bladeren per week.
+    viewDate: currentAgendaDate(),
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
     productionDefaultFrom: defaultProductionFrom(),
@@ -135,6 +142,13 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Controleren mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_WEEK_RATIO:
+          fetchWeekRatio(msg.date).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Ophalen mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_PRODUCTION:
