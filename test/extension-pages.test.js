@@ -302,8 +302,10 @@ test('zijpaneel: open registraties is een eigen pagina met terug-knop', async ()
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Open registraties', 'paginatitel');
   assert.equal(zichtbaar(navKnop(document, 'Snel registreren')), false, 'hoofdpagina is verborgen');
   assert.equal(zichtbaar(knop(document, 'Verlof aanvragen')), false);
-  const datums = [...document.querySelectorAll('input[type="date"]')].map((i) => i.value);
+  const datums = [...document.querySelectorAll('[data-datum]')].map((i) => i.getAttribute('data-datum'));
   assert.deepEqual(datums, ['2026-08-10', '2026-10-07'], 'standaard: begin aanpasvenster t/m vandaag');
+  assert.match(document.body.textContent, /ma 10 aug 2026/, 'datum voluit in het veld');
+  assert.equal(document.querySelectorAll('input[type="date"]').length, 0, 'geen keuzevenster van de browser');
   knop(document, 'Controleren').click();
   const vraag = verzonden.find((m) => m.type === 'ag-check-range');
   assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-08-10', to: '2026-10-07' });
@@ -346,7 +348,7 @@ test('zijpaneel: open registraties wordt een afwerklijst, ook na een paginawisse
 });
 
 test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijngrafiek direct en indirect)', async () => {
-  const weken = [40, 41].map((w, i) => ({ week: w, weekStart: i ? '2026-10-05' : '2026-09-28', directMinutes: 600 + i * 60, indirectMinutes: 120, travelMinutes: 30, clientMinutes: 800, nonClientMinutes: 0, totalMinutes: 800, declarabelPct: 100, count: 3 }));
+  const weken = [40, 41, 42].map((w, i) => ({ planned: i === 2, week: w, weekStart: i ? '2026-10-05' : '2026-09-28', directMinutes: 600 + i * 60, indirectMinutes: 120, travelMinutes: 30, clientMinutes: 800, nonClientMinutes: 0, totalMinutes: 800, declarabelPct: 100, count: 3 }));
   const state = { ...AGENDA_STATE_TOOLS, productionDefaultFrom: '2026-08-19', week: {
     summary: { clientMinutes: 690, nonClientMinutes: 5, totalMinutes: 695, directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, unknownMinutes: 5, byType: [] },
     opts: { week: 41, embedded: true, scope: 'week' }, clientRows: [{ type: 'JW GGZ', minutes: 690, direct: 480, indirect: 150, travel: 60 }], overigRows: [] } };
@@ -361,15 +363,17 @@ test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijng
   assert.match(document.body.textContent, /Opbouw week 41/);
   assert.match(document.body.textContent, /Direct8 u/);
   knop(document, 'Productieverloop berekenen').click();
-  assert.deepEqual({ from: verzonden.at(-1).from, to: verzonden.at(-1).to }, { from: '2026-08-19', to: '2026-10-07' });
+  assert.deepEqual({ from: verzonden.at(-1).from, to: verzonden.at(-1).to }, { from: '2026-08-19', to: '2026-11-04' }, 'standaard vier weken vooruit');
   const svg = document.querySelector('svg[role="img"]');
   assert.ok(svg, 'grafiek getekend');
-  assert.equal(svg.querySelectorAll('path[stroke="#2a78d6"]').length, 1, 'lijn direct');
-  assert.equal(svg.querySelectorAll('path[stroke="#cc087d"]').length, 1, 'lijn indirect');
-  assert.equal(svg.querySelectorAll('path[stroke="#1baf7a"]').length, 1, 'lijn reistijd');
-  assert.equal(svg.querySelectorAll('rect').length, 2, 'geen staven; alleen hover-vlakken per week');
+  assert.equal(svg.querySelectorAll('path[stroke="#2a78d6"]').length, 2, 'lijn direct');
+  assert.equal(svg.querySelectorAll('path[stroke="#cc087d"]').length, 2, 'lijn indirect');
+  assert.equal(svg.querySelectorAll('path[stroke="#1baf7a"]').length, 2, 'lijn reistijd: geregistreerd + gepland');
+  assert.equal(svg.querySelectorAll('path[data-gepland]').length, 3, 'geplande weken gestippeld');
+  assert.match(document.body.textContent, /gepland/);
+  assert.equal(svg.querySelectorAll('rect').length, 3, 'geen staven; alleen hover-vlakken per week');
   assert.match(document.body.textContent, /DirectIndirectReistijd/, 'legenda');
-  assert.match(document.body.textContent, /4111 u2 u30 m13 u 20 m4010 u2 u30 m13 u 20 m/, 'tabel met dezelfde getallen, nieuwste week bovenaan');
+  assert.match(document.body.textContent, /42gepland12 u2 u30 m13 u 20 m4111 u2 u30 m13 u 20 m/, 'tabel met dezelfde getallen, nieuwste week bovenaan');
 });
 
 test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt bladeren', async () => {
@@ -397,7 +401,8 @@ test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt b
   assert.equal(gevraagd.at(-1), '2026-10-14');
   assert.match(document.body.textContent, /Week 42gepland/);
   assert.match(document.body.textContent, /zonder label maar met een cliënt telt de afspraak als direct/);
-  knop(document, 'Naar de bekeken week').click();
+  assert.equal(knop(document, 'Naar de bekeken week'), undefined);
+  document.querySelector('button[aria-label="Vorige week"]').click();
   document.querySelector('button[aria-label="Vorige week"]').click();
   assert.equal(gevraagd.at(-1), '2026-09-30');
   assert.ok(!verzonden.some((m) => /open-(breakdown|calc)/.test(m.type)), 'geen dialoog meer in de ONS-pagina');
@@ -452,6 +457,35 @@ test('zijpaneel: controle zonder open afspraken meldt dat alles geregistreerd is
   assert.match(document.body.textContent, /Alles geregistreerd van/);
 });
 
+test('zijpaneel: datumkiezer in de stijl van de hulp', async () => {
+  let gevraagd;
+  const { document } = zijpaneelMetTools({ 'ag-check-range': (msg, cb) => { gevraagd = msg; cb({ ok: true, result: RESULT([]) }); } });
+  await tick();
+  navKnop(document, 'Open registraties').click();
+  const veld = document.querySelector('[data-datum="2026-08-10"]');
+  veld.click();
+  assert.equal(veld.getAttribute('aria-expanded'), 'true');
+  assert.match(document.body.textContent, /augustus 2026/);
+  document.querySelector('[aria-label="Volgende maand"]').click();
+  assert.match(document.body.textContent, /september 2026/);
+  document.querySelector('[data-ymd="2026-09-14"]').click();
+  assert.match(document.body.textContent, /ma 14 sep 2026/);
+  assert.equal(document.querySelector('[role="dialog"]'), null, 'kiezer sluit na kiezen');
+  knop(document, 'Controleren').click();
+  assert.equal(gevraagd.from, '2026-09-14');
+});
+
+test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', async () => {
+  const state = { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-07' };
+  const { document } = zijpaneelMetTools({ 'ag-week-ratio': () => {} }, state);
+  await tick();
+  navKnop(document, 'Verhouding per uursoort').click();
+  assert.match(document.body.textContent, /Week 41ophalen…/);
+  assert.ok(document.querySelector('[role="progressbar"]'), 'laadbalk');
+  document.querySelector('button[aria-label="Volgende week"]').click();
+  assert.match(document.body.textContent, /Week 42ophalen…/, 'weeknummer klopt meteen, ook tijdens het laden');
+});
+
 test('nergens hoofdletterstijl in de extensie', () => {
   const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/survey.js', 'dist/edge-tab.js', 'admin/beheer_u.html'];
   for (const b of bestanden) assert.doesNotMatch(read(b), /uppercase/, b);
@@ -463,8 +497,10 @@ test('zijpaneel: snel registreren is een eigen pagina; waarschuwt bij overlap en
   });
   await tick();
   navKnop(document, 'Snel registreren').click();
-  const tijd = document.querySelector('input[type="time"]');
-  tijd.value = '10:30'; tijd.dispatchEvent(new document.defaultView.Event('input'));
+  [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith('Kies een tijd')).click();
+  knop(document, '10').click();
+  knop(document, ':30').click();
+  assert.equal(document.querySelectorAll('input[type="time"]').length, 0, 'geen keuzevenster van de browser');
   knop(document, 'Formulier openen').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-quick-register', date: '2026-10-07', time: '10:30', minutes: '15', force: false });
   assert.match(document.body.textContent, /10:00 tot 11:00/);

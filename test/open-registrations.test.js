@@ -170,3 +170,13 @@ test('productieverloop: weken lopen tegelijk, met een gedeelde limiet', async ()
   await Promise.all(Array.from({ length: 10 }, taak));
   assert.equal(max, 3);
 });
+
+test('productieverloop: een latere week komt uit de planning', () => {
+  const { api } = bootHelper();
+  const e = (extra) => ({ type: 'event', date: '2026-10-19', durationSec: 3600, clientPresent: true, hourType: 'JG Huisbezoek', labels: [], ...extra });
+  const rij = api.plannedProductionRow('2026-10-19', [e(), e({ labels: ['Indirect'] })]);
+  assert.equal(rij.planned, true);
+  assert.equal(rij.week, 43);
+  assert.equal(rij.directMinutes, 60);
+  assert.equal(rij.indirectMinutes, 60);
+});

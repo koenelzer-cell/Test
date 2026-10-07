@@ -113,12 +113,13 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 
 - **Cliënttijd** (klik op de cliënttijd in het weekoverzicht): de opbouw van de
   week (direct, indirect, reistijd, niet-cliënttijd) en het **productieverloop**:
-  kies een periode (standaard de laatste acht weken, hooguit 26) en zie de
-  directe en indirecte tijd per week als lijngrafiek, met de getallen in een
-  tabel eronder. Per week dezelfde berekening als het weekoverzicht.
+  kies een periode (standaard acht weken terug tot vier weken vooruit, hooguit
+  26) en zie directe, indirecte en reistijd per week als lijngrafiek, met de
+  getallen in een tabel eronder. Tot en met deze week uit de registraties;
+  latere weken uit de planning (gestippeld).
 - **Verhouding per uursoort**: per cliëntgebonden uursoort direct, indirect,
   reistijd en overig, met percentages. Blader met de pijlen naar eerdere en
-  latere weken. Deze en eerdere weken tonen wat geregistreerd is; latere weken
+  latere weken (met een laadscherm zolang een week wordt opgehaald). Deze en eerdere weken tonen wat geregistreerd is; latere weken
   wat gepland staat, met direct of indirect uit het label (geen label maar wel
   een cliënt = direct).
 - **Open registraties**: kies een periode (standaard vanaf het begin van het
@@ -126,6 +127,8 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   niet geregistreerd zijn. Dit is een afwerklijst: registreer je een afspraak of
   zet je hem op *niet registreren*, dan wordt hij vanzelf afgevinkt zodra de
   agenda dat laat zien. De lijst blijft bewaard zolang het zijpaneel open is.
+- Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
+  de hulp, niet met het keuzevenster van de browser.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 

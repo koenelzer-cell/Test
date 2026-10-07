@@ -172,7 +172,7 @@ import {
 } from './domain/open-registrations.js';
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
 import { quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
-import { productionWeekRow } from './features/agenda/production.js';
+import { plannedProductionRow, productionWeekRow } from './features/agenda/production.js';
 import { plannedRatioRows } from './features/agenda/week-ratio.js';
 import { createLimiter } from './services/ons-api/calendar.js';
 
@@ -347,6 +347,7 @@ export function exposeTestApi() {
     quickRegister,
     quickRegisterUrl,
     productionWeekRow,
+    plannedProductionRow,
     plannedRatioRows,
     createLimiter,
     __setOnsOverlap: _setOnsOverlapForTest,
