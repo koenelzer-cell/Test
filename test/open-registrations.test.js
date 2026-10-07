@@ -180,3 +180,27 @@ test('productieverloop: een latere week komt uit de planning', () => {
   assert.equal(rij.directMinutes, 60);
   assert.equal(rij.indirectMinutes, 60);
 });
+
+test('planhulp: vrije blokken binnen werktijd, rond afspraken, pauze en afwezigheid', () => {
+  const { api } = bootHelper();
+  const NU = Date.parse('2026-10-07T13:10:00'); // woensdag
+  const afs = (date, van, tot, extra = {}) => ({ type: 'event', date, startMs: Date.parse(date + 'T' + van + ':00'), endMs: Date.parse(date + 'T' + tot + ':00'), ...extra });
+  const gaps = api.findFreeGaps([
+    afs('2026-10-07', '14:00', '15:00'),
+    afs('2026-10-08', '09:00', '10:00', { travelAfter: 1800 }),              // + 30 m reistijd
+    { type: 'event', date: '2026-10-09', allDay: true, layer: 'unavailabilities' }, // vrijdag verlof
+  ], { now: NU, days: 3, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020, blocked: [{ from: 720, to: 750 }] });
+  const tekst = [...gaps.map((g) => g.date + ' ' + g.startMin + '-' + g.endMin)];
+  assert.deepEqual(tekst, [
+    '2026-10-07 900-1020',     // vandaag: na de afspraak tot 17:00 (13:15-14:00 is te kort)
+    '2026-10-08 480-540',      // do 08:00-09:00
+    '2026-10-08 630-720',      // do na afspraak + reistijd (10:30) tot de pauze
+    '2026-10-08 750-1020',     // do na de pauze tot 17:00
+  ]);
+});
+
+test('planhulp: het afspraakformulier opent met datum, tijd en duur', () => {
+  const { api } = bootHelper();
+  assert.equal(api.newEventUrl(42479, '2026-10-08', '10:30', 60),
+    '/invitees/42479/events/new?event%5Bstart_date%5D=2026-10-08&event%5Bstart_time%5D=10%3A30&event%5Bduration%5D=3600&redirect_to_calendar=true');
+});

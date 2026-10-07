@@ -14,6 +14,20 @@ import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { fetchOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../overlap.js';
 
+export function newEventUrl(inviteeId, ymd, hhmm, minutes) {
+  return _apiUrl('newEvent', { inviteeId: inviteeId, date: ymd, startTime: hhmm, durationSec: minutes * 60 });
+}
+// Planhulp: het afspraakformulier van ONS openen op een gekozen tijdstip.
+// De afspraakhulp neemt het daar over (die start op /events/new).
+export function openNewEvent(req) {
+  req = req || {};
+  var ymd = String(req.date || ''), hhmm = String(req.time || ''), minutes = parseInt(req.minutes, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: 'Ongeldig tijdstip.' };
+  var id = currentInviteeId(ymd) || resolveInviteeId();
+  if (id == null) return { ok: false, error: 'Open eerst je agenda in ONS.' };
+  spaNavigate(location.origin + newEventUrl(id, ymd, hhmm, minutes));
+  return { ok: true };
+}
 export function quickRegisterUrl(inviteeId, ymd, hhmm, minutes) {
   return _apiUrl('newRegistration', { inviteeId: inviteeId, date: ymd, startTime: hhmm, durationSec: minutes * 60 });
 }

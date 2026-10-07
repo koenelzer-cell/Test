@@ -51,6 +51,10 @@
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_NEW_EVENT: "ag-new-event",
+    // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    AGENDA_FREE_SLOTS: "ag-free-slots",
+    // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -1018,12 +1022,17 @@
     quick: { date: "", time: "", minutes: "15", busy: false, error: "", overlap: "" },
     // Verhouding per uursoort: hoeveel weken vanaf de bekeken week (0 = die week).
     ratio: { offset: 0, busy: false, result: null, error: "", voor: "" },
+    // Planhulp: vrije tijd zoeken.
+    plan: { minutes: 60, weeks: 2, busy: false, result: null, error: "" },
+    // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
+    slot: null,
     inviteeId: null
   };
   function legeResultaten() {
     BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
     BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
     BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
+    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, busy: false, result: null, error: "" };
   }
   function isoWeek(ymd) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
@@ -1102,7 +1111,8 @@
     verhouding: "Verhouding per uursoort",
     open: "Open registraties",
     snel: "Snel registreren",
-    info: "Over de Agendahulp"
+    info: "Over de Agendahulp",
+    vrijblok: "Vrij blok"
   };
   function create(host2, actions) {
     actions = actions || {};
@@ -1266,10 +1276,12 @@
     weekBox.appendChild(laadStrook);
     weekBox.appendChild(weekHost);
     var navBox = el("div", { padding: "12px", display: "flex", flexDirection: "column", gap: "8px" });
+    var planBox = el("div", { padding: "0 12px 12px" });
     hoofd.appendChild(statusBox);
     hoofd.appendChild(totals);
     hoofd.appendChild(weekBox);
     hoofd.appendChild(navBox);
+    hoofd.appendChild(planBox);
     var paginaBox = el("div", { padding: "12px", flex: "0 0 auto", display: "none" });
     mainCol.appendChild(hoofd);
     mainCol.appendChild(paginaBox);
@@ -1423,6 +1435,89 @@
         laadStrook.appendChild(laadBalk());
       }
     }
+    function hm(min) {
+      return ("0" + Math.floor(min / 60)).slice(-2) + ":" + ("0" + min % 60).slice(-2);
+    }
+    function startPlan() {
+      if (plan.busy || !actions.onFreeSlots) return;
+      plan.busy = true;
+      plan.error = "";
+      plan.result = null;
+      renderPlan();
+      actions.onFreeSlots(plan.minutes, plan.weeks, function(res) {
+        plan.busy = false;
+        if (res && res.ok && res.result) plan.result = res.result;
+        else plan.error = res && res.error || "Zoeken mislukt.";
+        renderPlan();
+      });
+    }
+    function renderPlan() {
+      planBox.innerHTML = "";
+      planBox.appendChild(sectionHead("Planhulp", false));
+      planBox.appendChild(txt("help", "Zoek vrije tijd voor een afspraak binnen je werktijden" + (state && state.windowLabel ? " (" + state.windowLabel + ")" : "") + ". Pauzes en afwezigheid tellen als bezet.", { margin: "0 0 10px" }));
+      var duur = el("div", { display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" });
+      [30, 45, 60, 90, 120].forEach(function(m) {
+        var g = plan.minutes === m;
+        duur.appendChild(chipKnop(
+          fmtMin(m),
+          g,
+          function() {
+            plan.minutes = m;
+            plan.result = null;
+            renderPlan();
+          },
+          { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }
+        ));
+      });
+      planBox.appendChild(fieldLabel("Duur", duur));
+      var per = el("div", { display: "flex", gap: "4px", marginTop: "0" });
+      [[1, "1 week"], [2, "2 weken"], [4, "4 weken"]].forEach(function(w) {
+        var g = plan.weeks === w[0];
+        per.appendChild(chipKnop(
+          w[1],
+          g,
+          function() {
+            plan.weeks = w[0];
+            plan.result = null;
+            renderPlan();
+          },
+          { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }
+        ));
+      });
+      planBox.appendChild(fieldLabel("Vooruit", per));
+      planBox.appendChild(primaryBtn(plan.busy ? "Bezig met zoeken…" : "Vrije tijd zoeken", startPlan, plan.busy));
+      if (plan.busy) {
+        zorgVoorStijl();
+        var lb = laadBalk();
+        lb.style.marginTop = "10px";
+        planBox.appendChild(lb);
+      }
+      if (plan.error) planBox.appendChild(noteBox(plan.error, "bad"));
+      var res = plan.result;
+      if (res && !plan.busy) {
+        if (!res.gaps.length) {
+          planBox.appendChild(noteBox("Geen vrij blok van " + fmtMin(res.minutes) + " gevonden in de komende " + (res.weeks === 1 ? "week" : res.weeks + " weken") + ".", "warn"));
+        } else {
+          var lijst = el("div", { display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px" });
+          res.gaps.forEach(function(g) {
+            var kaart = clickCard(function() {
+              BEWAARD.slot = { gap: g, minutes: res.minutes, start: g.startMin, error: "" };
+              naarPagina("vrijblok");
+            }, "Opties voor dit vrije blok");
+            Object.assign(kaart.style, { display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px" });
+            kaart.appendChild(el("span", { fontSize: "13px", fontWeight: "600", color: T.ink, flex: "0 0 74px" }, dayLabel(g.date)));
+            kaart.appendChild(el("span", { fontSize: "13px", color: T.ink, flex: "1 1 auto", fontVariantNumeric: "tabular-nums" }, hm(g.startMin) + " – " + hm(g.endMin)));
+            kaart.appendChild(el("span", Object.assign({}, TYPE.help, { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }), fmtMin(g.minutes) + " vrij"));
+            var pijl = svgPath(CHEV_RECHTS, 16);
+            pijl.style.color = T.brand;
+            pijl.style.flex = "0 0 auto";
+            kaart.appendChild(pijl);
+            lijst.appendChild(kaart);
+          });
+          planBox.appendChild(lijst);
+        }
+      }
+    }
     function renderNav() {
       navBox.innerHTML = "";
       navBox.appendChild(navCard(ICON_RATIO, "Verhouding per uursoort", "Direct, indirect en reistijd per cliëntgebonden uursoort", function() {
@@ -1501,6 +1596,7 @@
     var prod = BEWAARD.prod;
     var quick = BEWAARD.quick;
     var ratio = BEWAARD.ratio;
+    var plan = BEWAARD.plan;
     function vulStandaarden() {
       if (!state) return;
       if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
@@ -1845,6 +1941,54 @@
       if (quick.error) box.appendChild(noteBox(quick.error, "bad"));
       return box;
     }
+    function pageSlot() {
+      var box = el("div");
+      var sl = BEWAARD.slot;
+      if (!sl) {
+        box.appendChild(txt("help", "Kies eerst een vrij blok in de planhulp."));
+        return box;
+      }
+      var g = sl.gap, duur = sl.minutes;
+      box.appendChild(sectionHead(dayLabel(g.date) + " · " + hm(g.startMin) + " – " + hm(g.endMin), true));
+      box.appendChild(txt("help", fmtMin(g.minutes) + " vrij. Kies een begintijd voor een afspraak van " + fmtMin(duur) + ".", { margin: "0 0 10px" }));
+      var starts = el("div", { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px" });
+      for (var m = g.startMin; m + duur <= g.endMin; m += 15) {
+        (function(m2) {
+          var gek = sl.start === m2;
+          var c = chipKnop(hm(m2), gek, function() {
+            sl.start = m2;
+            renderPagina();
+          }, { width: "100%", border: "1px solid " + (gek ? T.brand : T.line) });
+          c.setAttribute("data-start", hm(m2));
+          starts.appendChild(c);
+        })(m);
+      }
+      box.appendChild(fieldLabel("Begintijd", starts));
+      var samen = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderRadius: "12px", background: T.lineSoft, margin: "12px 0 0" });
+      var ic = svgPath(ICON_QUICK, 16);
+      ic.style.color = T.brand;
+      ic.style.flex = "0 0 auto";
+      samen.appendChild(ic);
+      samen.appendChild(el("span", TYPE.text, "Afspraak " + hm(sl.start) + " – " + hm(sl.start + duur) + " (" + fmtMin(duur) + ")"));
+      box.appendChild(samen);
+      box.appendChild(primaryBtn("Afspraak maken op dit tijdstip", function() {
+        sl.error = "";
+        if (!actions.onNewEvent) return;
+        actions.onNewEvent({ date: g.date, time: hm(sl.start), minutes: duur }, function(res) {
+          if (!(res && res.ok)) {
+            sl.error = res && res.error || "Openen mislukt.";
+            if (pagina === "vrijblok") renderPagina();
+          }
+        });
+      }));
+      var dag = secondaryBtn("Naar deze dag in de agenda", function() {
+        if (actions.onJumpToDay) actions.onJumpToDay(g.date, true);
+      });
+      dag.style.marginTop = "8px";
+      box.appendChild(dag);
+      if (sl.error) box.appendChild(noteBox(sl.error, "bad"));
+      return box;
+    }
     function pageInfo() {
       var box = el("div");
       box.appendChild(txt("help", "Gebruik de Agendahulp voor een duidelijk agenda-overzicht.", { margin: "0 0 12px" }));
@@ -1866,7 +2010,7 @@
       if (pagina === "hoofd") return;
       vulStandaarden();
       paginaBox.appendChild(terugKnop());
-      var inhoud = pagina === "clienttijd" ? pageClientTime() : pagina === "verhouding" ? pageRatio() : pagina === "open" ? pageOpen() : pagina === "snel" ? pageQuick() : pageInfo();
+      var inhoud = pagina === "clienttijd" ? pageClientTime() : pagina === "verhouding" ? pageRatio() : pagina === "open" ? pageOpen() : pagina === "snel" ? pageQuick() : pagina === "vrijblok" ? pageSlot() : pageInfo();
       paginaBox.appendChild(inhoud);
       renderLive();
     }
@@ -1962,6 +2106,7 @@
     }
     renderNav();
     render();
+    renderPlan();
     if (vorigePagina && vorigePagina !== "hoofd") {
       naarPagina(vorigePagina);
       if (vorigePagina === "open" && range.result) setTimeout(hercontrole, 0);
@@ -1976,6 +2121,8 @@
           range = BEWAARD.range;
           prod = BEWAARD.prod;
           ratio = BEWAARD.ratio;
+          plan = BEWAARD.plan;
+          renderPlan();
           BEWAARD.inviteeId = inv;
           vergelijkSig = "";
           naarPagina("hoofd");
@@ -1983,7 +2130,9 @@
           return;
         }
         if (inv) BEWAARD.inviteeId = inv;
+        var eersteKeer = !vergelijkSig;
         render();
+        if (eersteKeer) renderPlan();
         vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : "";
         if (vorigeSig && vergelijkSig !== vorigeSig) planHercontrole();
       },
@@ -2399,6 +2548,12 @@
     },
     onCheckRange: function(from, to, cb) {
       vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from, to }, cb);
+    },
+    onNewEvent: function(req, cb) {
+      vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb);
+    },
+    onFreeSlots: function(minutes, weeks, cb) {
+      vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes, weeks }, cb);
     },
     onWeekRatio: function(date, cb) {
       vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date }, cb);

@@ -486,6 +486,32 @@ test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', asy
   assert.match(document.body.textContent, /Week 42ophalen…/, 'weeknummer klopt meteen, ook tijdens het laden');
 });
 
+test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async () => {
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
+      { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
+    ] } }),
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  });
+  await tick();
+  assert.match(document.body.textContent, /Planhulp/);
+  knop(document, '1 u').click();
+  knop(document, '4 weken').click();
+  knop(document, 'Vrije tijd zoeken').click();
+  assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 });
+  assert.match(document.body.textContent, /do 8 okt10:30 – 12:001 u 30 m vrij/);
+  [...document.querySelectorAll('[role="button"]')].find((c) => c.title === 'Opties voor dit vrije blok').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Vrij blok');
+  const starts = [...document.querySelectorAll('[data-start]')].map((b) => b.getAttribute('data-start'));
+  assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past');
+  document.querySelector('[data-start="10:45"]').click();
+  assert.match(document.body.textContent, /Afspraak 10:45 – 11:45/);
+  knop(document, 'Afspraak maken op dit tijdstip').click();
+  assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60 });
+  knop(document, 'Naar deze dag in de agenda').click();
+  assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
+});
+
 test('nergens hoofdletterstijl in de extensie', () => {
   const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/survey.js', 'dist/edge-tab.js', 'admin/beheer_u.html'];
   for (const b of bestanden) assert.doesNotMatch(read(b), /uppercase/, b);

@@ -18,9 +18,12 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   productList                       uursoorten bij een afspraak          (products.js)
 //   unavailabilities                  verlof vastleggen (POST)             (unavailability.js)
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
+//   weekUnavailabilities              afwezigheid, voor de planhulp         (free-slots.js)
+//   newEvent                          afspraakformulier, vooraf ingevuld  (paginaroute, geen API)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
 const _API_DEFAULTS = {
   weekEvents: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events',
+  weekUnavailabilities: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=unavailabilities',
   weekRegistrations: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created',
   registrationDetails: '/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details',
   eventDetails: '/calendar/invitee/{inviteeId}/events/{occurrenceId}/details',
@@ -32,6 +35,11 @@ const _API_DEFAULTS = {
     + '?date={date}&open=false&includeUnregistered=false&withoutClient=false&offset={offset}&limit={limit}',
   detectOverlap: '/worksheet/registrations/detect_overlap?date={date}&start_time={startTime}&end_time={endTime}&hour_type_id={hourTypeId}',
   // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
+  // Afspraakformulier, vooraf ingevuld (planhulp). Afgeleid van het
+  // registratieformulier (declaration[...] -> event[...]); niet gedocumenteerd.
+  // Instelbaar via config.apiEndpoints.newEvent als ONS andere namen gebruikt.
+  newEvent: '/invitees/{inviteeId}/events/new?event%5Bstart_date%5D={date}'
+    + '&event%5Bstart_time%5D={startTime}&event%5Bduration%5D={durationSec}&redirect_to_calendar=true',
   newRegistration: '/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}'
     + '&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true',
 };
