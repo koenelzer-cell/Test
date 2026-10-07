@@ -17,7 +17,7 @@ export function currentCalendarView() {
 }
 // Navigeert via een echte <a>-klik zodat ONS' eigen SPA-router het kan
 // afvangen (client-side, snel) i.p.v. een volledige paginaherlaad.
-function spaNavigate(url) {
+export function spaNavigate(url) {
   try {
     const a = document.createElement('a');
     a.href = url;
@@ -27,8 +27,10 @@ function spaNavigate(url) {
   } catch (e) { location.href = url; }
 }
 // Navigeert naar de dag-weergave van die datum voor de huidige invitee.
-export function jumpToDay(date) {
-  if (currentCalendarView() === 'day') return; // al in dagweergave: niets doen
+// Zonder `always` gebeurt er niets als je al in dagweergave staat (de
+// dagkaarten zijn dan de dag zelf); de periodecontrole springt wel altijd.
+export function jumpToDay(date, always) {
+  if (!always && currentCalendarView() === 'day') return; // al in dagweergave: niets doen
   const id = currentInviteeId(date);
   if (!id) return;
   spaNavigate(calendarUrl('day', date, id));

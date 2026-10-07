@@ -1,5 +1,6 @@
 // Controle op een volledige registratie vóór indienen.
 
+import { fetchOnsOverlap, knownOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import {
   fetchWeekTijdvakken,
   huidigRegistratieTijdvak,
@@ -77,8 +78,20 @@ export function registrationCompletenessIssues() {
     const tv = huidigRegistratieTijdvak();
     if (tv.ymd && tv.startMin != null && tv.eindMin != null) {
       fetchWeekTijdvakken('registraties', tv.ymd); // laadt en cachet; melding volgt bij de volgende tekening
-      const hit = overlappendTijdvak('registraties', tv.ymd, tv.startMin, tv.eindMin, currentRegistrationId());
+      const regId = currentRegistrationId();
+      const hit = overlappendTijdvak('registraties', tv.ymd, tv.startMin, tv.eindMin, regId);
+      // Bij een NIEUWE registratie vragen we het ook aan ONS zelf (detect_overlap);
+      // bij bewerken niet, want dan telt ONS de registratie mogelijk mee met
+      // zichzelf. ONS vult de eigen vergelijking aan: een 'ja' van ONS geeft een
+      // melding ook als wij niets vonden. Een 'nee' onderdrukt onze melding niet,
+      // omdat de vorm van dat antwoord niet gedocumenteerd is.
+      let ons;
+      if (!regId) {
+        fetchOnsOverlap(tv.ymd, tv.startMin, tv.eindMin, '');
+        ons = knownOnsOverlap(tv.ymd, tv.startMin, tv.eindMin, '');
+      }
       if (hit) issues.push({ sev: 'warn', msg: overlapMelding(hit, 'een registratie') });
+      else if (ons === true) issues.push({ sev: 'warn', msg: 'Let op: ONS meldt dat dit tijdvak overlapt met een bestaande registratie.' });
     }
   } catch (e) {}
   return issues;

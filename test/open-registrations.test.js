@@ -1,0 +1,150 @@
+// Open registraties: de teller van ONS, de controle over een periode en snel
+// registreren.
+//
+// De teller en de overlapcontrole van ONS zijn ongedocumenteerde endpoints.
+// Deze tests leggen vast dat een onherkend antwoord nooit als 'nul' of 'geen
+// overlap' wordt gelezen, maar als 'onbekend' (null).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { bootHelper } from './helpers/harness.mjs';
+
+const NU = Date.parse('2026-10-07T12:00:00');
+const afspraak = (id, date, start, minuten, extra = {}) => {
+  const s = Date.parse(date + 'T' + start + ':00');
+  return {
+    id, date, type: 'event', allDay: false, startMs: s, endMs: s + minuten * 60000,
+    durationSec: minuten * 60, clientPresent: true, hourType: 'JG Huisbezoek', classes: 'not-declared', ...extra,
+  };
+};
+
+test('teller: herkent een getal in de gangbare vormen', () => {
+  const { api } = bootHelper();
+  assert.equal(api.parseOpenCount(7), 7);
+  assert.equal(api.parseOpenCount('12'), 12);
+  assert.equal(api.parseOpenCount({ count: 3 }), 3);
+  assert.equal(api.parseOpenCount({ data: { total: 4 } }), 4);
+  assert.equal(api.parseOpenCount({ open_count: 0 }), 0);
+});
+
+test('teller: een onherkend antwoord is onbekend, niet nul', () => {
+  const { api } = bootHelper();
+  assert.equal(api.parseOpenCount(null), null);
+  assert.equal(api.parseOpenCount({ foo: 'bar' }), null);
+  assert.equal(api.parseOpenCount([1, 2]), null);
+  assert.equal(api.parseOpenCount(-1), null);
+});
+
+test('overlap van ONS: ja, nee en onbekend', () => {
+  const { api } = bootHelper();
+  assert.equal(api.parseDetectOverlap(true), true);
+  assert.equal(api.parseDetectOverlap({ overlap: false }), false);
+  assert.equal(api.parseDetectOverlap({ overlapping_registrations: [{ id: 1 }] }), true);
+  assert.equal(api.parseDetectOverlap([]), false);
+  assert.equal(api.parseDetectOverlap({ status: 'ok' }), null);
+  assert.equal(api.parseDetectOverlap('<html>'), null);
+});
+
+test('overlap van ONS: tijden gaan mee met de tijdzone van die dag', () => {
+  const { api } = bootHelper();
+  const iso = api.isoLocalWithOffset('2026-10-06', 12 * 60 + 45);
+  assert.match(iso, /^2026-10-06T12:45:00[+-]\d{2}:\d{2}$/);
+  assert.equal(api.isoLocalWithOffset('2026-10-06', null), null);
+  assert.equal(api.isoLocalWithOffset('6-10-2026', 60), null);
+});
+
+test('periode: de weken lopen van de maandag van de begindatum t/m de einddatum', () => {
+  const { api } = bootHelper();
+  // wo 30 sep t/m wo 14 okt 2026 raakt drie weken.
+  assert.deepEqual([...api.weekStartsBetween('2026-09-30', '2026-10-14')], ['2026-09-28', '2026-10-05', '2026-10-12']);
+  assert.deepEqual([...api.weekStartsBetween('2026-10-05', '2026-10-05')], ['2026-10-05']);
+  assert.deepEqual([...api.weekStartsBetween('2026-10-14', '2026-09-30')], [], 'omgekeerde periode');
+  assert.deepEqual([...api.weekStartsBetween('', '2026-09-30')], []);
+});
+
+test('periode: telt per dag alleen afgelopen, niet-geregistreerde afspraken binnen de periode', () => {
+  const { api } = bootHelper();
+  const r = api.summarizeOpenRange([
+    afspraak(1, '2026-10-05', '09:00', 60),                                   // open, cliënt
+    afspraak(2, '2026-10-05', '11:00', 30, { clientPresent: false }),         // open, overig
+    afspraak(3, '2026-10-05', '13:00', 45, { classes: 'declared' }),          // al geregistreerd
+    afspraak(4, '2026-10-06', '10:00', 60, { clientPresent: false, hourType: '' }), // pauze: telt niet
+    afspraak(5, '2026-10-07', '15:00', 60),                                   // nog niet afgelopen
+    afspraak(6, '2026-10-03', '10:00', 60),                                   // zaterdag
+    afspraak(7, '2026-09-28', '10:00', 60),                                   // vóór de periode
+    afspraak(1, '2026-10-05', '09:00', 60),                                   // dubbel
+  ], { from: '2026-09-30', to: '2026-10-07', now: NU, lateHours: 24 });
+  assert.equal(r.days.length, 1);
+  const d = r.days[0];
+  assert.equal(d.date, '2026-10-05');
+  assert.equal(d.client, 60);
+  assert.equal(d.overig, 30);
+  assert.equal(d.count, 2);
+  assert.equal(d.lateCount, 2, 'meer dan 24 uur geleden');
+  assert.deepEqual([...d.items.map((i) => i.uursoort)], ['JG Huisbezoek', 'JG Huisbezoek']);
+  assert.equal(r.totalMinutes, 90);
+  assert.equal(r.totalCount, 2);
+  // Geen namen of titels in het resultaat.
+  assert.doesNotMatch(JSON.stringify(r), /title|name/);
+});
+
+test('periode: haalt elke week op en faalt hardop als een week niet lukt', async () => {
+  const { api, window } = bootHelper();
+  const gevraagd = [];
+  window.fetch = (url) => {
+    gevraagd.push(String(url));
+    const date = /date=([\d-]+)/.exec(url)[1];
+    if (date === '2026-10-05') return Promise.resolve({ ok: false, status: 500 });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  };
+  await assert.rejects(api.fetchEntriesForRange(123, '2026-09-28', '2026-10-07'), /2026-10-05/);
+  assert.ok(gevraagd.every((u) => u.startsWith('/calendar/invitee/123/entries/week?date=')), 'alleen same-origin week-endpoints');
+
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  const voortgang = [];
+  const rows = await api.fetchEntriesForRange(123, '2026-09-28', '2026-10-07', (d, t) => voortgang.push(d + '/' + t));
+  assert.equal(rows.length, 0);
+  assert.deepEqual(voortgang, ['1/2', '2/2']);
+  await assert.rejects(api.fetchEntriesForRange(123, '2026-01-01', '2026-12-31'), /te lang/);
+});
+
+test('snel registreren: de link vult datum, begintijd en duur (in seconden) in', () => {
+  const { api } = bootHelper();
+  assert.equal(api.quickRegisterUrl(42479, '2026-10-06', '12:45', 15),
+    '/invitees/42479/registrations/new?declaration%5Bstart_date%5D=2026-10-06&declaration%5Bstart_time%5D=12%3A45&declaration%5Bduration%5D=900&redirect_to_calendar=true');
+});
+
+test('snel registreren: ongeldige invoer geeft een melding en opent niets', async () => {
+  const { api } = bootHelper();
+  assert.match((await api.quickRegister({ date: '', time: '10:00', minutes: 15 })).error, /datum/);
+  assert.match((await api.quickRegister({ date: '2026-10-06', time: '25:00', minutes: 15 })).error, /begintijd/);
+  assert.match((await api.quickRegister({ date: '2026-10-06', time: '10:00', minutes: 0 })).error, /duur/);
+  assert.match((await api.quickRegister({ date: '2026-10-06', time: '23:50', minutes: 30 })).error, /middernacht/);
+});
+
+test('snel registreren: waarschuwt eerst bij overlap, en opent pas na "toch openen"', async () => {
+  const { api, window } = bootHelper();
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  api.__setTijdvakken('registraties', '2026-10-06', [{ id: '9', ymd: '2026-10-06', startMin: 600, endMin: 660, uursoort: 'JG MDO' }]);
+  api.__setOnsOverlap('2026-10-06', 630, 645, null);
+  const geklikt = [];
+  window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
+
+  const eerst = await api.quickRegister({ date: '2026-10-06', time: '10:30', minutes: 15 });
+  assert.equal(eerst.ok, false);
+  assert.match(eerst.overlap, /10:00 tot 11:00 \(JG MDO\)/);
+  assert.equal(geklikt.length, 0, 'nog niet geopend');
+
+  const daarna = await api.quickRegister({ date: '2026-10-06', time: '10:30', minutes: 15, force: true });
+  assert.equal(daarna.ok, true);
+  assert.equal(geklikt.length, 1);
+  assert.match(geklikt[0], /\/invitees\/123\/registrations\/new\?declaration%5Bstart_date%5D=2026-10-06&declaration%5Bstart_time%5D=10%3A30&declaration%5Bduration%5D=900/);
+});
+
+test('snel registreren: een "ja" van ONS waarschuwt ook als wij zelf niets vinden', async () => {
+  const { api, window } = bootHelper();
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  api.__setTijdvakken('registraties', '2026-10-06', []);
+  api.__setOnsOverlap('2026-10-06', 630, 645, true);
+  const r = await api.quickRegister({ date: '2026-10-06', time: '10:30', minutes: 15 });
+  assert.match(r.overlap, /ONS meldt/);
+});

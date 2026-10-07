@@ -146,6 +146,13 @@
     // { value }
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
+    AGENDA_CHECK_RANGE: "ag-check-range",
+    // { from, to } -> { ok, result | error }  open registraties in een periode
+    AGENDA_QUICK_REGISTER: "ag-quick-register",
+    // { date, time, minutes, force } -> { ok, overlap?, error? }
+    // CS -> SP (uitgezonden)
+    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    // { done, total } voortgang van AGENDA_CHECK_RANGE
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"

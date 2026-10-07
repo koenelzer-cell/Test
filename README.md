@@ -93,7 +93,7 @@ De sleutels van laag 5 staan in `managed_schema.json`.
 
 ### Verlof aanvragen
 
-Rechtsonder in de agenda staat de knop **Verlof aanvragen**. De dialoog heeft
+Onderaan het zijpaneel staat de knop **Verlof aanvragen**. De dialoog heeft
 dezelfde velden als *Onbeschikbaarheid toevoegen* in ONS: omschrijving,
 begindatum, begin- en eindtijd of *hele dag*, en herhaling (*niet*,
 *dagelijks* of *wekelijks* op gekozen weekdagen, iedere N dagen/weken, tot een
@@ -102,6 +102,19 @@ in een nieuw tabblad en ververst de agenda. In `config.json` (`leaveRequest`)
 zijn de standaardomschrijving, het AFAS-adres, de maximale duur van een
 herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 `features.leaveRequest: false` zet de knop uit.
+
+### Zijpaneel: open registraties en snel registreren
+
+Het lipje aan de rechterrand opent het zijpaneel en toont hoeveel open
+registraties ONS zelf telt. In het zijpaneel staan twee hulpmiddelen:
+
+- **Open registraties controleren**: kies een periode (standaard vanaf het begin
+  van het aanpasvenster van ONS tot vandaag, hooguit 26 weken). De hulp haalt
+  elke week op en toont per dag welke afgelopen afspraken nog niet geregistreerd
+  zijn; een klik op de dag opent die dag in de agenda.
+- **Snel registreren**: datum, begintijd en duur invullen opent het
+  registratieformulier van ONS met die tijden ingevuld. Overlapt het tijdvak met
+  een bestaande registratie, dan volgt eerst een waarschuwing.
 
 ## Gegevens
 

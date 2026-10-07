@@ -51,11 +51,19 @@
     // { value }
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
+    AGENDA_CHECK_RANGE: "ag-check-range",
+    // { from, to } -> { ok, result | error }  open registraties in een periode
+    AGENDA_QUICK_REGISTER: "ag-quick-register",
+    // { date, time, minutes, force } -> { ok, overlap?, error? }
+    // CS -> SP (uitgezonden)
+    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    // { done, total } voortgang van AGENDA_CHECK_RANGE
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"
     // { index }
   };
+  var OPEN_COUNT_EVENT = "onsah:open-count";
 
   // src/edge-tab/index.js
   (function() {
@@ -64,89 +72,121 @@
     if (window.top !== window) return;
     var ROZE = "#cc087d";
     var ROZE_DIEP = "#8c0a58";
-    var tab = null, chev = null, labelEl = null, tipEl = null;
+    var STIJL_ID = "onsah-edge-tab-stijl";
+    var NUDGE_KEY = "onsHelper.edgeTabNudged";
+    var tab = null, tipEl = null, badge = null;
     var open = false;
+    var telling = null;
+    function zorgVoorStijl() {
+      if (document.getElementById(STIJL_ID)) return;
+      var st = document.createElement("style");
+      st.id = STIJL_ID;
+      st.textContent = "@keyframes onsahEdgeNudge{0%,100%{transform:translate(0,-50%)}20%,60%{transform:translate(-10px,-50%)}40%,80%{transform:translate(0,-50%)}}#onsah-edge-tab{transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s ease,padding .18s ease}#onsah-edge-tab:hover,#onsah-edge-tab:focus-visible{transform:translate(-4px,-50%)!important;padding-right:6px!important;box-shadow:0 10px 30px -6px rgba(140,10,88,.65),0 0 0 2px #fff!important}#onsah-edge-tab:focus-visible{outline:3px solid " + ROZE_DIEP + ";outline-offset:3px}#onsah-edge-tab.onsah-nudge{animation:onsahEdgeNudge 1.6s ease-in-out 2}@media (prefers-reduced-motion: reduce){#onsah-edge-tab,#onsah-edge-tab.onsah-nudge{animation:none;transition:none}}";
+      (document.head || document.documentElement).appendChild(st);
+    }
+    function svg(viewBox, size) {
+      var n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      n.setAttribute("viewBox", viewBox);
+      n.setAttribute("width", size);
+      n.setAttribute("height", size);
+      n.setAttribute("aria-hidden", "true");
+      n.setAttribute("fill", "none");
+      n.setAttribute("stroke", "currentColor");
+      n.setAttribute("stroke-linecap", "round");
+      n.setAttribute("stroke-linejoin", "round");
+      return n;
+    }
+    function svgEl(parent, tag, attrs) {
+      var n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      parent.appendChild(n);
+      return n;
+    }
+    function svgPaneel() {
+      var n = svg("0 0 24 24", "18");
+      n.setAttribute("stroke-width", "2");
+      svgEl(n, "rect", { x: "3", y: "4", width: "18", height: "16", rx: "3" });
+      svgEl(n, "path", { d: "M14 4v16" });
+      svgEl(n, "path", { d: "M16.8 9h1.6M16.8 12h1.6M16.8 15h1.6", "stroke-width": "1.6" });
+      return n;
+    }
     function svgChevron() {
-      var ns = "http://www.w3.org/2000/svg";
-      var svg = document.createElementNS(ns, "svg");
-      svg.setAttribute("viewBox", "0 0 24 24");
-      svg.setAttribute("width", "15");
-      svg.setAttribute("height", "15");
-      svg.setAttribute("aria-hidden", "true");
-      svg.setAttribute("fill", "none");
-      svg.setAttribute("stroke", "currentColor");
-      svg.setAttribute("stroke-width", "2.4");
-      svg.setAttribute("stroke-linecap", "round");
-      svg.setAttribute("stroke-linejoin", "round");
-      var p = document.createElementNS(ns, "path");
-      p.setAttribute("d", "M15 5 8 12l7 7");
-      svg.appendChild(p);
-      return svg;
+      var n = svg("0 0 24 24", "14");
+      n.setAttribute("stroke-width", "2.6");
+      svgEl(n, "path", { d: "M15 5 8 12l7 7" });
+      return n;
     }
     function bouw() {
       if (tab) return tab;
+      zorgVoorStijl();
       tab = document.createElement("div");
+      tab.id = "onsah-edge-tab";
       tab.setAttribute("role", "button");
       tab.setAttribute("tabindex", "0");
-      tab.setAttribute("aria-label", "Zijpaneel openen");
-      tab.title = "Zijpaneel openen";
       Object.assign(tab.style, {
         position: "fixed",
         right: "0",
         top: "50%",
-        transform: "translateY(-50%)",
+        transform: "translate(0,-50%)",
         zIndex: "2147483645",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        gap: "0",
-        height: "62px",
-        width: "26px",
-        paddingRight: "2px",
+        justifyContent: "center",
+        gap: "8px",
+        width: "34px",
+        padding: "12px 2px 12px 0",
         boxSizing: "border-box",
         borderRadius: "14px 0 0 14px",
+        border: "2px solid #fff",
+        borderRight: "0",
         background: "linear-gradient(180deg, " + ROZE + " 0%, " + ROZE_DIEP + " 100%)",
         color: "#fff",
         cursor: "pointer",
         userSelect: "none",
-        justifyContent: "center",
-        boxShadow: "0 4px 18px -4px rgba(140,10,88,.45), 0 0 0 1px rgba(255,255,255,.14) inset",
-        transition: "width .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, opacity .15s ease",
-        font: "600 12px/1 system-ui, sans-serif"
+        boxShadow: "0 6px 22px -6px rgba(140,10,88,.55), -1px 0 0 1px rgba(140,10,88,.25)",
+        font: "700 12px/1 system-ui, sans-serif"
       });
-      chev = svgChevron();
-      Object.assign(chev.style, { flex: "0 0 auto", transition: "transform .18s ease" });
+      var chev = svgChevron();
+      chev.style.flex = "0 0 auto";
       tab.appendChild(chev);
-      labelEl = document.createElement("span");
-      labelEl.textContent = "Zijpaneel";
-      Object.assign(labelEl.style, {
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        maxWidth: "0",
-        opacity: "0",
-        transition: "max-width .18s cubic-bezier(.2,.8,.2,1), opacity .14s ease, margin .18s ease",
-        margin: "0"
+      var icoon = svgPaneel();
+      icoon.style.flex = "0 0 auto";
+      tab.appendChild(icoon);
+      var label = document.createElement("span");
+      label.textContent = "Agendahulp";
+      Object.assign(label.style, {
+        writingMode: "vertical-rl",
+        transform: "rotate(180deg)",
+        letterSpacing: ".06em",
+        fontSize: "12px",
+        fontWeight: "800",
+        whiteSpace: "nowrap"
       });
-      tab.appendChild(labelEl);
-      var uit = function() {
-        tab.style.width = "26px";
-        labelEl.style.maxWidth = "0";
-        labelEl.style.opacity = "0";
-        labelEl.style.margin = "0";
-        chev.style.transform = "none";
-        tab.style.boxShadow = "0 4px 18px -4px rgba(140,10,88,.45), 0 0 0 1px rgba(255,255,255,.14) inset";
-      };
-      var aan = function() {
-        tab.style.width = "116px";
-        labelEl.style.maxWidth = "84px";
-        labelEl.style.opacity = "1";
-        labelEl.style.margin = "0 8px 0 4px";
-        chev.style.transform = "translateX(-1px)";
-        tab.style.boxShadow = "0 8px 26px -6px rgba(140,10,88,.55), 0 0 0 1px rgba(255,255,255,.22) inset";
-      };
-      tab.addEventListener("mouseenter", aan);
-      tab.addEventListener("mouseleave", uit);
-      tab.addEventListener("focus", aan);
-      tab.addEventListener("blur", uit);
+      tab.appendChild(label);
+      badge = document.createElement("span");
+      Object.assign(badge.style, {
+        position: "absolute",
+        top: "-10px",
+        left: "-10px",
+        minWidth: "22px",
+        height: "22px",
+        padding: "0 6px",
+        boxSizing: "border-box",
+        borderRadius: "999px",
+        background: "#fff",
+        color: ROZE_DIEP,
+        border: "2px solid " + ROZE,
+        display: "none",
+        alignItems: "center",
+        justifyContent: "center",
+        font: "800 11px/1 system-ui, sans-serif",
+        fontVariantNumeric: "tabular-nums",
+        boxShadow: "0 2px 8px rgba(0,0,0,.25)"
+      });
+      badge.setAttribute("aria-hidden", "true");
+      tab.appendChild(badge);
+      werkTellingBij();
       tab.addEventListener("click", openen);
       tab.addEventListener("keydown", function(e) {
         if (e.key === "Enter" || e.key === " ") {
@@ -154,8 +194,33 @@
           openen();
         }
       });
+      tab.addEventListener("animationend", function() {
+        tab.classList.remove("onsah-nudge");
+      });
       (document.body || document.documentElement).appendChild(tab);
       return tab;
+    }
+    function werkTellingBij() {
+      if (!tab) return;
+      var n = typeof telling === "number" && telling > 0 ? telling : 0;
+      if (badge) {
+        badge.textContent = n > 99 ? "99+" : String(n);
+        badge.style.display = n > 0 ? "inline-flex" : "none";
+      }
+      var tekst = "Agendahulp openen in het zijpaneel" + (n > 0 ? " (" + n + (n === 1 ? " open registratie" : " open registraties") + ")" : "");
+      tab.setAttribute("aria-label", tekst);
+      tab.title = tekst;
+    }
+    function misschienBewegen() {
+      try {
+        if (sessionStorage.getItem(NUDGE_KEY)) return;
+        sessionStorage.setItem(NUDGE_KEY, "1");
+      } catch (e) {
+        return;
+      }
+      setTimeout(function() {
+        if (tab && !open) tab.classList.add("onsah-nudge");
+      }, 800);
     }
     function toonTip(tekst) {
       if (tipEl) tipEl.remove();
@@ -163,7 +228,7 @@
       tipEl.textContent = tekst;
       Object.assign(tipEl.style, {
         position: "fixed",
-        right: "34px",
+        right: "44px",
         top: "50%",
         transform: "translateY(-50%)",
         zIndex: "2147483645",
@@ -213,9 +278,15 @@
       });
     } catch (e) {
     }
+    document.addEventListener(OPEN_COUNT_EVENT, function(e) {
+      var n = e && e.detail ? e.detail.count : null;
+      telling = typeof n === "number" && n >= 0 ? n : null;
+      werkTellingBij();
+    });
     function start() {
       bouw();
       toon(!open);
+      if (!open) misschienBewegen();
     }
     if (document.body) start();
     else document.addEventListener("DOMContentLoaded", start, { once: true });

@@ -14,8 +14,7 @@ import {
 import { apiClientPresentById } from './week-overview.js';
 import { ONS } from '../../ons/selectors.js';
 import { APP_CONFIG } from '../../config/app-config.js';
-import { _excludeWeekendYmd } from '../../domain/registrations.js';
-import { _entryMinutes } from '../../domain/agenda-entries.js';
+import { classifyAgendaEntry } from '../../domain/open-registrations.js';
 
 export function computeTotals() {
   const past = {};
@@ -45,39 +44,25 @@ export function computeTotals() {
   });
   return { past: past, future: future };
 }
-// 'declared' vs 'not-declared' uit het classes-veld van de API-afspraak.
-function _isDeclaredClasses(classes) {
-  var c = ' ' + String(classes || '') + ' ';
-  if (/not-declared/.test(c)) return false;
-  return /declared/.test(c);
-}
 // API-variant van computeTotals: gebruikt de opgehaalde week-afspraken (_agLastEntries)
-// i.p.v. een DOM-scan. Regel: een afspraak in het VERLEDEN (afgelopen) die nog NIET
-// 'declared' is en waaraan een cliënt en/of uursoort hangt, is ongeregistreerde tijd
-// (planning = realisatie -> we gebruiken de geplande duur). Geen weekenden.
+// i.p.v. een DOM-scan. Regel (domain/open-registrations.js): een afspraak in het
+// VERLEDEN die nog NIET 'declared' is en waaraan een cliënt en/of uursoort hangt, is
+// ongeregistreerde tijd (planning = realisatie -> we gebruiken de geplande duur).
 export function computeTotalsApi() {
   var past = {}, future = { client: 0, overig: 0 };
   var now = Date.now();
   var entries = agendaPage._agLastEntries || [];
   var lateH = (APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.lateThresholdHours > 0) ? APP_CONFIG.generalSettings.lateThresholdHours : 24;
   entries.forEach(function (e) {
-    if (!e || e.type !== 'event' || e.allDay) return;
-    var date = e.date; if (!date) return;
-    if (_excludeWeekendYmd(date)) return; // geen weekenden (tenzij ingesteld)
-    var hasClient = !!e.clientPresent;
-    var hasUursoort = !!(e.hourType && String(e.hourType).trim());
-    if (!hasClient && !hasUursoort) return; // geen cliënt én geen uursoort -> pauze/vrije dag e.d.
-    var dur = _entryMinutes(e); if (!(dur > 0)) return;
-    var startMs = (e.startMs != null) ? e.startMs : Date.parse(date + 'T00:00:00');
-    var endMs = (e.endMs != null) ? e.endMs : (startMs + dur * 60000);
-    var cls = hasClient ? 'client' : 'overig';
-    if (endMs <= now) {
-      if (_isDeclaredClasses(e.classes)) return; // al geregistreerd
-      if (!past[date]) past[date] = { client: 0, overig: 0, lateMin: 0, lateCount: 0 };
-      past[date][cls] += dur;
-      if (endMs <= now - lateH * 3600000) { past[date].lateMin += dur; past[date].lateCount++; }
+    var c = classifyAgendaEntry(e, now, lateH * 3600000);
+    if (!c) return;
+    if (c.past) {
+      if (c.declared) return; // al geregistreerd
+      if (!past[c.date]) past[c.date] = { client: 0, overig: 0, lateMin: 0, lateCount: 0 };
+      past[c.date][c.cls] += c.minutes;
+      if (c.late) { past[c.date].lateMin += c.minutes; past[c.date].lateCount++; }
     } else {
-      future[cls] += dur;
+      future[c.cls] += c.minutes;
     }
   });
   return { past: past, future: future };

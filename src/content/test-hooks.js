@@ -163,6 +163,16 @@ import { getJson, postJson } from './services/ons-api/http.js';
 import { buildUnavailability, describeUnavailability } from './domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from './features/leave/leave-request.js';
 import { UI_OVERRIDES } from './ons/selector-overrides.js';
+import {
+  classifyAgendaEntry,
+  isoLocalWithOffset,
+  parseDetectOverlap,
+  parseOpenCount,
+  summarizeOpenRange,
+  weekStartsBetween,
+} from './domain/open-registrations.js';
+import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
+import { quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
 
 // Test-hook: buitenste-scope-logica blootstellen (alleen onder testvlag).
 // Opstarten: interne functies blootstellen aan de jsdom-tests (alleen onder testvlag).
@@ -325,6 +335,17 @@ export function exposeTestApi() {
     recurrenceIsSet,
     doorplannenWarnText,
     doorplannenBlocksSave,
+    // Open registraties: teller, periodecontrole, snel registreren.
+    classifyAgendaEntry,
+    summarizeOpenRange,
+    weekStartsBetween,
+    parseOpenCount,
+    parseDetectOverlap,
+    isoLocalWithOffset,
+    fetchEntriesForRange,
+    quickRegister,
+    quickRegisterUrl,
+    __setOnsOverlap: _setOnsOverlapForTest,
     __setDoorplannen: function (v) { try { appointmentFlow.appointmentDoorplannen = !!v; } catch (e) {} },
   });
 }

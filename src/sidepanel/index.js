@@ -45,17 +45,32 @@ function naarTab(msg) {
   try { chrome.tabs.sendMessage(onsTabId, msg, function () { void chrome.runtime.lastError; }); } catch (e) {}
 }
 
+// Een vraag aan het tabblad waar een antwoord op komt (controle, snel
+// registreren). Komt er geen antwoord, dan krijgt de aanroeper een foutmelding
+// in plaats van eeuwig te wachten.
+function vraagAanTab(msg, cb) {
+  if (onsTabId == null) { cb({ ok: false, error: 'Geen ONS-tabblad gevonden.' }); return; }
+  try {
+    chrome.tabs.sendMessage(onsTabId, msg, function (res) {
+      if (chrome.runtime.lastError || !res) { cb({ ok: false, error: 'De ONS-pagina reageert niet. Herlaad de pagina en probeer het opnieuw.' }); return; }
+      cb(res);
+    });
+  } catch (e) { cb({ ok: false, error: 'De ONS-pagina reageert niet.' }); }
+}
+
 /* ── De twee panelen ───────────────────────────────────────────────────── */
 
 const agendaActies = {
   onToggleEnabled: function (aan) { naarTab({ type: MSG.AGENDA_TOGGLE_ENABLED, value: aan }); },
-  onJumpToDay: function (date) { naarTab({ type: MSG.AGENDA_JUMP_DAY, date: date }); },
+  onJumpToDay: function (date, always) { naarTab({ type: MSG.AGENDA_JUMP_DAY, date: date, always: !!always }); },
   onJumpToWeek: function () { naarTab({ type: MSG.AGENDA_JUMP_WEEK }); },
   onOpenOccurrence: function (id) { naarTab({ type: MSG.AGENDA_OPEN_OCCURRENCE, id: id }); },
   onOpenBreakdown: function () { naarTab({ type: MSG.AGENDA_OPEN_BREAKDOWN }); },
   onOpenCalc: function () { naarTab({ type: MSG.AGENDA_OPEN_CALC }); },
   onUnregCollapsedChange: function (v) { naarTab({ type: MSG.AGENDA_UNREG_COLLAPSED, value: v }); },
   onRequestLeave: function () { naarTab({ type: MSG.AGENDA_OPEN_LEAVE }); },
+  onCheckRange: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to }, cb); },
+  onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
 };
 
 const vragenlijstActies = {
@@ -137,6 +152,11 @@ function onMessage(msg, sender) {
   if (msg.type === MSG.SURVEY_STATE || msg.type === MSG.AGENDA_STATE) annuleerSluiten();
 
   if (msg.type === MSG.SURVEY_STATE && msg.state) { toon('vragenlijst', msg.state); return; }
+
+  if (msg.type === MSG.AGENDA_RANGE_PROGRESS) {
+    if (huidig && huidig.soort === 'agenda' && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.done | 0, msg.total | 0);
+    return;
+  }
 
   if (msg.type === MSG.AGENDA_STATE && msg.state) {
     // Een vragenlijst gaat voor: die is specifiek voor dit scherm, terwijl de
