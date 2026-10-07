@@ -33,6 +33,7 @@ export const PAGE_LOCAL = {
 // sessionStorage van de ONS-pagina — alleen voor dit tabblad, weg bij sluiten.
 export const PAGE_SESSION = {
   PENDING_REGISTRATION: 'onsHelper.pendingReg',          // registratie vanuit een afspraak (label, vorm, tijden)
+  PENDING_APPOINTMENT: 'onsHelper.pendingAppointment',   // afspraak vanuit de planhulp (datum, begintijd)
   PENDING_SURVEY_QUESTION: 'onsHelper.pendingSurveyQuestion',
   SURVEY_CHECKLIST: 'onsHelper.surveyChecklist',
   SURVEY_CATEGORY_URLS: 'onsHelper.surveyCategoryUrls.', // + resultaat-id

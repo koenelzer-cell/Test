@@ -130,11 +130,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.
-- **Planhulp** (onderin de hoofdpagina): kies een duur en hoe ver vooruit, en
-  zie de vrije blokken binnen je werktijden (uit de gekozen dagindeling).
-  Afspraken met hun reistijd, pauzezones en afwezigheid tellen als bezet. Klik
-  op een blok voor de opties: een begintijd kiezen en het afspraakformulier van
-  ONS openen op dat tijdstip, of naar die dag in de agenda.
+- **Planhulp**: kies een duur en hoe ver vooruit, en zie de vrije blokken
+  binnen je werktijden. Alleen wat er echt in de agenda staat telt als bezet:
+  afspraken (met reistijd) en onbeschikbaarheid. Klik op een blok voor de
+  opties: een begintijd kiezen en een nieuwe afspraak openen (de hulp vult de
+  datum en begintijd in het ONS-formulier in), of naar die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 

@@ -268,6 +268,8 @@
   var PAGE_SESSION = {
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
+    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
+    // afspraak vanuit de planhulp (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
     SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
     SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
@@ -1354,7 +1356,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.211";
+      return "1.6.212";
     }
   }();
 

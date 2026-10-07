@@ -171,7 +171,8 @@ import {
   weekStartsBetween,
 } from './domain/open-registrations.js';
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
-import { newEventUrl, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
+import { newEventUrl, openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
+import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps } from './domain/free-slots.js';
 import { plannedProductionRow, productionWeekRow } from './features/agenda/production.js';
 import { plannedRatioRows } from './features/agenda/week-ratio.js';
@@ -348,6 +349,8 @@ export function exposeTestApi() {
     quickRegister,
     quickRegisterUrl,
     newEventUrl,
+    openNewEvent,
+    onsDateText,
     findFreeGaps,
     productionWeekRow,
     plannedProductionRow,

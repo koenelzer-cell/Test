@@ -1,10 +1,13 @@
 // Planhulp: vrije tijd in de agenda vinden voor een afspraak van een bepaalde
 // duur. Pure rekenlogica op genormaliseerde agenda-entries.
 //
-// Vrij = binnen het werkvenster, op een werkdag, na 'nu', en niet bezet door:
+// Vrij = binnen het werkvenster, op een werkdag, na 'nu', en niet bezet door
+// wat er echt in de agenda staat:
 //   - een afspraak (inclusief reistijd ervoor en erna),
-//   - een pauzezone uit de dagindeling,
-//   - een hele-dag-item of afwezigheid (verlof): dan is de hele dag bezet.
+//   - onbeschikbaarheid (verlof e.d.): met tijden alleen dat stuk, zonder
+//     tijden of als hele dag de hele dag.
+// Geen vaste pauzes of andere aannames: de kleurzones van de dagindeling
+// tellen niet mee.
 
 import { _excludeWeekendYmd } from './registrations.js';
 
@@ -13,7 +16,7 @@ function minutenVanDag(ms, dagStartMs) { return Math.round((ms - dagStartMs) / 6
 
 // entries: genormaliseerde entries (mapAgendaEntry). opts:
 //   now (ms), days (aantal kalenderdagen vooruit), minMinutes, stepMin (15),
-//   windowStart/windowEnd (minuten sinds middernacht), blocked [{from,to}] (minuten),
+//   windowStart/windowEnd (minuten sinds middernacht), blocked [{from,to}] (minuten, optioneel),
 //   maxResults
 // -> [{ date, startMin, endMin, minutes }]
 export function findFreeGaps(entries, opts) {

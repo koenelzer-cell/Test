@@ -112,6 +112,8 @@
   var PAGE_SESSION = {
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
+    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
+    // afspraak vanuit de planhulp (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
     SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
     SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
@@ -1041,10 +1043,9 @@
     employeeRegistrations: "/gateway/api/v0/agenda/user/widgets/employee_registrations_overview/registrations?date={date}&open=false&includeUnregistered=false&withoutClient=false&offset={offset}&limit={limit}",
     detectOverlap: "/worksheet/registrations/detect_overlap?date={date}&start_time={startTime}&end_time={endTime}&hour_type_id={hourTypeId}",
     // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
-    // Afspraakformulier, vooraf ingevuld (planhulp). Afgeleid van het
-    // registratieformulier (declaration[...] -> event[...]); niet gedocumenteerd.
-    // Instelbaar via config.apiEndpoints.newEvent als ONS andere namen gebruikt.
-    newEvent: "/invitees/{inviteeId}/events/new?event%5Bstart_date%5D={date}&event%5Bstart_time%5D={startTime}&event%5Bduration%5D={durationSec}&redirect_to_calendar=true",
+    // Nieuw afspraakformulier, zoals ONS het zelf opent. Datum en begintijd
+    // vult de hulp daarna in het formulier in (features/appointment/prefill.js).
+    newEvent: "/events/new?invitee_ids%5B%5D={inviteeId}&redirect_to_calendar=true",
     newRegistration: "/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true"
   };
   function _apiTemplate(name) {
@@ -10225,7 +10226,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.211";
+      return "1.6.212";
     }
   }();
 
@@ -10633,6 +10634,85 @@
       safe(ensureMounted);
     });
   };
+
+  // src/content/features/appointment/prefill.js
+  var KEY = PAGE_SESSION.PENDING_APPOINTMENT;
+  var GELDIG_MS = 2 * 60 * 1e3;
+  function storePendingAppointment(req) {
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
+    } catch (e) {
+    }
+  }
+  function readPending() {
+    try {
+      const p = JSON.parse(sessionStorage.getItem(KEY) || "null");
+      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
+      return p;
+    } catch (e) {
+      return null;
+    }
+  }
+  function clearPending() {
+    try {
+      sessionStorage.removeItem(KEY);
+    } catch (e) {
+    }
+  }
+  function onsDateText(ymd2) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
+    return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
+  }
+  function schrijf(inp, text) {
+    typeIntoSearchField(inp, text);
+    inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
+    inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
+    try {
+      inp.blur && inp.blur();
+    } catch (e) {
+    }
+    const root = inp.getRootNode && inp.getRootNode();
+    const host = root && root.host;
+    if (host) {
+      try {
+        host.value = text;
+      } catch (e) {
+      }
+      try {
+        host.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch (e) {
+      }
+    }
+  }
+  var _bezig = false;
+  function applyPendingAppointment() {
+    if (_bezig) return;
+    const p = readPending();
+    if (!p) return;
+    _bezig = true;
+    const datum = onsDateText(p.date);
+    let pogingen = 0;
+    const tik = () => {
+      pogingen++;
+      const d = getDateInput(), s = getStartTimeInput();
+      if (d && s) {
+        if (datum && inputTextValue(d) !== datum) schrijf(d, datum);
+        setTimeout(() => {
+          const s2 = getStartTimeInput();
+          if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
+          clearPending();
+          _bezig = false;
+        }, 250);
+        return;
+      }
+      if (pogingen < 48) setTimeout(tik, 250);
+      else {
+        clearPending();
+        _bezig = false;
+      }
+    };
+    setTimeout(tik, 300);
+  }
 
   // src/content/services/ons-api/calendar.js
   function fetchInviteeWeek(inviteeId, date) {
@@ -11084,8 +11164,10 @@
     }
     const wantEvents = (HELPER_SCOPE === "all" || HELPER_SCOPE === "events") && RUNTIME_CONFIG.appointmentHelperEnabled;
     const wantRegistrations = (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
-    if (wantEvents && location.href.includes(CONFIG.urlNeedle)) activate("events");
-    else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate("registrations");
+    if (wantEvents && location.href.includes(CONFIG.urlNeedle)) {
+      activate("events");
+      applyPendingAppointment();
+    } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate("registrations");
     else deactivate();
     updateRegistrationsOverviewPanel();
   }
@@ -12339,19 +12421,14 @@
   // src/content/features/agenda/free-slots.js
   function workWindow() {
     var z = activeZones() || [];
-    if (!z.length) return { start: 8 * 60, end: 17 * 60, blocked: [] };
+    if (!z.length) return { start: 8 * 60, end: 17 * 60 };
     var start = Math.round(Math.min.apply(null, z.map(function(x) {
       return x.from;
     })) * 60);
     var end = Math.round(Math.max.apply(null, z.map(function(x) {
       return x.to;
     })) * 60);
-    var blocked = z.filter(function(x) {
-      return /pauze/i.test(x.label || "");
-    }).map(function(x) {
-      return { from: Math.round(x.from * 60), to: Math.round(x.to * 60) };
-    });
-    return { start, end, blocked };
+    return { start, end };
   }
   function findFreeSlots(minutes, weeks) {
     var id = currentInviteeId(null) || resolveInviteeId();
@@ -12394,7 +12471,6 @@
         stepMin: 15,
         windowStart: win.start,
         windowEnd: win.end,
-        blocked: win.blocked,
         maxResults: 12
       });
       return { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps };
@@ -12402,8 +12478,8 @@
   }
 
   // src/content/features/agenda/quick-register.js
-  function newEventUrl(inviteeId, ymd2, hhmm, minutes) {
-    return _apiUrl("newEvent", { inviteeId, date: ymd2, startTime: hhmm, durationSec: minutes * 60 });
+  function newEventUrl(inviteeId) {
+    return _apiUrl("newEvent", { inviteeId });
   }
   function openNewEvent(req) {
     req = req || {};
@@ -12411,7 +12487,8 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
     var id = currentInviteeId(ymd2) || resolveInviteeId();
     if (id == null) return { ok: false, error: "Open eerst je agenda in ONS." };
-    spaNavigate(location.origin + newEventUrl(id, ymd2, hhmm, minutes));
+    storePendingAppointment({ date: ymd2, time: hhmm });
+    spaNavigate(location.origin + newEventUrl(id));
     return { ok: true };
   }
   function quickRegisterUrl(inviteeId, ymd2, hhmm, minutes) {
@@ -14152,6 +14229,8 @@
       quickRegister,
       quickRegisterUrl,
       newEventUrl,
+      openNewEvent,
+      onsDateText,
       findFreeGaps,
       productionWeekRow,
       plannedProductionRow,

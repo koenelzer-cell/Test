@@ -135,6 +135,8 @@ var ICON_VERVERS = 'M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4
 // Kalender met vinkje · klok · verdeelde balk (verhouding).
 var ICON_RANGE = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm5.6 8.2-3.1-3.1 1.4-1.4 1.7 1.7 4.5-4.5 1.4 1.4z';
 var ICON_QUICK = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-13h-2v6l5 3 1-1.7-4-2.4z';
+ // Kalender met zoekglas.
+var ICON_PLAN = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6v-2H5V9h14v2h2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm9.5 11a3.5 3.5 0 1 0 1.9 6.4l2.2 2.2 1.4-1.4-2.2-2.2A3.5 3.5 0 0 0 16.5 13zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z';
 var ICON_RATIO = 'M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z';
 
 /* ── Bouwstenen ────────────────────────────────────────────────────────── */
@@ -842,7 +844,7 @@ function telOpen(result, afgewerkt) {
 
 var PAGINA_TITEL = {
   hoofd: 'Agendahulp', clienttijd: 'Cliënttijd', verhouding: 'Verhouding per uursoort',
-  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok'
+  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok', plan: 'Planhulp'
 };
 
 export function create(host, actions) {
@@ -953,9 +955,7 @@ export function create(host, actions) {
   weekBox.appendChild(laadStrook);
   weekBox.appendChild(weekHost);
   var navBox = el('div', { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' });
-  // Planhulp onderin de hoofdpagina: vrije tijd zoeken in de komende weken.
-  var planBox = el('div', { padding: '0 12px 12px' });
-  hoofd.appendChild(statusBox); hoofd.appendChild(totals); hoofd.appendChild(weekBox); hoofd.appendChild(navBox); hoofd.appendChild(planBox);
+  hoofd.appendChild(statusBox); hoofd.appendChild(totals); hoofd.appendChild(weekBox); hoofd.appendChild(navBox);
 
   // Andere pagina's.
   var paginaBox = el('div', { padding: '12px', flex: '0 0 auto', display: 'none' });
@@ -1097,31 +1097,31 @@ export function create(host, actions) {
   function startPlan() {
     if (plan.busy || !actions.onFreeSlots) return;
     plan.busy = true; plan.error = ''; plan.result = null;
-    renderPlan();
+    if (pagina === 'plan') renderPagina();
     actions.onFreeSlots(plan.minutes, plan.weeks, function (res) {
       plan.busy = false;
       if (res && res.ok && res.result) plan.result = res.result;
       else plan.error = (res && res.error) || 'Zoeken mislukt.';
-      renderPlan();
+      if (pagina === 'plan') renderPagina();
     });
   }
-  // Planhulp: kies duur en periode, zoek vrije blokken binnen je werktijden.
-  function renderPlan() {
-    planBox.innerHTML = '';
-    planBox.appendChild(sectionHead('Planhulp', false));
+  // Planhulp (eigen pagina): kies duur en periode, zoek vrije blokken binnen
+  // je werktijden.
+  function pagePlan() {
+    var planBox = el('div');
     planBox.appendChild(txt('help', 'Zoek vrije tijd voor een afspraak binnen je werktijden' +
-      ((state && state.windowLabel) ? ' (' + state.windowLabel + ')' : '') + '. Pauzes en afwezigheid tellen als bezet.', { margin: '0 0 10px' }));
+      ((state && state.windowLabel) ? ' (' + state.windowLabel + ')' : '') + '. Afspraken (met reistijd) en onbeschikbaarheid in je agenda tellen als bezet.', { margin: '0 0 10px' }));
     var duur = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' });
     [30, 45, 60, 90, 120].forEach(function (m) {
       var g = plan.minutes === m;
-      duur.appendChild(chipKnop(fmtMin(m), g, function () { plan.minutes = m; plan.result = null; renderPlan(); },
+      duur.appendChild(chipKnop(fmtMin(m), g, function () { plan.minutes = m; plan.result = null; renderPagina(); },
         { padding: '0 10px', border: '1px solid ' + (g ? T.brand : T.line) }));
     });
     planBox.appendChild(fieldLabel('Duur', duur));
     var per = el('div', { display: 'flex', gap: '4px', marginTop: '0' });
     [[1, '1 week'], [2, '2 weken'], [4, '4 weken']].forEach(function (w) {
       var g = plan.weeks === w[0];
-      per.appendChild(chipKnop(w[1], g, function () { plan.weeks = w[0]; plan.result = null; renderPlan(); },
+      per.appendChild(chipKnop(w[1], g, function () { plan.weeks = w[0]; plan.result = null; renderPagina(); },
         { padding: '0 10px', border: '1px solid ' + (g ? T.brand : T.line) }));
     });
     planBox.appendChild(fieldLabel('Vooruit', per));
@@ -1147,6 +1147,7 @@ export function create(host, actions) {
         planBox.appendChild(lijst);
       }
     }
+    return planBox;
   }
 
   function renderNav() {
@@ -1154,6 +1155,7 @@ export function create(host, actions) {
     navBox.appendChild(navCard(ICON_RATIO, 'Verhouding per uursoort', 'Direct, indirect en reistijd per cliëntgebonden uursoort', function () { naarPagina('verhouding'); }));
     navBox.appendChild(navCard(ICON_RANGE, 'Open registraties', 'Controleer een periode op afspraken die nog niet geregistreerd zijn', function () { naarPagina('open'); }));
     navBox.appendChild(navCard(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', function () { naarPagina('snel'); }));
+    navBox.appendChild(navCard(ICON_PLAN, 'Planhulp', 'Vrije tijd vinden voor een afspraak in de komende weken', function () { naarPagina('plan'); }));
   }
 
   /* ── Navigatie tussen pagina's ── */
@@ -1201,7 +1203,9 @@ export function create(host, actions) {
     return b;
   }
   function terugKnop() {
-    var back = tekstKnop(PIJL_TERUG, 'Terug', function () { naarPagina('hoofd'); });
+    // Een vrij blok hoort bij de planhulp: terug naar die lijst.
+    var doel = pagina === 'vrijblok' ? 'plan' : 'hoofd';
+    var back = tekstKnop(PIJL_TERUG, 'Terug', function () { naarPagina(doel); });
     back.style.margin = '0 0 10px -6px';
     return back;
   }
@@ -1518,6 +1522,7 @@ export function create(host, actions) {
     samen.appendChild(ic);
     samen.appendChild(el('span', TYPE.text, 'Afspraak ' + hm(sl.start) + ' – ' + hm(sl.start + duur) + ' (' + fmtMin(duur) + ')'));
     box.appendChild(samen);
+    box.appendChild(txt('help', 'Opent een nieuwe afspraak in ONS; de hulp vult de datum en begintijd in. De duur kies je daarna in de afspraakhulp.', { margin: '10px 0 0' }));
     box.appendChild(primaryBtn('Afspraak maken op dit tijdstip', function () {
       sl.error = '';
       if (!actions.onNewEvent) return;
@@ -1562,6 +1567,7 @@ export function create(host, actions) {
       : pagina === 'open' ? pageOpen()
       : pagina === 'snel' ? pageQuick()
       : pagina === 'vrijblok' ? pageSlot()
+      : pagina === 'plan' ? pagePlan()
       : pageInfo();
     paginaBox.appendChild(inhoud);
     renderLive();
@@ -1649,7 +1655,6 @@ export function create(host, actions) {
 
   renderNav();
   render();
-  renderPlan();
   // Na opnieuw opbouwen (paginawissel in ONS) terug naar de pagina waar je was;
   // stond je op de afwerklijst, dan meteen bijwerken.
   if (vorigePagina && vorigePagina !== 'hoofd') {
@@ -1667,7 +1672,6 @@ export function create(host, actions) {
       if (inv && BEWAARD.inviteeId && inv !== BEWAARD.inviteeId) {
         legeResultaten();
         range = BEWAARD.range; prod = BEWAARD.prod; ratio = BEWAARD.ratio; plan = BEWAARD.plan;
-        renderPlan();
         BEWAARD.inviteeId = inv;
         vergelijkSig = '';
         naarPagina('hoofd');
@@ -1675,9 +1679,7 @@ export function create(host, actions) {
         return;
       }
       if (inv) BEWAARD.inviteeId = inv;
-      var eersteKeer = !vergelijkSig;
       render();
-      if (eersteKeer) renderPlan();
       // Alleen bijwerken als er echt iets in de agenda veranderde.
       vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : '';
       if (vorigeSig && vergelijkSig !== vorigeSig) planHercontrole();

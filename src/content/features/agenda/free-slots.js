@@ -13,15 +13,15 @@ import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
 
-// Werkvenster (minuten) en pauzezones uit de gekozen dagindeling.
+// Werkvenster (minuten): vroegste begin en laatste eind van de gekozen
+// dagindeling. Alleen als grens; wat er BINNEN dat venster bezet is, komt uit
+// de agenda zelf (afspraken en onbeschikbaarheid), niet uit de kleurzones.
 export function workWindow() {
   var z = activeZones() || [];
-  if (!z.length) return { start: 8 * 60, end: 17 * 60, blocked: [] };
+  if (!z.length) return { start: 8 * 60, end: 17 * 60 };
   var start = Math.round(Math.min.apply(null, z.map(function (x) { return x.from; })) * 60);
   var end = Math.round(Math.max.apply(null, z.map(function (x) { return x.to; })) * 60);
-  var blocked = z.filter(function (x) { return /pauze/i.test(x.label || ''); })
-    .map(function (x) { return { from: Math.round(x.from * 60), to: Math.round(x.to * 60) }; });
-  return { start: start, end: end, blocked: blocked };
+  return { start: start, end: end };
 }
 
 // minutes: gewenste duur; weeks: hoe ver vooruit (1-8).
@@ -50,7 +50,7 @@ export function findFreeSlots(minutes, weeks) {
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: Date.now(), days: weeks * 7, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, blocked: win.blocked, maxResults: 12
+      windowStart: win.start, windowEnd: win.end, maxResults: 12
     });
     return { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps };
   });

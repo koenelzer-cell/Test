@@ -19,7 +19,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   unavailabilities                  verlof vastleggen (POST)             (unavailability.js)
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
 //   weekUnavailabilities              afwezigheid, voor de planhulp         (free-slots.js)
-//   newEvent                          afspraakformulier, vooraf ingevuld  (paginaroute, geen API)
+//   newEvent                          nieuw afspraakformulier (planhulp)     (paginaroute, geen API)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
 const _API_DEFAULTS = {
   weekEvents: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events',
@@ -35,11 +35,9 @@ const _API_DEFAULTS = {
     + '?date={date}&open=false&includeUnregistered=false&withoutClient=false&offset={offset}&limit={limit}',
   detectOverlap: '/worksheet/registrations/detect_overlap?date={date}&start_time={startTime}&end_time={endTime}&hour_type_id={hourTypeId}',
   // duration in SECONDEN (900 = 15 minuten), start_time als HH:MM.
-  // Afspraakformulier, vooraf ingevuld (planhulp). Afgeleid van het
-  // registratieformulier (declaration[...] -> event[...]); niet gedocumenteerd.
-  // Instelbaar via config.apiEndpoints.newEvent als ONS andere namen gebruikt.
-  newEvent: '/invitees/{inviteeId}/events/new?event%5Bstart_date%5D={date}'
-    + '&event%5Bstart_time%5D={startTime}&event%5Bduration%5D={durationSec}&redirect_to_calendar=true',
+  // Nieuw afspraakformulier, zoals ONS het zelf opent. Datum en begintijd
+  // vult de hulp daarna in het formulier in (features/appointment/prefill.js).
+  newEvent: '/events/new?invitee_ids%5B%5D={inviteeId}&redirect_to_calendar=true',
   newRegistration: '/invitees/{inviteeId}/registrations/new?declaration%5Bstart_date%5D={date}'
     + '&declaration%5Bstart_time%5D={startTime}&declaration%5Bduration%5D={durationSec}&redirect_to_calendar=true',
 };

@@ -286,7 +286,7 @@ test('zijpaneel: zonder weekoverzicht nooit een leeg vak', async () => {
 test('zijpaneel: de knoppen naar de pagina\'s staan onder het weekoverzicht', async () => {
   const { document } = zijpaneelMetTools();
   await tick();
-  const knoppen = ['Verhouding per uursoort', 'Open registraties', 'Snel registreren'].map((k) => navKnop(document, k));
+  const knoppen = ['Verhouding per uursoort', 'Open registraties', 'Snel registreren', 'Planhulp'].map((k) => navKnop(document, k));
   assert.ok(knoppen.every(Boolean), 'drie knoppen');
   const navBox = knoppen[0].parentElement;
   assert.equal(navBox.previousElementSibling.children.length, 2, 'direct erboven staat het weekoverzicht (laadstrook + overzicht)');
@@ -494,7 +494,8 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
     'ag-new-event': (msg, cb) => cb({ ok: true }),
   });
   await tick();
-  assert.match(document.body.textContent, /Planhulp/);
+  navKnop(document, 'Planhulp').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
   knop(document, '1 u').click();
   knop(document, '4 weken').click();
   knop(document, 'Vrije tijd zoeken').click();
@@ -510,6 +511,9 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60 });
   knop(document, 'Naar deze dag in de agenda').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
+  knop(document, 'Terug').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'terug naar de lijst vrije blokken');
+  assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
 });
 
 test('nergens hoofdletterstijl in de extensie', () => {

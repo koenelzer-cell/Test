@@ -181,7 +181,7 @@ test('productieverloop: een latere week komt uit de planning', () => {
   assert.equal(rij.indirectMinutes, 60);
 });
 
-test('planhulp: vrije blokken binnen werktijd, rond afspraken, pauze en afwezigheid', () => {
+test('planhulp: vrije blokken binnen werktijd, rond afspraken en onbeschikbaarheid', () => {
   const { api } = bootHelper();
   const NU = Date.parse('2026-10-07T13:10:00'); // woensdag
   const afs = (date, van, tot, extra = {}) => ({ type: 'event', date, startMs: Date.parse(date + 'T' + van + ':00'), endMs: Date.parse(date + 'T' + tot + ':00'), ...extra });
@@ -189,18 +189,35 @@ test('planhulp: vrije blokken binnen werktijd, rond afspraken, pauze en afwezigh
     afs('2026-10-07', '14:00', '15:00'),
     afs('2026-10-08', '09:00', '10:00', { travelAfter: 1800 }),              // + 30 m reistijd
     { type: 'event', date: '2026-10-09', allDay: true, layer: 'unavailabilities' }, // vrijdag verlof
-  ], { now: NU, days: 3, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020, blocked: [{ from: 720, to: 750 }] });
+    { type: 'unavailability', date: '2026-10-08', layer: 'unavailabilities',          // do 12:00-12:30 onbeschikbaar
+      startMs: Date.parse('2026-10-08T12:00:00'), endMs: Date.parse('2026-10-08T12:30:00') },
+  ], { now: NU, days: 3, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 });
   const tekst = [...gaps.map((g) => g.date + ' ' + g.startMin + '-' + g.endMin)];
   assert.deepEqual(tekst, [
     '2026-10-07 900-1020',     // vandaag: na de afspraak tot 17:00 (13:15-14:00 is te kort)
     '2026-10-08 480-540',      // do 08:00-09:00
-    '2026-10-08 630-720',      // do na afspraak + reistijd (10:30) tot de pauze
-    '2026-10-08 750-1020',     // do na de pauze tot 17:00
+    '2026-10-08 630-720',      // do na afspraak + reistijd (10:30) tot de onbeschikbaarheid
+    '2026-10-08 750-1020',     // do daarna tot 17:00
   ]);
 });
 
-test('planhulp: het afspraakformulier opent met datum, tijd en duur', () => {
+test('planhulp: opent het afspraakformulier zoals ONS het zelf doet en zet datum en tijd klaar', () => {
+  const { api, window } = bootHelper();
+  assert.equal(api.newEventUrl(42479), '/events/new?invitee_ids%5B%5D=42479&redirect_to_calendar=true');
+  const geklikt = [];
+  window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
+  const r = api.openNewEvent({ date: '2026-10-08', time: '10:30', minutes: 60 });
+  assert.equal(r.ok, true);
+  assert.match(geklikt[0], /\/events\/new\?invitee_ids%5B%5D=123&redirect_to_calendar=true$/);
+  const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
+  assert.deepEqual({ date: klaar.date, time: klaar.time }, { date: '2026-10-08', time: '10:30' });
+  assert.equal(api.onsDateText('2026-10-08'), '08-10-2026', 'zoals het datumveld van ONS hem toont');
+  assert.equal(api.openNewEvent({ date: '2026-10-08', time: '25:00', minutes: 60 }).ok, false);
+});
+
+test('planhulp: geen vaste pauze; zonder afspraken is de hele werkdag vrij', () => {
   const { api } = bootHelper();
-  assert.equal(api.newEventUrl(42479, '2026-10-08', '10:30', 60),
-    '/invitees/42479/events/new?event%5Bstart_date%5D=2026-10-08&event%5Bstart_time%5D=10%3A30&event%5Bduration%5D=3600&redirect_to_calendar=true');
+  const gaps = api.findFreeGaps([], { now: Date.parse('2026-10-08T07:00:00'), days: 1, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 });
+  assert.equal(gaps.length, 1);
+  assert.deepEqual([gaps[0].startMin, gaps[0].endMin], [480, 1020], '08:00-17:00 aaneengesloten');
 });
