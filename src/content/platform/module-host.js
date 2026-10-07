@@ -143,7 +143,7 @@ function buildBar() {
   // LET OP: de vier inset-longhands (top/right/bottom/left) expliciet zetten en
   // GEEN 'inset:auto'-shorthand erna — die zou left/bottom terugzetten naar auto
   // (dan zweeft de kaart linksbovenaan i.p.v. linksonder).
-  bar.style.cssText = 'position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui,sans-serif;pointer-events:none;';
+  bar.style.cssText = 'position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;pointer-events:none;';
   return bar;
 }
 // Toon de popover (top layer). Idempotent.

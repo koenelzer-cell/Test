@@ -10,9 +10,10 @@ import { editableWindowStart, windowStatusForDate } from './edit-window.js';
 import { currentCalendarView, jumpToDay, jumpToWeek } from './navigation.js';
 import { safe } from '../../screen/status.js';
 import { storageSet } from '../../storage/page-prefs.js';
-import { showAgendaBreakdownModal, showAgendaCalcModal } from '../agenda-overview/modals.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
 import { checkOpenRange, defaultRangeFrom } from './open-range.js';
+import { computeProduction, defaultProductionFrom } from './production.js';
+import { _nonClientMarker } from '../../domain/registrations.js';
 import { quickRegister } from './quick-register.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
@@ -65,6 +66,9 @@ function agPanelState() {
     leaveRequest: leaveRequestEnabled(),
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
+    productionDefaultFrom: defaultProductionFrom(),
+    // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
+    nonClientMarker: _nonClientMarker(),
     today: agendaYmd(new Date())
   };
 }
@@ -119,12 +123,6 @@ export function listenForSidePanelMessages() {
             if (item) openOccurrence(item.el);
           });
           return;
-        case MSG.AGENDA_OPEN_BREAKDOWN:
-          safe(function () { if (agendaPage._agLastWeek) showAgendaBreakdownModal(agendaPage._agLastWeek.summary, agendaPage._agLastWeek.opts); });
-          return;
-        case MSG.AGENDA_OPEN_CALC:
-          safe(function () { if (agendaPage._agLastWeek) showAgendaCalcModal(agendaPage._agLastWeek.summary, agendaPage._agLastWeek.opts); });
-          return;
         case MSG.AGENDA_OPEN_LEAVE:
           // De dialoog draait in de pagina: alleen daar zijn de ONS-sessie en
           // het CSRF-token beschikbaar.
@@ -132,11 +130,20 @@ export function listenForSidePanelMessages() {
           return;
         case MSG.AGENDA_CHECK_RANGE:
           checkOpenRange(msg.from, msg.to, function (done, total) {
-            try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, done: done, total: total }); } catch (e) {}
+            try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'open', done: done, total: total }); } catch (e) {}
           }).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Controleren mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_PRODUCTION:
+          computeProduction(msg.from, msg.to, function (done, total) {
+            try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'productie', done: done, total: total }); } catch (e) {}
+          }).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Berekenen mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_QUICK_REGISTER:

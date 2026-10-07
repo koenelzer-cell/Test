@@ -35,7 +35,7 @@ export function BackButton({ label = 'Terug', onClick, tokens }) {
         padding: '10px 11px',
         background: hover ? T.brandWash : '#fff',
         color: T.ink,
-        font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif',
+        font: '600 13.5px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         cursor: 'pointer',
         boxSizing: 'border-box',
         transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',

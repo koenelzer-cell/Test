@@ -315,7 +315,7 @@ export function startUiInspector() {
         const b = document.createElement('div');
         css(b, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', border: (primary ? '2px solid ' : '2px dashed ') + col, borderRadius: '3px', background: primary ? 'rgba(30,132,73,.10)' : 'transparent', opacity: primary ? '1' : '.5', pointerEvents: 'none', boxSizing: 'border-box' });
         const t = document.createElement('div'); t.textContent = h[1] + (primary && els.length > 1 ? ' ★' : '');
-        css(t, { position: 'absolute', top: '-15px', left: '0', font: '10px/1 system-ui', color: '#fff', background: col, padding: '1px 4px', borderRadius: '3px', whiteSpace: 'nowrap', opacity: primary ? '1' : '.7' });
+        css(t, { position: 'absolute', top: '-15px', left: '0', font: '10px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: '#fff', background: col, padding: '1px 4px', borderRadius: '3px', whiteSpace: 'nowrap', opacity: primary ? '1' : '.7' });
         b.appendChild(t); ov.appendChild(b);
       });
     });
@@ -444,7 +444,7 @@ export function startUiInspector() {
   function enterPick(h) {
     pickHook = h; if (panel) panel.style.display = 'none';
     pickBanner = document.createElement('div');
-    css(pickBanner, { position: 'fixed', top: '0', left: '0', right: '0', padding: '12px', background: C.pick, color: '#fff', font: '700 14px system-ui', textAlign: 'center', pointerEvents: 'none' });
+    css(pickBanner, { position: 'fixed', top: '0', left: '0', right: '0', padding: '12px', background: C.pick, color: '#fff', font: '700 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', textAlign: 'center', pointerEvents: 'none' });
     pickBanner.textContent = 'Klik het juiste element aan voor: ' + h[1] + '   (Esc = annuleren)';
     ov.appendChild(pickBanner);
     document.addEventListener('mousemove', onMove, true);
@@ -485,7 +485,7 @@ export function startUiInspector() {
 
   // ---- paneel ----
   function setStatus(t) { const s = panel && panel.querySelector('.__st'); if (s) s.textContent = t; }
-  function mini(txt, fn, primary) { const b = document.createElement('button'); b.textContent = txt; css(b, { border: '1px solid ' + (primary ? C.pick : '#ccc'), background: primary ? C.pick : '#fafafa', color: primary ? '#fff' : '#333', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', font: '600 11px system-ui' }); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; }
+  function mini(txt, fn, primary) { const b = document.createElement('button'); b.textContent = txt; css(b, { border: '1px solid ' + (primary ? C.pick : '#ccc'), background: primary ? C.pick : '#fafafa', color: primary ? '#fff' : '#333', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', font: '600 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; }
 
   // Live samenvatting én per-regel ✓/✗ bijwerken zonder het hele paneel te
   // herbouwen (behoudt scrollpositie en knopstatus tijdens de 0,5s-refresh).
@@ -503,7 +503,7 @@ export function startUiInspector() {
     // zodat een eerder aangewezen element ook echt als 'in gebruik' verschijnt.
     try { if (chrome && chrome.storage && chrome.storage.local) chrome.storage.local.get([OVERRIDE_KEY], (r) => { overrides = (r && r[OVERRIDE_KEY]) || {}; if (root && panel) { drawHighlights(); renderPanel(); } }); } catch (e) {}
     panel = document.createElement('div');
-    css(panel, { position: 'fixed', top: '0', bottom: '0', left: 'calc(100vw - ' + PW + 'px)', width: PW + 'px', overflow: 'auto', background: '#fff', color: '#222', borderLeft: '1px solid #ccc', boxShadow: '-6px 0 24px rgba(0,0,0,.15)', font: '13px/1.45 system-ui', pointerEvents: 'auto' });
+    css(panel, { position: 'fixed', top: '0', bottom: '0', left: 'calc(100vw - ' + PW + 'px)', width: PW + 'px', overflow: 'auto', background: '#fff', color: '#222', borderLeft: '1px solid #ccc', boxShadow: '-6px 0 24px rgba(0,0,0,.15)', font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', pointerEvents: 'auto' });
     root.appendChild(panel); renderPanel();
     window.addEventListener('scroll', drawHighlights, true); window.addEventListener('resize', drawHighlights, true);
     drawHighlights();
@@ -629,7 +629,7 @@ export function startUiInspector() {
 
     let grp = '';
     HOOKS.forEach((h) => {
-      if (h[0] !== grp) { grp = h[0]; const g = css(document.createElement('div'), { fontWeight: '800', fontSize: '10px', textTransform: 'uppercase', color: '#888', margin: '10px 0 2px' }); g.textContent = grp; body.appendChild(g); }
+      if (h[0] !== grp) { grp = h[0]; const g = css(document.createElement('div'), { fontWeight: '800', fontSize: '10px', color: '#888', margin: '10px 0 2px' }); g.textContent = grp; body.appendChild(g); }
       const o = overrideSel(h);
       const row = css(document.createElement('div'), { display: 'flex', alignItems: 'center', gap: '7px', padding: '5px 4px', borderBottom: '1px solid #f2f2f2', borderRadius: '6px' });
       const dot = css(document.createElement('span'), { minWidth: '26px', textAlign: 'center', fontWeight: '800' });

@@ -17,7 +17,7 @@ function styleChipButton(chip) {
   const T = ONSAH_TOKENS;
   Object.assign(chip.style, {
     padding: '9px 6px', borderRadius: '10px', border: '1px solid ' + T.line, background: '#fff',
-    font: '600 13px/1 system-ui,-apple-system,sans-serif', color: T.ink, cursor: 'pointer',
+    font: '600 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: T.ink, cursor: 'pointer',
     fontVariantNumeric: 'tabular-nums', textAlign: 'center', boxSizing: 'border-box',
     transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
   });
@@ -118,7 +118,7 @@ function mkHourMinutePicker(values, onPick, labelStijl) {
     stage.innerHTML = '';
     const back = document.createElement('button');
     back.type = 'button'; back.textContent = '‹ Ander aantal uren';
-    Object.assign(back.style, { border: '0', background: 'none', color: ONSAH_TOKENS.inkSoft, font: '600 12px system-ui,-apple-system,sans-serif', cursor: 'pointer', padding: '0 0 8px', display: 'block' });
+    Object.assign(back.style, { border: '0', background: 'none', color: ONSAH_TOKENS.inkSoft, font: '600 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: 'pointer', padding: '0 0 8px', display: 'block' });
     back.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); renderHours(); });
     const grid = mkGrid();
     mins.slice().sort((a, b) => a - b).forEach((m) => {
@@ -148,7 +148,7 @@ function mkTimePicker(values, initial, onPick) {
   const wrap = document.createElement('div');
   Object.assign(wrap.style, { display: 'flex', flexDirection: 'column', gap: '14px', padding: '4px 0 2px' });
   const readout = document.createElement('div');
-  Object.assign(readout.style, { textAlign: 'center', font: '800 22px/1 system-ui,-apple-system,sans-serif', color: T.ink, fontVariantNumeric: 'tabular-nums' });
+  Object.assign(readout.style, { textAlign: 'center', font: '800 22px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: T.ink, fontVariantNumeric: 'tabular-nums' });
   const slider = document.createElement('input');
   slider.type = 'range'; slider.min = String(min); slider.max = String(max); slider.step = String(step); slider.value = String(cur);
   Object.assign(slider.style, { width: '100%', height: '6px', borderRadius: '999px', accentColor: T.brand, outline: 'none', margin: '2px 0', boxSizing: 'border-box' });
@@ -156,7 +156,7 @@ function mkTimePicker(values, initial, onPick) {
   Object.assign(steps.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px' });
   function mkStepBtn(symbol, delta, label) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = symbol; b.setAttribute('aria-label', label);
-    Object.assign(b.style, { width: '34px', height: '34px', borderRadius: '50%', border: '1px solid ' + T.line, background: '#fff', color: T.ink, font: '700 17px/1 system-ui', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .12s ease, border-color .12s ease, transform .12s ease' });
+    Object.assign(b.style, { width: '34px', height: '34px', borderRadius: '50%', border: '1px solid ' + T.line, background: '#fff', color: T.ink, font: '700 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .12s ease, border-color .12s ease, transform .12s ease' });
     b.addEventListener('mouseenter', () => { b.style.background = T.brandWash; b.style.borderColor = 'transparent'; });
     b.addEventListener('mouseleave', () => { b.style.background = '#fff'; b.style.borderColor = T.line; });
     onsahFocusRing(b);
@@ -201,7 +201,7 @@ function mkTwoColumnDurationPicker(values, onPick) {
     b.type = 'button'; b.textContent = label; b.dataset.sel = '0';
     Object.assign(b.style, {
       padding: '7px 6px', borderRadius: '9px', border: '1px solid ' + T.line, background: '#fff',
-      font: '600 13px/1 system-ui,-apple-system,sans-serif', color: T.ink, cursor: 'pointer',
+      font: '600 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: T.ink, cursor: 'pointer',
       fontVariantNumeric: 'tabular-nums', textAlign: 'center', boxSizing: 'border-box',
       transition: 'background .12s ease, border-color .12s ease, opacity .12s ease, color .12s ease',
     });
@@ -216,7 +216,7 @@ function mkTwoColumnDurationPicker(values, onPick) {
     Object.assign(col.style, { flex: '1 1 0', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '5px' });
     const h = document.createElement('div');
     h.textContent = title;
-    Object.assign(h.style, { fontSize: '10.5px', fontWeight: '700', color: T.inkSoft, textTransform: 'uppercase', letterSpacing: '.03em', textAlign: 'center', marginBottom: '2px' });
+    Object.assign(h.style, { fontSize: '10.5px', fontWeight: '700', color: T.inkSoft, textAlign: 'center', marginBottom: '2px' });
     col.appendChild(h);
     return col;
   }

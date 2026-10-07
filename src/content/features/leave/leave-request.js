@@ -46,7 +46,7 @@ export function leaveRequestEnabled() {
 /* ── Bouwstenen van de dialoog ─────────────────────────────────────────── */
 
 const T = ONSAH_TOKENS;
-const CONTROL_CSS = 'font:14px system-ui,sans-serif;padding:7px 8px;border:1px solid ' + T.line
+const CONTROL_CSS = 'font:14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;padding:7px 8px;border:1px solid ' + T.line
   + ';border-radius:8px;color:' + T.ink + ';background:#fff;min-width:0;width:100%;box-sizing:border-box';
 
 function field(labelText, control) {

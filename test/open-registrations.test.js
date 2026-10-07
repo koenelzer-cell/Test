@@ -130,3 +130,23 @@ test('snel registreren: een "ja" van ONS waarschuwt ook als wij zelf niets vinde
   const r = await api.quickRegister({ date: '2026-10-06', time: '10:30', minutes: 15 });
   assert.match(r.overlap, /ONS meldt/);
 });
+
+test('periode: "niet registreren" (wont-declare) telt als afgehandeld', () => {
+  const { api } = bootHelper();
+  const r = api.summarizeOpenRange([
+    afspraak(1, '2026-10-05', '09:00', 60, { classes: 'not-declared wont-declare' }),
+    afspraak(2, '2026-10-05', '11:00', 30),
+  ], { from: '2026-10-05', to: '2026-10-07', now: NU });
+  assert.equal(r.totalCount, 1);
+  assert.equal(r.days[0].items[0].key, '2|2026-10-05|' + Date.parse('2026-10-05T11:00:00'), 'sleutel voor de afwerklijst');
+});
+
+test('productieverloop: per week directe, indirecte en cliënttijd', () => {
+  const { api } = bootHelper();
+  const rij = api.productionWeekRow('2026-10-05', { directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, clientMinutes: 690, nonClientMinutes: 5, totalMinutes: 695, count: 9 }, 'JGGZ');
+  assert.equal(rij.week, 41);
+  assert.equal(rij.directMinutes, 480);
+  assert.equal(rij.indirectMinutes, 150);
+  assert.equal(rij.travelMinutes, 60);
+  assert.equal(rij.clientMinutes, 690);
+});

@@ -12,6 +12,14 @@ import { APP_CONFIG, CONFIG } from '../../config/app-config.js';
 import { MSG } from '../../../shared/messages.js';
 
 const NEEDLE = '/invitees';
+// Mag de agenda nu rekenen? Normaal alleen als het tabblad focus heeft. Maar
+// klik je in het zijpaneel (bijv. 'Naar weekweergave'), dan heeft het zijpaneel
+// de focus en niet de pagina; zonder deze uitzondering bleef het weekoverzicht
+// dan leeg tot je in de pagina klikte.
+function paginaActief() {
+  if (document.hasFocus()) return true;
+  return !!agendaPage.sidePanelOpen && document.visibilityState === 'visible';
+}
 function activateAgendaPage() {
 
   if (agendaPage.active) return;
@@ -34,11 +42,11 @@ function activateAgendaPage() {
   // De MutationObserver hierboven vangt vrijwel alle wijzigingen op; een
   // rustige 250ms-fallback dekt gevallen die geen DOM-mutatie geven
   // (bijv. layout-only). 20×/sec verven is niet nodig.
-  if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function () { if (document.hasFocus()) schedulePaint(); }, 250);
+  if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function () { if (paginaActief()) schedulePaint(); }, 250);
   // Elke 300 ms de ongeregistreerde tijd per dag herberekenen (+ badge,
   // ook als de popup is ingeklapt).
   if (!agendaPage.totalsTimer) agendaPage.totalsTimer = setInterval(function () {
-    if (!document.hasFocus()) return; // niets doen als het tabblad niet actief is
+    if (!paginaActief()) return; // niets doen als het tabblad niet actief is (zijpaneel open telt als actief)
     try {
       // Eén berekening per tik (voorheen werd computeTotals dubbel gedraaid:
       // hier én binnen updateTotals). Badge + totalen delen nu dezelfde uitkomst.

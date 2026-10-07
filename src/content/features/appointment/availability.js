@@ -66,7 +66,7 @@ export function showAvailabilityWarning() {
   Object.assign(actions.style, { display: 'flex', justifyContent: 'flex-end', gap: '8px' });
   const noBtn = document.createElement('button');
   noBtn.type = 'button'; noBtn.textContent = 'Nee';
-  Object.assign(noBtn.style, { appearance: 'none', border: '1px solid #ece7e5', background: 'transparent', color: '#6b6367', borderRadius: '999px', padding: '9px 16px', font: '600 12.5px system-ui,-apple-system,sans-serif', cursor: 'pointer' });
+  Object.assign(noBtn.style, { appearance: 'none', border: '1px solid #ece7e5', background: 'transparent', color: '#6b6367', borderRadius: '999px', padding: '9px 16px', font: '600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: 'pointer' });
   onsahFocusRing(noBtn);
   noBtn.addEventListener('click', () => safe(() => {
     shell.close();

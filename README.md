@@ -103,20 +103,28 @@ zijn de standaardomschrijving, het AFAS-adres, de maximale duur van een
 herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 `features.leaveRequest: false` zet de knop uit.
 
-### Zijpaneel: open registraties en snel registreren
+### Zijpaneel
 
-Het lipje aan de rechterrand opent het zijpaneel; bij het verschijnen schuift
-het kort uit de rand (en wiebelt het één keer per browsersessie). Onder het
-weekoverzicht staan twee knoppen die elk een eigen pagina in het zijpaneel
-openen, met **Terug** naar de hoofdpagina:
+Het lipje aan de rechterrand opent het zijpaneel. In rust tikt de pijl af en toe
+even naar links; bij het verschijnen schuift het lipje uit de rand.
 
+De hoofdpagina toont de status en het weekoverzicht. Alles wat verder gaat, opent
+als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
+
+- **Cliënttijd** (klik op de cliënttijd in het weekoverzicht): de opbouw van de
+  week (direct, indirect, reistijd, niet-cliënttijd) en het **productieverloop**:
+  kies een periode (standaard de laatste acht weken, hooguit 26) en zie de
+  directe en indirecte tijd per week als lijngrafiek, met de getallen in een
+  tabel eronder. Per week dezelfde berekening als het weekoverzicht.
+- **Verhouding per uursoort**: per cliëntgebonden uursoort direct, indirect en
+  reistijd, met percentages.
 - **Open registraties**: kies een periode (standaard vanaf het begin van het
-  aanpasvenster van ONS tot vandaag, hooguit 26 weken). De hulp haalt elke week
-  op en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn;
-  een klik op de dag opent die dag in de agenda.
+  aanpasvenster van ONS tot vandaag) en zie per dag welke afgelopen afspraken nog
+  niet geregistreerd zijn. Dit is een afwerklijst: registreer je een afspraak of
+  zet je hem op *niet registreren*, dan wordt hij bij terugkomst in het zijpaneel
+  afgevinkt. De lijst blijft bewaard zolang het zijpaneel open is.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
-  registratieformulier van ONS met die tijden ingevuld. Overlapt het tijdvak met
-  een bestaande registratie, dan volgt eerst een waarschuwing.
+  registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 
 ## Gegevens
 

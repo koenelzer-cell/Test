@@ -23,7 +23,7 @@ export function PillButton({ label, onClick, tokens, icon, style }) {
         border: 0,
         borderRadius: 999,
         padding: '10px 18px',
-        font: '700 13px/1 system-ui,-apple-system,sans-serif',
+        font: '700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         color: '#fff',
         background: active ? T.brandDeep : T.brand,
         cursor: 'pointer',

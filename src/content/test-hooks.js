@@ -172,6 +172,7 @@ import {
 } from './domain/open-registrations.js';
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
 import { quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
+import { productionWeekRow } from './features/agenda/production.js';
 
 // Test-hook: buitenste-scope-logica blootstellen (alleen onder testvlag).
 // Opstarten: interne functies blootstellen aan de jsdom-tests (alleen onder testvlag).
@@ -343,6 +344,7 @@ export function exposeTestApi() {
     fetchEntriesForRange,
     quickRegister,
     quickRegisterUrl,
+    productionWeekRow,
     __setOnsOverlap: _setOnsOverlapForTest,
     __setDoorplannen: function (v) { try { appointmentFlow.appointmentDoorplannen = !!v; } catch (e) {} },
   });

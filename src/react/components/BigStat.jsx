@@ -14,7 +14,10 @@ export function BigStat({ label, value, fg, interactive, tokens, onClick }) {
       onClick={interactive ? onClick : undefined}
       onMouseEnter={interactive ? () => setHover(true) : undefined}
       onMouseLeave={interactive ? () => setHover(false) : undefined}
-      title={interactive ? 'Klik voor de opbouw (direct / indirect / reistijd / overig)' : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (onClick) onClick(); } } : undefined}
+      title={interactive ? 'Opbouw van de cliënttijd en het productieverloop' : undefined}
       style={{
         position: 'relative',
         flex: '1 1 0',
@@ -22,8 +25,8 @@ export function BigStat({ label, value, fg, interactive, tokens, onClick }) {
         boxSizing: 'border-box',
         background: '#fff',
         border: '1px solid ' + (interactive ? T.brand : T.line),
-        borderRadius: 10,
-        padding: '9px ' + (interactive ? '20px' : '11px') + ' 9px 14px',
+        borderRadius: 12,
+        padding: '9px ' + (interactive ? '22px' : '12px') + ' 10px 14px',
         transition: 'transform .12s ease, box-shadow .12s ease',
         cursor: interactive ? 'pointer' : undefined,
         transform: hover ? 'translateY(-1px)' : 'none',
@@ -43,11 +46,9 @@ export function BigStat({ label, value, fg, interactive, tokens, onClick }) {
       />
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 700,
+          fontSize: 12,
+          fontWeight: 600,
           color: T.inkSoft,
-          textTransform: 'uppercase',
-          letterSpacing: '.03em',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -55,13 +56,13 @@ export function BigStat({ label, value, fg, interactive, tokens, onClick }) {
       >
         {label}
       </div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: fg, fontVariantNumeric: 'tabular-nums', marginTop: 1 }}>
+      <div style={{ fontSize: 17, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
         {value}
       </div>
       {interactive && (
         <ChevronIcon
-          size={12}
-          style={{ position: 'absolute', right: 8, top: 10, width: 12, height: 12, color: T.brand }}
+          size={14}
+          style={{ position: 'absolute', right: 8, top: '50%', marginTop: -7, width: 14, height: 14, color: T.brand }}
         />
       )}
     </div>

@@ -1,90 +1,61 @@
-// Body van de modal "Verhouding per uursoort". Vervangt de opbouw in
-// content.js' showAgendaCalcModal — de mkModalShell-schil blijft vanilla.
+// Pagina 'Verhouding per uursoort' in het zijpaneel.
+//
+// Per cliëntgebonden uursoort een kaart met drie dunne balkjes (direct,
+// indirect, reistijd), elk met waarde en percentage. Zelfde vormtaal als het
+// weekoverzicht (BarList) en dezelfde kleuren als de grafiek productieverloop:
+// direct blauw, indirect roze, reistijd groenblauw. Tekst staat in inkt; de
+// kleur zit alleen in het balkje.
+//
 // `rows` komt al gefilterd op cliëntgebonden uursoorten binnen
-// (_isClientUursoortName blijft domeinlogica in content.js).
-const SEGMENT_COLOR = { direct: '#B5F4BB', indirect: '#FFE1B5', travel: '#CAE9FC' };
+// (_isClientUursoortName blijft domeinlogica in het content-script).
+export const RATIO_COLORS = { direct: '#2a78d6', indirect: '#cc087d', travel: '#1baf7a' };
+const PARTS = [['direct', 'Direct'], ['indirect', 'Indirect'], ['travel', 'Reistijd']];
 
-function Chip({ label, val, col, fmtMin }) {
+function Part({ label, minutes, total, color, fmtMin, T }) {
+  const pct = total > 0 ? Math.round((minutes / total) * 100) : 0;
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-      <span style={{ width: 10, height: 10, borderRadius: 3, border: '1px solid rgba(0,0,0,.18)', background: col }} />
-      <span style={{ fontWeight: 600 }}>{label} {fmtMin(val)}</span>
-    </span>
-  );
-}
-
-function Note({ children }) {
-  return <div style={{ color: '#777', fontSize: 11, margin: '3px 0 0' }}>{children}</div>;
-}
-
-function FlatRow({ type, minutes, fmtMin }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '5px 0', borderBottom: '1px dotted #eee' }}>
-      <span style={{ color: '#333' }}>{type}</span>
-      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtMin(minutes)}</span>
+    <div style={{ margin: '8px 0 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
+        <span style={{ color: T.ink }}>{label}</span>
+        <span style={{ color: T.ink, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+          {fmtMin(minutes)} <span style={{ color: T.inkSoft, fontWeight: 400 }}>· {pct}%</span>
+        </span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, background: T.lineSoft, overflow: 'hidden', marginTop: 3 }}>
+        <div style={{ height: '100%', width: (minutes > 0 ? Math.max(2, pct) : 0) + '%', background: color, borderRadius: 2 }} />
+      </div>
     </div>
   );
 }
 
-function SplitBlock({ row, fmtMin }) {
+function TypeCard({ row, fmtMin, T }) {
   const d = row.direct || 0, i = row.indirect || 0, t = row.travel || 0;
   const sum = d + i + t;
-  if (sum <= 0) return null;
-  const segs = [['direct', d], ['indirect', i], ['travel', t]];
   return (
-    <div style={{ margin: '12px 0 6px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, marginBottom: 4 }}>
-        <span style={{ fontWeight: 700, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.type}</span>
-        <span style={{ fontWeight: 700, whiteSpace: 'nowrap', color: '#222' }}>{fmtMin(sum)}</span>
+    <div style={{ border: '1px solid ' + T.line, borderRadius: 12, padding: '10px 12px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
+        <span style={{ fontWeight: 600, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.type}</span>
+        <span style={{ fontWeight: 600, color: T.ink, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{fmtMin(sum > 0 ? sum : row.minutes)}</span>
       </div>
-      <div style={{ display: 'flex', height: 26, borderRadius: 6, overflow: 'hidden', background: '#1f2937' }}>
-        {segs.map(([key, val]) => {
-          if (val <= 0) return null;
-          const pct = Math.round((val / sum) * 100);
-          return (
-            <div
-              key={key}
-              style={{
-                height: '100%',
-                width: (val / sum) * 100 + '%',
-                background: SEGMENT_COLOR[key],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#14202b',
-                fontWeight: 800,
-                fontSize: 12,
-                overflow: 'hidden',
-              }}
-            >
-              {pct >= 8 ? pct + '%' : null}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: '#555', marginTop: 4 }}>
-        <Chip label="Direct" val={d} col={SEGMENT_COLOR.direct} fmtMin={fmtMin} />
-        <Chip label="Indirect" val={i} col={SEGMENT_COLOR.indirect} fmtMin={fmtMin} />
-        <Chip label="Reistijd" val={t} col={SEGMENT_COLOR.travel} fmtMin={fmtMin} />
-      </div>
+      {sum > 0
+        ? PARTS.map(([key, label]) => (
+            <Part key={key} label={label} minutes={row[key] || 0} total={sum} color={RATIO_COLORS[key]} fmtMin={fmtMin} T={T} />
+          ))
+        : <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>Geen verdeling direct / indirect bekend.</div>}
     </div>
   );
 }
 
-export function CalcModalBody({ rows, nonClientMarker, fmtMin }) {
-  const hasSplit = rows.some((r) => r.direct != null || r.indirect != null || r.travel != null);
+export function CalcModalBody({ rows, nonClientMarker, fmtMin, tokens }) {
+  const T = tokens;
   return (
     <div>
-      <Note>
-        Verhouding direct / indirect / reistijd per cliëntgebonden uursoort. Niet-cliënturen (met "{nonClientMarker}") tellen hier niet mee.
-      </Note>
-      {!rows.length ? (
-        <Note>Geen cliëntgebonden uursoorten in deze week.</Note>
-      ) : !hasSplit ? (
-        rows.map((r, i) => <FlatRow key={r.type + '|' + i} type={r.type} minutes={r.minutes} fmtMin={fmtMin} />)
-      ) : (
-        rows.map((r, i) => <SplitBlock key={r.type + '|' + i} row={r} fmtMin={fmtMin} />)
-      )}
+      <div style={{ color: T.inkSoft, fontSize: 12, lineHeight: 1.45, margin: '0 0 12px' }}>
+        Per cliëntgebonden uursoort. Niet-cliënturen (met &lsquo;{nonClientMarker}&rsquo;) tellen hier niet mee.
+      </div>
+      {!rows.length
+        ? <div style={{ color: T.inkSoft, fontSize: 13 }}>Geen cliëntgebonden uursoorten in deze week.</div>
+        : rows.map((r, i) => <TypeCard key={r.type + '|' + i} row={r} fmtMin={fmtMin} T={T} />)}
     </div>
   );
 }

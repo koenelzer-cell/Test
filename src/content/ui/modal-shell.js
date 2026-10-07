@@ -19,7 +19,7 @@ export function mkModalShell(id, titleText, opts) {
   overlay.id = id;
   overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(20,15,13,.5);display:flex;align-items:center;justify-content:center;padding:16px';
   var card = document.createElement('div');
-  card.style.cssText = 'background:#fff;color:#201d1f;max-width:' + (opts.maxWidth || '420px') + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui,sans-serif;overflow:hidden;display:flex';
+  card.style.cssText = 'background:#fff;color:#201d1f;max-width:' + (opts.maxWidth || '420px') + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex';
   var spine = document.createElement('div');
   spine.style.cssText = 'width:14px;flex:0 0 auto;background:' + (opts.spineColor || '#cc087d') + ';';
   var mainCol = document.createElement('div');

@@ -65,10 +65,9 @@ const agendaActies = {
   onJumpToDay: function (date, always) { naarTab({ type: MSG.AGENDA_JUMP_DAY, date: date, always: !!always }); },
   onJumpToWeek: function () { naarTab({ type: MSG.AGENDA_JUMP_WEEK }); },
   onOpenOccurrence: function (id) { naarTab({ type: MSG.AGENDA_OPEN_OCCURRENCE, id: id }); },
-  onOpenBreakdown: function () { naarTab({ type: MSG.AGENDA_OPEN_BREAKDOWN }); },
-  onOpenCalc: function () { naarTab({ type: MSG.AGENDA_OPEN_CALC }); },
   onRequestLeave: function () { naarTab({ type: MSG.AGENDA_OPEN_LEAVE }); },
   onCheckRange: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to }, cb); },
+  onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
 };
 
@@ -153,7 +152,7 @@ function onMessage(msg, sender) {
   if (msg.type === MSG.SURVEY_STATE && msg.state) { toon('vragenlijst', msg.state); return; }
 
   if (msg.type === MSG.AGENDA_RANGE_PROGRESS) {
-    if (huidig && huidig.soort === 'agenda' && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.done | 0, msg.total | 0);
+    if (huidig && huidig.soort === 'agenda' && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.kind || 'open', msg.done | 0, msg.total | 0);
     return;
   }
 

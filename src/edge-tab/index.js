@@ -6,8 +6,9 @@
    overal op dezelfde plek te vinden is.
 
    Een kleine animatie maakt het lipje vindbaar zonder in de weg te zitten:
-   bij het verschijnen schuift het uit de rand, één keer per browsersessie
-   wiebelt het even, en bij hover tikt de pijl naar links. Met 'minder
+   in rust tikt de pijl elke paar seconden even naar links, bij het verschijnen
+   schuift het lipje uit de rand, één keer per browsersessie wiebelt het, en
+   bij hover tikt de pijl doorlopend. Met 'minder
    beweging' in het besturingssysteem beweegt er niets.
 
    Het lipje verdwijnt zodra het zijpaneel openstaat — een knop die belooft iets
@@ -46,6 +47,9 @@ import { MSG } from '../shared/messages.js';
       '@keyframes onsahEdgeIn{from{transform:translate(100%,-50%)}to{transform:translate(0,-50%)}}' +
       '@keyframes onsahEdgeNudge{0%,100%{transform:translate(0,-50%)}25%,65%{transform:translate(-7px,-50%)}45%,85%{transform:translate(0,-50%)}}' +
       '@keyframes onsahEdgeTik{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}' +
+      // In rust: lang stil, dan twee korte tikjes naar links.
+      '@keyframes onsahEdgeRust{0%,78%,100%{transform:translateX(0)}82%,90%{transform:translateX(-3px)}86%,94%{transform:translateX(0)}}' +
+      '#onsah-edge-tab svg{animation:onsahEdgeRust 5s ease-in-out infinite}' +
       '#onsah-edge-tab.onsah-in{animation:onsahEdgeIn .35s cubic-bezier(.2,.8,.2,1)}' +
       '#onsah-edge-tab.onsah-nudge{animation:onsahEdgeNudge 1.4s ease-in-out}' +
       '#onsah-edge-tab:hover svg,#onsah-edge-tab:focus-visible svg{animation:onsahEdgeTik .9s ease-in-out infinite}' +
@@ -110,7 +114,7 @@ import { MSG } from '../shared/messages.js';
       justifyContent: 'center',
       boxShadow: '0 4px 18px -4px rgba(140,10,88,.45), 0 0 0 1px rgba(255,255,255,.14) inset',
       transition: 'width .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, opacity .15s ease',
-      font: '600 12px/1 system-ui, sans-serif'
+      font: '600 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
     });
 
     chev = svgChevron();
@@ -163,7 +167,7 @@ import { MSG } from '../shared/messages.js';
       position: 'fixed', right: '34px', top: '50%', transform: 'translateY(-50%)',
       zIndex: '2147483645', maxWidth: '230px',
       background: '#201d1f', color: '#fff', borderRadius: '10px',
-      padding: '9px 11px', font: '600 12px/1.4 system-ui, sans-serif',
+      padding: '9px 11px', font: '600 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       boxShadow: '0 10px 30px -8px rgba(0,0,0,.45)'
     });
     (document.body || document.documentElement).appendChild(tipEl);

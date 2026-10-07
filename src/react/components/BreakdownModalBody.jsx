@@ -1,38 +1,39 @@
-// Body van de modal "Waar de tijd uit bestaat" (open via de Cliënttijd-tegel).
-// Vervangt de rij-opbouw in content.js' showAgendaBreakdownModal — de
-// mkModalShell-schil (overlay/kop/sluitknop/Esc) blijft vanilla en rendert
-// deze component in shell.body.
-function Row({ label, val, strong, indent, top }) {
+// Opbouw van de cliënttijd (pagina 'Cliënttijd' in het zijpaneel).
+// Typografie en kleuren volgen de tokens van het zijpaneel.
+function Row({ label, val, strong, indent, last, T }) {
   return (
     <div
       style={{
         display: 'flex',
         justifyContent: 'space-between',
         gap: 10,
-        padding: '4px 0',
-        borderBottom: top ? undefined : '1px dotted #eee',
-        fontWeight: strong ? 800 : undefined,
-        paddingLeft: indent ? 12 : undefined,
+        padding: '7px 0',
+        paddingLeft: indent ? 14 : 0,
+        borderBottom: last ? undefined : '1px solid ' + T.lineSoft,
+        fontSize: 13,
+        fontWeight: strong ? 600 : 400,
+        color: indent ? T.inkSoft : T.ink,
       }}
     >
-      <span style={{ color: strong ? '#166a37' : '#333' }}>{label}</span>
-      <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{val}</span>
+      <span>{label}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: T.ink }}>{val}</span>
     </div>
   );
 }
 
-export function BreakdownModalBody({ summary, opts, fmtMin }) {
+export function BreakdownModalBody({ summary, opts, fmtMin, tokens }) {
   const s = summary || {};
   const o = opts || {};
+  const T = tokens;
   const oth = s.unknownMinutes != null ? s.unknownMinutes : s.otherMinutes || 0;
   return (
     <div>
-      <Row label="Cliënttijd" val={fmtMin(s.clientMinutes)} strong />
-      <Row label="Direct" val={fmtMin(s.directMinutes)} indent />
-      <Row label="Indirect" val={fmtMin(s.indirectMinutes)} indent />
-      <Row label="Reistijd" val={fmtMin(s.travelMinutes)} indent />
-      <Row label={'Niet-cliënttijd (' + (o.unknownLabel || 'overig').toLowerCase() + ')'} val={fmtMin(oth)} strong />
-      <Row label="Totaal" val={fmtMin(s.totalMinutes)} strong />
+      <Row T={T} label="Cliënttijd" val={fmtMin(s.clientMinutes)} strong />
+      <Row T={T} label="Direct" val={fmtMin(s.directMinutes)} indent />
+      <Row T={T} label="Indirect" val={fmtMin(s.indirectMinutes)} indent />
+      <Row T={T} label="Reistijd" val={fmtMin(s.travelMinutes)} indent />
+      <Row T={T} label={'Niet-cliënttijd (' + (o.unknownLabel || 'overig').toLowerCase() + ')'} val={fmtMin(oth)} strong />
+      <Row T={T} label="Totaal" val={fmtMin(s.totalMinutes)} strong last />
     </div>
   );
 }

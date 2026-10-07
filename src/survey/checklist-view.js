@@ -106,7 +106,7 @@ export function renderChecklist(state) {
     signalBox.setAttribute('role', 'alert');
     Object.assign(signalBox.style, { margin:'4px 0 10px', padding:'10px 11px', borderRadius:'7px', border:'1px solid #f0b429', background:'#fff7d6', color:'#704b00', lineHeight:'1.4' });
     const label = document.createElement('div'); label.textContent = entry.question || 'Signaal';
-    Object.assign(label.style, { marginBottom:'4px', fontSize:'11px', fontWeight:'800', textTransform:'uppercase', letterSpacing:'.02em', color:'#704b00' });
+    Object.assign(label.style, { marginBottom:'4px', fontSize:'11px', fontWeight:'800', color:'#704b00' });
     signalBox.append(label, managedSignalNode(entry.signal,{vraag:entry.question||'',clientNaam:surveyClientName(),clientLeeftijd:state.age==null?resolvedAge():state.age}));
     msg.appendChild(signalBox);
   });
@@ -130,7 +130,7 @@ export function renderChecklist(state) {
   for (const entry of grouped.values()) {
     const heading = document.createElement('div');
     heading.textContent = entry.category === entry.group ? entry.group : entry.category + ' > ' + entry.group;
-    Object.assign(heading.style, { fontWeight: '700', fontSize: '12px', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '.02em', margin: '12px 0 4px', paddingBottom: '3px', borderBottom: '1px solid #eee' });
+    Object.assign(heading.style, { fontWeight: '700', fontSize: '12px', color: '#6b6b6b', margin: '12px 0 4px', paddingBottom: '3px', borderBottom: '1px solid #eee' });
     msg.appendChild(heading);
     const list = document.createElement('ul');
     Object.assign(list.style, { listStyle: 'none', margin: '0 0 4px', padding: '0' });

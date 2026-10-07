@@ -23,7 +23,7 @@ export function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
   var wrap = document.createElement('div'); wrap.style.cssText = 'margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px';
   var h = document.createElement('div');
   h.innerHTML = 'Afgerond · geregistreerd' + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">· ' + dateLabel + '</span>' : '');
-  h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px';
+  h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';margin-bottom:5px';
   wrap.appendChild(h);
   if (!rs || !rs.count) {
     wrap.appendChild(onsahEmptyState('Nog niets geregistreerd in deze week.'));
@@ -51,7 +51,7 @@ export function removeRegistrationsOverviewPanel() { if (_regOvPanel) { try { _r
 function buildRegistrationsOverviewPanel() {
   if (_regOvPanel) return _regOvPanel;
   const p = document.createElement('div'); _regOvPanel = p; p.setAttribute('data-ons-reg-overview', '1');
-  p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch';
+  p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch';
   const spine = document.createElement('div');
   spine.style.cssText = 'width:14px;flex:0 0 auto;background:#cc087d';
   const mainCol = document.createElement('div');

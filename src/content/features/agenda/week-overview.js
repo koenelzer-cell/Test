@@ -5,7 +5,7 @@ import { pushPanelState } from './side-panel-bridge.js';
 import { agendaPage } from './state.js';
 import { currentCalendarView, currentInviteeId } from './navigation.js';
 import { updateTotals } from './extension-sync.js';
-import { currentAgendaDate } from '../../ons/agenda-location.js';
+import { currentAgendaDate, resolveInviteeId } from '../../ons/agenda-location.js';
 import { ACTIVE_PROFILE } from '../../config/app-config.js';
 import { _agIsFutureWeek, agendaWeekNumber } from '../../core/datetime.js';
 import { declarabiliteitPct } from '../../domain/declarabiliteit.js';
@@ -30,7 +30,11 @@ export function apiClientPresentById(id) {
 // Haalt het weekoverzicht op en bewaart het voor het zijpaneel. Tekent
 // niets: dat doet agendapanel.js in het zijpaneel.
 export function refreshAgendaWeekApi() {
-  const id = currentInviteeId();
+  // De invitee-id uit de URL; anders uit de pagina; anders de laatst bekende.
+  // Tijdens een wissel van weergave staat hij soms even nergens, en dan viel het
+  // weekoverzicht weg.
+  const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
+  if (id) agendaPage._agLastInviteeId = id;
   const view = currentCalendarView();
   const date = currentAgendaDate();
   if (!id) { agendaPage._agWeekKey = null; agendaPage._agWeekLoaded = false; agendaPage._agLastWeek = null; agendaPage._agWeekError = ''; return; }

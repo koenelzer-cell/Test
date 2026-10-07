@@ -138,7 +138,7 @@ function buildPopup() {
   // continu bijgewerkt tijdens het slepen en zouden dan hortend aanvoelen.
   // `right` verandert alleen via reposition() (default plek), dus een kleine
   // resterende correctie schuift altijd vloeiend naar rechts i.p.v. te springen.
-  Object.assign(helperPanel.popupEl.style, { position: 'fixed', zIndex: '2147483647', top: defaultPopupTop() + 'px', right: '24px', bottom: 'auto', maxHeight: popupMaxHeight() + 'px', transition: 'right .18s cubic-bezier(.2,.8,.2,1)', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
+  Object.assign(helperPanel.popupEl.style, { position: 'fixed', zIndex: '2147483647', top: defaultPopupTop() + 'px', right: '24px', bottom: 'auto', maxHeight: popupMaxHeight() + 'px', transition: 'right .18s cubic-bezier(.2,.8,.2,1)', background: '#fff', color: '#201d1f', pointerEvents: 'auto', border: '1px solid #ece7e5', borderRadius: '16px', boxShadow: '0 14px 40px rgba(32,20,15,.24)', font: '14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch' });
   // De spine: gekleurde balk die de assistent herkenbaar maakt, de aan/uit-
   // status draagt (roze werkend, grijs uitgeschakeld), het sleepgebied vormt
   // én zelf klikbaar is om het paneel zijwaarts in/uit te klappen (net als

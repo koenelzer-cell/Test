@@ -45,17 +45,17 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
-    AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
-    AGENDA_OPEN_CALC: "ag-open-calc",
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_PRODUCTION: "ag-production",
+    // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress",
-    // { done, total } voortgang van AGENDA_CHECK_RANGE
+    // { kind: 'open'|'productie', done, total } voortgang
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"
@@ -86,15 +86,15 @@
     ok: "#1b7f3b",
     okWash: "#eaf6ee",
     bad: "#a3241f",
-    badWash: "#fbeceb"
+    badWash: "#fbeceb",
+    warn: "#8a5a00",
+    warnWash: "#fff4d6"
   };
+  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  var SERIE = { direct: "#2a78d6", indirect: "#cc087d", travel: "#1baf7a" };
   var SVG_NS = "http://www.w3.org/2000/svg";
   var WD = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   var MON = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-  function fmtHM(min) {
-    var h = Math.floor(min / 60), m = min % 60;
-    return h + ":" + (m < 10 ? "0" : "") + m;
-  }
   function fmtMin(min) {
     min = Math.max(0, Math.round(min || 0));
     var h = Math.floor(min / 60), m = min % 60;
@@ -105,8 +105,8 @@
     if (isNaN(d.getTime())) return date;
     return WD[d.getDay()] + " " + d.getDate() + " " + MON[d.getMonth()];
   }
-  function el(tag, styles, text) {
-    var n = document.createElement(tag);
+  function el(tag2, styles, text) {
+    var n = document.createElement(tag2);
     if (styles) Object.assign(n.style, styles);
     if (text != null) n.textContent = text;
     return n;
@@ -129,6 +129,21 @@
       card.style.transform = "none";
       card.style.boxShadow = "none";
     });
+  }
+  var TYPE = {
+    pageTitle: { fontSize: "15px", fontWeight: "700", color: T.ink },
+    section: { fontSize: "13px", fontWeight: "700", color: T.ink, margin: "0 0 8px" },
+    text: { fontSize: "13px", fontWeight: "400", color: T.ink, lineHeight: "1.45" },
+    help: { fontSize: "12px", fontWeight: "400", color: T.inkSoft, lineHeight: "1.45" },
+    label: { fontSize: "12px", fontWeight: "600", color: T.inkSoft },
+    small: { fontSize: "11px", fontWeight: "600" }
+  };
+  function txt(kind, text, extra) {
+    var n = el("div", Object.assign({}, TYPE[kind], extra || {}), text);
+    return n;
+  }
+  function sectionHead(text, first) {
+    return txt("section", text, first ? null : { borderTop: "1px solid " + T.line, paddingTop: "12px", marginTop: "4px" });
   }
   function svgSpineCheck() {
     var svg = document.createElementNS(SVG_NS, "svg");
@@ -208,55 +223,194 @@
     svg.appendChild(p);
     return svg;
   }
-  var CHEV_DICHT = "M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z";
+  var CHEV_RECHTS = "M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z";
+  var PIJL_TERUG = "M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z";
+  var ICON_VERVERS = "M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4z";
   var ICON_RANGE = "M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm5.6 8.2-3.1-3.1 1.4-1.4 1.7 1.7 4.5-4.5 1.4 1.4z";
   var ICON_QUICK = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-13h-2v6l5 3 1-1.7-4-2.4z";
-  function pill(label, value, bg, fg) {
-    var s = el("span", {
+  var ICON_RATIO = "M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z";
+  function tag(text, tone) {
+    var c = tone === "bad" ? [T.bad, T.badWash] : tone === "warn" ? [T.warn, T.warnWash] : tone === "ok" ? [T.ok, T.okWash] : [T.inkSoft, T.lineSoft];
+    return el("span", Object.assign({}, TYPE.small, {
       display: "inline-block",
-      background: bg,
-      color: fg,
-      borderRadius: "10px",
-      padding: "1px 8px",
-      margin: "0 4px 4px 0",
-      fontSize: "11px",
-      fontWeight: "600",
-      fontVariantNumeric: "tabular-nums"
-    }, label + " " + value);
-    return s;
-  }
-  function statLine(client, overig) {
-    var wrap = el("div", { margin: "2px 0 2px" });
-    wrap.appendChild(pill("Cliënt", fmtHM(client), T.okWash, T.ok));
-    wrap.appendChild(pill("Overig", fmtHM(overig), T.lineSoft, T.inkSoft));
-    wrap.appendChild(pill("Totaal", fmtHM(client + overig), T.brandWash, T.brand));
-    return wrap;
-  }
-  function sectionTitle(text) {
-    return el("div", {
-      fontSize: "11px",
-      fontWeight: "700",
-      color: T.brand,
-      textTransform: "uppercase",
-      letterSpacing: ".03em",
-      margin: "0 0 6px",
-      borderTop: "1px solid " + T.line,
-      paddingTop: "9px"
-    }, text);
-  }
-  function miniTag(text, fg, bg, bd) {
-    return el("span", {
-      display: "inline-block",
-      fontSize: "10px",
-      fontWeight: "700",
-      color: fg,
-      background: bg,
-      border: "1px solid " + bd,
+      color: c[0],
+      background: c[1],
       borderRadius: "8px",
-      padding: "0 6px",
+      padding: "1px 7px",
       marginLeft: "6px",
-      verticalAlign: "middle"
+      verticalAlign: "1px",
+      whiteSpace: "nowrap"
+    }), text);
+  }
+  function noteBox(text, tone) {
+    var c = tone === "bad" ? [T.badWash, T.bad] : tone === "ok" ? [T.okWash, T.ok] : [T.warnWash, T.warn];
+    return el("div", {
+      marginTop: "10px",
+      padding: "9px 11px",
+      borderRadius: "10px",
+      background: c[0],
+      color: c[1],
+      fontSize: "13px",
+      fontWeight: "600",
+      lineHeight: "1.4"
     }, text);
+  }
+  function baseButton(text, onClick, primary, disabled) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.disabled = !!disabled;
+    Object.assign(b.style, {
+      width: "100%",
+      boxSizing: "border-box",
+      borderRadius: "10px",
+      padding: "10px 12px",
+      font: "600 13px/1 " + FONT,
+      cursor: disabled ? "default" : "pointer",
+      border: primary ? "0" : "1px solid " + T.brand,
+      background: primary ? disabled ? "#d9c2cf" : T.brand : "#fff",
+      color: primary ? "#fff" : T.brand,
+      transition: "background .12s ease, transform .12s ease, box-shadow .12s ease"
+    });
+    if (!disabled) {
+      b.addEventListener("mouseenter", function() {
+        b.style.background = primary ? T.brandDeep : T.brandWash;
+      });
+      b.addEventListener("mouseleave", function() {
+        b.style.background = primary ? T.brand : "#fff";
+      });
+    }
+    focusRing(b, primary ? T.brandDeep : T.brand);
+    b.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!b.disabled) onClick();
+    });
+    return b;
+  }
+  function primaryBtn(text, onClick, disabled) {
+    var b = baseButton(text, onClick, true, disabled);
+    b.style.marginTop = "10px";
+    return b;
+  }
+  function secondaryBtn(text, onClick) {
+    return baseButton(text, onClick, false, false);
+  }
+  function fieldLabel(text, input) {
+    var w = el("label", Object.assign({}, TYPE.label, { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 0", minWidth: "0" }));
+    w.appendChild(document.createTextNode(text));
+    w.appendChild(input);
+    return w;
+  }
+  function inputEl(type, value, onChange) {
+    var i = document.createElement("input");
+    i.type = type;
+    i.value = value || "";
+    Object.assign(i.style, {
+      width: "100%",
+      boxSizing: "border-box",
+      padding: "7px 8px",
+      borderRadius: "8px",
+      border: "1px solid " + T.line,
+      font: "400 13px " + FONT,
+      color: T.ink,
+      background: "#fff"
+    });
+    focusRing(i);
+    i.addEventListener("input", function() {
+      onChange(i.value);
+    });
+    i.addEventListener("change", function() {
+      onChange(i.value);
+    });
+    return i;
+  }
+  function clickCard(onClick, title) {
+    var card = el("div", {
+      padding: "9px 11px",
+      borderRadius: "12px",
+      background: "#fff",
+      border: "1px solid " + T.line,
+      cursor: "pointer",
+      boxSizing: "border-box",
+      transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease"
+    });
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    if (title) card.title = title;
+    card.addEventListener("mouseenter", function() {
+      card.style.borderColor = T.brand;
+    });
+    card.addEventListener("mouseleave", function() {
+      card.style.borderColor = T.line;
+    });
+    liftOnHover(card);
+    focusRing(card);
+    card.addEventListener("click", onClick);
+    card.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    });
+    return card;
+  }
+  function navCard(icoon, kop, uitleg, onClick) {
+    var b = document.createElement("button");
+    b.type = "button";
+    Object.assign(b.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      width: "100%",
+      boxSizing: "border-box",
+      padding: "10px 12px",
+      borderRadius: "12px",
+      border: "1px solid " + T.line,
+      background: "#fff",
+      color: T.ink,
+      cursor: "pointer",
+      textAlign: "left",
+      font: "inherit",
+      transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease"
+    });
+    var ic = el("span", {
+      width: "32px",
+      height: "32px",
+      borderRadius: "9px",
+      background: T.brandWash,
+      color: T.brand,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flex: "0 0 auto"
+    });
+    ic.appendChild(svgPath(icoon, 18));
+    b.appendChild(ic);
+    var tekst = el("span", { flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" });
+    tekst.appendChild(el("span", { fontSize: "13px", fontWeight: "700", color: T.ink }, kop));
+    tekst.appendChild(el("span", TYPE.help, uitleg));
+    b.appendChild(tekst);
+    var pijl = svgPath(CHEV_RECHTS, 16);
+    pijl.style.color = T.brand;
+    pijl.style.flex = "0 0 auto";
+    b.appendChild(pijl);
+    b.addEventListener("mouseenter", function() {
+      b.style.borderColor = T.brand;
+      b.style.transform = "translateY(-1px)";
+      b.style.boxShadow = "0 4px 12px -6px rgba(32,20,15,.22)";
+    });
+    b.addEventListener("mouseleave", function() {
+      b.style.borderColor = T.line;
+      b.style.transform = "none";
+      b.style.boxShadow = "none";
+    });
+    focusRing(b);
+    b.addEventListener("click", function(e) {
+      e.preventDefault();
+      onClick();
+    });
+    return b;
   }
   function zorgVoorStijl(doc) {
     var d = doc || document;
@@ -276,8 +430,8 @@
       margin: "0 0 10px"
     });
     spoor.setAttribute("role", "progressbar");
-    spoor.setAttribute("aria-label", "Weekoverzicht wordt opgehaald");
-    var loper = el("div", {
+    spoor.setAttribute("aria-label", "Bezig met ophalen");
+    spoor.appendChild(el("div", {
       position: "absolute",
       top: "0",
       bottom: "0",
@@ -286,25 +440,35 @@
       borderRadius: "999px",
       background: T.brand,
       animation: "onsAhSchuif 1.1s cubic-bezier(.4,0,.6,1) infinite"
-    });
-    spoor.appendChild(loper);
+    }));
     return spoor;
+  }
+  function voortgang(done, total) {
+    zorgVoorStijl();
+    var p = el("div", { marginTop: "10px" });
+    p.appendChild(txt("label", total ? "Week " + done + " van " + total + " opgehaald" : "Weken ophalen…", { marginBottom: "5px" }));
+    if (total) {
+      var spoor = el("div", { height: "4px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden" });
+      spoor.setAttribute("role", "progressbar");
+      spoor.setAttribute("aria-valuemin", "0");
+      spoor.setAttribute("aria-valuemax", String(total));
+      spoor.setAttribute("aria-valuenow", String(done));
+      spoor.appendChild(el("div", { height: "100%", width: Math.round(done / total * 100) + "%", background: T.brand, transition: "width .2s ease" }));
+      p.appendChild(spoor);
+    } else {
+      p.appendChild(laadBalk());
+    }
+    return p;
   }
   function skelet() {
     var wrap = el("div", { animation: "onsAhPuls 1.4s ease-in-out infinite" });
     var streep = function(breedte, hoogte, marge) {
-      return el("div", {
-        height: (hoogte || 10) + "px",
-        width: breedte,
-        borderRadius: "6px",
-        background: T.lineSoft,
-        margin: marge || "0 0 8px"
-      });
+      return el("div", { height: (hoogte || 10) + "px", width: breedte, borderRadius: "6px", background: T.lineSoft, margin: marge || "0 0 8px" });
     };
     wrap.appendChild(streep("55%", 12, "0 0 10px"));
     var rij = el("div", { display: "flex", gap: "8px", margin: "0 0 12px" });
-    rij.appendChild(el("div", { flex: "1 1 0", height: "52px", borderRadius: "10px", background: T.lineSoft }));
-    rij.appendChild(el("div", { flex: "1 1 0", height: "52px", borderRadius: "10px", background: T.lineSoft }));
+    rij.appendChild(el("div", { flex: "1 1 0", height: "56px", borderRadius: "12px", background: T.lineSoft }));
+    rij.appendChild(el("div", { flex: "1 1 0", height: "56px", borderRadius: "12px", background: T.lineSoft }));
     wrap.appendChild(rij);
     wrap.appendChild(streep("40%", 9));
     ["85%", "70%", "78%"].forEach(function(b) {
@@ -313,15 +477,245 @@
     });
     return wrap;
   }
+  function niceStep(maxH) {
+    var steps = [1, 2, 4, 5, 10, 20, 25, 50];
+    for (var i = 0; i < steps.length; i++) if (maxH / steps[i] <= 4) return steps[i];
+    return 100;
+  }
+  function svgEl(tag2, attrs, parent) {
+    var n = document.createElementNS(SVG_NS, tag2);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function productionChart(weeks) {
+    var wrap = el("div", { position: "relative" });
+    var reeksen = [
+      { key: "directMinutes", naam: "Direct", kleur: SERIE.direct },
+      { key: "indirectMinutes", naam: "Indirect", kleur: SERIE.indirect },
+      { key: "travelMinutes", naam: "Reistijd", kleur: SERIE.travel }
+    ];
+    var legenda = el("div", { display: "flex", flexWrap: "wrap", gap: "4px 14px", margin: "0 0 6px" });
+    reeksen.forEach(function(r) {
+      var item = el("span", Object.assign({}, TYPE.label, { display: "inline-flex", alignItems: "center", gap: "6px", color: T.ink, fontWeight: "400" }));
+      item.appendChild(el("span", { width: "14px", height: "2px", borderRadius: "2px", background: r.kleur, display: "inline-block" }));
+      item.appendChild(document.createTextNode(r.naam));
+      legenda.appendChild(item);
+    });
+    wrap.appendChild(legenda);
+    var W = 300, H = 170, ml = 30, mr = 52, mt = 8, mb = 22;
+    var pw = W - ml - mr, ph = H - mt - mb;
+    var maxMin = 0;
+    weeks.forEach(function(w) {
+      reeksen.forEach(function(r) {
+        maxMin = Math.max(maxMin, w[r.key] || 0);
+      });
+    });
+    var maxH = Math.max(1, maxMin / 60);
+    var step = niceStep(maxH);
+    var top = Math.ceil(maxH / step) * step;
+    var x = function(i) {
+      return weeks.length === 1 ? ml + pw / 2 : ml + i * (pw / (weeks.length - 1));
+    };
+    var y = function(min) {
+      return mt + ph - min / 60 / top * ph;
+    };
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + W + " " + H,
+      width: "100%",
+      role: "img",
+      "aria-label": "Directe, indirecte en reistijd per week (uren)"
+    });
+    svg.style.display = "block";
+    svg.style.overflow = "visible";
+    for (var v = 0; v <= top; v += step) {
+      var gy = y(v * 60);
+      svgEl("line", { x1: ml, x2: ml + pw, y1: gy, y2: gy, stroke: T.line, "stroke-width": 1 }, svg);
+      var t = svgEl("text", { x: ml - 6, y: gy + 3.5, "text-anchor": "end", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
+      t.textContent = v + " u";
+    }
+    var elke = Math.max(1, Math.ceil(weeks.length / 7));
+    weeks.forEach(function(w, i) {
+      if ((weeks.length - 1 - i) % elke !== 0) return;
+      var lt = svgEl("text", { x: x(i), y: H - 6, "text-anchor": "middle", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
+      lt.textContent = "wk " + (w.week || "");
+    });
+    var cross = svgEl("line", { x1: 0, x2: 0, y1: mt, y2: mt + ph, stroke: T.inkSoft, "stroke-width": 1, opacity: 0 }, svg);
+    var eind = [];
+    reeksen.forEach(function(r) {
+      if (weeks.length > 1) {
+        var d = weeks.map(function(w, i) {
+          return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(w[r.key] || 0).toFixed(1);
+        }).join(" ");
+        svgEl("path", { d, fill: "none", stroke: r.kleur, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      }
+      weeks.forEach(function(w, i) {
+        svgEl("circle", { cx: x(i), cy: y(w[r.key] || 0), r: 4, fill: r.kleur, stroke: "#fff", "stroke-width": 2 }, svg);
+      });
+      var last = weeks.length - 1;
+      eind.push({ naam: r.naam, y: y(weeks[last][r.key] || 0) });
+    });
+    var gesorteerd = eind.slice().sort(function(a, b) {
+      return a.y - b.y;
+    });
+    for (var g = 1; g < gesorteerd.length; g++) {
+      if (gesorteerd[g].y - gesorteerd[g - 1].y < 12) gesorteerd[g].y = gesorteerd[g - 1].y + 12;
+    }
+    var overloop = gesorteerd.length ? gesorteerd[gesorteerd.length - 1].y - (mt + ph) : 0;
+    if (overloop > 0) gesorteerd.forEach(function(e) {
+      e.y -= overloop;
+    });
+    eind.forEach(function(e) {
+      var et = svgEl("text", { x: x(weeks.length - 1) + 8, y: e.y + 3.5, "font-size": 11, fill: T.ink, "font-family": FONT }, svg);
+      et.textContent = e.naam;
+    });
+    var tip = el("div", {
+      position: "absolute",
+      pointerEvents: "none",
+      display: "none",
+      zIndex: "2",
+      background: "#fff",
+      border: "1px solid " + T.line,
+      borderRadius: "8px",
+      boxShadow: "0 6px 18px -8px rgba(32,20,15,.35)",
+      padding: "7px 9px",
+      fontSize: "12px",
+      color: T.ink,
+      whiteSpace: "nowrap"
+    });
+    function toonTip(i) {
+      var w = weeks[i];
+      cross.setAttribute("x1", x(i));
+      cross.setAttribute("x2", x(i));
+      cross.setAttribute("opacity", "0.5");
+      tip.innerHTML = "";
+      tip.appendChild(el("div", { fontWeight: "700", marginBottom: "3px" }, "Week " + (w.week || "") + " · " + dayLabel(w.weekStart)));
+      reeksen.forEach(function(r) {
+        var rij = el("div", { display: "flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums" });
+        rij.appendChild(el("span", { width: "10px", height: "2px", background: r.kleur, display: "inline-block" }));
+        rij.appendChild(document.createTextNode(r.naam + " " + fmtMin(w[r.key])));
+        tip.appendChild(rij);
+      });
+      tip.style.display = "block";
+      var rect = svg.getBoundingClientRect();
+      var schaal = rect.width ? rect.width / W : 1;
+      var px = x(i) * schaal;
+      var links = px + 10;
+      if (rect.width && links + 150 > rect.width - mr * schaal) links = Math.max(0, px - 160);
+      tip.style.left = links + "px";
+      tip.style.top = legenda.offsetHeight + mt * schaal + "px";
+    }
+    function verbergTip() {
+      tip.style.display = "none";
+      cross.setAttribute("opacity", "0");
+    }
+    var band = weeks.length === 1 ? pw : pw / (weeks.length - 1);
+    weeks.forEach(function(w, i) {
+      var hit = svgEl("rect", { x: x(i) - band / 2, y: mt, width: band, height: ph, fill: "transparent" }, svg);
+      hit.addEventListener("mouseenter", function() {
+        toonTip(i);
+      });
+      hit.addEventListener("mouseleave", verbergTip);
+    });
+    wrap.appendChild(svg);
+    wrap.appendChild(tip);
+    return wrap;
+  }
+  function productionTable(weeks) {
+    var t = document.createElement("table");
+    Object.assign(t.style, { width: "100%", borderCollapse: "collapse", marginTop: "12px", fontSize: "12px", color: T.ink, fontVariantNumeric: "tabular-nums" });
+    var kop = t.createTHead().insertRow();
+    ["Week", "Direct", "Indirect", "Reistijd", "Cliënttijd"].forEach(function(k, i) {
+      var th = document.createElement("th");
+      th.textContent = k;
+      Object.assign(th.style, { textAlign: i ? "right" : "left", fontWeight: "600", color: T.inkSoft, padding: "0 0 6px", borderBottom: "1px solid " + T.line });
+      kop.appendChild(th);
+    });
+    var tb = t.createTBody();
+    weeks.slice().reverse().forEach(function(w) {
+      var r = tb.insertRow();
+      [String(w.week || ""), fmtMin(w.directMinutes), fmtMin(w.indirectMinutes), fmtMin(w.travelMinutes), fmtMin(w.clientMinutes)].forEach(function(v, i) {
+        var td = r.insertCell();
+        td.textContent = v;
+        Object.assign(td.style, { textAlign: i ? "right" : "left", padding: "6px 0", borderBottom: "1px solid " + T.lineSoft });
+      });
+    });
+    return t;
+  }
+  var BEWAARD = {
+    pagina: "hoofd",
+    // result: de lijst zoals hij getoond wordt; afgewerkt: sleutels van afspraken
+    // die bij een latere controle niet meer open stonden.
+    range: { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 },
+    prod: { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" },
+    quick: { date: "", time: "", minutes: "15", busy: false, error: "", overlap: "" }
+  };
+  function mergeOpenRange(oud, nieuw, afgewerkt) {
+    var open = {};
+    (nieuw.days || []).forEach(function(d) {
+      d.items.forEach(function(it) {
+        open[it.key] = true;
+      });
+    });
+    var dagen = {};
+    (oud.days || []).forEach(function(d) {
+      dagen[d.date] = { date: d.date, items: d.items.slice() };
+    });
+    (nieuw.days || []).forEach(function(d) {
+      var dag = dagen[d.date] || (dagen[d.date] = { date: d.date, items: [] });
+      d.items.forEach(function(it) {
+        if (!dag.items.some(function(x) {
+          return x.key === it.key;
+        })) dag.items.push(it);
+      });
+    });
+    Object.keys(dagen).forEach(function(dt) {
+      dagen[dt].items.forEach(function(it) {
+        if (it.key && !open[it.key]) afgewerkt[it.key] = true;
+        else if (it.key) delete afgewerkt[it.key];
+      });
+    });
+    return { from: oud.from, to: oud.to, days: Object.keys(dagen).sort().map(function(dt) {
+      var items = dagen[dt].items.sort(function(a, b) {
+        return a.start - b.start;
+      });
+      return { date: dt, items };
+    }) };
+  }
+  function telOpen(result, afgewerkt) {
+    var t = { count: 0, done: 0, openMinutes: 0, late: 0, days: 0 };
+    (result.days || []).forEach(function(d) {
+      var dagOpen = 0;
+      d.items.forEach(function(it) {
+        t.count++;
+        if (afgewerkt[it.key]) t.done++;
+        else {
+          t.openMinutes += it.minutes;
+          dagOpen++;
+          if (it.late) t.late++;
+        }
+      });
+      if (dagOpen) t.days++;
+    });
+    return t;
+  }
+  var PAGINA_TITEL = {
+    hoofd: "Agendahulp",
+    clienttijd: "Cliënttijd",
+    verhouding: "Verhouding per uursoort",
+    open: "Open registraties",
+    snel: "Snel registreren",
+    info: "Over de Agendahulp"
+  };
   function create(host2, actions) {
     actions = actions || {};
     var state = null;
-    var infoOpen = false;
     var pagina = "hoofd";
+    var vorigePagina = BEWAARD.pagina;
     var root = el("div", {
       background: "#fff",
       color: T.ink,
-      font: "14px/1.4 system-ui, sans-serif",
+      font: "400 13px/1.45 " + FONT,
       overflow: "hidden",
       display: "flex",
       flexDirection: "row",
@@ -357,28 +751,25 @@
       display: "flex",
       flexDirection: "column",
       overflowY: "auto",
-      overflowX: "hidden",
-      opacity: "1",
-      transition: "opacity .15s ease"
+      overflowX: "hidden"
     });
     var header = el("div", {
       display: "flex",
       alignItems: "center",
       background: "#fff",
-      color: T.ink,
-      padding: "11px 12px",
-      fontWeight: "700",
+      padding: "12px",
       userSelect: "none",
-      borderBottom: "1px solid #f1ecea",
+      borderBottom: "1px solid " + T.line,
       flex: "0 0 auto"
     });
-    var title = el("span", {
+    var title = el("span", Object.assign({}, TYPE.pageTitle, {
       flex: "1 1 auto",
       minWidth: "0",
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap"
-    }, "Agendahulp");
+    }), PAGINA_TITEL.hoofd);
+    title.setAttribute("data-paneel-titel", "");
     header.appendChild(title);
     var controls = el("div", { display: "inline-flex", alignItems: "center", gap: "8px", flex: "0 0 auto", marginLeft: "8px" });
     var onoff = document.createElement("button");
@@ -394,7 +785,6 @@
       padding: "0",
       width: "58px",
       height: "24px",
-      fontWeight: "700",
       overflow: "hidden",
       flex: "0 0 auto",
       fontFamily: "inherit"
@@ -404,7 +794,7 @@
       inset: "0",
       borderRadius: "999px",
       border: "1px solid rgba(255,255,255,.45)",
-      transition: "background .16s ease, box-shadow .16s ease, opacity .16s ease"
+      transition: "background .16s ease, opacity .16s ease"
     });
     var swText = el("span", {
       position: "absolute",
@@ -413,9 +803,8 @@
       display: "flex",
       alignItems: "center",
       fontSize: "11px",
-      fontWeight: "700",
+      fontWeight: "600",
       color: "#fff",
-      opacity: ".95",
       transition: "left .16s ease, right .16s ease",
       pointerEvents: "none"
     });
@@ -440,10 +829,12 @@
       if (state) state.enabled = next;
       paintOnoff();
       if (actions.onToggleEnabled) actions.onToggleEnabled(next);
-      if (!infoOpen) renderBody();
+      if (pagina === "hoofd") renderStatus();
     });
     var info = document.createElement("button");
     info.type = "button";
+    info.title = "Legenda en versie";
+    info.setAttribute("aria-label", "Legenda en versie");
     info.appendChild(svgInfoIcon());
     Object.assign(info.style, {
       background: T.lineSoft,
@@ -462,78 +853,53 @@
     info.addEventListener("click", function(e) {
       e.preventDefault();
       e.stopPropagation();
-      if (pagina !== "hoofd") {
-        pagina = "hoofd";
-        infoOpen = false;
-        render();
-      }
-      infoOpen = !infoOpen;
-      renderBody();
+      naarPagina(pagina === "info" ? "hoofd" : "info");
     });
     controls.appendChild(onoff);
     controls.appendChild(info);
     header.appendChild(controls);
     mainCol.appendChild(header);
-    var body = el("div", { padding: "12px", flex: "0 0 auto" });
-    var totals = el("div", { padding: "0 12px 12px", flex: "0 0 auto" });
-    var weekBox = el("div", { padding: "0 12px 12px", flex: "0 0 auto" });
+    var hoofd = el("div", { flex: "0 0 auto" });
+    var statusBox = el("div", { padding: "12px 12px 0" });
+    var totals = el("div", { padding: "0 12px" });
+    var weekBox = el("div", { padding: "12px 12px 0" });
     var laadStrook = el("div");
     var weekHost = el("div", { transition: "opacity .15s ease" });
     weekBox.appendChild(laadStrook);
     weekBox.appendChild(weekHost);
-    var navBox = el("div", { padding: "0 12px 12px", flex: "0 0 auto", display: "flex", flexDirection: "column", gap: "8px" });
-    var tools = el("div", { padding: "12px", flex: "0 0 auto", display: "none" });
-    mainCol.appendChild(body);
-    mainCol.appendChild(totals);
-    mainCol.appendChild(weekBox);
-    mainCol.appendChild(navBox);
-    mainCol.appendChild(tools);
+    var navBox = el("div", { padding: "12px", display: "flex", flexDirection: "column", gap: "8px" });
+    hoofd.appendChild(statusBox);
+    hoofd.appendChild(totals);
+    hoofd.appendChild(weekBox);
+    hoofd.appendChild(navBox);
+    var paginaBox = el("div", { padding: "12px", flex: "0 0 auto", display: "none" });
+    mainCol.appendChild(hoofd);
+    mainCol.appendChild(paginaBox);
     var leaveBar = el("div", {
       position: "sticky",
       bottom: "0",
       marginTop: "auto",
       padding: "10px 12px",
       background: "#fff",
-      borderTop: "1px solid #f1ecea",
+      borderTop: "1px solid " + T.line,
       flex: "0 0 auto"
     });
-    var leaveBtn = document.createElement("button");
-    leaveBtn.type = "button";
-    leaveBtn.textContent = "Verlof aanvragen";
-    leaveBtn.title = "Verlof vastleggen in de agenda en aanvragen in AFAS";
-    Object.assign(leaveBtn.style, {
-      width: "100%",
-      border: "0",
-      borderRadius: "999px",
-      padding: "10px 16px",
-      background: T.brand,
-      color: "#fff",
-      cursor: "pointer",
-      font: "700 13px/1 system-ui,-apple-system,sans-serif",
-      boxShadow: "0 4px 12px -6px rgba(204,8,125,.55)"
-    });
-    leaveBtn.addEventListener("mouseenter", function() {
-      leaveBtn.style.background = T.brandDeep;
-    });
-    leaveBtn.addEventListener("mouseleave", function() {
-      leaveBtn.style.background = T.brand;
-    });
-    focusRing(leaveBtn, T.brandDeep);
-    leaveBtn.addEventListener("click", function(e) {
-      e.preventDefault();
-      e.stopPropagation();
+    var leaveBtn = baseButton("Verlof aanvragen", function() {
       if (actions.onRequestLeave) actions.onRequestLeave();
-    });
+    }, true, false);
+    leaveBtn.title = "Verlof vastleggen in de agenda en aanvragen in AFAS";
     leaveBar.appendChild(leaveBtn);
     mainCol.appendChild(leaveBar);
     root.appendChild(spine);
     root.appendChild(mainCol);
     host2.appendChild(root);
+    var bridge = function() {
+      return window.__onsahReact;
+    };
     function paintOnoff() {
       var aan = !!(state && state.enabled);
       swText.textContent = aan ? "Aan" : "Uit";
-      swTrack.style.background = aan ? "#1b7f3b" : "#a3241f";
-      swTrack.style.boxShadow = aan ? "inset 0 0 0 1px rgba(255,255,255,.12)" : "inset 0 0 0 1px rgba(255,255,255,.10)";
+      swTrack.style.background = aan ? T.ok : T.bad;
       swTrack.style.opacity = aan ? "1" : ".82";
       swKnob.style.left = aan ? "37px" : "3px";
       swText.style.left = aan ? "9px" : "27px";
@@ -545,7 +911,8 @@
       spineChip.innerHTML = "";
       spineChip.appendChild(aan ? svgSpineCheck() : svgSpinePause());
     }
-    function renderStatusCard() {
+    function renderStatus() {
+      statusBox.innerHTML = "";
       var tekst, toon2;
       if (!state || !state.enabled) {
         tekst = "Gekleurde dagindeling staat uit.";
@@ -557,171 +924,55 @@
         tekst = "Gekleurde dagindeling staat aan (" + state.profileLabel + ").";
         toon2 = "ok";
       }
-      var bg = toon2 === "ok" ? T.okWash : toon2 === "warn" ? "#fff4d6" : T.lineSoft;
-      var fg = toon2 === "ok" ? T.ok : toon2 === "warn" ? "#8a5a00" : T.inkSoft;
+      var bg = toon2 === "ok" ? T.okWash : toon2 === "warn" ? T.warnWash : T.lineSoft;
+      var fg = toon2 === "ok" ? T.ok : toon2 === "warn" ? T.warn : T.inkSoft;
       var card = el("div", {
         display: "flex",
         alignItems: "flex-start",
         gap: "8px",
-        padding: "9px 10px",
+        padding: "9px 11px",
         borderRadius: "10px",
         background: bg,
         color: fg,
-        fontSize: "12.5px",
+        fontSize: "13px",
         lineHeight: "1.4",
         fontWeight: "600"
       });
       var icon = toon2 === "ok" ? svgSpineCheck() : svgInfoIcon();
       icon.setAttribute("width", "13");
       icon.setAttribute("height", "13");
-      Object.assign(icon.style, { width: "13px", height: "13px", flex: "0 0 auto", marginTop: "1px" });
+      Object.assign(icon.style, { width: "13px", height: "13px", flex: "0 0 auto", marginTop: "2px" });
       card.appendChild(icon);
       card.appendChild(el("span", null, tekst));
-      return card;
-    }
-    function renderInfo() {
-      body.innerHTML = "";
-      var back = document.createElement("button");
-      back.type = "button";
-      Object.assign(back.style, {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "9px 10px",
-        borderRadius: "10px",
-        cursor: "pointer",
-        border: "1px solid " + T.brand,
-        background: "#fff",
-        color: T.brand,
-        fontWeight: "600",
-        fontSize: "13px",
-        width: "100%",
-        marginBottom: "10px",
-        boxSizing: "border-box",
-        transition: "transform .12s ease, box-shadow .12s ease"
-      });
-      back.appendChild(svgPath("M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z"));
-      back.appendChild(document.createTextNode("Terug"));
-      liftOnHover(back);
-      focusRing(back);
-      back.addEventListener("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        infoOpen = false;
-        renderBody();
-      });
-      body.appendChild(back);
-      body.appendChild(el("div", {
-        fontSize: "12.5px",
-        color: T.inkSoft,
-        lineHeight: "1.4",
-        margin: "2px 0 10px"
-      }, "Gebruik de Agendahulp voor een duidelijk agenda-overzicht."));
-      var legenda = state && state.legend || [];
-      body.appendChild(el("div", {
-        fontSize: "11px",
-        fontWeight: "700",
-        color: T.brand,
-        textTransform: "uppercase",
-        letterSpacing: ".03em",
-        margin: "0 0 6px"
-      }, "Legenda (" + (state && state.windowLabel || "08:00–17:00") + ")"));
-      var wrap = el("div", { display: "flex", flexDirection: "column", gap: "5px" });
-      legenda.forEach(function(item) {
-        var row = el("div", { display: "flex", alignItems: "center", gap: "8px" });
-        row.appendChild(el("span", {
-          width: "12px",
-          height: "12px",
-          borderRadius: "4px",
-          background: item.color,
-          border: "1px solid rgba(0,0,0,.12)",
-          flex: "0 0 auto"
-        }));
-        row.appendChild(el("span", { fontSize: "12px", color: T.ink, lineHeight: "1.3" }, item.text));
-        wrap.appendChild(row);
-      });
-      body.appendChild(wrap);
-      body.appendChild(el("div", {
-        fontSize: "11px",
-        color: T.inkSoft,
-        marginTop: "10px",
-        paddingTop: "8px",
-        borderTop: "1px solid " + T.line
-      }, "Versie " + (state && state.version || "")));
-    }
-    function renderBody() {
-      if (infoOpen) {
-        renderInfo();
-        return;
-      }
-      body.innerHTML = "";
-      body.appendChild(renderStatusCard());
+      statusBox.appendChild(card);
     }
     function renderTotals() {
       totals.innerHTML = "";
       if (!state) return;
       var view = state.view || "";
-      var inDayView = view === "day";
       if (view !== "workweek" && view !== "week") {
-        var weekBtn = document.createElement("button");
-        weekBtn.type = "button";
-        weekBtn.style.cssText = "display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;margin:4px 0 10px;padding:8px 10px;border-radius:10px;cursor:pointer;border:1px solid " + T.brand + ";background:#fff;color:" + T.brand + ";font-weight:700;font-size:12px;transition:transform .12s ease, box-shadow .12s ease";
-        weekBtn.textContent = "Naar weekweergave";
-        liftOnHover(weekBtn);
-        focusRing(weekBtn);
-        weekBtn.addEventListener("click", function() {
+        var weekBtn = secondaryBtn("Naar weekweergave", function() {
           if (actions.onJumpToWeek) actions.onJumpToWeek();
         });
+        weekBtn.style.marginTop = "12px";
         totals.appendChild(weekBtn);
       }
-      if (inDayView) {
+      if (view === "day") {
         var items = state.unfinished || [];
-        totals.appendChild(sectionTitle("Nog te registreren" + (items.length ? " (" + items.length + ")" : "")));
+        totals.appendChild(sectionHead("Nog te registreren" + (items.length ? " (" + items.length + ")" : ""), false));
         if (!items.length) {
-          var none = el("div");
-          none.style.cssText = "display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:10px;background:" + T.okWash + ";color:" + T.ok + ";font-size:12.5px;font-weight:700";
-          var okIcon = svgSpineCheck();
-          okIcon.setAttribute("width", "13");
-          okIcon.setAttribute("height", "13");
-          okIcon.style.cssText = "width:13px;height:13px;flex:0 0 auto";
-          none.appendChild(okIcon);
-          none.appendChild(document.createTextNode("Alles geregistreerd"));
-          totals.appendChild(none);
+          totals.appendChild(noteBox("Alles geregistreerd.", "ok"));
+          totals.lastChild.style.marginTop = "0";
         } else {
-          var list = el("div");
-          list.style.cssText = "display:flex;flex-direction:column;gap:6px";
+          var list = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
           items.forEach(function(it) {
-            var card = el("div");
-            card.style.cssText = "display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#fff;border:1px solid " + (it.client ? T.brand : T.line) + ";cursor:pointer;box-sizing:border-box;transition:transform .12s ease, box-shadow .12s ease";
-            card.title = "Klik om de afspraak te openen";
-            liftOnHover(card);
-            card.addEventListener("click", function() {
+            var card = clickCard(function() {
               if (actions.onOpenOccurrence) actions.onOpenOccurrence(it.id);
-            });
-            card.appendChild(el("span", {
-              fontSize: "12px",
-              fontWeight: "800",
-              color: T.brand,
-              fontVariantNumeric: "tabular-nums",
-              flex: "0 0 auto"
-            }, it.time || "--:--"));
-            card.appendChild(el("span", {
-              fontSize: "12px",
-              color: T.ink,
-              flex: "1 1 auto",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap"
-            }, it.name));
-            card.appendChild(el("span", {
-              fontSize: "10px",
-              fontWeight: "700",
-              color: it.client ? T.ok : T.inkSoft,
-              background: it.client ? T.okWash : T.lineSoft,
-              borderRadius: "8px",
-              padding: "1px 7px",
-              flex: "0 0 auto"
-            }, it.client ? "cliënt" : "overig"));
+            }, "Afspraak openen");
+            Object.assign(card.style, { display: "flex", alignItems: "center", gap: "8px" });
+            card.appendChild(el("span", { fontSize: "13px", fontWeight: "600", color: T.ink, fontVariantNumeric: "tabular-nums", flex: "0 0 auto" }, it.time || "--:--"));
+            card.appendChild(el("span", { fontSize: "13px", color: T.ink, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, it.name));
+            card.appendChild(tag(it.client ? "cliënt" : "overig", it.client ? "ok" : null));
             list.appendChild(card);
           });
           totals.appendChild(list);
@@ -732,190 +983,263 @@
       var w = state && state.week;
       var bezig = !!(state && state.weekLoading);
       var fout = state && state.weekError || "";
-      var bridge = window.__onsahReact;
+      var b = bridge();
       if (fout && !bezig) {
-        if (bridge && bridge.unmount) bridge.unmount(weekHost);
+        if (b && b.unmount) b.unmount(weekHost);
         weekHost.innerHTML = "";
-        weekHost.style.opacity = "1";
         laadStrook.innerHTML = "";
-        weekHost.appendChild(el("div", {
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "8px",
-          padding: "9px 10px",
-          borderRadius: "10px",
-          background: "#fbeceb",
-          color: "#a3241f",
-          fontSize: "12.5px",
-          fontWeight: "600",
-          lineHeight: "1.4",
-          marginTop: "9px",
-          borderTop: "1px solid " + T.line
-        }, fout));
+        weekHost.appendChild(noteBox(fout, "bad"));
+        weekHost.lastChild.style.marginTop = "0";
         return;
       }
       if (!w || !w.summary) {
-        if (bridge && bridge.unmount) bridge.unmount(weekHost);
+        if (b && b.unmount) b.unmount(weekHost);
         weekHost.innerHTML = "";
         weekHost.style.opacity = "1";
         laadStrook.innerHTML = "";
+        zorgVoorStijl(weekBox.ownerDocument);
+        laadStrook.appendChild(txt("section", "Weekoverzicht"));
         if (bezig) {
-          zorgVoorStijl(weekBox.ownerDocument);
-          laadStrook.appendChild(el("div", {
-            fontSize: "11px",
-            fontWeight: "700",
-            color: T.brand,
-            textTransform: "uppercase",
-            letterSpacing: ".03em",
-            margin: "0 0 6px",
-            borderTop: "1px solid " + T.line,
-            paddingTop: "9px"
-          }, "Weekoverzicht ophalen…"));
           laadStrook.appendChild(laadBalk());
           laadStrook.appendChild(skelet());
+        } else {
+          laadStrook.appendChild(txt("help", "Wordt opgehaald zodra de agenda van deze week geladen is."));
         }
         return;
       }
-      if (!bridge || !bridge.renderWeekPanel) {
+      if (!b || !b.renderWeekPanel) {
         laadStrook.innerHTML = "";
         weekHost.innerHTML = "";
-        weekHost.appendChild(el("div", {
-          fontSize: "12px",
-          color: T.bad,
-          fontWeight: "600"
-        }, "Weekoverzicht kon niet laden (bundel ontbreekt)."));
+        weekHost.appendChild(noteBox("Weekoverzicht kon niet laden (bundel ontbreekt).", "bad"));
         return;
       }
-      bridge.renderWeekPanel(weekHost, w.summary, w.opts || {}, T, w.clientRows || [], w.overigRows || [], fmtMin, {
-        onOpenBreakdown: function() {
-          if (actions.onOpenBreakdown) actions.onOpenBreakdown();
-        },
-        onOpenCalc: function() {
-          if (actions.onOpenCalc) actions.onOpenCalc();
+      b.renderWeekPanel(weekHost, w.summary, w.opts || {}, T, w.clientRows || [], w.overigRows || [], fmtMin, {
+        onOpenClientTime: function() {
+          naarPagina("clienttijd");
         }
       });
       weekHost.style.opacity = bezig ? ".45" : "1";
       laadStrook.innerHTML = "";
       if (bezig) {
         zorgVoorStijl(weekBox.ownerDocument);
-        var balk = laadBalk();
-        balk.style.margin = "9px 0 8px";
-        laadStrook.appendChild(balk);
+        laadStrook.appendChild(laadBalk());
       }
     }
-    var range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
-    var quick = { date: "", time: "", minutes: "15", busy: false, error: "", overlap: "" };
-    function fieldLabel(text, input) {
-      var w = el("label", { display: "flex", flexDirection: "column", gap: "3px", flex: "1 1 0", minWidth: "0", fontSize: "11px", fontWeight: "700", color: T.inkSoft });
-      w.appendChild(document.createTextNode(text));
-      w.appendChild(input);
-      return w;
+    function renderNav() {
+      navBox.innerHTML = "";
+      navBox.appendChild(navCard(ICON_RATIO, "Verhouding per uursoort", "Direct, indirect en reistijd per cliëntgebonden uursoort", function() {
+        naarPagina("verhouding");
+      }));
+      navBox.appendChild(navCard(ICON_RANGE, "Open registraties", "Controleer een periode op afspraken die nog niet geregistreerd zijn", function() {
+        naarPagina("open");
+      }));
+      navBox.appendChild(navCard(ICON_QUICK, "Snel registreren", "Registratieformulier openen met datum en tijd ingevuld", function() {
+        naarPagina("snel");
+      }));
     }
-    function inputEl(type, value, onChange) {
-      var i = document.createElement("input");
-      i.type = type;
-      i.value = value || "";
-      Object.assign(i.style, {
-        width: "100%",
-        boxSizing: "border-box",
-        padding: "6px 7px",
-        borderRadius: "8px",
-        border: "1px solid " + T.line,
-        font: "13px system-ui, sans-serif",
-        color: T.ink,
-        background: "#fff"
-      });
-      focusRing(i);
-      i.addEventListener("input", function() {
-        onChange(i.value);
-      });
-      i.addEventListener("change", function() {
-        onChange(i.value);
-      });
-      return i;
+    var liveHost = null;
+    function losKoppelen() {
+      var b = bridge();
+      if (liveHost && b && b.unmount) b.unmount(liveHost);
+      liveHost = null;
     }
-    function primaryBtn(text, onClick, disabled) {
+    function naarPagina(p) {
+      losKoppelen();
+      pagina = p;
+      BEWAARD.pagina = p;
+      var opHoofd = pagina === "hoofd";
+      hoofd.style.display = opHoofd ? "" : "none";
+      paginaBox.style.display = opHoofd ? "none" : "";
+      leaveBar.style.display = opHoofd && !(state && state.leaveRequest === false) ? "" : "none";
+      title.textContent = PAGINA_TITEL[pagina] || PAGINA_TITEL.hoofd;
+      info.style.background = pagina === "info" ? T.brandWash : T.lineSoft;
+      info.style.color = pagina === "info" ? T.brand : T.inkSoft;
+      renderPagina();
+      mainCol.scrollTop = 0;
+    }
+    function tekstKnop(icoon, tekst, onClick, disabled) {
       var b = document.createElement("button");
       b.type = "button";
-      b.textContent = text;
       b.disabled = !!disabled;
       Object.assign(b.style, {
-        width: "100%",
-        border: "0",
-        borderRadius: "10px",
-        padding: "9px 12px",
-        marginTop: "8px",
-        background: disabled ? "#d9c2cf" : T.brand,
-        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "6px 10px 6px 6px",
+        borderRadius: "8px",
         cursor: disabled ? "default" : "pointer",
-        font: "700 12.5px/1 system-ui, sans-serif"
+        border: "0",
+        background: "transparent",
+        color: disabled ? T.inkSoft : T.brand,
+        font: "600 13px/1 " + FONT
       });
-      focusRing(b, T.brandDeep);
+      b.appendChild(svgPath(icoon, 16));
+      b.appendChild(document.createTextNode(tekst));
+      b.addEventListener("mouseenter", function() {
+        if (!b.disabled) b.style.background = T.brandWash;
+      });
+      b.addEventListener("mouseleave", function() {
+        b.style.background = "transparent";
+      });
+      focusRing(b);
       b.addEventListener("click", function(e) {
         e.preventDefault();
         if (!b.disabled) onClick();
       });
       return b;
     }
-    function noteBox(text, tone) {
-      var c = tone === "bad" ? [T.badWash, T.bad] : tone === "ok" ? [T.okWash, T.ok] : ["#fff4d6", "#8a5a00"];
-      return el("div", {
-        marginTop: "8px",
-        padding: "8px 10px",
-        borderRadius: "10px",
-        background: c[0],
-        color: c[1],
-        fontSize: "12.5px",
-        fontWeight: "600",
-        lineHeight: "1.4"
-      }, text);
+    function terugKnop() {
+      var back = tekstKnop(PIJL_TERUG, "Terug", function() {
+        naarPagina("hoofd");
+      });
+      back.style.margin = "0 0 10px -6px";
+      return back;
     }
-    function clockText(ms) {
-      var d = new Date(ms);
-      return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+    var range = BEWAARD.range;
+    var prod = BEWAARD.prod;
+    var quick = BEWAARD.quick;
+    function vulStandaarden() {
+      if (!state) return;
+      if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
+      if (!range.to && state.today) range.to = state.today;
+      if (!prod.from && state.productionDefaultFrom) prod.from = state.productionDefaultFrom;
+      if (!prod.to && state.today) prod.to = state.today;
+      if (!quick.date && state.today) quick.date = state.today;
+    }
+    function weekNaam() {
+      var w = state && state.week;
+      return w && w.opts && w.opts.week ? "week " + w.opts.week : "deze week";
+    }
+    function renderLive() {
+      if (!liveHost) return;
+      var b = bridge();
+      var w = state && state.week;
+      if (!w || !w.summary) {
+        if (b && b.unmount) b.unmount(liveHost);
+        liveHost.innerHTML = "";
+        liveHost.appendChild(txt("help", state && state.weekLoading ? "Weekoverzicht wordt opgehaald…" : "Nog geen weekoverzicht beschikbaar."));
+        return;
+      }
+      if (!b) {
+        liveHost.innerHTML = "";
+        liveHost.appendChild(noteBox("Kon niet laden (bundel ontbreekt).", "bad"));
+        return;
+      }
+      if (pagina === "clienttijd") b.renderBreakdownBody(liveHost, w.summary, w.opts || {}, fmtMin, T);
+      else if (pagina === "verhouding") b.renderCalcBody(liveHost, w.clientRows || [], state && state.nonClientMarker || "*", fmtMin, T);
+    }
+    function pageClientTime() {
+      var box = el("div");
+      box.appendChild(sectionHead("Opbouw " + weekNaam(), true));
+      liveHost = el("div");
+      box.appendChild(liveHost);
+      box.appendChild(sectionHead("Productieverloop", false));
+      box.appendChild(txt("help", "Directe, indirecte en reistijd per week in uren, uit je registraties in ONS. Kies een periode van hooguit 26 weken.", { margin: "0 0 10px" }));
+      var rij = el("div", { display: "flex", gap: "8px" });
+      rij.appendChild(fieldLabel("Van", inputEl("date", prod.from, function(v) {
+        prod.from = v;
+      })));
+      rij.appendChild(fieldLabel("Tot en met", inputEl("date", prod.to, function(v) {
+        prod.to = v;
+      })));
+      box.appendChild(rij);
+      box.appendChild(primaryBtn(prod.busy ? "Bezig met berekenen…" : "Productieverloop berekenen", startProduction, prod.busy));
+      if (prod.busy) box.appendChild(voortgang(prod.done, prod.total));
+      if (prod.error) box.appendChild(noteBox(prod.error, "bad"));
+      if (prod.result && !prod.busy) {
+        var weken = prod.result.weeks || [];
+        if (!weken.length) box.appendChild(noteBox("Geen weken in deze periode.", "warn"));
+        else {
+          var grafiek = el("div", { marginTop: "14px" });
+          grafiek.appendChild(productionChart(weken));
+          grafiek.appendChild(productionTable(weken));
+          box.appendChild(grafiek);
+        }
+      }
+      return box;
+    }
+    function pageRatio() {
+      var box = el("div");
+      box.appendChild(sectionHead(weekNaam().charAt(0).toUpperCase() + weekNaam().slice(1), true));
+      liveHost = el("div");
+      box.appendChild(liveHost);
+      return box;
+    }
+    function vinkje() {
+      var v = svgSpineCheck();
+      v.setAttribute("width", "14");
+      v.setAttribute("height", "14");
+      Object.assign(v.style, { color: T.ok, flex: "0 0 auto", width: "14px", height: "14px" });
+      return v;
     }
     function rangeResultEl(r) {
-      var wrap = el("div", { marginTop: "8px" });
-      if (!r.days.length) {
+      var wrap = el("div", { marginTop: "14px" });
+      var t = telOpen(r, range.afgewerkt);
+      if (!t.count) {
         wrap.appendChild(noteBox("Alles geregistreerd van " + dayLabel(r.from) + " t/m " + dayLabel(r.to) + ".", "ok"));
         return wrap;
       }
-      var sum = el(
-        "div",
-        { fontSize: "12.5px", fontWeight: "700", color: T.ink, margin: "0 0 6px" },
-        r.totalCount + (r.totalCount === 1 ? " afspraak" : " afspraken") + " open · " + fmtMin(r.totalMinutes) + " op " + r.days.length + (r.days.length === 1 ? " dag" : " dagen")
-      );
-      if (r.lateCount > 0) sum.appendChild(miniTag("te laat: " + r.lateCount, T.bad, T.badWash, "#f0b0b0"));
-      wrap.appendChild(sum);
+      var kop = el("div", { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", margin: "0 0 6px" });
+      var open = t.count - t.done;
+      kop.appendChild(txt("section", open ? open + (open === 1 ? " afspraak" : " afspraken") + " open · " + fmtMin(t.openMinutes) : "Alles afgewerkt", { margin: "0" }));
+      if (t.late > 0) kop.firstChild.appendChild(tag("te laat: " + t.late, "bad"));
+      var teller = txt("label", null, { flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: "4px", fontVariantNumeric: "tabular-nums" });
+      teller.appendChild(vinkje());
+      teller.appendChild(document.createTextNode(t.done + " van " + t.count));
+      teller.title = t.done + " van " + t.count + " afgewerkt";
+      kop.appendChild(teller);
+      wrap.appendChild(kop);
+      var spoor = el("div", { height: "4px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden", margin: "0 0 10px" });
+      spoor.setAttribute("role", "progressbar");
+      spoor.setAttribute("aria-label", "Afgewerkt");
+      spoor.setAttribute("aria-valuemin", "0");
+      spoor.setAttribute("aria-valuemax", String(t.count));
+      spoor.setAttribute("aria-valuenow", String(t.done));
+      spoor.appendChild(el("div", { height: "100%", width: Math.round(t.done / t.count * 100) + "%", background: T.ok, transition: "width .3s ease" }));
+      wrap.appendChild(spoor);
       var list = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
       r.days.forEach(function(d) {
-        var card = el("div");
-        card.style.cssText = "padding:7px 9px;border-radius:10px;background:#fff;border:1px solid " + T.brand + ";cursor:pointer;box-sizing:border-box;transition:transform .12s ease, box-shadow .12s ease";
-        card.title = "Klik om naar deze dag te gaan";
-        liftOnHover(card);
-        card.addEventListener("click", function() {
-          if (actions.onJumpToDay) actions.onJumpToDay(d.date, true);
+        var dagKlaar = d.items.every(function(it) {
+          return range.afgewerkt[it.key];
         });
-        var head = el("div", { fontSize: "12px", fontWeight: "700", color: T.ink, marginBottom: "3px" }, dayLabel(d.date));
-        if (d.lateCount > 0) head.appendChild(miniTag("te laat: " + d.lateCount, T.bad, T.badWash, "#f0b0b0"));
+        var card = clickCard(function() {
+          if (actions.onJumpToDay) actions.onJumpToDay(d.date, true);
+        }, "Klik om naar deze dag te gaan");
+        if (dagKlaar) card.style.background = T.okWash;
+        var head = el("div", { display: "flex", alignItems: "center", fontSize: "13px", fontWeight: "600", color: T.ink, marginBottom: "2px" });
+        if (dagKlaar) {
+          var ok = svgSpineCheck();
+          ok.setAttribute("width", "13");
+          ok.setAttribute("height", "13");
+          Object.assign(ok.style, { color: T.ok, marginRight: "6px", flex: "0 0 auto" });
+          head.appendChild(ok);
+        }
+        head.appendChild(document.createTextNode(dayLabel(d.date)));
+        var dagLaat = d.items.filter(function(it) {
+          return it.late && !range.afgewerkt[it.key];
+        }).length;
+        if (dagLaat > 0) head.appendChild(tag("te laat: " + dagLaat, "bad"));
         var ws = (state && state.windowStatus || {})[d.date];
-        if (ws === "soon") head.appendChild(miniTag("verloopt binnenkort", "#8a5a00", "#fff6e0", "#f0d08a"));
+        if (ws === "soon" && !dagKlaar) head.appendChild(tag("verloopt binnenkort", "warn"));
         card.appendChild(head);
-        card.appendChild(statLine(d.client, d.overig));
         d.items.forEach(function(it) {
-          var row = el("div", { display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: T.inkSoft, marginTop: "2px" });
-          row.appendChild(el("span", { fontWeight: "800", color: T.brand, fontVariantNumeric: "tabular-nums", flex: "0 0 auto" }, clockText(it.start)));
-          row.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, fmtMin(it.minutes)));
-          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, it.uursoort || ""));
-          row.appendChild(el("span", {
-            fontSize: "10px",
-            fontWeight: "700",
-            color: it.client ? T.ok : T.inkSoft,
-            background: it.client ? T.okWash : T.lineSoft,
-            borderRadius: "8px",
-            padding: "0 6px",
-            flex: "0 0 auto"
-          }, it.client ? "cliënt" : "overig"));
+          var klaar = !!range.afgewerkt[it.key];
+          var row = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: klaar ? T.inkSoft : T.ink, marginTop: "4px", fontVariantNumeric: "tabular-nums" });
+          var dt = new Date(it.start);
+          var tijd = el("span", { fontWeight: "600", flex: "0 0 auto", textDecoration: klaar ? "line-through" : "none" }, ("0" + dt.getHours()).slice(-2) + ":" + ("0" + dt.getMinutes()).slice(-2));
+          row.appendChild(tijd);
+          row.appendChild(el("span", { color: T.inkSoft, flex: "0 0 auto" }, fmtMin(it.minutes)));
+          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, it.uursoort || ""));
+          if (klaar) {
+            var v = vinkje();
+            v.setAttribute("data-afgewerkt", "1");
+            v.setAttribute("aria-label", "Afgewerkt");
+            v.setAttribute("role", "img");
+            v.removeAttribute("aria-hidden");
+            row.appendChild(v);
+          } else {
+            row.appendChild(tag(it.client ? "cliënt" : "overig", it.client ? "ok" : null));
+          }
           card.appendChild(row);
         });
         list.appendChild(card);
@@ -923,195 +1247,44 @@
       wrap.appendChild(list);
       return wrap;
     }
-    function startRangeCheck() {
-      if (range.busy || !actions.onCheckRange) return;
-      range.busy = true;
-      range.done = 0;
-      range.total = 0;
-      range.error = "";
-      range.result = null;
-      renderTools();
-      actions.onCheckRange(range.from, range.to, function(res) {
-        range.busy = false;
-        if (res && res.ok && res.result) range.result = res.result;
-        else range.error = res && res.error || "Controleren mislukt.";
-        renderTools();
-      });
-    }
-    function startQuickRegister(force) {
-      if (quick.busy || !actions.onQuickRegister) return;
-      quick.busy = true;
-      quick.error = "";
-      if (!force) quick.overlap = "";
-      renderTools();
-      actions.onQuickRegister({ date: quick.date, time: quick.time, minutes: quick.minutes, force: !!force }, function(res) {
-        quick.busy = false;
-        if (res && res.ok) {
-          quick.overlap = "";
-          quick.error = "";
-        } else if (res && res.overlap) quick.overlap = res.overlap;
-        else quick.error = res && res.error || "Openen mislukt.";
-        renderTools();
-      });
-    }
-    function navKnop(icoon, kop, uitleg, doel) {
-      var b = document.createElement("button");
-      b.type = "button";
-      Object.assign(b.style, {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        width: "100%",
-        boxSizing: "border-box",
-        padding: "10px 11px",
-        borderRadius: "12px",
-        border: "1px solid " + T.line,
-        background: "#fff",
-        color: T.ink,
-        cursor: "pointer",
-        textAlign: "left",
-        font: "inherit",
-        transition: "transform .12s ease, box-shadow .12s ease, border-color .12s ease"
-      });
-      var ic = el("span", {
-        width: "32px",
-        height: "32px",
-        borderRadius: "9px",
-        background: T.brandWash,
-        color: T.brand,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flex: "0 0 auto"
-      });
-      ic.appendChild(svgPath(icoon, 18));
-      b.appendChild(ic);
-      var tekst = el("span", { flex: "1 1 auto", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" });
-      tekst.appendChild(el("span", { fontSize: "13px", fontWeight: "700" }, kop));
-      tekst.appendChild(el("span", { fontSize: "11.5px", color: T.inkSoft, lineHeight: "1.3" }, uitleg));
-      b.appendChild(tekst);
-      var pijl = svgPath(CHEV_DICHT, 16);
-      pijl.style.color = T.brand;
-      pijl.style.flex = "0 0 auto";
-      b.appendChild(pijl);
-      b.addEventListener("mouseenter", function() {
-        b.style.borderColor = T.brand;
-        b.style.transform = "translateY(-1px)";
-        b.style.boxShadow = "0 4px 12px -6px rgba(32,20,15,.22)";
-      });
-      b.addEventListener("mouseleave", function() {
-        b.style.borderColor = T.line;
-        b.style.transform = "none";
-        b.style.boxShadow = "none";
-      });
-      focusRing(b);
-      b.addEventListener("click", function(e) {
-        e.preventDefault();
-        naarPagina(doel);
-      });
-      return b;
-    }
-    function renderNav() {
-      navBox.innerHTML = "";
-      navBox.appendChild(navKnop(ICON_RANGE, "Open registraties", "Controleer een periode op afspraken die nog niet geregistreerd zijn", "open"));
-      navBox.appendChild(navKnop(ICON_QUICK, "Snel registreren", "Registratieformulier openen met datum en tijd ingevuld", "snel"));
-    }
-    function naarPagina(p) {
-      pagina = p;
-      infoOpen = false;
-      var hoofd = pagina === "hoofd";
-      [body, totals, weekBox, navBox].forEach(function(n) {
-        n.style.display = hoofd ? "" : "none";
-      });
-      tools.style.display = hoofd ? "none" : "";
-      title.textContent = hoofd ? "Agendahulp" : pagina === "open" ? "Open registraties" : "Snel registreren";
-      render();
-      mainCol.scrollTop = 0;
-    }
-    function terugKnop() {
-      var back = document.createElement("button");
-      back.type = "button";
-      Object.assign(back.style, {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "9px 10px",
-        borderRadius: "10px",
-        cursor: "pointer",
-        border: "1px solid " + T.brand,
-        background: "#fff",
-        color: T.brand,
-        fontWeight: "600",
-        fontSize: "13px",
-        width: "100%",
-        marginBottom: "12px",
-        boxSizing: "border-box",
-        transition: "transform .12s ease, box-shadow .12s ease"
-      });
-      back.appendChild(svgPath("M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z"));
-      back.appendChild(document.createTextNode("Terug"));
-      liftOnHover(back);
-      focusRing(back);
-      back.addEventListener("click", function(e) {
-        e.preventDefault();
-        naarPagina("hoofd");
-      });
-      return back;
-    }
-    function renderRangePage() {
-      var rBox = el("div");
-      rBox.appendChild(el(
-        "div",
-        { fontSize: "12.5px", color: T.inkSoft, lineHeight: "1.4", margin: "0 0 10px" },
-        "Haalt elke week in deze periode op bij ONS (hooguit 26 weken) en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn."
-      ));
-      var rRow = el("div", { display: "flex", gap: "8px" });
-      rRow.appendChild(fieldLabel("Van", inputEl("date", range.from, function(v) {
+    function pageOpen() {
+      var box = el("div");
+      box.appendChild(txt("help", "Haalt elke week in deze periode op bij ONS (hooguit 26 weken) en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn.", { margin: "0 0 10px" }));
+      var rij = el("div", { display: "flex", gap: "8px" });
+      rij.appendChild(fieldLabel("Van", inputEl("date", range.from, function(v) {
         range.from = v;
       })));
-      rRow.appendChild(fieldLabel("Tot en met", inputEl("date", range.to, function(v) {
+      rij.appendChild(fieldLabel("Tot en met", inputEl("date", range.to, function(v) {
         range.to = v;
       })));
-      rBox.appendChild(rRow);
-      rBox.appendChild(primaryBtn(range.busy ? "Bezig met controleren…" : "Controleren", startRangeCheck, range.busy));
-      if (range.busy) {
-        zorgVoorStijl(tools.ownerDocument);
-        var p = el("div", { marginTop: "8px" });
-        p.appendChild(el(
-          "div",
-          { fontSize: "11px", fontWeight: "700", color: T.inkSoft, marginBottom: "4px" },
-          range.total ? "Week " + range.done + " van " + range.total + " opgehaald" : "Weken ophalen…"
-        ));
-        if (range.total) {
-          var spoor = el("div", { height: "4px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden" });
-          spoor.setAttribute("role", "progressbar");
-          spoor.setAttribute("aria-valuemin", "0");
-          spoor.setAttribute("aria-valuemax", String(range.total));
-          spoor.setAttribute("aria-valuenow", String(range.done));
-          spoor.appendChild(el("div", { height: "100%", width: Math.round(range.done / range.total * 100) + "%", background: T.brand, transition: "width .2s ease" }));
-          p.appendChild(spoor);
-        } else {
-          p.appendChild(laadBalk());
-        }
-        rBox.appendChild(p);
+      box.appendChild(rij);
+      box.appendChild(primaryBtn(range.busy ? "Bezig met controleren…" : "Controleren", startRangeCheck, range.busy));
+      if (range.busy) box.appendChild(voortgang(range.done, range.total));
+      if (range.error) box.appendChild(noteBox(range.error, "bad"));
+      if (range.result && !range.busy) {
+        box.appendChild(rangeResultEl(range.result));
+        var voet = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "8px" });
+        voet.appendChild(txt("help", "Registreer je een afspraak of zet je hem op ‘niet registreren’, dan wordt hij hier afgevinkt.", { flex: "1 1 auto" }));
+        var bij = tekstKnop(ICON_VERVERS, range.bijwerken ? "Bijwerken…" : "Bijwerken", function() {
+          hercontrole();
+        }, range.bijwerken);
+        bij.style.flex = "0 0 auto";
+        voet.appendChild(bij);
+        box.appendChild(voet);
       }
-      if (range.error) rBox.appendChild(noteBox(range.error, "bad"));
-      if (range.result && !range.busy) rBox.appendChild(rangeResultEl(range.result));
-      return rBox;
+      return box;
     }
-    function renderQuickPage() {
-      var qBox = el("div");
-      qBox.appendChild(el(
-        "div",
-        { fontSize: "12.5px", color: T.inkSoft, lineHeight: "1.4", margin: "0 0 10px" },
-        "Opent het registratieformulier van ONS met deze tijden ingevuld. Registreer je een afspraak? Open dan de afspraak zelf, zodat de registratie eraan gekoppeld wordt."
-      ));
-      qBox.appendChild(el("div", { marginBottom: "8px" })).appendChild(fieldLabel("Datum", inputEl("date", quick.date, function(v) {
+    function pageQuick() {
+      var box = el("div");
+      box.appendChild(txt("help", "Opent het registratieformulier van ONS met deze tijden ingevuld. Registreer je een afspraak? Open dan de afspraak zelf, zodat de registratie eraan gekoppeld wordt.", { margin: "0 0 10px" }));
+      var datum = fieldLabel("Datum", inputEl("date", quick.date, function(v) {
         quick.date = v;
         quick.overlap = "";
-      })));
-      var qRow = el("div", { display: "flex", gap: "8px" });
-      qRow.appendChild(fieldLabel("Begintijd", inputEl("time", quick.time, function(v) {
+      }));
+      datum.style.marginBottom = "10px";
+      box.appendChild(datum);
+      var rij = el("div", { display: "flex", gap: "8px" });
+      rij.appendChild(fieldLabel("Begintijd", inputEl("time", quick.time, function(v) {
         quick.time = v;
         quick.overlap = "";
       })));
@@ -1122,66 +1295,148 @@
       dur.min = "5";
       dur.max = "1440";
       dur.step = "5";
-      qRow.appendChild(fieldLabel("Duur (min)", dur));
-      qBox.appendChild(qRow);
+      rij.appendChild(fieldLabel("Duur (min)", dur));
+      box.appendChild(rij);
       if (quick.overlap) {
-        qBox.appendChild(noteBox(quick.overlap, "warn"));
-        qBox.appendChild(primaryBtn(quick.busy ? "Openen…" : "Toch openen", function() {
+        box.appendChild(noteBox(quick.overlap, "warn"));
+        box.appendChild(primaryBtn(quick.busy ? "Openen…" : "Toch openen", function() {
           startQuickRegister(true);
         }, quick.busy));
       } else {
-        qBox.appendChild(primaryBtn(quick.busy ? "Controleren…" : "Formulier openen", function() {
+        box.appendChild(primaryBtn(quick.busy ? "Controleren…" : "Formulier openen", function() {
           startQuickRegister(false);
         }, quick.busy));
       }
-      if (quick.error) qBox.appendChild(noteBox(quick.error, "bad"));
-      return qBox;
+      if (quick.error) box.appendChild(noteBox(quick.error, "bad"));
+      return box;
     }
-    function renderTools() {
-      tools.innerHTML = "";
+    function pageInfo() {
+      var box = el("div");
+      box.appendChild(txt("help", "Gebruik de Agendahulp voor een duidelijk agenda-overzicht.", { margin: "0 0 12px" }));
+      box.appendChild(sectionHead("Legenda (" + (state && state.windowLabel || "08:00–17:00") + ")", true));
+      var wrap = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
+      (state && state.legend || []).forEach(function(item) {
+        var row = el("div", { display: "flex", alignItems: "center", gap: "8px" });
+        row.appendChild(el("span", { width: "12px", height: "12px", borderRadius: "4px", background: item.color, border: "1px solid rgba(0,0,0,.12)", flex: "0 0 auto" }));
+        row.appendChild(el("span", TYPE.text, item.text));
+        wrap.appendChild(row);
+      });
+      box.appendChild(wrap);
+      box.appendChild(txt("help", "Versie " + (state && state.version || ""), { marginTop: "14px", paddingTop: "10px", borderTop: "1px solid " + T.line }));
+      return box;
+    }
+    function renderPagina() {
+      losKoppelen();
+      paginaBox.innerHTML = "";
       if (pagina === "hoofd") return;
-      if (state) {
-        if (!range.from && state.rangeDefaultFrom) range.from = state.rangeDefaultFrom;
-        if (!range.to && state.today) range.to = state.today;
-        if (!quick.date && state.today) quick.date = state.today;
-      }
-      tools.appendChild(terugKnop());
-      tools.appendChild(pagina === "open" ? renderRangePage() : renderQuickPage());
+      vulStandaarden();
+      paginaBox.appendChild(terugKnop());
+      var inhoud = pagina === "clienttijd" ? pageClientTime() : pagina === "verhouding" ? pageRatio() : pagina === "open" ? pageOpen() : pagina === "snel" ? pageQuick() : pageInfo();
+      paginaBox.appendChild(inhoud);
+      renderLive();
     }
-    var getekendePagina = null;
+    function startRangeCheck() {
+      if (range.busy || !actions.onCheckRange) return;
+      range.busy = true;
+      range.done = 0;
+      range.total = 0;
+      range.error = "";
+      range.result = null;
+      renderPagina();
+      range.afgewerkt = {};
+      actions.onCheckRange(range.from, range.to, function(res) {
+        range.busy = false;
+        range.laatst = Date.now();
+        if (res && res.ok && res.result) range.result = { from: res.result.from, to: res.result.to, days: res.result.days.map(function(d) {
+          return { date: d.date, items: d.items };
+        }) };
+        else range.error = res && res.error || "Controleren mislukt.";
+        if (pagina === "open") renderPagina();
+      });
+    }
+    function hercontrole() {
+      if (!range.result || range.busy || range.bijwerken || !actions.onCheckRange) return;
+      range.bijwerken = true;
+      if (pagina === "open") renderPagina();
+      actions.onCheckRange(range.result.from, range.result.to, function(res) {
+        range.bijwerken = false;
+        range.laatst = Date.now();
+        if (res && res.ok && res.result && range.result) range.result = mergeOpenRange(range.result, res.result, range.afgewerkt);
+        if (pagina === "open") renderPagina();
+      });
+    }
+    function bijFocus() {
+      if (pagina === "open" && range.result && Date.now() - range.laatst > 3e3) hercontrole();
+    }
+    window.addEventListener("focus", bijFocus);
+    function startProduction() {
+      if (prod.busy || !actions.onProduction) return;
+      prod.busy = true;
+      prod.done = 0;
+      prod.total = 0;
+      prod.error = "";
+      prod.result = null;
+      renderPagina();
+      actions.onProduction(prod.from, prod.to, function(res) {
+        prod.busy = false;
+        if (res && res.ok && res.result) prod.result = res.result;
+        else prod.error = res && res.error || "Berekenen mislukt.";
+        if (pagina === "clienttijd") renderPagina();
+      });
+    }
+    function startQuickRegister(force) {
+      if (quick.busy || !actions.onQuickRegister) return;
+      quick.busy = true;
+      quick.error = "";
+      if (!force) quick.overlap = "";
+      renderPagina();
+      actions.onQuickRegister({ date: quick.date, time: quick.time, minutes: quick.minutes, force: !!force }, function(res) {
+        quick.busy = false;
+        if (res && res.ok) {
+          quick.overlap = "";
+          quick.error = "";
+        } else if (res && res.overlap) quick.overlap = res.overlap;
+        else quick.error = res && res.error || "Openen mislukt.";
+        if (pagina === "snel") renderPagina();
+      });
+    }
     function render() {
-      if (pagina !== getekendePagina) {
-        getekendePagina = pagina;
-        renderTools();
-      }
+      paintOnoff();
       if (pagina !== "hoofd") {
-        leaveBar.style.display = "none";
-        paintOnoff();
+        renderLive();
         return;
       }
       leaveBar.style.display = state && state.leaveRequest === false ? "none" : "";
-      paintOnoff();
-      renderBody();
+      renderStatus();
       renderTotals();
       renderWeek();
     }
-    paintOnoff();
     renderNav();
     render();
+    if (vorigePagina && vorigePagina !== "hoofd") {
+      naarPagina(vorigePagina);
+      if (vorigePagina === "open" && range.result) setTimeout(hercontrole, 0);
+    }
     return {
       update: function(next) {
         state = next || null;
         render();
       },
-      setRangeProgress: function(done, total) {
-        if (!range.busy) return;
-        range.done = done;
-        range.total = total;
-        renderTools();
+      setRangeProgress: function(kind, done, total) {
+        var doel = kind === "productie" ? prod : range;
+        if (!doel.busy) return;
+        doel.done = done;
+        doel.total = total;
+        if (kind === "productie" && pagina === "clienttijd" || kind !== "productie" && pagina === "open") renderPagina();
       },
       destroy: function() {
+        window.removeEventListener("focus", bijFocus);
         try {
-          if (window.__onsahReact) window.__onsahReact.unmount(weekHost);
+          var b = bridge();
+          if (b) {
+            b.unmount(weekHost);
+            if (liveHost) b.unmount(liveHost);
+          }
         } catch (e) {
         }
         if (root.parentNode) root.parentNode.removeChild(root);
@@ -1204,8 +1459,8 @@
     amberInk: "#704b00"
   };
   var SVG_NS2 = "http://www.w3.org/2000/svg";
-  function el2(tag, styles, text) {
-    var n = document.createElement(tag);
+  function el2(tag2, styles, text) {
+    var n = document.createElement(tag2);
     if (styles) Object.assign(n.style, styles);
     if (text != null) n.textContent = text;
     return n;
@@ -1243,7 +1498,7 @@
     var root = el2("div", {
       background: "#fff",
       color: T2.ink,
-      font: "14px/1.4 system-ui, sans-serif",
+      font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       overflow: "hidden",
       display: "flex",
       flexDirection: "row",
@@ -1288,7 +1543,7 @@
       gap: "8px",
       background: "#fff",
       color: T2.ink,
-      padding: "11px 12px",
+      padding: "12px",
       fontWeight: "700",
       userSelect: "none",
       borderBottom: "1px solid #f1ecea",
@@ -1300,7 +1555,7 @@
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
-      fontSize: "13px"
+      fontSize: "15px"
     }, "Vragenlijst");
     header.appendChild(title);
     mainCol.appendChild(header);
@@ -1355,9 +1610,9 @@
         border: "1px solid " + T2.amberLine,
         background: T2.amberWash,
         color: T2.amberInk,
-        fontWeight: "700",
+        fontWeight: "600",
         lineHeight: "1.4",
-        fontSize: "12.5px"
+        fontSize: "13px"
       }, tekst);
       if (rol) box.setAttribute("role", rol);
       return box;
@@ -1369,7 +1624,7 @@
       if (!state) {
         body.appendChild(el2(
           "div",
-          { fontSize: "12.5px", color: T2.inkSoft, lineHeight: "1.45" },
+          { fontSize: "12px", color: T2.inkSoft, lineHeight: "1.45" },
           "Geen vragenlijst open. Open in ONS een cliëntvragenlijst; de checklist verschijnt hier dan vanzelf."
         ));
         return;
@@ -1380,10 +1635,8 @@
         box.textContent = "";
         box.appendChild(el2("div", {
           marginBottom: "4px",
-          fontSize: "11px",
-          fontWeight: "800",
-          textTransform: "uppercase",
-          letterSpacing: ".02em",
+          fontSize: "12px",
+          fontWeight: "600",
           color: T2.amberInk
         }, s.question || "Signaal"));
         box.appendChild(el2("div", { fontWeight: "600" }, s.text || ""));
@@ -1399,8 +1652,8 @@
           borderRadius: "10px",
           background: T2.okWash,
           color: T2.ok,
-          fontSize: "12.5px",
-          fontWeight: "700"
+          fontSize: "13px",
+          fontWeight: "600"
         }, "Geen verplichte vragen gevonden."));
         return;
       }
@@ -1417,13 +1670,11 @@
       groepen.forEach(function(g) {
         body.appendChild(el2("div", {
           fontWeight: "700",
-          fontSize: "12px",
-          color: "#6b6b6b",
-          textTransform: "uppercase",
-          letterSpacing: ".02em",
-          margin: "12px 0 4px",
-          paddingBottom: "3px",
-          borderBottom: "1px solid #eee"
+          fontSize: "13px",
+          color: T2.ink,
+          margin: "12px 0 6px",
+          paddingTop: "12px",
+          borderTop: "1px solid " + T2.line
         }, g.category === g.group ? g.group : g.category + " > " + g.group));
         var lijst = el2("ul", { listStyle: "none", margin: "0 0 4px", padding: "0" });
         g.items.forEach(function(rij) {
@@ -1444,11 +1695,11 @@
           Object.assign(link.style, {
             flex: "1 1 auto",
             minWidth: "0",
-            color: item.done ? "#9aa0a6" : onbekend ? T2.amber : T2.brand,
+            color: item.done ? T2.inkSoft : onbekend ? T2.amberInk : T2.brand,
             textDecoration: item.done ? "line-through" : "none",
             fontWeight: item.done ? "400" : "600",
             cursor: "pointer",
-            fontSize: "12.5px"
+            fontSize: "13px"
           });
           link.addEventListener("mouseenter", function() {
             if (!item.done) link.style.textDecoration = "underline";
@@ -1489,7 +1740,7 @@
             borderRadius: "999px",
             background: item.done ? T2.ok : T2.amber,
             color: "#fff",
-            fontWeight: "900",
+            fontWeight: "700",
             fontSize: "11px",
             lineHeight: "1"
           } : { display: "none" }, item.done ? "✓" : onbekend ? "?" : "");
@@ -1576,17 +1827,14 @@
     onOpenOccurrence: function(id) {
       naarTab({ type: MSG.AGENDA_OPEN_OCCURRENCE, id });
     },
-    onOpenBreakdown: function() {
-      naarTab({ type: MSG.AGENDA_OPEN_BREAKDOWN });
-    },
-    onOpenCalc: function() {
-      naarTab({ type: MSG.AGENDA_OPEN_CALC });
-    },
     onRequestLeave: function() {
       naarTab({ type: MSG.AGENDA_OPEN_LEAVE });
     },
     onCheckRange: function(from, to, cb) {
       vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from, to }, cb);
+    },
+    onProduction: function(from, to, cb) {
+      vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from, to }, cb);
     },
     onQuickRegister: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb);
@@ -1671,7 +1919,7 @@
       return;
     }
     if (msg.type === MSG.AGENDA_RANGE_PROGRESS) {
-      if (huidig && huidig.soort === "agenda" && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.done | 0, msg.total | 0);
+      if (huidig && huidig.soort === "agenda" && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.kind || "open", msg.done | 0, msg.total | 0);
       return;
     }
     if (msg.type === MSG.AGENDA_STATE && msg.state) {

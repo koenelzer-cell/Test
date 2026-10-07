@@ -1122,17 +1122,17 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
-    AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
-    AGENDA_OPEN_CALC: "ag-open-calc",
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_PRODUCTION: "ag-production",
+    // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress",
-    // { done, total } voortgang van AGENDA_CHECK_RANGE
+    // { kind: 'open'|'productie', done, total } voortgang
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"
@@ -4129,7 +4129,7 @@
       border: "0",
       borderRadius: "999px",
       padding: "10px 18px",
-      font: "700 13px/1 system-ui,-apple-system,sans-serif",
+      font: '700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       color: "#fff",
       background: from,
       cursor: "pointer",
@@ -4198,7 +4198,7 @@
       border: "1px solid " + T2.brand,
       background: "#fff",
       color: opts.accent || T2.ink,
-      font: "600 13.5px/1.3 system-ui,-apple-system,sans-serif",
+      font: '600 13.5px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       textAlign: "left",
       cursor: "pointer",
       transition: "transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease",
@@ -4326,7 +4326,7 @@
       borderRadius: "10px",
       border: "1px solid " + T2.line,
       background: "#fff",
-      font: "600 13px/1 system-ui,-apple-system,sans-serif",
+      font: '600 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       color: T2.ink,
       cursor: "pointer",
       fontVariantNumeric: "tabular-nums",
@@ -4437,7 +4437,7 @@
       const back = document.createElement("button");
       back.type = "button";
       back.textContent = "‹ Ander aantal uren";
-      Object.assign(back.style, { border: "0", background: "none", color: ONSAH_TOKENS.inkSoft, font: "600 12px system-ui,-apple-system,sans-serif", cursor: "pointer", padding: "0 0 8px", display: "block" });
+      Object.assign(back.style, { border: "0", background: "none", color: ONSAH_TOKENS.inkSoft, font: '600 12px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: "pointer", padding: "0 0 8px", display: "block" });
       back.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -4471,7 +4471,7 @@
     const wrap = document.createElement("div");
     Object.assign(wrap.style, { display: "flex", flexDirection: "column", gap: "14px", padding: "4px 0 2px" });
     const readout = document.createElement("div");
-    Object.assign(readout.style, { textAlign: "center", font: "800 22px/1 system-ui,-apple-system,sans-serif", color: T2.ink, fontVariantNumeric: "tabular-nums" });
+    Object.assign(readout.style, { textAlign: "center", font: '800 22px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: T2.ink, fontVariantNumeric: "tabular-nums" });
     const slider = document.createElement("input");
     slider.type = "range";
     slider.min = String(min);
@@ -4486,7 +4486,7 @@
       b.type = "button";
       b.textContent = symbol;
       b.setAttribute("aria-label", label);
-      Object.assign(b.style, { width: "34px", height: "34px", borderRadius: "50%", border: "1px solid " + T2.line, background: "#fff", color: T2.ink, font: "700 17px/1 system-ui", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background .12s ease, border-color .12s ease, transform .12s ease" });
+      Object.assign(b.style, { width: "34px", height: "34px", borderRadius: "50%", border: "1px solid " + T2.line, background: "#fff", color: T2.ink, font: '700 17px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background .12s ease, border-color .12s ease, transform .12s ease" });
       b.addEventListener("mouseenter", () => {
         b.style.background = T2.brandWash;
         b.style.borderColor = "transparent";
@@ -4546,7 +4546,7 @@
         borderRadius: "9px",
         border: "1px solid " + T2.line,
         background: "#fff",
-        font: "600 13px/1 system-ui,-apple-system,sans-serif",
+        font: '600 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         color: T2.ink,
         cursor: "pointer",
         fontVariantNumeric: "tabular-nums",
@@ -4579,7 +4579,7 @@
       Object.assign(col.style, { flex: "1 1 0", minWidth: "0", display: "flex", flexDirection: "column", gap: "5px" });
       const h = document.createElement("div");
       h.textContent = title;
-      Object.assign(h.style, { fontSize: "10.5px", fontWeight: "700", color: T2.inkSoft, textTransform: "uppercase", letterSpacing: ".03em", textAlign: "center", marginBottom: "2px" });
+      Object.assign(h.style, { fontSize: "10.5px", fontWeight: "700", color: T2.inkSoft, textAlign: "center", marginBottom: "2px" });
       col.appendChild(h);
       return col;
     }
@@ -4890,6 +4890,9 @@
     if (/not-declared/.test(c)) return false;
     return /declared/.test(c);
   }
+  function isWontDeclareClasses(classes) {
+    return /(^|\s)wont-declare(\s|$)/.test(String(classes || ""));
+  }
   function classifyAgendaEntry(e, now, lateMs) {
     if (!e || e.type !== "event" || e.allDay) return null;
     var date = e.date;
@@ -4910,7 +4913,8 @@
       startMs,
       endMs,
       past,
-      declared: isDeclaredClasses(e.classes),
+      // 'Niet registreren' (wont-declare) telt als afgehandeld, net als geregistreerd.
+      declared: isDeclaredClasses(e.classes) || isWontDeclareClasses(e.classes),
       late: past && endMs <= now - lateMs
     };
   }
@@ -4955,9 +4959,12 @@
       day.count++;
       if (c.late) day.lateCount++;
       day.items.push({
+        // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
+        key: (e.id != null ? String(e.id) : "x") + "|" + c.date + "|" + c.startMs,
         start: c.startMs,
         minutes: c.minutes,
         client: c.cls === "client",
+        late: c.late,
         uursoort: e.hourType && String(e.hourType).trim() || ""
       });
     });
@@ -5863,7 +5870,7 @@
       bar.setAttribute("popover", "manual");
     } catch (e) {
     }
-    bar.style.cssText = "position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui,sans-serif;pointer-events:none;";
+    bar.style.cssText = 'position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;pointer-events:none;';
     return bar;
   }
   function ensureBarOnTop() {
@@ -6736,7 +6743,7 @@
     overlay.id = id;
     overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(20,15,13,.5);display:flex;align-items:center;justify-content:center;padding:16px";
     var card = document.createElement("div");
-    card.style.cssText = "background:#fff;color:#201d1f;max-width:" + (opts.maxWidth || "420px") + ";width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui,sans-serif;overflow:hidden;display:flex";
+    card.style.cssText = "background:#fff;color:#201d1f;max-width:" + (opts.maxWidth || "420px") + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex';
     var spine = document.createElement("div");
     spine.style.cssText = "width:14px;flex:0 0 auto;background:" + (opts.spineColor || "#cc087d") + ";";
     var mainCol = document.createElement("div");
@@ -8078,7 +8085,7 @@
     const noBtn = document.createElement("button");
     noBtn.type = "button";
     noBtn.textContent = "Nee";
-    Object.assign(noBtn.style, { appearance: "none", border: "1px solid #ece7e5", background: "transparent", color: "#6b6367", borderRadius: "999px", padding: "9px 16px", font: "600 12.5px system-ui,-apple-system,sans-serif", cursor: "pointer" });
+    Object.assign(noBtn.style, { appearance: "none", border: "1px solid #ece7e5", background: "transparent", color: "#6b6367", borderRadius: "999px", padding: "9px 16px", font: '600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: "pointer" });
     onsahFocusRing(noBtn);
     noBtn.addEventListener("click", () => safe(() => {
       shell.close();
@@ -9346,7 +9353,7 @@
       border: "2px solid #e91e8c",
       borderRadius: "12px",
       padding: "14px 16px",
-      fontFamily: "system-ui, sans-serif",
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       boxShadow: "0 8px 28px rgba(0,0,0,0.35)"
     });
     const headRow = document.createElement("div");
@@ -10197,7 +10204,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.206";
+      return "1.6.207";
     }
   }();
 
@@ -10322,7 +10329,7 @@
   }
   function buildPopup() {
     helperPanel.popupEl = document.createElement("div");
-    Object.assign(helperPanel.popupEl.style, { position: "fixed", zIndex: "2147483647", top: defaultPopupTop() + "px", right: "24px", bottom: "auto", maxHeight: popupMaxHeight() + "px", transition: "right .18s cubic-bezier(.2,.8,.2,1)", background: "#fff", color: "#201d1f", pointerEvents: "auto", border: "1px solid #ece7e5", borderRadius: "16px", boxShadow: "0 14px 40px rgba(32,20,15,.24)", font: "14px/1.4 system-ui, sans-serif", overflow: "hidden", display: "flex", flexDirection: "row", alignItems: "stretch" });
+    Object.assign(helperPanel.popupEl.style, { position: "fixed", zIndex: "2147483647", top: defaultPopupTop() + "px", right: "24px", bottom: "auto", maxHeight: popupMaxHeight() + "px", transition: "right .18s cubic-bezier(.2,.8,.2,1)", background: "#fff", color: "#201d1f", pointerEvents: "auto", border: "1px solid #ece7e5", borderRadius: "16px", boxShadow: "0 14px 40px rgba(32,20,15,.24)", font: '14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', overflow: "hidden", display: "flex", flexDirection: "row", alignItems: "stretch" });
     const spine = document.createElement("div");
     spine.setAttribute("data-popup-spine", "");
     spine.setAttribute("role", "button");
@@ -10744,7 +10751,7 @@
     wrap.style.cssText = "margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px";
     var h = document.createElement("div");
     h.innerHTML = "Afgerond · geregistreerd" + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">· ' + dateLabel + "</span>" : "");
-    h.style.cssText = "font-weight:700;font-size:11px;color:" + ONSAH_TOKENS.brand + ";text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px";
+    h.style.cssText = "font-weight:700;font-size:11px;color:" + ONSAH_TOKENS.brand + ";margin-bottom:5px";
     wrap.appendChild(h);
     if (!rs || !rs.count) {
       wrap.appendChild(onsahEmptyState("Nog niets geregistreerd in deze week."));
@@ -10783,7 +10790,7 @@
     const p = document.createElement("div");
     _regOvPanel = p;
     p.setAttribute("data-ons-reg-overview", "1");
-    p.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch";
+    p.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;width:308px;max-height:75vh;background:#fff;color:#201d1f;border:1px solid #ece7e5;border-radius:16px;box-shadow:0 14px 40px rgba(32,20,15,.24);font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex;flex-direction:row;align-items:stretch';
     const spine = document.createElement("div");
     spine.style.cssText = "width:14px;flex:0 0 auto;background:#cc087d";
     const mainCol = document.createElement("div");
@@ -11077,6 +11084,8 @@
     _agWeekKey: null,
     _agWeekBusy: false,
     _agWeekLoaded: false,
+    _agLastInviteeId: null,
+    // laatst bekende invitee-id (terugval tijdens een weergavewissel)
     _agLastEntries: [],
     // laatst opgehaalde week-entries (voor cliënt-check "nog te registreren")
     // Laatst berekende declarabiliteit (gezet zodra het weekoverzicht er is), zodat
@@ -11499,7 +11508,8 @@
     return null;
   }
   function refreshAgendaWeekApi() {
-    const id = currentInviteeId();
+    const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
+    if (id) agendaPage._agLastInviteeId = id;
     const view = currentCalendarView();
     const date = currentAgendaDate();
     if (!id) {
@@ -11708,33 +11718,6 @@
     return null;
   }
 
-  // src/content/features/agenda-overview/modals.js
-  function showAgendaBreakdownModal(s, opts) {
-    opts = opts || {};
-    s = s || {};
-    var shell = mkModalShell("onsAgendaBreakdownModal", "Waar de tijd uit bestaat" + (opts.week ? ", week " + opts.week : ""));
-    var _b1 = onsahReact();
-    if (!_b1) {
-      renderBundleMissing(shell.body);
-      return;
-    }
-    _b1.renderBreakdownBody(shell.body, s, opts, _agFmtMin);
-  }
-  function showAgendaCalcModal(s, opts) {
-    opts = opts || {};
-    s = s || {};
-    var shell = mkModalShell("onsAgendaCalcModal", "Verhouding per uursoort" + (opts.week ? ", week " + opts.week : ""), { maxWidth: "460px" });
-    var rows = (s.byType || []).filter(function(r) {
-      return r && r.type && _isClientUursoortName(r.type);
-    });
-    var _b2 = onsahReact();
-    if (!_b2) {
-      renderBundleMissing(shell.body);
-      return;
-    }
-    _b2.renderCalcBody(shell.body, rows, _nonClientMarker(), _agFmtMin);
-  }
-
   // src/content/domain/leave.js
   var WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
   var WEEKDAY_LABELS = { monday: "ma", tuesday: "di", wednesday: "wo", thursday: "do", friday: "vr", saturday: "za", sunday: "zo" };
@@ -11827,7 +11810,7 @@
     return !(APP_CONFIG.features && APP_CONFIG.features.leaveRequest === false);
   }
   var T = ONSAH_TOKENS;
-  var CONTROL_CSS = "font:14px system-ui,sans-serif;padding:7px 8px;border:1px solid " + T.line + ";border-radius:8px;color:" + T.ink + ";background:#fff;min-width:0;width:100%;box-sizing:border-box";
+  var CONTROL_CSS = 'font:14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;padding:7px 8px;border:1px solid ' + T.line + ";border-radius:8px;color:" + T.ink + ";background:#fff;min-width:0;width:100%;box-sizing:border-box";
   function field(labelText, control) {
     const wrap = document.createElement("label");
     wrap.style.cssText = "display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:12px;color:" + T.inkSoft + ";min-width:0";
@@ -12093,6 +12076,62 @@
     });
   }
 
+  // src/content/features/agenda/production.js
+  var MAX_PRODUCTION_WEEKS = 26;
+  function defaultProductionFrom() {
+    var d = /* @__PURE__ */ new Date();
+    d.setDate(d.getDate() - 7 * 7);
+    return agendaYmd(d);
+  }
+  function productionWeekRow(weekStart, summary, profile) {
+    var s = summary || {};
+    var dec = declarabiliteitPct(s, profile);
+    return {
+      weekStart,
+      week: agendaWeekNumber(weekStart),
+      directMinutes: s.directMinutes || 0,
+      indirectMinutes: s.indirectMinutes || 0,
+      travelMinutes: s.travelMinutes || 0,
+      clientMinutes: s.clientMinutes || 0,
+      nonClientMinutes: s.nonClientMinutes || 0,
+      totalMinutes: s.totalMinutes || 0,
+      declarabelPct: dec.pct,
+      count: s.count || 0
+    };
+  }
+  function computeProduction(fromYmd, toYmd, onProgress) {
+    var id = currentInviteeId(null) || resolveInviteeId();
+    if (id == null) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    if (!fromYmd || !toYmd) return Promise.reject(new Error("Kies een begin- en einddatum."));
+    if (fromYmd > toYmd) return Promise.reject(new Error("De begindatum ligt na de einddatum."));
+    var today = agendaYmd(/* @__PURE__ */ new Date());
+    if (toYmd > today) toYmd = today;
+    var weeks = weekStartsBetween(fromYmd, toYmd);
+    if (!weeks.length) return Promise.reject(new Error("Ongeldige periode."));
+    if (weeks.length > MAX_PRODUCTION_WEEKS) return Promise.reject(new Error("Periode te lang (hooguit " + MAX_PRODUCTION_WEEKS + " weken)."));
+    var prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
+    var rows = [];
+    var i = 0;
+    function volgende() {
+      if (i >= weeks.length) return Promise.resolve({ from: fromYmd, to: toYmd, weeks: rows });
+      var start = weeks[i];
+      return fetchWeekRegistrationDeclarabiliteit(id, start).then(function(summary) {
+        rows.push(productionWeekRow(start, summary, prof));
+        i++;
+        if (onProgress) {
+          try {
+            onProgress(i, weeks.length);
+          } catch (e) {
+          }
+        }
+        return volgende();
+      }, function(e) {
+        throw new Error("Week " + (agendaWeekNumber(start) || start) + " kon niet worden opgehaald (" + (e && e.message || "fout") + ").");
+      });
+    }
+    return volgende();
+  }
+
   // src/content/features/agenda/quick-register.js
   function quickRegisterUrl(inviteeId, ymd, hhmm, minutes) {
     return _apiUrl("newRegistration", { inviteeId, date: ymd, startTime: hhmm, durationSec: minutes * 60 });
@@ -12168,6 +12207,9 @@
       leaveRequest: leaveRequestEnabled(),
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
+      productionDefaultFrom: defaultProductionFrom(),
+      // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
+      nonClientMarker: _nonClientMarker(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }
@@ -12233,16 +12275,6 @@
               if (item) openOccurrence(item.el);
             });
             return;
-          case MSG.AGENDA_OPEN_BREAKDOWN:
-            safe(function() {
-              if (agendaPage._agLastWeek) showAgendaBreakdownModal(agendaPage._agLastWeek.summary, agendaPage._agLastWeek.opts);
-            });
-            return;
-          case MSG.AGENDA_OPEN_CALC:
-            safe(function() {
-              if (agendaPage._agLastWeek) showAgendaCalcModal(agendaPage._agLastWeek.summary, agendaPage._agLastWeek.opts);
-            });
-            return;
           case MSG.AGENDA_OPEN_LEAVE:
             safe(function() {
               if (leaveRequestEnabled()) openLeaveDialog();
@@ -12251,7 +12283,7 @@
           case MSG.AGENDA_CHECK_RANGE:
             checkOpenRange(msg.from, msg.to, function(done, total) {
               try {
-                chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, done, total });
+                chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: "open", done, total });
               } catch (e) {
               }
             }).then(function(result) {
@@ -12262,6 +12294,24 @@
             }, function(e) {
               try {
                 sendResponse({ ok: false, error: e && e.message || "Controleren mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_PRODUCTION:
+            computeProduction(msg.from, msg.to, function(done, total) {
+              try {
+                chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: "productie", done, total });
+              } catch (e) {
+              }
+            }).then(function(result) {
+              try {
+                sendResponse({ ok: true, result });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Berekenen mislukt." });
               } catch (e2) {
               }
             });
@@ -12339,6 +12389,10 @@
 
   // src/content/features/agenda/lifecycle.js
   var NEEDLE = "/invitees";
+  function paginaActief() {
+    if (document.hasFocus()) return true;
+    return !!agendaPage.sidePanelOpen && document.visibilityState === "visible";
+  }
   function activateAgendaPage() {
     if (agendaPage.active) return;
     agendaPage.active = true;
@@ -12358,10 +12412,10 @@
     agendaPage.observer.observe(document.documentElement, { childList: true, subtree: true });
     window.addEventListener("resize", schedulePaint);
     if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function() {
-      if (document.hasFocus()) schedulePaint();
+      if (paginaActief()) schedulePaint();
     }, 250);
     if (!agendaPage.totalsTimer) agendaPage.totalsTimer = setInterval(function() {
-      if (!document.hasFocus()) return;
+      if (!paginaActief()) return;
       try {
         const res = computeTotals();
         const cnt = Object.keys(res.past).filter((d) => res.past[d].client + res.past[d].overig > 0).length;
@@ -12867,7 +12921,7 @@
           css(b, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", border: (primary ? "2px solid " : "2px dashed ") + col, borderRadius: "3px", background: primary ? "rgba(30,132,73,.10)" : "transparent", opacity: primary ? "1" : ".5", pointerEvents: "none", boxSizing: "border-box" });
           const t = document.createElement("div");
           t.textContent = h[1] + (primary && els.length > 1 ? " ★" : "");
-          css(t, { position: "absolute", top: "-15px", left: "0", font: "10px/1 system-ui", color: "#fff", background: col, padding: "1px 4px", borderRadius: "3px", whiteSpace: "nowrap", opacity: primary ? "1" : ".7" });
+          css(t, { position: "absolute", top: "-15px", left: "0", font: '10px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: "#fff", background: col, padding: "1px 4px", borderRadius: "3px", whiteSpace: "nowrap", opacity: primary ? "1" : ".7" });
           b.appendChild(t);
           ov.appendChild(b);
         });
@@ -13053,7 +13107,7 @@
       pickHook = h;
       if (panel) panel.style.display = "none";
       pickBanner = document.createElement("div");
-      css(pickBanner, { position: "fixed", top: "0", left: "0", right: "0", padding: "12px", background: C.pick, color: "#fff", font: "700 14px system-ui", textAlign: "center", pointerEvents: "none" });
+      css(pickBanner, { position: "fixed", top: "0", left: "0", right: "0", padding: "12px", background: C.pick, color: "#fff", font: '700 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', textAlign: "center", pointerEvents: "none" });
       pickBanner.textContent = "Klik het juiste element aan voor: " + h[1] + "   (Esc = annuleren)";
       ov.appendChild(pickBanner);
       document.addEventListener("mousemove", onMove, true);
@@ -13129,7 +13183,7 @@
     function mini(txt, fn, primary) {
       const b = document.createElement("button");
       b.textContent = txt;
-      css(b, { border: "1px solid " + (primary ? C.pick : "#ccc"), background: primary ? C.pick : "#fafafa", color: primary ? "#fff" : "#333", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", font: "600 11px system-ui" });
+      css(b, { border: "1px solid " + (primary ? C.pick : "#ccc"), background: primary ? C.pick : "#fafafa", color: primary ? "#fff" : "#333", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", font: '600 11px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' });
       b.onclick = (e) => {
         e.stopPropagation();
         fn();
@@ -13159,7 +13213,7 @@
       } catch (e) {
       }
       panel = document.createElement("div");
-      css(panel, { position: "fixed", top: "0", bottom: "0", left: "calc(100vw - " + PW + "px)", width: PW + "px", overflow: "auto", background: "#fff", color: "#222", borderLeft: "1px solid #ccc", boxShadow: "-6px 0 24px rgba(0,0,0,.15)", font: "13px/1.45 system-ui", pointerEvents: "auto" });
+      css(panel, { position: "fixed", top: "0", bottom: "0", left: "calc(100vw - " + PW + "px)", width: PW + "px", overflow: "auto", background: "#fff", color: "#222", borderLeft: "1px solid #ccc", boxShadow: "-6px 0 24px rgba(0,0,0,.15)", font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', pointerEvents: "auto" });
       root.appendChild(panel);
       renderPanel();
       window.addEventListener("scroll", drawHighlights, true);
@@ -13387,7 +13441,7 @@
       HOOKS.forEach((h) => {
         if (h[0] !== grp) {
           grp = h[0];
-          const g = css(document.createElement("div"), { fontWeight: "800", fontSize: "10px", textTransform: "uppercase", color: "#888", margin: "10px 0 2px" });
+          const g = css(document.createElement("div"), { fontWeight: "800", fontSize: "10px", color: "#888", margin: "10px 0 2px" });
           g.textContent = grp;
           body.appendChild(g);
         }
@@ -13775,6 +13829,7 @@
       fetchEntriesForRange,
       quickRegister,
       quickRegisterUrl,
+      productionWeekRow,
       __setOnsOverlap: _setOnsOverlapForTest,
       __setDoorplannen: function(v) {
         try {

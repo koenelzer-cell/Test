@@ -48,7 +48,7 @@ export function TileButton({
         border: '1px solid ' + (opgelicht ? 'transparent' : T.brand),
         background: opgelicht ? hoverBg : '#fff',
         color: accent || T.ink,
-        font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif',
+        font: '600 13.5px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         textAlign: 'left',
         cursor: 'pointer',
         transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',

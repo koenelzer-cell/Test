@@ -36,16 +36,16 @@ window.__onsahReact = {
     getRoot(container).render(
       createElement(AgendaWeekPanel, {
         summary, opts, tokens, clientRows, overigRows, fmtMin,
-        onOpenBreakdown: callbacks && callbacks.onOpenBreakdown,
-        onOpenCalc: callbacks && callbacks.onOpenCalc,
+        onOpenClientTime: callbacks && callbacks.onOpenClientTime,
       })
     );
   },
-  renderBreakdownBody(container, summary, opts, fmtMin) {
-    getRoot(container).render(createElement(BreakdownModalBody, { summary, opts, fmtMin }));
+  // Pagina's in het zijpaneel (vroeger modals in de ONS-pagina).
+  renderBreakdownBody(container, summary, opts, fmtMin, tokens) {
+    getRoot(container).render(createElement(BreakdownModalBody, { summary, opts, fmtMin, tokens }));
   },
-  renderCalcBody(container, rows, nonClientMarker, fmtMin) {
-    getRoot(container).render(createElement(CalcModalBody, { rows, nonClientMarker, fmtMin }));
+  renderCalcBody(container, rows, nonClientMarker, fmtMin, tokens) {
+    getRoot(container).render(createElement(CalcModalBody, { rows, nonClientMarker, fmtMin, tokens }));
   },
   // Wizardscherm op naam tekenen (namen komen overeen met markScreen in
   // content.js). Eén root per container, dus opeenvolgende schermen zijn een

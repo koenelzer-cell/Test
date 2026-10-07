@@ -162,7 +162,7 @@ function showNonClientOptionInfo(opt) {
     position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px',
     zIndex: '2147483647', boxSizing: 'border-box',
     background: '#fff', border: '2px solid #e91e8c', borderRadius: '12px',
-    padding: '14px 16px', fontFamily: 'system-ui, sans-serif',
+    padding: '14px 16px', fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
   });
   const headRow = document.createElement('div');

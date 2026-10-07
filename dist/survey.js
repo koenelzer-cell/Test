@@ -836,17 +836,17 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
-    AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
-    AGENDA_OPEN_CALC: "ag-open-calc",
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_PRODUCTION: "ag-production",
+    // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress",
-    // { done, total } voortgang van AGENDA_CHECK_RANGE
+    // { kind: 'open'|'productie', done, total } voortgang
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"
@@ -1348,7 +1348,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.206";
+      return "1.6.207";
     }
   }();
 
@@ -1440,7 +1440,7 @@
     collapse.type = "button";
     collapse.setAttribute("data-survey-collapse", "");
     collapse.setAttribute("aria-label", "Melding inklappen");
-    Object.assign(collapse.style, ctrlStyle, { font: "700 15px/1 system-ui, sans-serif" });
+    Object.assign(collapse.style, ctrlStyle, { font: '700 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' });
     const close = document.createElement("button");
     close.type = "button";
     close.innerHTML = SURVEY_ICON_SVG.sluiten;
@@ -1657,7 +1657,7 @@
       cursor: "pointer",
       background: bg,
       color: fg,
-      font: "700 13px/1 system-ui, sans-serif",
+      font: '700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
       boxShadow: kind === "ghost" ? "none" : "0 4px 12px -5px rgba(0,0,0,.4)"
     });
     btn.addEventListener("click", (e) => {
@@ -1897,7 +1897,7 @@
       Object.assign(signalBox.style, { margin: "4px 0 10px", padding: "10px 11px", borderRadius: "7px", border: "1px solid #f0b429", background: "#fff7d6", color: "#704b00", lineHeight: "1.4" });
       const label = document.createElement("div");
       label.textContent = entry.question || "Signaal";
-      Object.assign(label.style, { marginBottom: "4px", fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: ".02em", color: "#704b00" });
+      Object.assign(label.style, { marginBottom: "4px", fontSize: "11px", fontWeight: "800", color: "#704b00" });
       signalBox.append(label, managedSignalNode(entry.signal, { vraag: entry.question || "", clientNaam: surveyClientName(), clientLeeftijd: state.age == null ? resolvedAge() : state.age }));
       msg.appendChild(signalBox);
     });
@@ -1926,7 +1926,7 @@
     for (const entry of grouped.values()) {
       const heading = document.createElement("div");
       heading.textContent = entry.category === entry.group ? entry.group : entry.category + " > " + entry.group;
-      Object.assign(heading.style, { fontWeight: "700", fontSize: "12px", color: "#6b6b6b", textTransform: "uppercase", letterSpacing: ".02em", margin: "12px 0 4px", paddingBottom: "3px", borderBottom: "1px solid #eee" });
+      Object.assign(heading.style, { fontWeight: "700", fontSize: "12px", color: "#6b6b6b", margin: "12px 0 4px", paddingBottom: "3px", borderBottom: "1px solid #eee" });
       msg.appendChild(heading);
       const list = document.createElement("ul");
       Object.assign(list.style, { listStyle: "none", margin: "0 0 4px", padding: "0" });

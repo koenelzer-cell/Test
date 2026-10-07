@@ -73,7 +73,7 @@ export function ensureBanner() {
   collapse.type = 'button';
   collapse.setAttribute('data-survey-collapse', '');
   collapse.setAttribute('aria-label', 'Melding inklappen');
-  Object.assign(collapse.style, ctrlStyle, { font: '700 15px/1 system-ui, sans-serif' });
+  Object.assign(collapse.style, ctrlStyle, { font: '700 15px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' });
   const close = document.createElement('button');
   close.type = 'button';
   close.innerHTML = SURVEY_ICON_SVG.sluiten;
@@ -251,7 +251,7 @@ export function surveyActionButton(label, kind, onClick) {
   Object.assign(btn.style, {
     appearance: 'none', border: kind === 'ghost' ? '1px solid #ece7e5' : '0', borderRadius: '999px',
     padding: '9px 16px', fontWeight: '700', cursor: 'pointer',
-    background: bg, color: fg, font: '700 13px/1 system-ui, sans-serif',
+    background: bg, color: fg, font: '700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     boxShadow: kind === 'ghost' ? 'none' : '0 4px 12px -5px rgba(0,0,0,.4)'
   });
   btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); onClick(e); });

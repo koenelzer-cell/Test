@@ -15,6 +15,11 @@ export function isDeclaredClasses(classes) {
   return /declared/.test(c);
 }
 
+// 'Niet registreren' gemarkeerd in ONS (klasse wont-declare, net als in de DOM).
+export function isWontDeclareClasses(classes) {
+  return /(^|\s)wont-declare(\s|$)/.test(String(classes || ''));
+}
+
 // Eén afspraak uit entries/week beoordelen. Regel (dezelfde als het
 // weekoverzicht): een afspraak met een cliënt en/of uursoort, op een werkdag,
 // die al afgelopen is en nog niet 'declared' is, is ongeregistreerde tijd.
@@ -34,7 +39,8 @@ export function classifyAgendaEntry(e, now, lateMs) {
   return {
     date: date, cls: hasClient ? 'client' : 'overig', minutes: dur,
     startMs: startMs, endMs: endMs, past: past,
-    declared: isDeclaredClasses(e.classes),
+    // 'Niet registreren' (wont-declare) telt als afgehandeld, net als geregistreerd.
+    declared: isDeclaredClasses(e.classes) || isWontDeclareClasses(e.classes),
     late: past && endMs <= now - lateMs
   };
 }
@@ -87,7 +93,9 @@ export function summarizeOpenRange(entries, opts) {
     day.count++;
     if (c.late) day.lateCount++;
     day.items.push({
-      start: c.startMs, minutes: c.minutes, client: c.cls === 'client',
+      // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
+      key: (e.id != null ? String(e.id) : 'x') + '|' + c.date + '|' + c.startMs,
+      start: c.startMs, minutes: c.minutes, client: c.cls === 'client', late: c.late,
       uursoort: (e.hourType && String(e.hourType).trim()) || ''
     });
   });

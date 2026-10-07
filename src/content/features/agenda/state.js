@@ -19,6 +19,7 @@ export const agendaPage = {
   _agLastWeek: null,          // laatst opgehaalde weekoverzicht
   _agWeekError: '',           // laatste ophaalfout, zodat het zijpaneel hem kan tonen
   _agWeekKey: null, _agWeekBusy: false, _agWeekLoaded: false,
+  _agLastInviteeId: null,     // laatst bekende invitee-id (terugval tijdens een weergavewissel)
   _agLastEntries: [],         // laatst opgehaalde week-entries (voor cliënt-check "nog te registreren")
   // Laatst berekende declarabiliteit (gezet zodra het weekoverzicht er is), zodat
   // de momentopname hem kan meenemen.

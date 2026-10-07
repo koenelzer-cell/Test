@@ -45,17 +45,17 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
-    AGENDA_OPEN_BREAKDOWN: "ag-open-breakdown",
-    AGENDA_OPEN_CALC: "ag-open-calc",
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
     // { from, to } -> { ok, result | error }  open registraties in een periode
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_PRODUCTION: "ag-production",
+    // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress",
-    // { done, total } voortgang van AGENDA_CHECK_RANGE
+    // { kind: 'open'|'productie', done, total } voortgang
     SURVEY_GET_STATE: "survey-get-state",
     //  -> { state }
     SURVEY_OPEN_ITEM: "survey-open-item"
@@ -77,7 +77,7 @@
       if (document.getElementById(STIJL_ID)) return;
       var st = document.createElement("style");
       st.id = STIJL_ID;
-      st.textContent = "@keyframes onsahEdgeIn{from{transform:translate(100%,-50%)}to{transform:translate(0,-50%)}}@keyframes onsahEdgeNudge{0%,100%{transform:translate(0,-50%)}25%,65%{transform:translate(-7px,-50%)}45%,85%{transform:translate(0,-50%)}}@keyframes onsahEdgeTik{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}#onsah-edge-tab.onsah-in{animation:onsahEdgeIn .35s cubic-bezier(.2,.8,.2,1)}#onsah-edge-tab.onsah-nudge{animation:onsahEdgeNudge 1.4s ease-in-out}#onsah-edge-tab:hover svg,#onsah-edge-tab:focus-visible svg{animation:onsahEdgeTik .9s ease-in-out infinite}@media (prefers-reduced-motion: reduce){#onsah-edge-tab,#onsah-edge-tab svg{animation:none!important}}";
+      st.textContent = "@keyframes onsahEdgeIn{from{transform:translate(100%,-50%)}to{transform:translate(0,-50%)}}@keyframes onsahEdgeNudge{0%,100%{transform:translate(0,-50%)}25%,65%{transform:translate(-7px,-50%)}45%,85%{transform:translate(0,-50%)}}@keyframes onsahEdgeTik{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}@keyframes onsahEdgeRust{0%,78%,100%{transform:translateX(0)}82%,90%{transform:translateX(-3px)}86%,94%{transform:translateX(0)}}#onsah-edge-tab svg{animation:onsahEdgeRust 5s ease-in-out infinite}#onsah-edge-tab.onsah-in{animation:onsahEdgeIn .35s cubic-bezier(.2,.8,.2,1)}#onsah-edge-tab.onsah-nudge{animation:onsahEdgeNudge 1.4s ease-in-out}#onsah-edge-tab:hover svg,#onsah-edge-tab:focus-visible svg{animation:onsahEdgeTik .9s ease-in-out infinite}@media (prefers-reduced-motion: reduce){#onsah-edge-tab,#onsah-edge-tab svg{animation:none!important}}";
       (document.head || document.documentElement).appendChild(st);
     }
     function speel(klasse) {
@@ -144,7 +144,7 @@
         justifyContent: "center",
         boxShadow: "0 4px 18px -4px rgba(140,10,88,.45), 0 0 0 1px rgba(255,255,255,.14) inset",
         transition: "width .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, opacity .15s ease",
-        font: "600 12px/1 system-ui, sans-serif"
+        font: '600 12px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
       });
       chev = svgChevron();
       Object.assign(chev.style, { flex: "0 0 auto" });
@@ -206,7 +206,7 @@
         color: "#fff",
         borderRadius: "10px",
         padding: "9px 11px",
-        font: "600 12px/1.4 system-ui, sans-serif",
+        font: '600 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         boxShadow: "0 10px 30px -8px rgba(0,0,0,.45)"
       });
       (document.body || document.documentElement).appendChild(tipEl);

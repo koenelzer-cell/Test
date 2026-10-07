@@ -47,7 +47,7 @@ export function create(host, actions) {
   var state = null;
 
   var root = el('div', {
-    background: '#fff', color: T.ink, font: '14px/1.4 system-ui, sans-serif',
+    background: '#fff', color: T.ink, font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
     overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch',
     height: '100%', width: '100%'
   });
@@ -71,12 +71,12 @@ export function create(host, actions) {
 
   var header = el('div', {
     display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', color: T.ink,
-    padding: '11px 12px', fontWeight: '700', userSelect: 'none',
+    padding: '12px', fontWeight: '700', userSelect: 'none',
     borderBottom: '1px solid #f1ecea', flex: '0 0 auto'
   });
   var title = el('span', {
     flex: '1 1 auto', minWidth: '0', overflow: 'hidden',
-    textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px'
+    textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '15px'
   }, 'Vragenlijst');
   header.appendChild(title);
 
@@ -125,7 +125,7 @@ export function create(host, actions) {
     var box = el('div', {
       margin: '4px 0 10px', padding: '10px 11px', borderRadius: '7px',
       border: '1px solid ' + T.amberLine, background: T.amberWash, color: T.amberInk,
-      fontWeight: '700', lineHeight: '1.4', fontSize: '12.5px'
+      fontWeight: '600', lineHeight: '1.4', fontSize: '13px'
     }, tekst);
     if (rol) box.setAttribute('role', rol);
     return box;
@@ -135,7 +135,7 @@ export function create(host, actions) {
     paintSpine(); paintTitle();
     body.innerHTML = '';
     if (!state) {
-      body.appendChild(el('div', { fontSize: '12.5px', color: T.inkSoft, lineHeight: '1.45' },
+      body.appendChild(el('div', { fontSize: '12px', color: T.inkSoft, lineHeight: '1.45' },
         'Geen vragenlijst open. Open in ONS een cliëntvragenlijst; de checklist verschijnt hier dan vanzelf.'));
       return;
     }
@@ -147,8 +147,8 @@ export function create(host, actions) {
       var box = meldkader('', 'alert');
       box.textContent = '';
       box.appendChild(el('div', {
-        marginBottom: '4px', fontSize: '11px', fontWeight: '800',
-        textTransform: 'uppercase', letterSpacing: '.02em', color: T.amberInk
+        marginBottom: '4px', fontSize: '12px', fontWeight: '600',
+        color: T.amberInk
       }, s.question || 'Signaal'));
       box.appendChild(el('div', { fontWeight: '600' }, s.text || ''));
       body.appendChild(box);
@@ -159,7 +159,7 @@ export function create(host, actions) {
       body.appendChild(el('div', {
         display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 10px',
         borderRadius: '10px', background: T.okWash, color: T.ok,
-        fontSize: '12.5px', fontWeight: '700'
+        fontSize: '13px', fontWeight: '600'
       }, 'Geen verplichte vragen gevonden.'));
       return;
     }
@@ -175,8 +175,7 @@ export function create(host, actions) {
 
     groepen.forEach(function (g) {
       body.appendChild(el('div', {
-        fontWeight: '700', fontSize: '12px', color: '#6b6b6b', textTransform: 'uppercase',
-        letterSpacing: '.02em', margin: '12px 0 4px', paddingBottom: '3px', borderBottom: '1px solid #eee'
+        fontWeight: '700', fontSize: '13px', color: T.ink, margin: '12px 0 6px', paddingTop: '12px', borderTop: '1px solid ' + T.line
       }, g.category === g.group ? g.group : (g.category + ' > ' + g.group)));
 
       var lijst = el('ul', { listStyle: 'none', margin: '0 0 4px', padding: '0' });
@@ -194,9 +193,9 @@ export function create(host, actions) {
         link.tabIndex = 0;
         Object.assign(link.style, {
           flex: '1 1 auto', minWidth: '0',
-          color: item.done ? '#9aa0a6' : (onbekend ? T.amber : T.brand),
+          color: item.done ? T.inkSoft : (onbekend ? T.amberInk : T.brand),
           textDecoration: item.done ? 'line-through' : 'none',
-          fontWeight: item.done ? '400' : '600', cursor: 'pointer', fontSize: '12.5px'
+          fontWeight: item.done ? '400' : '600', cursor: 'pointer', fontSize: '13px'
         });
         link.addEventListener('mouseenter', function () { if (!item.done) link.style.textDecoration = 'underline'; });
         link.addEventListener('mouseleave', function () { if (!item.done) link.style.textDecoration = 'none'; });
@@ -218,7 +217,7 @@ export function create(host, actions) {
           flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           marginTop: '1px', width: '18px', height: '18px', borderRadius: '999px',
           background: item.done ? T.ok : T.amber, color: '#fff',
-          fontWeight: '900', fontSize: '11px', lineHeight: '1'
+          fontWeight: '700', fontSize: '11px', lineHeight: '1'
         } : { display: 'none' }, item.done ? '✓' : (onbekend ? '?' : ''));
         mark.setAttribute('aria-label', item.done ? 'Ingevuld' : (onbekend ? 'Niet te controleren' : 'Nog niet ingevuld'));
 

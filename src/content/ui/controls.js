@@ -17,7 +17,7 @@ function applyOnsahPillStyle(el, opts) {
   Object.assign(el.style, {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
     border: '0', borderRadius: '999px', padding: '10px 18px',
-    font: '700 13px/1 system-ui,-apple-system,sans-serif', color: '#fff',
+    font: '700 13px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', color: '#fff',
     background: from, cursor: 'pointer',
     boxShadow: '0 4px 12px -6px rgba(' + shadowRgb + ',.55)',
     transition: 'transform .08s ease, box-shadow .12s ease, background .1s ease', boxSizing: 'border-box',
@@ -64,7 +64,7 @@ export function mkButton(label, onClick, opts) {
     display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
     padding: '10px 11px', borderRadius: '11px', border: '1px solid ' + T.brand,
     background: '#fff', color: opts.accent || T.ink,
-    font: '600 13.5px/1.3 system-ui,-apple-system,sans-serif', textAlign: 'left', cursor: 'pointer',
+    font: '600 13.5px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', textAlign: 'left', cursor: 'pointer',
     transition: 'transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease',
     boxSizing: 'border-box',
   });
