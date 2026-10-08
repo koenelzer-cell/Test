@@ -285,6 +285,27 @@ test('meerdere invitees: de planhulp zoekt tijd waarop iedereen vrij is', async 
   assert.deepEqual([...gaps.map((g) => g.startMin + '-' + g.endMin)], ['480-540', '720-780'], 'alleen 08:00-09:00 en 12:00-13:00 zijn voor allebei vrij');
 });
 
+test('planhulp: reserveringen tellen niet als bezet, maar worden per blok gemeld', async (t) => {
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { api } = bootHelper();
+  // Uit entries/week?layer=reservations (ingekort).
+  const ruw = { data: [
+    { id: '9695', date: '2026-10-05', start_time: '2026-10-05T08:00:00.000+02:00', end_time: '2026-10-05T09:00:00.000+02:00', type: 'reservation', name: null, title: null,
+      time_slot: { all_day: false, duration: 3600.0, travel_time_before: 0, travel_time_after: 0 }, labels: [{ id: 29, name: 'JG Verslaglegging' }] },
+    { id: '9696', date: '2026-10-05', start_time: '2026-10-05T10:00:00.000+02:00', end_time: '2026-10-05T11:00:00.000+02:00', type: 'reservation',
+      time_slot: { all_day: false, duration: 3600.0 }, labels: [{ id: 14, name: 'JG Face to face kantoor' }] },
+  ] };
+  const blokken = api.reservationBlocks(api.mapAgendaWeekResponse(ruw));
+  assert.deepEqual(JSON.parse(JSON.stringify(blokken)), [
+    { date: '2026-10-05', startMin: 480, endMin: 540, label: 'JG Verslaglegging' },
+    { date: '2026-10-05', startMin: 600, endMin: 660, label: 'JG Face to face kantoor' },
+  ]);
+  assert.deepEqual([...api.reservationsOverlapping(blokken, '2026-10-05', 510, 570).map((r) => r.label)], ['JG Verslaglegging']);
+  assert.equal(api.reservationsOverlapping(blokken, '2026-10-05', 540, 600).length, 0, 'aansluitend is geen overlap');
+});
+
 test('planhulp: zoeken tot en met een datum', async () => {
   const { api, window } = bootHelper({ url: MEER });
   const weken = new Set();

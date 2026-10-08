@@ -8,7 +8,7 @@ import { activeZones } from './zones.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
-import { findFreeGaps } from '../../domain/free-slots.js';
+import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
@@ -85,16 +85,26 @@ export function findFreeSlots(minutes, weeks, tot) {
         // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
         haal('weekUnavailabilities', 'unavailabilities', start, id).catch(zonder),
         haal('weekOutlook', 'outlook_appointments', start, id).catch(zonder),
-        haal('weekPlannedVisits', 'planned_visits', start, id).catch(zonder)
+        haal('weekPlannedVisits', 'planned_visits', start, id).catch(zonder),
+        haal('weekReservations', 'reservations', start, id).catch(zonder)
       ]));
     });
   });
   return Promise.all(taken).then(function (perWeek) {
     var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
+    // Reserveringen houden tijd vast maar bezetten hem niet: apart houden.
+    var isRes = function (e) { return e.layer === 'reservations' || e.type === 'reservation'; };
+    var reserveringen = reservationBlocks(alles.filter(isRes));
+    alles = alles.filter(function (e) { return !isRes(e); });
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: Date.now(), days: dagen, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: totDatum ? 40 : 12
+    });
+    // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
+    // die het begin van het blok raken.
+    gaps.forEach(function (g) {
+      g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
     });
     var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
     if (res.onsCheck !== 'ready') return res;

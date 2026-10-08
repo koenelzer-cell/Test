@@ -1044,6 +1044,7 @@
     weekUnavailabilities: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=unavailabilities",
     weekOutlook: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=outlook_appointments",
     weekPlannedVisits: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=planned_visits",
+    weekReservations: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=reservations",
     weekRegistrations: "/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created",
     registrationDetails: "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
@@ -10728,7 +10729,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.219";
+      return "1.6.220";
     }
   }();
 
@@ -13039,6 +13040,30 @@
     }
     return uit;
   }
+  function reservationBlocks(entries) {
+    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
+    (entries || []).forEach(function(e) {
+      if (!e || e.startMs == null || e.endMs == null || !(e.endMs > e.startMs)) return;
+      var d0 = new Date(e.startMs);
+      var dStart = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+      var s = minutenVanDag(e.startMs, dStart), en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart));
+      var label = (Array.isArray(e.labels) ? e.labels : []).map(function(l) {
+        return String(l && l.name != null ? l.name : typeof l === "string" ? l : "").trim();
+      }).filter(Boolean)[0] || "";
+      var key = ymd(d0) + "|" + s + "|" + en + "|" + label;
+      if (gezien[key]) return;
+      gezien[key] = 1;
+      uit.push({ date: ymd(d0), startMin: s, endMin: en, label });
+    });
+    return uit.sort(function(a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin;
+    });
+  }
+  function reservationsOverlapping(blocks, date, startMin, endMin) {
+    return (blocks || []).filter(function(r) {
+      return r.date === date && r.startMin < endMin && r.endMin > startMin;
+    });
+  }
 
   // src/content/features/agenda/free-slots.js
   function workWindow() {
@@ -13112,7 +13137,8 @@
           // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
           haal("weekUnavailabilities", "unavailabilities", start, id).catch(zonder),
           haal("weekOutlook", "outlook_appointments", start, id).catch(zonder),
-          haal("weekPlannedVisits", "planned_visits", start, id).catch(zonder)
+          haal("weekPlannedVisits", "planned_visits", start, id).catch(zonder),
+          haal("weekReservations", "reservations", start, id).catch(zonder)
         ]));
       });
     });
@@ -13120,6 +13146,13 @@
       var alles = [].concat.apply([], perWeek.map(function(w) {
         return [].concat.apply([], w);
       }));
+      var isRes = function(e) {
+        return e.layer === "reservations" || e.type === "reservation";
+      };
+      var reserveringen = reservationBlocks(alles.filter(isRes));
+      alles = alles.filter(function(e) {
+        return !isRes(e);
+      });
       var win = workWindow();
       var gaps = findFreeGaps(alles, {
         now: Date.now(),
@@ -13129,6 +13162,9 @@
         windowStart: win.start,
         windowEnd: win.end,
         maxResults: totDatum ? 40 : 12
+      });
+      gaps.forEach(function(g) {
+        g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
       });
       var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
       if (res.onsCheck !== "ready") return res;
@@ -15032,6 +15068,8 @@
       openNewEvent,
       onsDateText,
       findFreeGaps,
+      reservationBlocks,
+      reservationsOverlapping,
       findFreeSlots,
       mergeOpenRangePerPersoon,
       cachedOpenRange,

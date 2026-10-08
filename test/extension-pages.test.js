@@ -529,7 +529,7 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, één afspraak met kopieë
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
-      { date: '2026-10-13', startMin: 540, endMin: 600, minutes: 60 },
+      { date: '2026-10-13', startMin: 480, endMin: 600, minutes: 120, reservations: [{ date: '2026-10-13', startMin: 480, endMin: 540, label: 'JG Verslaglegging' }] },
     ] } }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
   });
@@ -547,9 +547,16 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, één afspraak met kopieë
   assert.ok(knop(document, 'Uit selectie halen'));
   knop(document, 'Terug').click();
   assert.match(document.body.textContent, /1 moment gekozen/);
+  assert.equal(document.querySelector('[data-reservering]').textContent, 'Reservering', 'blok dat begint in een reservering');
+  assert.match(document.querySelector('[data-reservering]').title, /JG Verslaglegging \(08:00–09:00\)/);
   blokken()[1].click();
+  assert.match(document.body.textContent, /Reservering: JG Verslaglegging \(08:00–09:00\)/, 'begintijd 08:00 valt in de reservering');
+  document.querySelector('[data-start="09:00"]').click();
+  assert.equal(document.querySelector('[data-reservering]'), null, '09:00 valt erbuiten');
   knop(document, 'Moment toevoegen aan selectie').click();
+  assert.equal(document.querySelector('[data-selectie]').parentElement.firstElementChild, document.querySelector('[data-selectie]'), 'selectiekaart bovenaan');
   assert.match(document.body.textContent, /2 momenten gekozen.*do 8 okt10:45 – 11:45.*di 13 okt09:00 – 10:00/s);
+  assert.doesNotMatch(document.body.textContent, /Je maakt de afspraak één keer in ONS/);
   knop(document, 'Afspraak maken op 2 momenten').click();
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }] });
   // Na het opslaan in ONS meldt het content-script de kopieën.

@@ -92,3 +92,33 @@ export function findFreeGaps(entries, opts) {
   }
   return uit;
 }
+
+/* ── Reserveringen ───────────────────────────────────────────────────────
+   Een reservering (laag 'reservations') houdt tijd vast voor een soort werk,
+   bijv. 'JG Verslaglegging' 08:00–09:00. Je kunt er wel iets in plannen, dus
+   ze tellen niet als bezet; ONS' overlapcontrole ziet ze wel als overlap.
+   Daarom geven we bij een vrij blok aan welke reserveringen erin vallen, zodat
+   de planhulp 'Reservering' kan tonen in plaats van een kale overlap. */
+
+// Genormaliseerde entries -> [{ date, startMin, endMin, label }] per kalenderdag.
+export function reservationBlocks(entries) {
+  var uit = [], gezien = Object.create(null);
+  (entries || []).forEach(function (e) {
+    if (!e || e.startMs == null || e.endMs == null || !(e.endMs > e.startMs)) return;
+    var d0 = new Date(e.startMs);
+    var dStart = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+    var s = minutenVanDag(e.startMs, dStart), en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart));
+    var label = (Array.isArray(e.labels) ? e.labels : []).map(function (l) {
+      return String((l && l.name != null) ? l.name : (typeof l === 'string' ? l : '')).trim();
+    }).filter(Boolean)[0] || '';
+    var key = ymd(d0) + '|' + s + '|' + en + '|' + label;
+    if (gezien[key]) return; gezien[key] = 1;
+    uit.push({ date: ymd(d0), startMin: s, endMin: en, label: label });
+  });
+  return uit.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
+}
+
+// Reserveringen die [startMin, endMin) op die dag raken.
+export function reservationsOverlapping(blocks, date, startMin, endMin) {
+  return (blocks || []).filter(function (r) { return r.date === date && r.startMin < endMin && r.endMin > startMin; });
+}

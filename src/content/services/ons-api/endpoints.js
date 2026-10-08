@@ -20,6 +20,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
 //   weekUnavailabilities              afwezigheid, voor de planhulp         (free-slots.js)
 //   weekOutlook, weekPlannedVisits    Outlook-afspraken en geplande bezoeken (free-slots.js)
+//   weekReservations                  reserveringen: tijd vastgehouden voor een soort werk (free-slots.js)
 //   newEvent                          nieuw afspraakformulier (planhulp)     (paginaroute, geen API)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
 const _API_DEFAULTS = {
@@ -27,6 +28,7 @@ const _API_DEFAULTS = {
   weekUnavailabilities: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=unavailabilities',
   weekOutlook: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=outlook_appointments',
   weekPlannedVisits: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=planned_visits',
+  weekReservations: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=reservations',
   weekRegistrations: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=registrations&sub_layers[]=registrations/created',
   registrationDetails: '/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details',
   eventDetails: '/calendar/invitee/{inviteeId}/events/{occurrenceId}/details',

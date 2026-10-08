@@ -176,6 +176,7 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 | `/product_selection/product_list` | uursoorten voor medewerker + cliënt(en) | `products.js` | dropdown openen en uitlezen (`ons/uursoort-options.js`) |
 | `/worksheet/registrations/detect_overlap` | overlapcontrole door ONS (alleen nieuwe registraties) | `open-registrations.js` | eigen vergelijking (`features/overlap.js`) |
 | `/event_planner/overlap_detection` | planhulp: vrij blok en gekozen begintijd bij ONS nakijken | `services/ons-api/event-overlap.js`, `domain/event-overlap.js` | alleen de eigen berekening (`domain/free-slots.js`) |
+| `…layer=reservations` | planhulp: reserveringen per vrij blok tonen ('Reservering'); tellen niet als bezet | `features/agenda/free-slots.js`, `domain/free-slots.js` | — (mislukt de laag, dan zonder) |
 | `POST /calendar/events` | planhulp: kopieën van een net opgeslagen afspraak op de andere gekozen momenten | `features/appointment/duplicate.js`, `domain/event-duplicate.js` | — (mislukte kopieën worden gemeld; zelf aanmaken) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
 | `/invitees/{id}/registrations/new?declaration[…]` | snel registreren: ONS-formulier vooraf ingevuld (paginaroute, geen API) | `features/agenda/quick-register.js` | — |
