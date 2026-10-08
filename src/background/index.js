@@ -18,7 +18,7 @@ import { setBadge } from './badge.js';
 import { saveSnapshot, loadSnapshot } from './snapshot.js';
 import { ALARM_NAME, loadSettings, updateSettings, showReminder, rescheduleAlarm, onNotificationClicked } from './reminder.js';
 import { rebuildMenuFromStorage, updateForms, onMenuClicked } from './context-menu.js';
-import { onConnect, onTabUpdated, verversZijpaneelTab, answerSidePanelQuery, openSidePanel } from './side-panel.js';
+import { onConnect, onTabUpdated, verversZijpaneelTab, answerSidePanelQuery, openSidePanel, initTabPanels, forgetTab } from './side-panel.js';
 
 // Berichten. Een handler die later antwoordt, geeft true terug.
 function onMessage(msg, sender, sendResponse) {
@@ -92,9 +92,13 @@ chrome.notifications.onClicked.addListener(onNotificationClicked);
 try {
   chrome.tabs.onActivated.addListener(function () { verversZijpaneelTab(); });
   chrome.tabs.onUpdated.addListener(onTabUpdated);
+  if (chrome.tabs.onRemoved) chrome.tabs.onRemoved.addListener(function (tabId) { forgetTab(tabId); });
   chrome.windows.onFocusChanged.addListener(function () { verversZijpaneelTab(); });
 } catch (e) {}
 
 // Na installatie én na elke browserstart: menu en wekker terugzetten.
 chrome.runtime.onInstalled.addListener(function () { rebuildMenuFromStorage(); rescheduleAlarm(); });
+// Zijpaneel per ONS-tabblad (zie side-panel.js). Bij elke start van de worker:
+// goedkoop en zo staat het ook goed na een update van de extensie.
+initTabPanels();
 chrome.runtime.onStartup.addListener(function () { rebuildMenuFromStorage(); rescheduleAlarm(); });

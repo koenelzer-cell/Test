@@ -11,6 +11,7 @@ import { MSG } from '../shared/messages.js';
 import { LOCAL } from '../shared/storage-keys.js';
 import { ONS_URL_PATTERNS } from '../shared/ons-hosts.js';
 import { readLocal, writeLocal } from '../shared/chrome-storage.js';
+import { ensurePanelForTab } from './side-panel.js';
 
 const MENU_ROOT = 'onsHelper.register';
 const MENU_PANEL = 'onsHelper.panel';
@@ -62,6 +63,7 @@ export function onMenuClicked(info, tab) {
   if (!tab || tab.id == null) return;
   if (info.menuItemId === MENU_PANEL) {
     // open() moet in dezelfde tik als het gebaar; daarom niet achter een await.
+    ensurePanelForTab(tab.id);
     try { chrome.sidePanel.open({ tabId: tab.id }); } catch (e) {}
     return;
   }

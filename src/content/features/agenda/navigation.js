@@ -1,4 +1,5 @@
 import { ONS } from '../../ons/selectors.js';
+import { _apiUrl } from '../../services/ons-api/endpoints.js';
 
 // Naar een dag of week in de agenda springen (via de router van ONS).
 
@@ -76,4 +77,13 @@ export function jumpToWeek() {
   const id = currentInviteeId(date);
   if (!id) return;
   spaNavigate(calendarUrl('workweek', date, id));
+}
+
+// Eén of meer invitees: bij meerdere komt invitee_ids[] er voor elk in, zodat
+// de afspraak voor iedereen in de agenda staat.
+export function newEventUrl(inviteeId) {
+  var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
+  var url = _apiUrl('newEvent', { inviteeId: ids[0] });
+  for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, '$1&invitee_ids%5B%5D=' + encodeURIComponent(ids[i]));
+  return url;
 }

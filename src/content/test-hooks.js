@@ -171,7 +171,8 @@ import {
   weekStartsBetween,
 } from './domain/open-registrations.js';
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
-import { newEventUrl, openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
+import { openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
+import { newEventUrl } from './features/agenda/navigation.js';
 import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from './domain/free-slots.js';
 import { findFreeSlots } from './features/agenda/free-slots.js';

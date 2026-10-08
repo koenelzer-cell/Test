@@ -16,16 +16,22 @@ import { PAGE_BRIDGE, MSG } from '../../../shared/messages.js';
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { duplicateEventPayload, inspectEventPayload, remainingMoments } from '../../domain/event-duplicate.js';
 import { postJson } from '../../services/ons-api/http.js';
+import { currentInviteeIds, newEventUrl, spaNavigate } from '../agenda/navigation.js';
+import { storePendingAppointment } from './prefill.js';
 
 const KEY = PAGE_SESSION.PENDING_DUPLICATES;
 const GELDIG_MS = 30 * 60 * 1000;   // klaargezette momenten gelden een half uur
 const CREATE_URL = '/calendar/events';
 
-// moments: [{ date: 'YYYY-MM-DD', startMin }]; leeg = niets klaarzetten (en oude weg).
-export function storePendingDuplicates(moments) {
+// moments: [{ date: 'YYYY-MM-DD', startMin }] die een kopie krijgen van de
+// afspraak die nu wordt opgeslagen. eigen: momenten met andere instellingen;
+// die krijgen daarna elk een eigen, nieuw afspraakformulier (de afspraakhulp
+// loopt dan opnieuw). Beide leeg = niets klaarzetten (en oude weg).
+export function storePendingDuplicates(moments, eigen) {
   try {
-    if (!moments || !moments.length) { sessionStorage.removeItem(KEY); return; }
-    sessionStorage.setItem(KEY, JSON.stringify({ moments: moments, ts: Date.now() }));
+    moments = moments || []; eigen = eigen || [];
+    if (!moments.length && !eigen.length) { sessionStorage.removeItem(KEY); return; }
+    sessionStorage.setItem(KEY, JSON.stringify({ moments: moments, eigen: eigen, ts: Date.now() }));
   } catch (e) {}
 }
 // pendingText: de klaargezette momenten zoals de main-world ze bij het
@@ -35,7 +41,7 @@ function takePending(pendingText) {
     const p = JSON.parse(pendingText || 'null');
     sessionStorage.removeItem(KEY);
     if (!p || !Array.isArray(p.moments) || (Date.now() - p.ts) > GELDIG_MS) return null;
-    return p.moments;
+    return { moments: p.moments, eigen: Array.isArray(p.eigen) ? p.eigen : [] };
   } catch (e) { return null; }
 }
 // Weg van het afspraakformulier zonder op te slaan: de momenten vervallen,
@@ -119,13 +125,36 @@ export async function makeDuplicates(bodyText, moments, post) {
 }
 
 let _bezig = false;
+// Volgende moment met eigen instellingen: nieuw formulier openen met datum en
+// begintijd, voor dezelfde medewerkers. De rest blijft in de wachtrij.
+function volgendeEigen(eigen, bodyText) {
+  const volgende = eigen[0];
+  storePendingDuplicates([], eigen.slice(1));
+  storePendingAppointment({ date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) });
+  let ids = [];
+  try { const ev = JSON.parse(String(bodyText || '')).event; ids = (ev && ev.employee_ids || []).map(String); } catch (e) {}
+  if (!ids.length) ids = currentInviteeIds();
+  if (!ids.length) return false;
+  // Even wachten: ONS schakelt na het opslaan eerst zelf door naar de agenda.
+  setTimeout(function () { spaNavigate(location.origin + newEventUrl(ids)); }, 1200);
+  return true;
+}
+
 async function bijOpgeslagen(bodyText, pendingText) {
   if (_bezig) return;
-  const moments = takePending(pendingText);
-  if (!moments || !moments.length) return;
+  const p = takePending(pendingText);
+  if (!p || (!p.moments.length && !p.eigen.length)) return;
   _bezig = true;
   try {
-    const r = await makeDuplicates(bodyText, moments);
+    const verder = p.eigen.length ? ' Volgende afspraak met eigen instellingen: ' + momentLabel(p.eigen[0]) + ' (' + p.eigen.length + (p.eigen.length === 1 ? ' te gaan).' : ' te gaan).') : '';
+    if (!p.moments.length) {
+      volgendeEigen(p.eigen, bodyText);
+      toonMelding('Afspraak opgeslagen.' + verder, true, false);
+      meldPaneel({ made: [], failed: [], reason: '', next: p.eigen[0], left: p.eigen.length });
+      return;
+    }
+    const r = await makeDuplicates(bodyText, p.moments);
+    if (p.eigen.length) volgendeEigen(p.eigen, bodyText);
     const totaal = r.made.length + r.failed.length;
     if (r.reason) {
       const uitleg = r.reason === 'herhalende afspraak' ? 'Dit is een herhalende afspraak; daar maakt de planhulp geen kopieën van.' : 'Kon deze afspraak niet lezen.';
@@ -133,11 +162,11 @@ async function bijOpgeslagen(bodyText, pendingText) {
     } else if (!totaal) {
       toonMelding('Afspraak opgeslagen; er waren geen andere momenten meer om te kopiëren.', true, false);
     } else if (!r.failed.length) {
-      toonMelding('Afspraak ook gemaakt op ' + r.made.length + (r.made.length === 1 ? ' ander moment: ' : ' andere momenten: ') + r.made.map(momentLabel).join(', ') + '.', true, true);
+      toonMelding('Afspraak ook gemaakt op ' + r.made.length + (r.made.length === 1 ? ' ander moment: ' : ' andere momenten: ') + r.made.map(momentLabel).join(', ') + '.' + verder, true, !p.eigen.length);
     } else {
-      toonMelding(r.made.length + ' van ' + totaal + ' kopieën gemaakt. Niet gelukt: ' + r.failed.map(momentLabel).join(', ') + '. Maak die zelf aan in ONS.', false, r.made.length > 0);
+      toonMelding(r.made.length + ' van ' + totaal + ' kopieën gemaakt. Niet gelukt: ' + r.failed.map(momentLabel).join(', ') + '. Maak die zelf aan in ONS.' + verder, false, r.made.length > 0 && !p.eigen.length);
     }
-    meldPaneel({ made: r.made, failed: r.failed, reason: r.reason });
+    meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: p.eigen[0] || null, left: p.eigen.length });
   } finally { _bezig = false; }
 }
 

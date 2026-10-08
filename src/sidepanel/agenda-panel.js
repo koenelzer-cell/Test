@@ -970,15 +970,17 @@ export function create(host, actions) {
   var paginaBox = el('div', { padding: '12px', flex: '0 0 auto', display: 'none' });
   mainCol.appendChild(hoofd); mainCol.appendChild(paginaBox);
 
-  // ── Verlof aanvragen ── blijft onderaan in beeld, ook als je scrolt.
-  var leaveBar = el('div', {
-    position: 'sticky', bottom: '0', marginTop: 'auto', padding: '10px 12px',
-    background: '#fff', borderTop: '1px solid ' + T.line, flex: '0 0 auto'
-  });
+  // ── Voet ── blijft onderaan in beeld, ook als je scrolt of de pagina kort
+  // is: de balk met gekozen momenten (planhulp) en Verlof aanvragen.
+  var voet = el('div', { position: 'sticky', bottom: '0', marginTop: 'auto', flex: '0 0 auto', background: '#fff', zIndex: '2' });
+  var balkHost = el('div');
+  voet.appendChild(balkHost);
+  var leaveBar = el('div', { padding: '10px 12px', background: '#fff', borderTop: '1px solid ' + T.line });
   var leaveBtn = baseButton('Verlof aanvragen', function () { if (actions.onRequestLeave) actions.onRequestLeave(); }, true, false);
   leaveBtn.title = 'Verlof vastleggen in de agenda en aanvragen in AFAS';
   leaveBar.appendChild(leaveBtn);
-  mainCol.appendChild(leaveBar);
+  voet.appendChild(leaveBar);
+  mainCol.appendChild(voet);
 
   root.appendChild(spine); root.appendChild(mainCol);
   host.appendChild(root);
@@ -1141,6 +1143,22 @@ export function create(host, actions) {
     BEWAARD.momenten.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
     BEWAARD.kopie = null;
   }
+  // Vinkje 'Andere instellingen': dit moment krijgt geen kopie maar een eigen
+  // afspraakformulier, waarin de afspraakhulp opnieuw wordt doorlopen.
+  function eigenVinkje(m, tekst) {
+    var lab = el('label', { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: T.ink, cursor: 'pointer', userSelect: 'none' });
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!m.eigen;
+    cb.setAttribute('data-eigen', m.date + ' ' + hm(m.startMin));
+    cb.style.accentColor = T.brand;
+    cb.style.margin = '0';
+    cb.addEventListener('change', function () { m.eigen = cb.checked; BEWAARD.kopie = null; renderPagina(); });
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(tekst));
+    lab.title = 'Aangevinkt: na het opslaan opent een nieuw afspraakformulier voor dit moment, zodat je andere instellingen kiest. Niet aangevinkt: een kopie van de eerste afspraak.';
+    return lab;
+  }
   function momentenInBlok(g, duur) {
     return BEWAARD.momenten.filter(function (m) { return m.date === g.date && m.startMin >= g.startMin && m.startMin + duur <= g.endMin; }).length;
   }
@@ -1148,10 +1166,15 @@ export function create(host, actions) {
   function maakOpMomenten(fout) {
     var ms = BEWAARD.momenten;
     if (!ms.length || !actions.onNewEvent) return;
-    var eerste = ms[0];
+    // Zelfde instellingen: één formulier, de rest wordt een kopie. Andere
+    // instellingen: elk een eigen formulier, na elkaar.
+    var zelfde = ms.filter(function (m) { return !m.eigen; });
+    var eigen = ms.filter(function (m) { return m.eigen; });
+    var eerste = zelfde.length ? zelfde.shift() : eigen.shift();
+    var tijd = function (m) { return { date: m.date, time: hm(m.startMin) }; };
     actions.onNewEvent({
       date: eerste.date, time: hm(eerste.startMin), minutes: plan.minutes,
-      extra: ms.slice(1).map(function (m) { return { date: m.date, time: hm(m.startMin) }; })
+      extra: zelfde.map(tijd), eigen: eigen.map(tijd)
     }, function (res) {
       if (!(res && res.ok)) { fout((res && res.error) || 'Openen mislukt.'); }
     });
@@ -1162,7 +1185,7 @@ export function create(host, actions) {
   function momentenBalk() {
     var n = BEWAARD.momenten.length;
     var balk = el('div', {
-      position: 'sticky', bottom: '0', zIndex: '2', background: '#fff', margin: '14px -16px 0', padding: '10px 16px 12px',
+      background: '#fff', padding: '10px 12px 12px',
       borderTop: '1px solid ' + T.line, boxShadow: '0 -10px 24px -18px rgba(32,20,15,.35)'
     });
     balk.setAttribute('data-selectie', String(n));
@@ -1171,7 +1194,10 @@ export function create(host, actions) {
       BEWAARD.momenten.forEach(function (m) {
         var rij = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.ink, minHeight: '30px', borderBottom: '1px solid ' + T.lineSoft });
         rij.appendChild(el('span', { flex: '0 0 74px', fontWeight: '600' }, dayLabel(m.date)));
-        rij.appendChild(el('span', { flex: '1 1 auto', fontVariantNumeric: 'tabular-nums' }, hm(m.startMin) + ' – ' + hm(m.startMin + plan.minutes)));
+        rij.appendChild(el('span', { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }, hm(m.startMin) + ' – ' + hm(m.startMin + plan.minutes)));
+        var vink = eigenVinkje(m, 'Eigen');
+        vink.style.flex = '1 1 auto'; vink.style.justifyContent = 'flex-end'; vink.style.color = T.inkSoft; vink.style.fontSize = '12px';
+        rij.appendChild(vink);
         var weg = el('button', { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '16px', lineHeight: '1', padding: '2px 6px', borderRadius: '6px' }, '\u00d7');
         weg.type = 'button';
         weg.title = 'Uit selectie halen';
@@ -1201,7 +1227,9 @@ export function create(host, actions) {
       maakOpMomenten(function (f) { foutHost.innerHTML = ''; foutHost.appendChild(noteBox(f, 'bad')); });
     });
     Object.assign(knop.style, { marginTop: '0', flex: '1 1 auto', width: 'auto' });
-    knop.title = n > 1 ? 'Je maakt de afspraak één keer in ONS; na het opslaan maakt de hulp hem ook op de andere momenten.' : 'Opent een nieuwe afspraak in ONS met datum en begintijd ingevuld.';
+    var aantalEigen = BEWAARD.momenten.filter(function (m) { return m.eigen; }).length;
+    knop.title = n > 1 ? 'Je maakt de afspraak één keer in ONS; na het opslaan maakt de hulp hem ook op de andere momenten' +
+      (aantalEigen ? ', en opent hij voor ' + aantalEigen + (aantalEigen === 1 ? ' moment' : ' momenten') + ' met andere instellingen een nieuw formulier.' : '.') : 'Opent een nieuwe afspraak in ONS met datum en begintijd ingevuld.';
     rij2.appendChild(knop);
     balk.appendChild(rij2);
     balk.appendChild(foutHost);
@@ -1213,7 +1241,9 @@ export function create(host, actions) {
     var lbl = function (m) { return dayLabel(m.date) + ' ' + hm(m.startMin); };
     if (k.reason) return noteBox('Geen kopieën gemaakt: ' + (k.reason === 'herhalende afspraak' ? 'het is een herhalende afspraak.' : 'de afspraak was niet te lezen.'), 'warn');
     if (k.failed && k.failed.length) return noteBox((k.made || []).length + ' kopieën gemaakt. Niet gelukt: ' + k.failed.map(lbl).join(', ') + '. Maak die zelf aan in ONS.', 'warn');
-    if (k.made && k.made.length) return noteBox('Afspraak ook gemaakt op ' + k.made.map(lbl).join(', ') + '.', 'ok');
+    var verder = k.next ? ' Nu het formulier voor ' + lbl(k.next) + (k.left > 1 ? ' (nog ' + k.left + ' met eigen instellingen).' : ' (eigen instellingen).') : '';
+    if (k.made && k.made.length) return noteBox('Afspraak ook gemaakt op ' + k.made.map(lbl).join(', ') + '.' + verder, 'ok');
+    if (verder) return noteBox('Afspraak opgeslagen.' + verder, 'ok');
     return null;
   }
 
@@ -1304,7 +1334,6 @@ export function create(host, actions) {
         else planBox.appendChild(txt('help', 'De overlapcontrole van ONS gaf een antwoord dat de hulp niet herkent; de blokken zijn alleen uit de agenda berekend.', { margin: '8px 0 0' }));
       }
     }
-    if (BEWAARD.momenten.length) planBox.appendChild(momentenBalk());
     return planBox;
   }
 
@@ -1780,12 +1809,18 @@ export function create(host, actions) {
     }
     box.appendChild(fieldLabel('Begintijd', starts));
     if (metRes.length) box.appendChild(txt('help', 'R = valt in reservering ' + reserveringTekst(metRes), { margin: '8px 0 0' }));
+    // Per gekozen tijd in dit blok: andere instellingen dan de rest?
+    var hier = BEWAARD.momenten.filter(function (x) { return x.date === g.date && x.startMin >= g.startMin && x.startMin + duur <= g.endMin; });
+    if (hier.length && BEWAARD.momenten.length > 1) {
+      var vinken = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', margin: '10px 0 0' });
+      hier.forEach(function (x) { vinken.appendChild(eigenVinkje(x, hm(x.startMin) + ': andere instellingen (eigen afspraakformulier)')); });
+      box.appendChild(vinken);
+    }
     // ONS' overlapcontrole voor de laatst gekozen begintijd.
     if (sl.start != null && momentIndex(g.date, sl.start) >= 0) box.appendChild(onsSlotRegel(sl, g.date, duur));
     if (sl.error) box.appendChild(noteBox(sl.error, 'bad'));
     var uitslag = kopieUitslag();
     if (uitslag) box.appendChild(uitslag);
-    if (BEWAARD.momenten.length) box.appendChild(momentenBalk());
     return box;
   }
 
@@ -1808,9 +1843,15 @@ export function create(host, actions) {
   // Tekent de huidige (niet-hoofd)pagina opnieuw. Gebeurt bij het openen en bij
   // een eigen actie, niet bij elke pagina-update: dat zou een half ingevuld
   // veld wissen. De React-inhoud loopt wel mee via renderLive().
+  // Balk met gekozen momenten in de voet: alleen op de planhulp-pagina's.
+  function renderBalk() {
+    balkHost.innerHTML = '';
+    if ((pagina === 'plan' || pagina === 'vrijblok') && BEWAARD.momenten.length) balkHost.appendChild(momentenBalk());
+  }
   function renderPagina() {
     losKoppelen();
     paginaBox.innerHTML = '';
+    renderBalk();
     if (pagina === 'hoofd') return;
     vulStandaarden();
     paginaBox.appendChild(terugKnop());
@@ -1941,7 +1982,7 @@ export function create(host, actions) {
     },
     // Uitslag van de kopieën (content-script, na het opslaan in ONS).
     setDuplicates: function (info) {
-      BEWAARD.kopie = { made: (info && info.made) || [], failed: (info && info.failed) || [], reason: (info && info.reason) || '' };
+      BEWAARD.kopie = { made: (info && info.made) || [], failed: (info && info.failed) || [], reason: (info && info.reason) || '', next: (info && info.next) || null, left: (info && info.left) || 0 };
       if (!BEWAARD.kopie.reason && !BEWAARD.kopie.failed.length) BEWAARD.momenten = [];
       if (pagina === 'plan' || pagina === 'vrijblok') renderPagina();
     },

@@ -203,7 +203,16 @@ die klaarstaan geeft `main-world` het opslaan-verzoek van ONS door (POST
 verzoek terug naar ONS, met alleen `valid_from`, `start_time` en `end_time`
 verschoven; de duur is die van de opgeslagen afspraak. Het verzoek (met
 cliëntgegevens zoals ONS ze zelf verstuurt) blijft alleen in het geheugen.
-Herhalende afspraken worden niet gekopieerd.
+Herhalende afspraken worden niet gekopieerd. Momenten met 'andere
+instellingen' (`eigen` in dezelfde sleutel) krijgen geen kopie: na elk
+opslaan opent de hulp het formulier voor het volgende eigen moment (zelfde
+medewerkers, datum en begintijd vooraf ingevuld).
+
+Het zijpaneel hoort bij één ONS-tabblad (`chrome.sidePanel.setOptions` per
+tabblad, standaard uit; `background/side-panel.js`). Wissel je van tabblad,
+dan verbergt Chrome het; kom je terug, dan staat het er weer. Het paneel
+meldt over zijn poort bij welk tabblad het hoort, zodat het randlipje alleen
+in dat tabblad wijkt.
 
 Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
 (same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).

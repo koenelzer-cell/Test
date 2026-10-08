@@ -7,7 +7,7 @@
 // (detect_overlap). Zegt een van beide 'overlap', dan krijg je eerst een
 // waarschuwing.
 
-import { currentInviteeId, currentInviteeIds, spaNavigate } from './navigation.js';
+import { currentInviteeId, currentInviteeIds, newEventUrl, spaNavigate } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { timeTextToMinutes } from '../../core/datetime.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
@@ -16,14 +16,6 @@ import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../over
 import { storePendingAppointment } from '../appointment/prefill.js';
 import { storePendingDuplicates } from '../appointment/duplicate.js';
 
-// Eén of meer invitees: bij meerdere komt invitee_ids[] er voor elk in, zodat
-// de afspraak voor iedereen in de agenda staat.
-export function newEventUrl(inviteeId) {
-  var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
-  var url = _apiUrl('newEvent', { inviteeId: ids[0] });
-  for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, '$1&invitee_ids%5B%5D=' + encodeURIComponent(ids[i]));
-  return url;
-}
 // Planhulp: het afspraakformulier van ONS openen en datum en begintijd laten
 // invullen zodra het er staat (features/appointment/prefill.js). De
 // afspraakhulp neemt het daar over (die start op /events/new).
@@ -36,11 +28,14 @@ export function openNewEvent(req) {
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
   storePendingAppointment({ date: ymd, time: hhmm });
   // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
-  var extra = (Array.isArray(req.extra) ? req.extra : []).map(function (m) {
-    var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
-    return (t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || ''))) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
-  }).filter(Boolean);
-  storePendingDuplicates(extra);
+  // Momenten met eigen instellingen krijgen daarna elk een nieuw formulier.
+  var lees = function (lijst) {
+    return (Array.isArray(lijst) ? lijst : []).map(function (m) {
+      var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
+      return (t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || ''))) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+    }).filter(Boolean);
+  };
+  storePendingDuplicates(lees(req.extra), lees(req.eigen));
   spaNavigate(location.origin + newEventUrl(ids));
   return { ok: true };
 }

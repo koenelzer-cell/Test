@@ -301,6 +301,170 @@
     }
   }
 
+  // src/background/side-panel.js
+  var sidePanelPorts = 0;
+  var zijpaneelTab = null;
+  var paneelTabs = /* @__PURE__ */ new Map();
+  var PANEEL_PAD = "pages/sidepanel.html";
+  function zetOpties(opties) {
+    try {
+      const r = chrome.sidePanel && chrome.sidePanel.setOptions && chrome.sidePanel.setOptions(opties);
+      if (r && typeof r.catch === "function") r.catch(function() {
+      });
+    } catch (e) {
+    }
+  }
+  var tabStand = /* @__PURE__ */ new Map();
+  function syncPanelForTab(tabId, url) {
+    if (tabId == null) return;
+    const aan = isOnsUrl(url);
+    if (tabStand.get(tabId) === aan) return;
+    tabStand.set(tabId, aan);
+    if (aan) zetOpties({ tabId, path: PANEEL_PAD, enabled: true });
+    else zetOpties({ tabId, enabled: false });
+  }
+  function ensurePanelForTab(tabId) {
+    if (tabId == null) return;
+    if (tabStand.get(tabId) !== true) {
+      tabStand.set(tabId, true);
+      zetOpties({ tabId, path: PANEEL_PAD, enabled: true });
+    }
+  }
+  function forgetTab(tabId) {
+    tabStand.delete(tabId);
+  }
+  function initTabPanels() {
+    zetOpties({ enabled: false });
+    try {
+      chrome.tabs.query({}, function(tabs) {
+        void chrome.runtime.lastError;
+        (tabs || []).forEach(function(t) {
+          syncPanelForTab(t.id, t.url);
+        });
+      });
+    } catch (e) {
+    }
+  }
+  function stuurStand(tabId, open) {
+    if (tabId == null) return;
+    try {
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: MSG.SIDEPANEL_STATE, open },
+        function() {
+          void chrome.runtime.lastError;
+        }
+      );
+    } catch (e) {
+    }
+  }
+  function zetZijpaneelTab(tabId) {
+    if (zijpaneelTab === tabId) return;
+    const vorige = zijpaneelTab;
+    zijpaneelTab = tabId;
+    if (vorige != null) stuurStand(vorige, false);
+    if (tabId != null) stuurStand(tabId, true);
+  }
+  function paneelVoor(t) {
+    if (!t) return false;
+    let zonderTab = false;
+    for (const id of paneelTabs.values()) {
+      if (id === t.id) return true;
+      if (id == null) zonderTab = true;
+    }
+    return zonderTab && isOnsUrl(t.url);
+  }
+  function verversZijpaneelTab() {
+    if (sidePanelPorts === 0) {
+      zetZijpaneelTab(null);
+      return;
+    }
+    try {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
+        void chrome.runtime.lastError;
+        const t = tabs && tabs[0];
+        zetZijpaneelTab(paneelVoor(t) ? t.id : null);
+      });
+    } catch (e) {
+    }
+  }
+  function onConnect(port) {
+    if (!port || port.name !== SIDEPANEL_PORT) return;
+    sidePanelPorts++;
+    paneelTabs.set(port, null);
+    verversZijpaneelTab();
+    try {
+      port.onMessage.addListener(function(m) {
+        if (m && typeof m.tabId === "number") {
+          paneelTabs.set(port, m.tabId);
+          verversZijpaneelTab();
+        }
+      });
+    } catch (e) {
+    }
+    port.onDisconnect.addListener(function() {
+      void chrome.runtime.lastError;
+      sidePanelPorts = Math.max(0, sidePanelPorts - 1);
+      paneelTabs.delete(port);
+      verversZijpaneelTab();
+    });
+  }
+  function onTabUpdated(tabId, info, tab) {
+    if (info && (info.url || info.status === "loading")) syncPanelForTab(tabId, tab && tab.url || info.url);
+    if (info && (info.url || info.status === "complete")) verversZijpaneelTab();
+  }
+  function answerSidePanelQuery(tabId, sendResponse) {
+    if (sidePanelPorts === 0 || tabId == null) {
+      try {
+        sendResponse({ open: false });
+      } catch (e) {
+      }
+      return;
+    }
+    try {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
+        void chrome.runtime.lastError;
+        const t = tabs && tabs[0];
+        try {
+          sendResponse({ open: !!(t && t.id === tabId && paneelVoor(t)) });
+        } catch (e) {
+        }
+      });
+    } catch (e) {
+      try {
+        sendResponse({ open: false });
+      } catch (e2) {
+      }
+    }
+  }
+  var OPEN_ANSWER_TIMEOUT_MS = 600;
+  function openSidePanel(tabId, sendResponse) {
+    let klaar = false;
+    const antwoord = function(ok) {
+      if (klaar) return;
+      klaar = true;
+      try {
+        sendResponse({ ok });
+      } catch (e) {
+      }
+    };
+    try {
+      ensurePanelForTab(tabId);
+      const r = chrome.sidePanel.open({ tabId });
+      if (r && typeof r.then === "function") r.then(function() {
+        antwoord(true);
+      }, function() {
+        antwoord(false);
+      });
+      else antwoord(true);
+    } catch (e) {
+      antwoord(false);
+    }
+    setTimeout(function() {
+      antwoord(true);
+    }, OPEN_ANSWER_TIMEOUT_MS);
+  }
+
   // src/background/context-menu.js
   var MENU_ROOT = "onsHelper.register";
   var MENU_PANEL = "onsHelper.panel";
@@ -360,6 +524,7 @@
   function onMenuClicked(info, tab) {
     if (!tab || tab.id == null) return;
     if (info.menuItemId === MENU_PANEL) {
+      ensurePanelForTab(tab.id);
       try {
         chrome.sidePanel.open({ tabId: tab.id });
       } catch (e) {
@@ -377,107 +542,6 @@
       } catch (e) {
       }
     });
-  }
-
-  // src/background/side-panel.js
-  var sidePanelPorts = 0;
-  var zijpaneelTab = null;
-  function stuurStand(tabId, open) {
-    if (tabId == null) return;
-    try {
-      chrome.tabs.sendMessage(
-        tabId,
-        { type: MSG.SIDEPANEL_STATE, open },
-        function() {
-          void chrome.runtime.lastError;
-        }
-      );
-    } catch (e) {
-    }
-  }
-  function zetZijpaneelTab(tabId) {
-    if (zijpaneelTab === tabId) return;
-    const vorige = zijpaneelTab;
-    zijpaneelTab = tabId;
-    if (vorige != null) stuurStand(vorige, false);
-    if (tabId != null) stuurStand(tabId, true);
-  }
-  function verversZijpaneelTab() {
-    if (sidePanelPorts === 0) {
-      zetZijpaneelTab(null);
-      return;
-    }
-    try {
-      chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
-        void chrome.runtime.lastError;
-        const t = tabs && tabs[0];
-        zetZijpaneelTab(t && isOnsUrl(t.url) ? t.id : null);
-      });
-    } catch (e) {
-    }
-  }
-  function onConnect(port) {
-    if (!port || port.name !== SIDEPANEL_PORT) return;
-    sidePanelPorts++;
-    verversZijpaneelTab();
-    port.onDisconnect.addListener(function() {
-      void chrome.runtime.lastError;
-      sidePanelPorts = Math.max(0, sidePanelPorts - 1);
-      verversZijpaneelTab();
-    });
-  }
-  function onTabUpdated(tabId, info) {
-    if (info && (info.url || info.status === "complete")) verversZijpaneelTab();
-  }
-  function answerSidePanelQuery(tabId, sendResponse) {
-    if (sidePanelPorts === 0 || tabId == null) {
-      try {
-        sendResponse({ open: false });
-      } catch (e) {
-      }
-      return;
-    }
-    try {
-      chrome.tabs.query({ active: true, lastFocusedWindow: true }, function(tabs) {
-        void chrome.runtime.lastError;
-        const t = tabs && tabs[0];
-        try {
-          sendResponse({ open: !!(t && t.id === tabId) });
-        } catch (e) {
-        }
-      });
-    } catch (e) {
-      try {
-        sendResponse({ open: false });
-      } catch (e2) {
-      }
-    }
-  }
-  var OPEN_ANSWER_TIMEOUT_MS = 600;
-  function openSidePanel(tabId, sendResponse) {
-    let klaar = false;
-    const antwoord = function(ok) {
-      if (klaar) return;
-      klaar = true;
-      try {
-        sendResponse({ ok });
-      } catch (e) {
-      }
-    };
-    try {
-      const r = chrome.sidePanel.open({ tabId });
-      if (r && typeof r.then === "function") r.then(function() {
-        antwoord(true);
-      }, function() {
-        antwoord(false);
-      });
-      else antwoord(true);
-    } catch (e) {
-      antwoord(false);
-    }
-    setTimeout(function() {
-      antwoord(true);
-    }, OPEN_ANSWER_TIMEOUT_MS);
   }
 
   // src/background/index.js
@@ -572,6 +636,9 @@
       verversZijpaneelTab();
     });
     chrome.tabs.onUpdated.addListener(onTabUpdated);
+    if (chrome.tabs.onRemoved) chrome.tabs.onRemoved.addListener(function(tabId) {
+      forgetTab(tabId);
+    });
     chrome.windows.onFocusChanged.addListener(function() {
       verversZijpaneelTab();
     });
@@ -581,6 +648,7 @@
     rebuildMenuFromStorage();
     rescheduleAlarm();
   });
+  initTabPanels();
   chrome.runtime.onStartup.addListener(function() {
     rebuildMenuFromStorage();
     rescheduleAlarm();

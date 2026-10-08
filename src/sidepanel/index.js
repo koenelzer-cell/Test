@@ -23,6 +23,12 @@ const NIETS_TEKST = 'Ga in ONS naar de agenda of open een cliëntvragenlijst; he
 const host = document.getElementById('paneel');
 let huidig = null;        // { soort: 'agenda' | 'vragenlijst', paneel }
 let onsTabId = null;
+// Het ONS-tabblad waarbij dit paneel hoort. Chrome geeft elk ONS-tabblad een
+// eigen zijpaneel (background/side-panel.js): wissel je van tabblad, dan
+// verbergt Chrome het en kom je terug, dan staat het er weer. Dit paneel kijkt
+// dan alleen naar zijn eigen tabblad.
+let mijnTab = null;
+let poort = null;
 
 function leeg() {
   if (huidig) { huidig.paneel.destroy(); huidig = null; }
@@ -208,6 +214,13 @@ function sluitZijpaneel() {
   annuleerSluiten();
   if (onsTabId != null) meldStand(onsTabId, false);
   try {
+    if (mijnTab != null && chrome.sidePanel && typeof chrome.sidePanel.close === 'function') {
+      const r = chrome.sidePanel.close({ tabId: mijnTab });
+      if (r && typeof r.catch === 'function') r.catch(function () { window.close(); });
+      return;
+    }
+  } catch (e) {}
+  try {
     if (chrome.sidePanel && typeof chrome.sidePanel.close === 'function' && mijnVenster != null) {
       const r = chrome.sidePanel.close({ windowId: mijnVenster });
       if (r && typeof r.catch === 'function') r.catch(function () { window.close(); });
@@ -250,6 +263,9 @@ try {
 // paneel hangen op het vorige scherm.
 try {
   chrome.tabs.onActivated.addListener(function (info) {
+    // Paneel van één tabblad: een ander tabblad kiezen verbergt het (Chrome),
+    // er valt niets te sluiten of te wisselen.
+    if (mijnTab != null) return;
     if (!inMijnVenster(info && info.windowId)) return;
     if (onsTabId != null && onsTabId !== info.tabId) meldStand(onsTabId, false);
     onsTabId = null;
@@ -259,6 +275,7 @@ try {
     });
   });
   chrome.tabs.onUpdated.addListener(function (tabId, info, tab) {
+    if (mijnTab != null && tabId !== mijnTab) return;
     if (!tab || !tab.active || !inMijnVenster(tab.windowId)) return;
     // Alleen een echte paginawissel telt: een nieuwe URL, of het begin van
     // laden (naar een site buiten ONS geeft Chrome ons de URL niet door).
@@ -268,6 +285,28 @@ try {
 
 // Zolang deze poort openstaat weten de pagina's dat het zijpaneel actief is:
 // het pagina-paneel blijft dan weg en het randlipje verbergt zich.
-try { chrome.runtime.connect({ name: SIDEPANEL_PORT }); } catch (e) {}
+try { poort = chrome.runtime.connect({ name: SIDEPANEL_PORT }); } catch (e) {}
 
-zoekOnsTab();
+// Bij welk tabblad hoort dit paneel? Het tabblad waarin het werd geopend: het
+// actieve in dit venster. Is dat ONS, dan volgen we alleen dat tabblad.
+function start() {
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      void chrome.runtime.lastError;
+      const t = tabs && tabs[0];
+      if (t && t.id != null && isOnsUrl(t.url)) {
+        mijnTab = t.id;
+        try { if (poort && poort.postMessage) poort.postMessage({ tabId: mijnTab }); } catch (e) {}
+        vraagToestand(mijnTab);
+        return;
+      }
+      zoekOnsTab();
+    });
+  } catch (e) { zoekOnsTab(); }
+}
+// Weer zichtbaar (terug naar het ONS-tabblad): meteen bijwerken.
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && mijnTab != null) vraagToestand(mijnTab);
+});
+
+start();

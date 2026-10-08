@@ -195,16 +195,23 @@ test('zijpaneel: toont de Agendahulp als het tabblad op de agenda staat', async 
   assert.doesNotMatch(document.body.textContent, /Geen ONS-scherm open|Niets om te tonen|Kon het tabblad niet vinden/);
 });
 
-test('zijpaneel: sluit zichzelf als je in dit venster naar een site buiten ONS gaat', async () => {
+test('zijpaneel: hoort bij zijn ONS-tabblad - ander tabblad kiezen sluit niets, eigen tabblad uit ONS wel', async () => {
   let gesloten = 0;
+  const poortBerichten = [];
   const { dom, env } = zijpaneelMetAgenda((e) => {
-    e.chrome.tabs.get = (id, cb) => cb({ id, active: true, windowId: 1, url: undefined }); // geen ONS: Chrome geeft de URL niet
+    e.chrome.tabs.get = (id, cb) => cb({ id, active: true, windowId: 1, url: undefined });
+    e.chrome.runtime.connect = () => ({ postMessage: (m) => poortBerichten.push(m) });
+    e.chrome.sidePanel = {};
   });
   dom.window.close = () => { gesloten++; };
   await tick();
+  assert.deepEqual(JSON.parse(JSON.stringify(poortBerichten)), [{ tabId: 5 }], 'meldt zijn tabblad aan de worker');
   env.listeners['tabs.onActivated'][0]({ tabId: 9, windowId: 1 });
   await tick();
-  assert.equal(gesloten, 1);
+  assert.equal(gesloten, 0, 'ander tabblad: Chrome verbergt het paneel, wij sluiten niets');
+  env.listeners['tabs.onUpdated'][0](5, { status: 'loading' }, { id: 5, active: true, windowId: 1, url: undefined });
+  await tick();
+  assert.equal(gesloten, 1, 'eigen tabblad gaat naar een site buiten ONS: dicht');
 });
 
 test('zijpaneel: blijft open bij navigeren binnen de agenda, en negeert andere vensters', async () => {
@@ -220,6 +227,21 @@ test('zijpaneel: blijft open bij navigeren binnen de agenda, en negeert andere v
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-state', state: AGENDA_STATE }, { tab }));
   await new Promise((r) => setTimeout(r, 5200));
   assert.equal(gesloten, 0);
+});
+
+test('service worker: zijpaneel per ONS-tabblad aan, elders uit, niet opnieuw bij navigeren binnen ONS', () => {
+  const env = fakeChrome();
+  const opties = [];
+  env.chrome.sidePanel.setOptions = (o) => { opties.push({ ...o }); return Promise.resolve(); };
+  env.chrome.tabs.query = (q, cb) => cb([{ id: 3, url: 'https://impegno.onsagenda.nl/invitees/1/calendar' }, { id: 4, url: undefined }]);
+  const ctx = vm.createContext({ chrome: env.chrome, setTimeout, clearTimeout, console, Date, Promise, JSON, Math, Object, Array, String, Number, isFinite, parseInt });
+  vm.runInContext(read('dist/background.js'), ctx);
+  assert.deepEqual(opties.slice(0, 3), [{ enabled: false }, { tabId: 3, path: 'pages/sidepanel.html', enabled: true }, { tabId: 4, enabled: false }]);
+  const upd = env.listeners['tabs.onUpdated'][0];
+  upd(3, { url: 'https://impegno.onsagenda.nl/invitees/1/calendar?date=2026-10-12' }, { id: 3, url: 'https://impegno.onsagenda.nl/invitees/1/calendar?date=2026-10-12' });
+  assert.equal(opties.length, 3, 'binnen ONS navigeren: niets opnieuw instellen');
+  upd(3, { status: 'loading' }, { id: 3, url: undefined });
+  assert.deepEqual(opties.at(-1), { tabId: 3, enabled: false }, 'tabblad gaat uit ONS: paneel uit');
 });
 
 test('service worker: opent alleen https-adressen in een nieuw tabblad naast het huidige', async () => {
@@ -525,7 +547,7 @@ test('zijpaneel: planhulp zoekt vrije tijd; begintijd tikken = kiezen, één kno
   await tick();
   assert.doesNotMatch(document.body.textContent, /ONS meldt|ONS kijkt/, 'geen overlap: geen melding');
   knop(document, 'Afspraak maken').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [] });
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [], eigen: [] });
   knop(document, 'Naar deze dag').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
   knop(document, 'Terug').click();
@@ -573,7 +595,14 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   assert.match(document.querySelector('[data-selectie]').textContent, /do 8 okt10:30 – 11:30.*di 13 okt09:00 – 10:00/s);
   assert.ok(knop(document, 'Alles wissen'));
   knop(document, 'Afspraak maken op 2 momenten').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }] });
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }], eigen: [] });
+  // Vinkje 'andere instellingen' bij het eerste moment: dan opent eerst het
+  // formulier voor het andere moment (met kopieën), daarna een eigen formulier.
+  assert.match(document.body.textContent, /09:00: andere instellingen \(eigen afspraakformulier\)/, 'vinkje per gekozen tijd in dit blok');
+  const vink = document.querySelector('[data-eigen="2026-10-08 10:30"]');
+  vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
+  knop(document, 'Afspraak maken op 2 momenten').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-13', time: '09:00', minutes: 60, extra: [], eigen: [{ date: '2026-10-08', time: '10:30' }] });
   // Na het opslaan in ONS meldt het content-script de kopieën.
   knop(document, 'Terug').click();
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));

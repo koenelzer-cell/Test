@@ -378,3 +378,28 @@ test('vooraf laden: een lopende berekening wordt gedeeld, met voortgang; vers ha
   await api.cachedOpenRange('2026-09-28', '2026-10-07', null, true);
   assert.equal(aanroepen, 4, 'vers: opnieuw opgehaald (afwerklijst bijwerken)');
 });
+
+test('planhulp: na opslaan kopieën maken en het volgende moment met eigen instellingen in een nieuw formulier openen', async (t) => {
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { window, sent } = bootHelper({ url: 'https://impegno.onsagenda.nl/events/new?invitee_ids%5B%5D=42479&redirect_to_calendar=true' });
+  const gepost = [];
+  window.fetch = (url, init) => { if (!init || init.method !== 'POST') return Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null) }); gepost.push([url, init.method, JSON.parse(init.body).event.start_time]); return Promise.resolve({ ok: true, json: () => Promise.resolve({}) }); };
+  const geklikt = [];
+  window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
+  const body = JSON.stringify({ event: { valid_from: '2026-10-27', start_time: '2026-10-27T17:20:00+01:00', end_time: '2026-10-27T18:20:00+01:00', employee_ids: [42479], client_ids: [1] } });
+  const pending = JSON.stringify({ moments: [{ date: '2026-10-29', startMin: 540 }], eigen: [{ date: '2026-11-03', startMin: 600 }, { date: '2026-11-05', startMin: 600 }], ts: Date.now() });
+  // Zoals de main-world het meldt (jsdom zet bij postMessage geen origin; daarom direct).
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body, pending }, origin: window.location.origin, source: window }));
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.deepEqual(gepost, [['/calendar/events', 'POST', '2026-10-29T09:00:00+01:00']], 'kopie alleen voor het moment met dezelfde instellingen');
+  assert.deepEqual(JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')), { ...JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')), date: '2026-11-03', time: '10:00' });
+  const rest = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingDuplicates'));
+  assert.deepEqual(rest.moments, []);
+  assert.deepEqual(rest.eigen, [{ date: '2026-11-05', startMin: 600 }], 'de volgende met eigen instellingen staat klaar');
+  assert.match(geklikt.at(-1) || '', /\/events\/new\?invitee_ids%5B%5D=42479&redirect_to_calendar=true$/, 'nieuw formulier voor dezelfde medewerker');
+  const melding = sent.find((m) => m && m.type === 'ag-duplicates-done');
+  assert.deepEqual(JSON.parse(JSON.stringify(melding.next)), { date: '2026-11-03', startMin: 600 });
+  assert.equal(melding.left, 2);
+});

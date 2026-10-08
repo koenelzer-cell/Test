@@ -152,7 +152,10 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   haalt ze eruit); dat kan in meerdere blokken. De gekozen momenten staan in
   een vaste balk onderin met één knop 'Afspraak maken (op n momenten)'; klik
   op de teller om de lijst te zien en daar momenten weg te halen of alles te
-  wissen. Je maakt de afspraak één
+  wissen. Vink bij een gekozen tijd 'andere instellingen' (of 'Eigen' in de
+  lijst) aan als die afspraak anders moet: dat moment krijgt geen kopie, maar
+  na het opslaan opent een nieuw afspraakformulier waarin je de afspraakhulp
+  opnieuw doorloopt. Zo één voor één, tot alle momenten gedaan zijn. Je maakt de afspraak één
   keer in ONS; na het opslaan maakt de hulp dezelfde afspraak (zelfde cliënt,
   label, uursoort enz.) op de andere momenten. Niet voor herhalende afspraken.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
