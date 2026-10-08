@@ -175,12 +175,23 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 | `/search_panel/clients` | interne cliënt-id op naam | `clients.js` | id's in de cliëntkaart/URL |
 | `/product_selection/product_list` | uursoorten voor medewerker + cliënt(en) | `products.js` | dropdown openen en uitlezen (`ons/uursoort-options.js`) |
 | `/worksheet/registrations/detect_overlap` | overlapcontrole door ONS (alleen nieuwe registraties) | `open-registrations.js` | eigen vergelijking (`features/overlap.js`) |
+| `/event_planner/overlap_detection` | planhulp: vrij blok en gekozen begintijd bij ONS nakijken | `services/ons-api/event-overlap.js`, `domain/event-overlap.js` | alleen de eigen berekening (`domain/free-slots.js`) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
 | `/invitees/{id}/registrations/new?declaration[…]` | snel registreren: ONS-formulier vooraf ingevuld (paginaroute, geen API) | `features/agenda/quick-register.js` | — |
 
 `detect_overlap` is niet gedocumenteerd. Het antwoord wordt herkend waar dat
 kan (`domain/open-registrations.js`); anders geldt het als *onbekend* en blijft
 de eigen overlapcontrole leidend. Een 'nee' van `detect_overlap` onderdrukt nooit een eigen melding.
+
+`overlap_detection` (afspraken) is ook niet gedocumenteerd, en zelfs de
+parameters zijn onbekend. De hulp leert ze: ONS roept het endpoint zelf aan
+zodra je een afspraak opent; `main-world` geeft die URL door en
+`domain/event-overlap.js` bepaalt per parameter de rol (medewerker, begin,
+eind, duur of vaste waarde). Cliënt-, titel- en naamvelden en het id van de
+eigen afspraak vallen eruit. Het sjabloon (alleen rollen en korte vaste
+waarden, geen tijden of id's) staat in de localStorage van de ONS-pagina
+(`onsHelper.eventOverlapTemplate`). Zonder sjabloon, of als het antwoord niet
+te lezen is, doet de planhulp geen ONS-controle en rekent hij alleen zelf.
 
 Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
 (same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).

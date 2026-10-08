@@ -262,8 +262,10 @@
     // afspraak-/registratiehulp aan/uit ('1'/'0')
     GREY_ENABLED: "onsHelper.greyEnabled",
     // gekleurde dagindeling aan/uit ('1'/'0')
-    SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth"
+    SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth",
     // breedte vragenlijstpaneel (px)
+    EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
+    // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
   };
   var PAGE_SESSION = {
     PENDING_REGISTRATION: "onsHelper.pendingReg",
@@ -846,6 +848,8 @@
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
     // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    AGENDA_SLOT_CHECK: "ag-slot-check",
+    // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -1356,7 +1360,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.217";
+      return "1.6.218";
     }
   }();
 

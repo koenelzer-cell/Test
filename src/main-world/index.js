@@ -1,11 +1,13 @@
 /* ============================================================================
    main-world — draait in de PAGINA-context van ONS (manifest: "world": "MAIN").
 
-   Twee taken:
+   Drie taken:
      1) Context melden: omgeving (uit de hostnaam) en gebruikers-ID, voor de
         gefaseerde uitrol in het meldingenkanaal (content/platform/module-host.js).
      2) Details-watcher: de afspraaklabels uit ONS' eigen details-call
         doorgeven, zodat de registratiehulp de registratievorm kan kiezen.
+     3) Overlap-watcher: de URL van ONS' eigen overlapcontrole voor afspraken
+        doorgeven, zodat de planhulp die controle kan nadoen.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -88,18 +90,42 @@ import { PAGE_BRIDGE } from '../shared/messages.js';
       if (labels.length) post('details', { url: String(url), labels: labels });
     } catch (e) {}
   }
+  /* ---- overlapcontrole van afspraken ------------------------------------
+     Opent iemand een afspraak, dan vraagt ONS zelf
+       /event_planner/overlap_detection?…
+     Die URL geven we door (alleen eigen origin), zodat de planhulp de vorm
+     van dat verzoek kan leren (content/domain/event-overlap.js). Het antwoord
+     gaat mee, ingekort, alleen om te zien of de hulp het kan lezen; het
+     content-script maakt er ja/nee/onbekend van en bewaart het niet.
+     ---------------------------------------------------------------------- */
+  var OVERLAP_RE = /\/event_planner\/overlap_detection(?:[?#]|$)/;
+  function reportOverlap(url, text) {
+    try {
+      var abs = new URL(String(url), location.href);
+      if (abs.origin !== location.origin) return;
+      post('eventOverlap', { url: abs.pathname + abs.search, body: String(text == null ? '' : text).slice(0, 4000) });
+    } catch (e) {}
+  }
+  function melderVoor(url) {
+    var u = String(url || '');
+    if (DETAILS_RE.test(u)) return reportDetails;
+    if (OVERLAP_RE.test(u)) return reportOverlap;
+    return null;
+  }
+
   function installDetailsWatcher() {
     try {
       var origFetch = window.fetch;
       if (typeof origFetch === 'function') {
         window.fetch = function (input, init) {
-          var url = (typeof input === 'string') ? input : (input && input.url) || '';
+          var url = (typeof input === 'string') ? input : (input && (input.url || input.href)) || '';
           var p = origFetch.apply(this, arguments);
           // .clone() zodat de pagina zelf de body ongestoord kan lezen.
           try {
-            if (DETAILS_RE.test(String(url))) {
+            var melder = melderVoor(url);
+            if (melder) {
               p.then(function (res) {
-                try { if (res && res.ok && res.clone) res.clone().text().then(function (t) { reportDetails(url, t); }, function () {}); } catch (e) {}
+                try { if (res && res.ok && res.clone) res.clone().text().then(function (t) { melder(url, t); }, function () {}); } catch (e) {}
                 return res;
               }, function () {});
             }
@@ -120,9 +146,10 @@ import { PAGE_BRIDGE } from '../shared/messages.js';
         XHR.prototype.send = function () {
           try {
             var xhr = this;
-            if (DETAILS_RE.test(String(xhr.__onsahUrl || ''))) {
+            var melder = melderVoor(xhr.__onsahUrl);
+            if (melder) {
               xhr.addEventListener('load', function () {
-                try { if (xhr.status >= 200 && xhr.status < 300) reportDetails(xhr.__onsahUrl, xhr.responseText); } catch (e) {}
+                try { if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText); } catch (e) {}
               });
             }
           } catch (e) {}

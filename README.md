@@ -143,7 +143,10 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.
 - **Planhulp**: kies een duur en hoe ver vooruit, en zie de vrije blokken
-  binnen je werktijden. Alleen wat er echt in de agenda staat telt als bezet:
+  binnen je werktijden. Heeft de hulp ONS' eigen overlapcontrole voor
+  afspraken geleerd (dat gebeurt vanzelf zodra je één keer een afspraak opent
+  in ONS), dan kijkt hij elk blok en de gekozen begintijd daar ook na: een
+  vinkje is akkoord, 'ONS: overlap' niet. Alleen wat er echt in de agenda staat telt als bezet:
   ONS-afspraken (met reistijd), onbeschikbaarheid, geplande bezoeken en
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open

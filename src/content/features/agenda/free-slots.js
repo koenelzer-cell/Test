@@ -13,6 +13,7 @@ import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
+import { fetchEventOverlap, overlapCheckStatus } from '../../services/ons-api/event-overlap.js';
 
 // Werkvenster (minuten): vroegste begin en laatste eind van de gekozen
 // dagindeling. Alleen als grens; wat er BINNEN dat venster bezet is, komt uit
@@ -25,13 +26,30 @@ export function workWindow() {
   return { start: start, end: end };
 }
 
+function agendaIds() {
+  var ids = currentInviteeIds();
+  if (!ids.length) { var een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
+  return ids;
+}
+
+// Eén tijdvak bij ONS zelf nakijken (overlap_detection).
+//   { date, startMin, minutes } -> Promise<{ status, overlap }>
+//   status: 'ready' (overlap true/false/null) | 'unreadable' | 'unknown'
+export function checkSlotWithOns(req) {
+  req = req || {};
+  var status = overlapCheckStatus();
+  var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
+  if (status !== 'ready' || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status: status, overlap: null });
+  return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin: startMin, endMin: startMin + minutes })
+    .then(function (o) { return { status: status, overlap: o }; });
+}
+
 // minutes: gewenste duur; weeks: hoe ver vooruit (1-8).
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
 // bezet.
 export function findFreeSlots(minutes, weeks) {
-  var ids = currentInviteeIds();
-  if (!ids.length) { var een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
+  var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
   if (!(minutes >= 5)) return Promise.reject(new Error('Kies een duur.'));
@@ -64,6 +82,15 @@ export function findFreeSlots(minutes, weeks) {
       now: Date.now(), days: weeks * 7, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: 12
     });
-    return { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length };
+    var res = { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+    if (res.onsCheck !== 'ready') return res;
+    // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
+    // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.
+    var nakijk = createLimiter(3);
+    return Promise.all(gaps.map(function (g) {
+      return nakijk(function () {
+        return fetchEventOverlap({ ids: ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
+      }).then(function (o) { g.ons = o; }, function () { g.ons = null; });
+    })).then(function () { return res; });
   });
 }

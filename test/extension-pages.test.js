@@ -494,6 +494,7 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
     ] } }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
+    'ag-slot-check': (msg, cb) => cb({ ok: true, status: 'ready', overlap: msg.startMin === 645 }),
   });
   await tick();
   navKnop(document, 'Planhulp').click();
@@ -509,8 +510,14 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past');
   document.querySelector('[data-start="10:45"]').click();
   assert.match(document.body.textContent, /Afspraak 10:45 – 11:45/);
+  await tick();
+  assert.match(document.body.textContent, /ONS meldt overlap met een andere afspraak/);
+  assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
+  document.querySelector('[data-start="11:00"]').click();
+  await tick();
+  assert.match(document.body.textContent, /ONS meldt geen overlap op dit tijdstip/);
   knop(document, 'Afspraak maken op dit tijdstip').click();
-  assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60 });
+  assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60 });
   knop(document, 'Naar deze dag in de agenda').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
   knop(document, 'Terug').click();

@@ -1142,12 +1142,23 @@ export function create(host, actions) {
           Object.assign(kaart.style, { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 11px' });
           kaart.appendChild(el('span', { fontSize: '13px', fontWeight: '600', color: T.ink, flex: '0 0 74px' }, dayLabel(g.date)));
           kaart.appendChild(el('span', { fontSize: '13px', color: T.ink, flex: '1 1 auto', fontVariantNumeric: 'tabular-nums' }, hm(g.startMin) + ' – ' + hm(g.endMin)));
-          kaart.appendChild(el('span', Object.assign({}, TYPE.help, { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }), fmtMin(g.minutes) + ' vrij'));
+          // ons: wat ONS' eigen overlapcontrole zegt over het begin van dit blok.
+          kaart.appendChild(g.ons === true
+            ? el('span', Object.assign({}, TYPE.help, { flex: '0 0 auto', color: T.warn, fontWeight: '600' }), 'ONS: overlap')
+            : el('span', Object.assign({}, TYPE.help, { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }), fmtMin(g.minutes) + ' vrij'));
+          if (g.ons === false) {
+            var vink = el('span', { flex: '0 0 auto', color: T.ok, fontSize: '13px', fontWeight: '700' }, '\u2713');
+            vink.title = 'ONS meldt geen overlap';
+            kaart.appendChild(vink);
+          }
           var pijl = svgPath(CHEV_RECHTS, 16); pijl.style.color = T.brand; pijl.style.flex = '0 0 auto';
           kaart.appendChild(pijl);
           lijst.appendChild(kaart);
         });
         planBox.appendChild(lijst);
+        if (res.onsCheck === 'ready') planBox.appendChild(txt('help', '\u2713 betekent: ONS\u2019 eigen overlapcontrole is akkoord voor het begin van het blok.', { margin: '8px 0 0' }));
+        else if (res.onsCheck === 'unknown') planBox.appendChild(txt('help', 'Open één keer een afspraak in ONS; daarna kijkt de planhulp elk blok ook na met de overlapcontrole van ONS.', { margin: '8px 0 0' }));
+        else planBox.appendChild(txt('help', 'De overlapcontrole van ONS gaf een antwoord dat de hulp niet herkent; de blokken zijn alleen uit de agenda berekend.', { margin: '8px 0 0' }));
       }
     }
     return planBox;
@@ -1554,6 +1565,29 @@ export function create(host, actions) {
     return box;
   }
 
+  // Wat ONS' eigen overlapcontrole zegt over het gekozen tijdstip. Vraagt het
+  // na bij elke andere begintijd; het antwoord komt in sl.ons.
+  function onsSlotRegel(sl, date, duur) {
+    var sleutel = date + '|' + sl.start + '|' + duur;
+    if (actions.onSlotCheck && (!sl.ons || sl.ons.key !== sleutel)) {
+      sl.ons = { key: sleutel, busy: true };
+      actions.onSlotCheck({ date: date, startMin: sl.start, minutes: duur }, function (res) {
+        if (!sl.ons || sl.ons.key !== sleutel) return;
+        sl.ons = { key: sleutel, busy: false, status: (res && res.status) || 'unknown', overlap: res ? res.overlap : null };
+        // Niet midden in de lopende opbouw opnieuw tekenen (antwoord kan direct komen).
+        setTimeout(function () { if (pagina === 'vrijblok' && BEWAARD.slot === sl) renderPagina(); }, 0);
+      });
+    }
+    var o = sl.ons || {}, regel;
+    if (o.busy) regel = txt('help', 'ONS kijkt dit tijdstip na…', { margin: '8px 0 0' });
+    else if (o.status === 'ready' && o.overlap === false) regel = noteBox('ONS meldt geen overlap op dit tijdstip.', 'ok');
+    else if (o.status === 'ready' && o.overlap === true) regel = noteBox('ONS meldt overlap met een andere afspraak op dit tijdstip.', 'warn');
+    else if (o.status === 'unknown') regel = txt('help', 'Nog niet nagekeken bij ONS: open één keer een afspraak in ONS, dan leert de hulp de overlapcontrole.', { margin: '8px 0 0' });
+    else regel = txt('help', 'ONS\u2019 overlapcontrole gaf geen herkenbaar antwoord.', { margin: '8px 0 0' });
+    if (regel.style && !regel.style.margin) regel.style.margin = '8px 0 0';
+    return regel;
+  }
+
   // Opties voor een vrij blok uit de planhulp: begintijd kiezen en dan een
   // afspraak maken, of naar die dag in de agenda.
   function pageSlot() {
@@ -1578,6 +1612,7 @@ export function create(host, actions) {
     samen.appendChild(ic);
     samen.appendChild(el('span', TYPE.text, 'Afspraak ' + hm(sl.start) + ' – ' + hm(sl.start + duur) + ' (' + fmtMin(duur) + ')'));
     box.appendChild(samen);
+    box.appendChild(onsSlotRegel(sl, g.date, duur));
     box.appendChild(txt('help', 'Opent een nieuwe afspraak in ONS; de hulp vult de datum en begintijd in. De duur kies je daarna in de afspraakhulp.', { margin: '10px 0 0' }));
     box.appendChild(primaryBtn('Afspraak maken op dit tijdstip', function () {
       sl.error = '';

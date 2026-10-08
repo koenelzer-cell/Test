@@ -69,19 +69,35 @@
       } catch (e) {
       }
     }
+    var OVERLAP_RE = /\/event_planner\/overlap_detection(?:[?#]|$)/;
+    function reportOverlap(url, text) {
+      try {
+        var abs = new URL(String(url), location.href);
+        if (abs.origin !== location.origin) return;
+        post("eventOverlap", { url: abs.pathname + abs.search, body: String(text == null ? "" : text).slice(0, 4e3) });
+      } catch (e) {
+      }
+    }
+    function melderVoor(url) {
+      var u = String(url || "");
+      if (DETAILS_RE.test(u)) return reportDetails;
+      if (OVERLAP_RE.test(u)) return reportOverlap;
+      return null;
+    }
     function installDetailsWatcher() {
       try {
         var origFetch = window.fetch;
         if (typeof origFetch === "function") {
           window.fetch = function(input, init) {
-            var url = typeof input === "string" ? input : input && input.url || "";
+            var url = typeof input === "string" ? input : input && (input.url || input.href) || "";
             var p = origFetch.apply(this, arguments);
             try {
-              if (DETAILS_RE.test(String(url))) {
+              var melder = melderVoor(url);
+              if (melder) {
                 p.then(function(res) {
                   try {
                     if (res && res.ok && res.clone) res.clone().text().then(function(t) {
-                      reportDetails(url, t);
+                      melder(url, t);
                     }, function() {
                     });
                   } catch (e) {
@@ -112,10 +128,11 @@
           XHR.prototype.send = function() {
             try {
               var xhr = this;
-              if (DETAILS_RE.test(String(xhr.__onsahUrl || ""))) {
+              var melder = melderVoor(xhr.__onsahUrl);
+              if (melder) {
                 xhr.addEventListener("load", function() {
                   try {
-                    if (xhr.status >= 200 && xhr.status < 300) reportDetails(xhr.__onsahUrl, xhr.responseText);
+                    if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText);
                   } catch (e) {
                   }
                 });

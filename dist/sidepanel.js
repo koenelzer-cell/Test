@@ -53,6 +53,8 @@
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
     // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    AGENDA_SLOT_CHECK: "ag-slot-check",
+    // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -1509,7 +1511,12 @@
             Object.assign(kaart.style, { display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px" });
             kaart.appendChild(el("span", { fontSize: "13px", fontWeight: "600", color: T.ink, flex: "0 0 74px" }, dayLabel(g.date)));
             kaart.appendChild(el("span", { fontSize: "13px", color: T.ink, flex: "1 1 auto", fontVariantNumeric: "tabular-nums" }, hm(g.startMin) + " – " + hm(g.endMin)));
-            kaart.appendChild(el("span", Object.assign({}, TYPE.help, { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }), fmtMin(g.minutes) + " vrij"));
+            kaart.appendChild(g.ons === true ? el("span", Object.assign({}, TYPE.help, { flex: "0 0 auto", color: T.warn, fontWeight: "600" }), "ONS: overlap") : el("span", Object.assign({}, TYPE.help, { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }), fmtMin(g.minutes) + " vrij"));
+            if (g.ons === false) {
+              var vink = el("span", { flex: "0 0 auto", color: T.ok, fontSize: "13px", fontWeight: "700" }, "✓");
+              vink.title = "ONS meldt geen overlap";
+              kaart.appendChild(vink);
+            }
             var pijl = svgPath(CHEV_RECHTS, 16);
             pijl.style.color = T.brand;
             pijl.style.flex = "0 0 auto";
@@ -1517,6 +1524,9 @@
             lijst.appendChild(kaart);
           });
           planBox.appendChild(lijst);
+          if (res.onsCheck === "ready") planBox.appendChild(txt("help", "✓ betekent: ONS’ eigen overlapcontrole is akkoord voor het begin van het blok.", { margin: "8px 0 0" }));
+          else if (res.onsCheck === "unknown") planBox.appendChild(txt("help", "Open één keer een afspraak in ONS; daarna kijkt de planhulp elk blok ook na met de overlapcontrole van ONS.", { margin: "8px 0 0" }));
+          else planBox.appendChild(txt("help", "De overlapcontrole van ONS gaf een antwoord dat de hulp niet herkent; de blokken zijn alleen uit de agenda berekend.", { margin: "8px 0 0" }));
         }
       }
       return planBox;
@@ -2014,6 +2024,27 @@
       if (quick.error) box.appendChild(noteBox(quick.error, "bad"));
       return box;
     }
+    function onsSlotRegel(sl, date, duur) {
+      var sleutel = date + "|" + sl.start + "|" + duur;
+      if (actions.onSlotCheck && (!sl.ons || sl.ons.key !== sleutel)) {
+        sl.ons = { key: sleutel, busy: true };
+        actions.onSlotCheck({ date, startMin: sl.start, minutes: duur }, function(res) {
+          if (!sl.ons || sl.ons.key !== sleutel) return;
+          sl.ons = { key: sleutel, busy: false, status: res && res.status || "unknown", overlap: res ? res.overlap : null };
+          setTimeout(function() {
+            if (pagina === "vrijblok" && BEWAARD.slot === sl) renderPagina();
+          }, 0);
+        });
+      }
+      var o = sl.ons || {}, regel;
+      if (o.busy) regel = txt("help", "ONS kijkt dit tijdstip na…", { margin: "8px 0 0" });
+      else if (o.status === "ready" && o.overlap === false) regel = noteBox("ONS meldt geen overlap op dit tijdstip.", "ok");
+      else if (o.status === "ready" && o.overlap === true) regel = noteBox("ONS meldt overlap met een andere afspraak op dit tijdstip.", "warn");
+      else if (o.status === "unknown") regel = txt("help", "Nog niet nagekeken bij ONS: open één keer een afspraak in ONS, dan leert de hulp de overlapcontrole.", { margin: "8px 0 0" });
+      else regel = txt("help", "ONS’ overlapcontrole gaf geen herkenbaar antwoord.", { margin: "8px 0 0" });
+      if (regel.style && !regel.style.margin) regel.style.margin = "8px 0 0";
+      return regel;
+    }
     function pageSlot() {
       var box = el("div");
       var sl = BEWAARD.slot;
@@ -2044,6 +2075,7 @@
       samen.appendChild(ic);
       samen.appendChild(el("span", TYPE.text, "Afspraak " + hm(sl.start) + " – " + hm(sl.start + duur) + " (" + fmtMin(duur) + ")"));
       box.appendChild(samen);
+      box.appendChild(onsSlotRegel(sl, g.date, duur));
       box.appendChild(txt("help", "Opent een nieuwe afspraak in ONS; de hulp vult de datum en begintijd in. De duur kies je daarna in de afspraakhulp.", { margin: "10px 0 0" }));
       box.appendChild(primaryBtn("Afspraak maken op dit tijdstip", function() {
         sl.error = "";
@@ -2625,6 +2657,9 @@
     },
     onNewEvent: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb);
+    },
+    onSlotCheck: function(req, cb) {
+      vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb);
     },
     onFreeSlots: function(minutes, weeks, cb) {
       vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes, weeks }, cb);

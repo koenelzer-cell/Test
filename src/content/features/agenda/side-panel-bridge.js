@@ -16,6 +16,7 @@ import { defaultProductionFrom } from './production.js';
 import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, isCached } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
+import { checkSlotWithOns } from './free-slots.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
@@ -152,6 +153,13 @@ export function listenForSidePanelMessages() {
         case MSG.AGENDA_NEW_EVENT:
           try { sendResponse(openNewEvent(msg)); } catch (e) { try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {} }
           return;
+        case MSG.AGENDA_SLOT_CHECK:
+          checkSlotWithOns(msg).then(function (r) {
+            try { sendResponse({ ok: true, status: r.status, overlap: r.overlap }); } catch (e) {}
+          }, function () {
+            try { sendResponse({ ok: true, status: 'ready', overlap: null }); } catch (e2) {}
+          });
+          return true;
         case MSG.AGENDA_FREE_SLOTS:
           cachedFreeSlots(msg.minutes, msg.weeks).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}

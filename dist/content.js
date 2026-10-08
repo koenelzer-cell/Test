@@ -106,8 +106,10 @@
     // afspraak-/registratiehulp aan/uit ('1'/'0')
     GREY_ENABLED: "onsHelper.greyEnabled",
     // gekleurde dagindeling aan/uit ('1'/'0')
-    SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth"
+    SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth",
     // breedte vragenlijstpaneel (px)
+    EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
+    // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
   };
   var PAGE_SESSION = {
     PENDING_REGISTRATION: "onsHelper.pendingReg",
@@ -1154,6 +1156,8 @@
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
     // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    AGENDA_SLOT_CHECK: "ag-slot-check",
+    // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -1264,6 +1268,633 @@
       }, false);
     } catch (e) {
     }
+  }
+
+  // src/content/domain/registrations.js
+  function _regUnwrap(json) {
+    if (Array.isArray(json)) return json;
+    if (json && typeof json === "object") {
+      var keys = ["data", "registrations", "items", "results", "content", "rows"];
+      for (var i = 0; i < keys.length; i++) if (Array.isArray(json[keys[i]])) return json[keys[i]];
+      if (json.presenceLogs || json.type || json.duration != null || json.startTime) return [json];
+    }
+    return [];
+  }
+  function _regFlattenLogs(json) {
+    var items = _regUnwrap(json), logs = [];
+    items.forEach(function(it) {
+      if (it && Array.isArray(it.presenceLogs)) {
+        it.presenceLogs.forEach(function(l) {
+          if (l) logs.push(l);
+        });
+      } else if (it && (it.type != null || it.duration != null) && it.type !== "registration") {
+        logs.push(it);
+      }
+    });
+    return logs;
+  }
+  function _regType(t) {
+    var s = String(t == null ? "" : t).toLowerCase();
+    if (/indirect/.test(s)) return "indirect";
+    if (/direct/.test(s)) return "direct";
+    if (/travel|reis/.test(s)) return "travel";
+    return "overig";
+  }
+  function normalizeRegistrationLine(r) {
+    if (!r || typeof r !== "object") return null;
+    var start = r.startTime || r.start_time || null, end = r.endTime || r.end_time || null;
+    var dur = typeof r.duration === "number" ? r.duration : start && end ? Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 6e4)) : 0;
+    return {
+      type: _regType(r.type),
+      minutes: dur,
+      date: start ? String(start).slice(0, 10) : null,
+      removed: !!r.isRemoved,
+      status: r.status || null,
+      clientPresent: !!(r.client && (r.client.id != null || r.client.externalId != null))
+    };
+  }
+  function summarizeRegistrations(json) {
+    var lines = _regFlattenLogs(json).map(normalizeRegistrationLine).filter(function(x) {
+      return x && !x.removed;
+    });
+    var total = 0, direct = 0, indirect = 0, travel = 0, other = 0, clientMin = 0, nonClientMin = 0;
+    lines.forEach(function(l) {
+      total += l.minutes;
+      if (l.type === "direct") direct += l.minutes;
+      else if (l.type === "indirect") indirect += l.minutes;
+      else if (l.type === "travel") travel += l.minutes;
+      else other += l.minutes;
+      if (l.clientPresent) clientMin += l.minutes;
+      else nonClientMin += l.minutes;
+    });
+    var base = direct + indirect;
+    return {
+      count: lines.length,
+      totalMinutes: total,
+      directMinutes: direct,
+      indirectMinutes: indirect,
+      travelMinutes: travel,
+      otherMinutes: other,
+      clientMinutes: clientMin,
+      nonClientMinutes: nonClientMin,
+      directPct: base > 0 ? Math.round(direct / base * 1e3) / 10 : 0,
+      directTargetPct: 80
+    };
+  }
+  function _isWeekendYmd(ymd2) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
+    if (!m) return false;
+    var wd = new Date(+m[1], +m[2] - 1, +m[3]).getDay();
+    return wd === 0 || wd === 6;
+  }
+  function _agGenSettings() {
+    try {
+      return typeof APP_CONFIG !== "undefined" && APP_CONFIG && APP_CONFIG.generalSettings || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function _countWeekends() {
+    return !!_agGenSettings().countWeekends;
+  }
+  function _excludeWeekendYmd(ymd2) {
+    return _isWeekendYmd(ymd2) && !_countWeekends();
+  }
+  function _nonClientMarker() {
+    var m = _agGenSettings().nonClientMarker;
+    return typeof m === "string" && m ? m : "*";
+  }
+  function _agListSetting(key, dflt) {
+    try {
+      var v = _agGenSettings()[key];
+      if (Array.isArray(v)) return v;
+    } catch (e) {
+    }
+    return dflt;
+  }
+  function _nonClientUursoortList() {
+    return _agListSetting("nonClientUursoorten", []);
+  }
+  function _excludedStatuses() {
+    return _agListSetting("excludedRegistrationStatuses", ["do_not_declare"]);
+  }
+  function _excludedCalendarTypes() {
+    return _agListSetting("excludedCalendarTypes", ["unavailability", "presence"]);
+  }
+  function parseWeekRegistrationOccurrences(json) {
+    var rows = _regUnwrap(json);
+    if (!rows.length && json && Array.isArray(json.entries)) rows = json.entries;
+    var out = [], seen = /* @__PURE__ */ Object.create(null);
+    var exTypes = _excludedCalendarTypes();
+    rows.forEach(function(r) {
+      if (!r || typeof r !== "object") return;
+      for (var x = 0; x < exTypes.length; x++) {
+        if (r[exTypes[x]]) return;
+      }
+      if (r.type != null && String(r.type).toLowerCase() !== "registration") return;
+      var dymd = r.date || (r.start_time ? String(r.start_time).slice(0, 10) : "");
+      if (_excludeWeekendYmd(dymd)) return;
+      var occ = r.occurrence_id || r.occurrenceId || null;
+      if (!occ || seen[occ]) return;
+      seen[occ] = 1;
+      out.push({ occurrenceId: String(occ), clientPresent: Array.isArray(r.clients) && r.clients.length > 0 });
+    });
+    return out;
+  }
+  function parseRegistrationDetails(json) {
+    if (!json || typeof json !== "object") return null;
+    if (!json.registration) {
+      var exT = _excludedCalendarTypes();
+      for (var x = 0; x < exT.length; x++) {
+        if (json[exT[x]]) return null;
+      }
+    }
+    var r = json.registration ? json.registration : json;
+    if (!r || typeof r !== "object") return null;
+    if (r.declaration && typeof r.declaration === "object" && r.declaration.status != null) {
+      var st = String(r.declaration.status), exS = _excludedStatuses();
+      for (var y = 0; y < exS.length; y++) {
+        if (st === String(exS[y])) return null;
+      }
+    }
+    var dymd = r.date || (r.start_time ? String(r.start_time).slice(0, 10) : "");
+    if (_excludeWeekendYmd(dymd)) return null;
+    var num = function(v) {
+      return typeof v === "number" && isFinite(v) ? v : 0;
+    };
+    var ht = r.hour_type && typeof r.hour_type === "object" ? r.hour_type : null;
+    var htName = ht && ht.name != null ? String(ht.name) : "";
+    var htId = ht && ht.id != null ? ht.id : null;
+    if (!htName && Array.isArray(r.clients)) {
+      for (var ci = 0; ci < r.clients.length; ci++) {
+        var cht = r.clients[ci] && r.clients[ci].hour_type;
+        if (cht && cht.name != null && String(cht.name).trim()) {
+          htName = String(cht.name);
+          if (htId == null && cht.id != null) htId = cht.id;
+          break;
+        }
+      }
+    }
+    var direct = num(r.direct_time), indirect = num(r.indirect_time);
+    var travel = num(r.travel_time_before) + num(r.travel_time_after);
+    var durMin = 0;
+    var st = r.start_time, et = r.end_time;
+    if (st && et) {
+      var ms = Date.parse(et) - Date.parse(st);
+      if (isFinite(ms) && ms > 0) durMin = Math.round(ms / 6e4);
+    }
+    if (!durMin && r.time_slot && typeof r.time_slot.duration === "number") durMin = Math.round(r.time_slot.duration / 60);
+    var accounted = direct + indirect + travel;
+    var otherMin = Math.max(0, durMin - accounted);
+    return {
+      directMin: direct,
+      indirectMin: indirect,
+      travelMin: travel,
+      otherMin,
+      durationMin: durMin || accounted,
+      hourTypeName: htName,
+      hourTypeId: htId
+    };
+  }
+  function summarizeWeekRegistrations(detailsList) {
+    var direct = 0, indirect = 0, travel = 0, other = 0, count = 0, byType = /* @__PURE__ */ Object.create(null);
+    var n = function(v) {
+      return typeof v === "number" && isFinite(v) ? v : 0;
+    };
+    (detailsList || []).forEach(function(d) {
+      if (!d) return;
+      var dir = n(d.directMin), ind = n(d.indirectMin), tra = n(d.travelMin), oth = n(d.otherMin);
+      count++;
+      direct += dir;
+      indirect += ind;
+      travel += tra;
+      other += oth;
+      var name = d.hourTypeName || "Onbekend";
+      if (!byType[name]) byType[name] = { type: name, direct: 0, indirect: 0, travel: 0, other: 0 };
+      byType[name].direct += dir;
+      byType[name].indirect += ind;
+      byType[name].travel += tra;
+      byType[name].other += oth;
+    });
+    var clientMin = direct + indirect + travel;
+    var nonClientMin = other;
+    var total = direct + indirect + travel + other;
+    var byHourType = Object.keys(byType).map(function(k) {
+      var r = byType[k];
+      r.minutes = r.direct + r.indirect + r.travel + r.other;
+      return r;
+    }).sort(function(a, b) {
+      return b.minutes - a.minutes;
+    });
+    return {
+      count,
+      totalMinutes: total,
+      directMinutes: direct,
+      indirectMinutes: indirect,
+      travelMinutes: travel,
+      otherMinutes: other,
+      unknownMinutes: other,
+      // 4e verdeling-vak toont de niet-cliënt/overige tijd
+      clientMinutes: clientMin,
+      nonClientMinutes: nonClientMin,
+      directPct: direct + indirect > 0 ? Math.round(direct / (direct + indirect) * 1e3) / 10 : 0,
+      directTargetPct: 80,
+      byHourType,
+      byType: byHourType
+      // per-uursoort opbouw; agendaWeekPanelEl toont .minutes
+    };
+  }
+
+  // src/content/domain/open-registrations.js
+  function isDeclaredClasses(classes) {
+    var c = " " + String(classes || "") + " ";
+    if (/not-declared/.test(c)) return false;
+    return /declared/.test(c);
+  }
+  function isWontDeclareClasses(classes) {
+    return /(^|\s)wont-declare(\s|$)/.test(String(classes || ""));
+  }
+  function classifyAgendaEntry(e, now, lateMs) {
+    if (!e || e.type !== "event" || e.allDay) return null;
+    var date = e.date;
+    if (!date) return null;
+    if (_excludeWeekendYmd(date)) return null;
+    var hasClient = !!e.clientPresent;
+    var hasUursoort = !!(e.hourType && String(e.hourType).trim());
+    if (!hasClient && !hasUursoort) return null;
+    var dur = _entryMinutes(e);
+    if (!(dur > 0)) return null;
+    var startMs = e.startMs != null ? e.startMs : Date.parse(date + "T00:00:00");
+    var endMs = e.endMs != null ? e.endMs : startMs + dur * 6e4;
+    var past = endMs <= now;
+    return {
+      date,
+      cls: hasClient ? "client" : "overig",
+      minutes: dur,
+      startMs,
+      endMs,
+      past,
+      // 'Niet registreren' (wont-declare) telt als afgehandeld, net als geregistreerd.
+      declared: isDeclaredClasses(e.classes) || isWontDeclareClasses(e.classes),
+      late: past && endMs <= now - lateMs
+    };
+  }
+  function parseYmd(ymd2) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtYmd(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function weekStartsBetween(fromYmd, toYmd) {
+    var a = parseYmd(fromYmd), b = parseYmd(toYmd);
+    if (!a || !b || a > b) return [];
+    var mon = new Date(a.getFullYear(), a.getMonth(), a.getDate() - (a.getDay() + 6) % 7);
+    var out = [];
+    while (mon <= b) {
+      out.push(fmtYmd(mon));
+      mon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
+    }
+    return out;
+  }
+  function summarizeOpenRange(entries, opts) {
+    opts = opts || {};
+    var now = opts.now != null ? opts.now : Date.now();
+    var lateMs = (opts.lateHours > 0 ? opts.lateHours : 24) * 36e5;
+    var from = opts.from || "0000-00-00", to = opts.to || "9999-99-99";
+    var byDay = /* @__PURE__ */ Object.create(null), seen = /* @__PURE__ */ Object.create(null);
+    (entries || []).forEach(function(e) {
+      if (!e) return;
+      if (e.id != null) {
+        var k = String(e.id) + "|" + (e.date || "");
+        if (seen[k]) return;
+        seen[k] = 1;
+      }
+      var c = classifyAgendaEntry(e, now, lateMs);
+      if (!c || !c.past || c.declared) return;
+      if (c.date < from || c.date > to) return;
+      var day = byDay[c.date] || (byDay[c.date] = { date: c.date, client: 0, overig: 0, count: 0, lateCount: 0, items: [] });
+      day[c.cls] += c.minutes;
+      day.count++;
+      if (c.late) day.lateCount++;
+      day.items.push({
+        // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
+        key: (e.id != null ? String(e.id) : "x") + "|" + c.date + "|" + c.startMs,
+        start: c.startMs,
+        minutes: c.minutes,
+        client: c.cls === "client",
+        late: c.late,
+        uursoort: e.hourType && String(e.hourType).trim() || ""
+      });
+    });
+    var days = Object.keys(byDay).sort().map(function(d) {
+      byDay[d].items.sort(function(x, y) {
+        return x.start - y.start;
+      });
+      return byDay[d];
+    });
+    return {
+      days,
+      totalMinutes: days.reduce(function(t, d) {
+        return t + d.client + d.overig;
+      }, 0),
+      totalCount: days.reduce(function(t, d) {
+        return t + d.count;
+      }, 0),
+      lateCount: days.reduce(function(t, d) {
+        return t + d.lateCount;
+      }, 0)
+    };
+  }
+  function parseDetectOverlap(json) {
+    if (typeof json === "boolean") return json;
+    if (Array.isArray(json)) return json.length > 0;
+    if (!json || typeof json !== "object") return null;
+    var boolKeys = ["overlap", "overlaps", "has_overlap", "hasOverlap", "overlapping", "is_overlapping", "isOverlapping"];
+    for (var i = 0; i < boolKeys.length; i++) {
+      var v = json[boolKeys[i]];
+      if (typeof v === "boolean") return v;
+      if (Array.isArray(v)) return v.length > 0;
+    }
+    var listKeys = ["registrations", "overlapping_registrations", "conflicts", "items", "data"];
+    for (var j = 0; j < listKeys.length; j++) {
+      if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
+    }
+    return null;
+  }
+  function isoLocalWithOffset(ymd2, minutes) {
+    var d = parseYmd(ymd2);
+    if (!d || typeof minutes !== "number" || !(minutes >= 0) || minutes >= 24 * 60) return null;
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(minutes / 60), minutes % 60);
+    var off = -d.getTimezoneOffset();
+    var sign = off >= 0 ? "+" : "-";
+    var abs = Math.abs(off);
+    var pad = function(n) {
+      return ("0" + n).slice(-2);
+    };
+    return fmtYmd(d) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":00" + sign + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
+  }
+
+  // src/content/domain/event-overlap.js
+  var OVERLAP_PATH = "/event_planner/overlap_detection";
+  var WEG = /client|cli%c3%abnt|cliënt|patient|title|titel|descr|omschr|note|remark|opmerk|comment|name|naam|subject|onderwerp|address|adres|email|phone|telefoon|bsn/i;
+  var EIGEN_AFSPRAAK = /event_id|eventid|occurrence|exclude|except|ignore/i;
+  var EIND = /end|eind|until|till|stop|(^|[_\[])to(\]|$)/i;
+  var BEGIN = /start|begin|from|(^|[_\[])van(\]|$)/i;
+  function paren(query) {
+    var uit = [];
+    String(query || "").replace(/^\?/, "").split("&").forEach(function(p) {
+      if (!p) return;
+      var i = p.indexOf("=");
+      var k = i < 0 ? p : p.slice(0, i), v = i < 0 ? "" : p.slice(i + 1);
+      try {
+        k = decodeURIComponent(k.replace(/\+/g, " "));
+        v = decodeURIComponent(v.replace(/\+/g, " "));
+      } catch (e) {
+        return;
+      }
+      uit.push([k, v]);
+    });
+    return uit;
+  }
+  function soortWaarde(v) {
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return "iso";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return "date";
+    if (/^\d{2}-\d{2}-\d{4}$/.test(v)) return "dateNl";
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(v)) return "time";
+    return "";
+  }
+  function isoVorm(v) {
+    if (/Z$/i.test(v)) return "utc";
+    if (/[+-]\d{2}:?\d{2}$/.test(v)) return "offset";
+    return /T\d{2}:\d{2}:\d{2}/.test(v) ? "naiefSec" : "naief";
+  }
+  function minutenUit(soort, v) {
+    if (soort === "time") {
+      var t = v.split(":");
+      return +t[0] * 60 + +t[1];
+    }
+    if (soort === "iso") {
+      var m = /T(\d{2}):(\d{2})/.exec(v);
+      return m ? +m[1] * 60 + +m[2] : null;
+    }
+    return null;
+  }
+  function learnOverlapTemplate(url) {
+    var s = String(url || "");
+    var q = s.indexOf("?");
+    var pad = (q < 0 ? s : s.slice(0, q)).replace(/^https?:\/\/[^/]+/i, "");
+    if (pad !== OVERLAP_PATH) return null;
+    var params = [], gezien = /* @__PURE__ */ Object.create(null);
+    var tijden = { start: null, end: null }, duurIdx = -1, kapot = false;
+    paren(q < 0 ? "" : s.slice(q + 1)).forEach(function(kv) {
+      var k = kv[0], v = kv[1], lk = k.toLowerCase();
+      if (WEG.test(lk) || EIGEN_AFSPRAAK.test(lk)) return;
+      if (/invitee|employee|medewerker|participant|user_id/.test(lk) && /^\d+(,\d+)*$/.test(v)) {
+        if (gezien[k]) {
+          gezien[k].herhaald = true;
+          return;
+        }
+        var p = { key: k, role: "invitee", sep: v.indexOf(",") >= 0 ? "," : "" };
+        gezien[k] = p;
+        params.push(p);
+        return;
+      }
+      var soort = soortWaarde(v);
+      if (soort) {
+        var eind = EIND.test(lk) && !BEGIN.test(lk);
+        var kant = eind ? "end" : BEGIN.test(lk) ? "start" : null;
+        var basis = soort === "iso" ? "Iso" : soort === "time" ? "Time" : "Date";
+        if (!kant) kant = params.some(function(x) {
+          return x.role === "start" + basis;
+        }) ? "end" : "start";
+        var rol = kant + basis;
+        if (params.some(function(x) {
+          return x.role === rol;
+        })) {
+          kapot = true;
+          return;
+        }
+        var item = { key: k, role: rol };
+        if (soort === "iso") item.form = isoVorm(v);
+        if (soort === "dateNl") item.form = "nl";
+        if (soort === "time") item.form = /:\d{2}:\d{2}$/.test(v) ? "hms" : "hm";
+        var min = minutenUit(soort, v);
+        if (min != null) tijden[kant] = min;
+        params.push(item);
+        return;
+      }
+      if (/duration|duur|length|lengte/.test(lk) && /^\d+$/.test(v)) {
+        duurIdx = params.length;
+        params.push({ key: k, role: "duration", raw: +v });
+        return;
+      }
+      if (/^[\w.\-:+]{0,40}$/.test(v)) params.push({ key: k, role: "literal", value: v });
+    });
+    if (kapot) return null;
+    if (duurIdx >= 0) {
+      var d = params[duurIdx], raw = d.raw;
+      delete d.raw;
+      var verschil = tijden.start != null && tijden.end != null ? tijden.end - tijden.start : null;
+      if (verschil > 0) d.unit = raw === verschil * 60 ? "sec" : "min";
+      else d.unit = raw >= 600 && raw % 60 === 0 ? "sec" : "min";
+    }
+    var heeft = function(r) {
+      return params.some(function(x) {
+        return x.role === r;
+      });
+    };
+    var begin = heeft("startIso") || heeft("startDate") && heeft("startTime");
+    var eindOk = heeft("endIso") || heeft("endTime") || heeft("duration");
+    if (!heeft("invitee") || !begin || !eindOk) return null;
+    params.forEach(function(x) {
+      if (gezien[x.key] === x) x.repeat = !!x.herhaald || /\[\]$/.test(x.key);
+      delete x.herhaald;
+    });
+    return { path: OVERLAP_PATH, params };
+  }
+  function twee(n) {
+    return ("0" + n).slice(-2);
+  }
+  function ymdNl(ymd2) {
+    var p = ymd2.split("-");
+    return p[2] + "-" + p[1] + "-" + p[0];
+  }
+  function isoIn(ymd2, min, vorm) {
+    var off = isoLocalWithOffset(ymd2, min);
+    if (!off) return null;
+    if (vorm === "offset") return off;
+    if (vorm === "utc") return new Date(off).toISOString().replace(/\.\d{3}Z$/, "Z");
+    var naief = off.slice(0, 19);
+    return vorm === "naief" ? naief.slice(0, 16) : naief;
+  }
+  function buildOverlapUrl(tpl, req) {
+    if (!tpl || !Array.isArray(tpl.params) || !req) return null;
+    var ids = (req.ids || []).map(String).filter(function(x) {
+      return /^\d+$/.test(x);
+    });
+    var ymd2 = String(req.date || ""), s = req.startMin, e = req.endMin;
+    if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
+    var delen = [], fout = false;
+    var zet = function(k, v) {
+      delen.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+    };
+    tpl.params.forEach(function(p) {
+      switch (p.role) {
+        case "invitee":
+          if (p.sep) zet(p.key, ids.join(p.sep));
+          else if (p.repeat) ids.forEach(function(id) {
+            zet(p.key, id);
+          });
+          else zet(p.key, ids[0]);
+          break;
+        case "literal":
+          zet(p.key, p.value == null ? "" : p.value);
+          break;
+        case "startIso":
+        case "endIso": {
+          var iso = isoIn(ymd2, p.role === "startIso" ? s : e, p.form);
+          if (!iso) fout = true;
+          else zet(p.key, iso);
+          break;
+        }
+        case "startDate":
+        case "endDate":
+          zet(p.key, p.form === "nl" ? ymdNl(ymd2) : ymd2);
+          break;
+        case "startTime":
+        case "endTime": {
+          var m = p.role === "startTime" ? s : e;
+          zet(p.key, twee(Math.floor(m / 60)) + ":" + twee(m % 60) + (p.form === "hms" ? ":00" : ""));
+          break;
+        }
+        case "duration":
+          zet(p.key, String(p.unit === "sec" ? (e - s) * 60 : e - s));
+          break;
+        default:
+          fout = true;
+      }
+    });
+    if (fout) return null;
+    return tpl.path + "?" + delen.join("&");
+  }
+  function parseEventOverlap(json) {
+    var bekend = parseDetectOverlap(json);
+    if (bekend !== null) return bekend;
+    if (!json || typeof json !== "object") return null;
+    var keys = Object.keys(json);
+    for (var i = 0; i < keys.length; i++) {
+      if (!/overlap|conflict/i.test(keys[i])) continue;
+      var v = json[keys[i]];
+      if (typeof v === "boolean") return v;
+      if (Array.isArray(v)) return v.length > 0;
+      if (typeof v === "number") return v > 0;
+    }
+    var lijsten = keys.filter(function(k) {
+      return Array.isArray(json[k]);
+    });
+    if (keys.length && lijsten.length === keys.length) return lijsten.some(function(k) {
+      return json[k].length > 0;
+    });
+    return null;
+  }
+
+  // src/content/services/ons-api/event-overlap.js
+  var KEY = PAGE_LOCAL.EVENT_OVERLAP_TEMPLATE;
+  function loadOverlapTemplate() {
+    try {
+      const t = JSON.parse(localStorage.getItem(KEY) || "null");
+      return t && Array.isArray(t.params) ? t : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function saveOverlapTemplate(t) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(t));
+    } catch (e) {
+    }
+  }
+  function overlapCheckStatus() {
+    const t = loadOverlapTemplate();
+    if (!t) return "unknown";
+    return t.readable ? "ready" : "unreadable";
+  }
+  function learnFromOnsCall(url, body) {
+    const tpl = learnOverlapTemplate(url);
+    if (!tpl) return false;
+    let json = null;
+    try {
+      json = JSON.parse(String(body || ""));
+    } catch (e) {
+    }
+    tpl.readable = parseEventOverlap(json) !== null;
+    tpl.learnedAt = Date.now();
+    saveOverlapTemplate(tpl);
+    return true;
+  }
+  function listenForOnsOverlapCalls() {
+    try {
+      window.addEventListener("message", function(ev) {
+        if (!ev || ev.origin !== location.origin) return;
+        if (ev.source && ev.source !== window) return;
+        const d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventOverlap") return;
+        learnFromOnsCall(d.url, d.body);
+      }, false);
+    } catch (e) {
+    }
+  }
+  function fetchEventOverlap(req) {
+    const t = loadOverlapTemplate();
+    if (!t || !t.readable) return Promise.resolve(null);
+    const url = buildOverlapUrl(t, req);
+    if (!url) return Promise.resolve(null);
+    return getJson(url).then(parseEventOverlap, function() {
+      return null;
+    });
   }
 
   // src/content/config/loader.js
@@ -3910,241 +4541,6 @@
     return true;
   }
 
-  // src/content/domain/registrations.js
-  function _regUnwrap(json) {
-    if (Array.isArray(json)) return json;
-    if (json && typeof json === "object") {
-      var keys = ["data", "registrations", "items", "results", "content", "rows"];
-      for (var i = 0; i < keys.length; i++) if (Array.isArray(json[keys[i]])) return json[keys[i]];
-      if (json.presenceLogs || json.type || json.duration != null || json.startTime) return [json];
-    }
-    return [];
-  }
-  function _regFlattenLogs(json) {
-    var items = _regUnwrap(json), logs = [];
-    items.forEach(function(it) {
-      if (it && Array.isArray(it.presenceLogs)) {
-        it.presenceLogs.forEach(function(l) {
-          if (l) logs.push(l);
-        });
-      } else if (it && (it.type != null || it.duration != null) && it.type !== "registration") {
-        logs.push(it);
-      }
-    });
-    return logs;
-  }
-  function _regType(t) {
-    var s = String(t == null ? "" : t).toLowerCase();
-    if (/indirect/.test(s)) return "indirect";
-    if (/direct/.test(s)) return "direct";
-    if (/travel|reis/.test(s)) return "travel";
-    return "overig";
-  }
-  function normalizeRegistrationLine(r) {
-    if (!r || typeof r !== "object") return null;
-    var start = r.startTime || r.start_time || null, end = r.endTime || r.end_time || null;
-    var dur = typeof r.duration === "number" ? r.duration : start && end ? Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 6e4)) : 0;
-    return {
-      type: _regType(r.type),
-      minutes: dur,
-      date: start ? String(start).slice(0, 10) : null,
-      removed: !!r.isRemoved,
-      status: r.status || null,
-      clientPresent: !!(r.client && (r.client.id != null || r.client.externalId != null))
-    };
-  }
-  function summarizeRegistrations(json) {
-    var lines = _regFlattenLogs(json).map(normalizeRegistrationLine).filter(function(x) {
-      return x && !x.removed;
-    });
-    var total = 0, direct = 0, indirect = 0, travel = 0, other = 0, clientMin = 0, nonClientMin = 0;
-    lines.forEach(function(l) {
-      total += l.minutes;
-      if (l.type === "direct") direct += l.minutes;
-      else if (l.type === "indirect") indirect += l.minutes;
-      else if (l.type === "travel") travel += l.minutes;
-      else other += l.minutes;
-      if (l.clientPresent) clientMin += l.minutes;
-      else nonClientMin += l.minutes;
-    });
-    var base = direct + indirect;
-    return {
-      count: lines.length,
-      totalMinutes: total,
-      directMinutes: direct,
-      indirectMinutes: indirect,
-      travelMinutes: travel,
-      otherMinutes: other,
-      clientMinutes: clientMin,
-      nonClientMinutes: nonClientMin,
-      directPct: base > 0 ? Math.round(direct / base * 1e3) / 10 : 0,
-      directTargetPct: 80
-    };
-  }
-  function _isWeekendYmd(ymd2) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
-    if (!m) return false;
-    var wd = new Date(+m[1], +m[2] - 1, +m[3]).getDay();
-    return wd === 0 || wd === 6;
-  }
-  function _agGenSettings() {
-    try {
-      return typeof APP_CONFIG !== "undefined" && APP_CONFIG && APP_CONFIG.generalSettings || {};
-    } catch (e) {
-      return {};
-    }
-  }
-  function _countWeekends() {
-    return !!_agGenSettings().countWeekends;
-  }
-  function _excludeWeekendYmd(ymd2) {
-    return _isWeekendYmd(ymd2) && !_countWeekends();
-  }
-  function _nonClientMarker() {
-    var m = _agGenSettings().nonClientMarker;
-    return typeof m === "string" && m ? m : "*";
-  }
-  function _agListSetting(key, dflt) {
-    try {
-      var v = _agGenSettings()[key];
-      if (Array.isArray(v)) return v;
-    } catch (e) {
-    }
-    return dflt;
-  }
-  function _nonClientUursoortList() {
-    return _agListSetting("nonClientUursoorten", []);
-  }
-  function _excludedStatuses() {
-    return _agListSetting("excludedRegistrationStatuses", ["do_not_declare"]);
-  }
-  function _excludedCalendarTypes() {
-    return _agListSetting("excludedCalendarTypes", ["unavailability", "presence"]);
-  }
-  function parseWeekRegistrationOccurrences(json) {
-    var rows = _regUnwrap(json);
-    if (!rows.length && json && Array.isArray(json.entries)) rows = json.entries;
-    var out = [], seen = /* @__PURE__ */ Object.create(null);
-    var exTypes = _excludedCalendarTypes();
-    rows.forEach(function(r) {
-      if (!r || typeof r !== "object") return;
-      for (var x = 0; x < exTypes.length; x++) {
-        if (r[exTypes[x]]) return;
-      }
-      if (r.type != null && String(r.type).toLowerCase() !== "registration") return;
-      var dymd = r.date || (r.start_time ? String(r.start_time).slice(0, 10) : "");
-      if (_excludeWeekendYmd(dymd)) return;
-      var occ = r.occurrence_id || r.occurrenceId || null;
-      if (!occ || seen[occ]) return;
-      seen[occ] = 1;
-      out.push({ occurrenceId: String(occ), clientPresent: Array.isArray(r.clients) && r.clients.length > 0 });
-    });
-    return out;
-  }
-  function parseRegistrationDetails(json) {
-    if (!json || typeof json !== "object") return null;
-    if (!json.registration) {
-      var exT = _excludedCalendarTypes();
-      for (var x = 0; x < exT.length; x++) {
-        if (json[exT[x]]) return null;
-      }
-    }
-    var r = json.registration ? json.registration : json;
-    if (!r || typeof r !== "object") return null;
-    if (r.declaration && typeof r.declaration === "object" && r.declaration.status != null) {
-      var st = String(r.declaration.status), exS = _excludedStatuses();
-      for (var y = 0; y < exS.length; y++) {
-        if (st === String(exS[y])) return null;
-      }
-    }
-    var dymd = r.date || (r.start_time ? String(r.start_time).slice(0, 10) : "");
-    if (_excludeWeekendYmd(dymd)) return null;
-    var num = function(v) {
-      return typeof v === "number" && isFinite(v) ? v : 0;
-    };
-    var ht = r.hour_type && typeof r.hour_type === "object" ? r.hour_type : null;
-    var htName = ht && ht.name != null ? String(ht.name) : "";
-    var htId = ht && ht.id != null ? ht.id : null;
-    if (!htName && Array.isArray(r.clients)) {
-      for (var ci = 0; ci < r.clients.length; ci++) {
-        var cht = r.clients[ci] && r.clients[ci].hour_type;
-        if (cht && cht.name != null && String(cht.name).trim()) {
-          htName = String(cht.name);
-          if (htId == null && cht.id != null) htId = cht.id;
-          break;
-        }
-      }
-    }
-    var direct = num(r.direct_time), indirect = num(r.indirect_time);
-    var travel = num(r.travel_time_before) + num(r.travel_time_after);
-    var durMin = 0;
-    var st = r.start_time, et = r.end_time;
-    if (st && et) {
-      var ms = Date.parse(et) - Date.parse(st);
-      if (isFinite(ms) && ms > 0) durMin = Math.round(ms / 6e4);
-    }
-    if (!durMin && r.time_slot && typeof r.time_slot.duration === "number") durMin = Math.round(r.time_slot.duration / 60);
-    var accounted = direct + indirect + travel;
-    var otherMin = Math.max(0, durMin - accounted);
-    return {
-      directMin: direct,
-      indirectMin: indirect,
-      travelMin: travel,
-      otherMin,
-      durationMin: durMin || accounted,
-      hourTypeName: htName,
-      hourTypeId: htId
-    };
-  }
-  function summarizeWeekRegistrations(detailsList) {
-    var direct = 0, indirect = 0, travel = 0, other = 0, count = 0, byType = /* @__PURE__ */ Object.create(null);
-    var n = function(v) {
-      return typeof v === "number" && isFinite(v) ? v : 0;
-    };
-    (detailsList || []).forEach(function(d) {
-      if (!d) return;
-      var dir = n(d.directMin), ind = n(d.indirectMin), tra = n(d.travelMin), oth = n(d.otherMin);
-      count++;
-      direct += dir;
-      indirect += ind;
-      travel += tra;
-      other += oth;
-      var name = d.hourTypeName || "Onbekend";
-      if (!byType[name]) byType[name] = { type: name, direct: 0, indirect: 0, travel: 0, other: 0 };
-      byType[name].direct += dir;
-      byType[name].indirect += ind;
-      byType[name].travel += tra;
-      byType[name].other += oth;
-    });
-    var clientMin = direct + indirect + travel;
-    var nonClientMin = other;
-    var total = direct + indirect + travel + other;
-    var byHourType = Object.keys(byType).map(function(k) {
-      var r = byType[k];
-      r.minutes = r.direct + r.indirect + r.travel + r.other;
-      return r;
-    }).sort(function(a, b) {
-      return b.minutes - a.minutes;
-    });
-    return {
-      count,
-      totalMinutes: total,
-      directMinutes: direct,
-      indirectMinutes: indirect,
-      travelMinutes: travel,
-      otherMinutes: other,
-      unknownMinutes: other,
-      // 4e verdeling-vak toont de niet-cliënt/overige tijd
-      clientMinutes: clientMin,
-      nonClientMinutes: nonClientMin,
-      directPct: direct + indirect > 0 ? Math.round(direct / (direct + indirect) * 1e3) / 10 : 0,
-      directTargetPct: 80,
-      byHourType,
-      byType: byHourType
-      // per-uursoort opbouw; agendaWeekPanelEl toont .minutes
-    };
-  }
-
   // src/content/ui/controls.js
   function applyOnsahPillStyle(el, opts) {
     opts = opts || {};
@@ -4913,138 +5309,6 @@
       wisUursoorten: (klaar) => clearAllUursoorten(klaar)
     }
   };
-
-  // src/content/domain/open-registrations.js
-  function isDeclaredClasses(classes) {
-    var c = " " + String(classes || "") + " ";
-    if (/not-declared/.test(c)) return false;
-    return /declared/.test(c);
-  }
-  function isWontDeclareClasses(classes) {
-    return /(^|\s)wont-declare(\s|$)/.test(String(classes || ""));
-  }
-  function classifyAgendaEntry(e, now, lateMs) {
-    if (!e || e.type !== "event" || e.allDay) return null;
-    var date = e.date;
-    if (!date) return null;
-    if (_excludeWeekendYmd(date)) return null;
-    var hasClient = !!e.clientPresent;
-    var hasUursoort = !!(e.hourType && String(e.hourType).trim());
-    if (!hasClient && !hasUursoort) return null;
-    var dur = _entryMinutes(e);
-    if (!(dur > 0)) return null;
-    var startMs = e.startMs != null ? e.startMs : Date.parse(date + "T00:00:00");
-    var endMs = e.endMs != null ? e.endMs : startMs + dur * 6e4;
-    var past = endMs <= now;
-    return {
-      date,
-      cls: hasClient ? "client" : "overig",
-      minutes: dur,
-      startMs,
-      endMs,
-      past,
-      // 'Niet registreren' (wont-declare) telt als afgehandeld, net als geregistreerd.
-      declared: isDeclaredClasses(e.classes) || isWontDeclareClasses(e.classes),
-      late: past && endMs <= now - lateMs
-    };
-  }
-  function parseYmd(ymd2) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
-    if (!m) return null;
-    var d = new Date(+m[1], +m[2] - 1, +m[3]);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  function fmtYmd(d) {
-    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
-  }
-  function weekStartsBetween(fromYmd, toYmd) {
-    var a = parseYmd(fromYmd), b = parseYmd(toYmd);
-    if (!a || !b || a > b) return [];
-    var mon = new Date(a.getFullYear(), a.getMonth(), a.getDate() - (a.getDay() + 6) % 7);
-    var out = [];
-    while (mon <= b) {
-      out.push(fmtYmd(mon));
-      mon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
-    }
-    return out;
-  }
-  function summarizeOpenRange(entries, opts) {
-    opts = opts || {};
-    var now = opts.now != null ? opts.now : Date.now();
-    var lateMs = (opts.lateHours > 0 ? opts.lateHours : 24) * 36e5;
-    var from = opts.from || "0000-00-00", to = opts.to || "9999-99-99";
-    var byDay = /* @__PURE__ */ Object.create(null), seen = /* @__PURE__ */ Object.create(null);
-    (entries || []).forEach(function(e) {
-      if (!e) return;
-      if (e.id != null) {
-        var k = String(e.id) + "|" + (e.date || "");
-        if (seen[k]) return;
-        seen[k] = 1;
-      }
-      var c = classifyAgendaEntry(e, now, lateMs);
-      if (!c || !c.past || c.declared) return;
-      if (c.date < from || c.date > to) return;
-      var day = byDay[c.date] || (byDay[c.date] = { date: c.date, client: 0, overig: 0, count: 0, lateCount: 0, items: [] });
-      day[c.cls] += c.minutes;
-      day.count++;
-      if (c.late) day.lateCount++;
-      day.items.push({
-        // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
-        key: (e.id != null ? String(e.id) : "x") + "|" + c.date + "|" + c.startMs,
-        start: c.startMs,
-        minutes: c.minutes,
-        client: c.cls === "client",
-        late: c.late,
-        uursoort: e.hourType && String(e.hourType).trim() || ""
-      });
-    });
-    var days = Object.keys(byDay).sort().map(function(d) {
-      byDay[d].items.sort(function(x, y) {
-        return x.start - y.start;
-      });
-      return byDay[d];
-    });
-    return {
-      days,
-      totalMinutes: days.reduce(function(t, d) {
-        return t + d.client + d.overig;
-      }, 0),
-      totalCount: days.reduce(function(t, d) {
-        return t + d.count;
-      }, 0),
-      lateCount: days.reduce(function(t, d) {
-        return t + d.lateCount;
-      }, 0)
-    };
-  }
-  function parseDetectOverlap(json) {
-    if (typeof json === "boolean") return json;
-    if (Array.isArray(json)) return json.length > 0;
-    if (!json || typeof json !== "object") return null;
-    var boolKeys = ["overlap", "overlaps", "has_overlap", "hasOverlap", "overlapping", "is_overlapping", "isOverlapping"];
-    for (var i = 0; i < boolKeys.length; i++) {
-      var v = json[boolKeys[i]];
-      if (typeof v === "boolean") return v;
-      if (Array.isArray(v)) return v.length > 0;
-    }
-    var listKeys = ["registrations", "overlapping_registrations", "conflicts", "items", "data"];
-    for (var j = 0; j < listKeys.length; j++) {
-      if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
-    }
-    return null;
-  }
-  function isoLocalWithOffset(ymd2, minutes) {
-    var d = parseYmd(ymd2);
-    if (!d || typeof minutes !== "number" || !(minutes >= 0) || minutes >= 24 * 60) return null;
-    d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(minutes / 60), minutes % 60);
-    var off = -d.getTimezoneOffset();
-    var sign = off >= 0 ? "+" : "-";
-    var abs = Math.abs(off);
-    var pad = function(n) {
-      return ("0" + n).slice(-2);
-    };
-    return fmtYmd(d) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":00" + sign + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
-  }
 
   // src/content/services/ons-api/open-registrations.js
   var OVERLAP_TTL_MS = 6e4;
@@ -10234,7 +10498,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.217";
+      return "1.6.218";
     }
   }();
 
@@ -10644,17 +10908,17 @@
   };
 
   // src/content/features/appointment/prefill.js
-  var KEY = PAGE_SESSION.PENDING_APPOINTMENT;
+  var KEY2 = PAGE_SESSION.PENDING_APPOINTMENT;
   var GELDIG_MS = 2 * 60 * 1e3;
   function storePendingAppointment(req) {
     try {
-      sessionStorage.setItem(KEY, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
+      sessionStorage.setItem(KEY2, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
     } catch (e) {
     }
   }
   function readPending() {
     try {
-      const p = JSON.parse(sessionStorage.getItem(KEY) || "null");
+      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
       if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
       return p;
     } catch (e) {
@@ -10663,7 +10927,7 @@
   }
   function clearPending() {
     try {
-      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY2);
     } catch (e) {
     }
   }
@@ -12557,12 +12821,25 @@
     })) * 60);
     return { start, end };
   }
-  function findFreeSlots(minutes, weeks) {
+  function agendaIds() {
     var ids = currentInviteeIds();
     if (!ids.length) {
       var een = currentInviteeId(null) || resolveInviteeId();
       if (een != null) ids = [String(een)];
     }
+    return ids;
+  }
+  function checkSlotWithOns(req) {
+    req = req || {};
+    var status = overlapCheckStatus();
+    var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
+    if (status !== "ready" || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status, overlap: null });
+    return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin, endMin: startMin + minutes }).then(function(o) {
+      return { status, overlap: o };
+    });
+  }
+  function findFreeSlots(minutes, weeks) {
+    var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
     if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
@@ -12611,7 +12888,20 @@
         windowEnd: win.end,
         maxResults: 12
       });
-      return { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length };
+      var res = { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+      if (res.onsCheck !== "ready") return res;
+      var nakijk = createLimiter(3);
+      return Promise.all(gaps.map(function(g) {
+        return nakijk(function() {
+          return fetchEventOverlap({ ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
+        }).then(function(o) {
+          g.ons = o;
+        }, function() {
+          g.ons = null;
+        });
+      })).then(function() {
+        return res;
+      });
     });
   }
 
@@ -12920,6 +13210,19 @@
               }
             }
             return;
+          case MSG.AGENDA_SLOT_CHECK:
+            checkSlotWithOns(msg).then(function(r) {
+              try {
+                sendResponse({ ok: true, status: r.status, overlap: r.overlap });
+              } catch (e) {
+              }
+            }, function() {
+              try {
+                sendResponse({ ok: true, status: "ready", overlap: null });
+              } catch (e2) {
+              }
+            });
+            return true;
           case MSG.AGENDA_FREE_SLOTS:
             cachedFreeSlots(msg.minutes, msg.weeks).then(function(result) {
               try {
@@ -14513,6 +14816,7 @@
   });
   startModuleHost();
   listenForMainWorldDetails();
+  listenForOnsOverlapCalls();
   watchConfigChanges();
   var HELPER_CONFIG_READY = startConfigLoading();
   seedUiOverridesFromConfig();
