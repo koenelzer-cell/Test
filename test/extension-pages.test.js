@@ -488,7 +488,7 @@ test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', asy
   assert.match(document.body.textContent, /Week 42ophalen…/, 'weeknummer klopt meteen, ook tijdens het laden');
 });
 
-test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async () => {
+test('zijpaneel: planhulp zoekt vrije tijd; begintijd tikken = kiezen, één knop in de balk', async () => {
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
@@ -508,24 +508,33 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Vrij blok');
   const starts = [...document.querySelectorAll('[data-start]')].map((b) => b.getAttribute('data-start'));
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past');
+  assert.equal(document.querySelector('[data-selectie]'), null, 'nog niets gekozen: geen balk');
+  for (const weg of ['Moment toevoegen aan selectie', 'Afspraak maken op dit tijdstip', 'Naar deze dag in de agenda', 'Wissen']) assert.equal(knop(document, weg), undefined, weg + ' is weg');
   document.querySelector('[data-start="10:45"]').click();
-  assert.match(document.body.textContent, /Afspraak 10:45 – 11:45/);
+  assert.equal(document.querySelector('[data-start="10:45"]').getAttribute('aria-pressed'), 'true');
+  assert.match(document.querySelector('[data-start="10:45"]').textContent, /✓ 10:45/);
+  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
   await tick();
   assert.match(document.body.textContent, /ONS meldt overlap met een andere afspraak/);
   assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
+  // Nog eens tikken: eruit.
+  document.querySelector('[data-start="10:45"]').click();
+  assert.equal(document.querySelector('[data-selectie]'), null);
+  // 11:00 kiezen: één moment -> 'Afspraak maken'.
   document.querySelector('[data-start="11:00"]').click();
   await tick();
   assert.doesNotMatch(document.body.textContent, /ONS meldt|ONS kijkt/, 'geen overlap: geen melding');
-  knop(document, 'Afspraak maken op dit tijdstip').click();
-  assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60 });
-  knop(document, 'Naar deze dag in de agenda').click();
+  knop(document, 'Afspraak maken').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [] });
+  knop(document, 'Naar deze dag').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
   knop(document, 'Terug').click();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'terug naar de lijst vrije blokken');
   assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
+  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'de balk loopt mee naar de lijst');
 });
 
-test('zijpaneel: planhulp - meerdere momenten kiezen, één afspraak met kopieën', async () => {
+test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, één afspraak met kopieën', async () => {
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
@@ -540,25 +549,31 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, één afspraak met kopieë
   assert.equal(verzonden.at(-1).to, '', 'zonder einddatum zoekt hij per aantal weken');
   assert.match(document.body.textContent, /Of zoek tot en met/);
   const blokken = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok');
+  const lijstReservering = document.querySelector('[data-reservering]');
+  assert.equal(lijstReservering.textContent, 'Reservering', 'blok dat begint in een reservering');
+  assert.match(lijstReservering.title, /JG Verslaglegging \(08:00–09:00\)/);
   blokken()[0].click();
   document.querySelector('[data-start="10:45"]').click();
-  knop(document, 'Moment toevoegen aan selectie').click();
-  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
-  assert.ok(knop(document, 'Uit selectie halen'));
+  document.querySelector('[data-start="11:00"]').click();
+  assert.deepEqual([...document.querySelectorAll('[data-start][aria-pressed="true"]')].map((b) => b.getAttribute('data-start')), ['11:00'], 'overlappende momenten op dezelfde dag vervangen elkaar');
+  document.querySelector('[data-start="10:30"]').click();
   knop(document, 'Terug').click();
-  assert.match(document.body.textContent, /1 moment gekozen/);
-  assert.equal(document.querySelector('[data-reservering]').textContent, 'Reservering', 'blok dat begint in een reservering');
-  assert.match(document.querySelector('[data-reservering]').title, /JG Verslaglegging \(08:00–09:00\)/);
   blokken()[1].click();
-  assert.match(document.body.textContent, /Reservering: JG Verslaglegging \(08:00–09:00\)/, 'begintijd 08:00 valt in de reservering');
+  const r = document.querySelector('[data-start="08:00"]');
+  assert.equal(r.getAttribute('data-reservering'), 'JG Verslaglegging', 'begintijd in een reservering krijgt R');
+  assert.match(r.textContent, /08:00R/);
+  assert.equal(document.querySelector('[data-start="09:00"]').getAttribute('data-reservering'), null, '09:00 valt erbuiten');
+  assert.match(document.body.textContent, /R = valt in reservering JG Verslaglegging \(08:00–09:00\)/);
   document.querySelector('[data-start="09:00"]').click();
-  assert.equal(document.querySelector('[data-reservering]'), null, '09:00 valt erbuiten');
-  knop(document, 'Moment toevoegen aan selectie').click();
-  assert.equal(document.querySelector('[data-selectie]').parentElement.firstElementChild, document.querySelector('[data-selectie]'), 'selectiekaart bovenaan');
-  assert.match(document.body.textContent, /2 momenten gekozen.*do 8 okt10:45 – 11:45.*di 13 okt09:00 – 10:00/s);
-  assert.doesNotMatch(document.body.textContent, /Je maakt de afspraak één keer in ONS/);
+  const balk = document.querySelector('[data-selectie]');
+  assert.equal(balk.getAttribute('data-selectie'), '2');
+  assert.equal(balk.parentElement.lastElementChild, balk, 'balk onderaan');
+  assert.equal(knop(document, 'Alles wissen'), undefined, 'wissen pas na openklappen');
+  document.querySelector('[data-teller]').click();
+  assert.match(document.querySelector('[data-selectie]').textContent, /do 8 okt10:30 – 11:30.*di 13 okt09:00 – 10:00/s);
+  assert.ok(knop(document, 'Alles wissen'));
   knop(document, 'Afspraak maken op 2 momenten').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }] });
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }] });
   // Na het opslaan in ONS meldt het content-script de kopieën.
   knop(document, 'Terug').click();
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));

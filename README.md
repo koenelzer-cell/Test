@@ -148,8 +148,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   in ONS), dan kijkt hij elk blok en de gekozen begintijd daar ook na: een
   vinkje is akkoord, 'ONS: overlap' niet. Zoeken kan 1, 2 of 4 weken vooruit,
   of tot en met een zelfgekozen datum (hooguit een half jaar).
-  Zelfde afspraak op meerdere momenten: voeg per vrij blok een moment toe aan
-  je selectie en kies 'Afspraak maken op n momenten'. Je maakt de afspraak één
+  Open een vrij blok en tik op begintijden om ze te kiezen (nog eens tikken
+  haalt ze eruit); dat kan in meerdere blokken. De gekozen momenten staan in
+  een vaste balk onderin met één knop 'Afspraak maken (op n momenten)'; klik
+  op de teller om de lijst te zien en daar momenten weg te halen of alles te
+  wissen. Je maakt de afspraak één
   keer in ONS; na het opslaan maakt de hulp dezelfde afspraak (zelfde cliënt,
   label, uursoort enz.) op de andere momenten. Niet voor herhalende afspraken.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
@@ -159,9 +162,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open
   (/invitees/13970,45267/...), dan zoekt hij tijd waarop iedereen vrij is, en
-  opent 'Afspraak maken' het formulier met alle personen erin. Klik op een blok voor de
-  opties: een begintijd kiezen en een nieuwe afspraak openen (de hulp vult de
-  datum en begintijd in het ONS-formulier in), of naar die dag in de agenda.
+  opent 'Afspraak maken' het formulier met alle personen erin. De hulp vult in het
+  ONS-formulier de datum en begintijd van het eerste moment in; 'Naar deze dag'
+  naast de datum van een blok opent die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 
