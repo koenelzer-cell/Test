@@ -195,23 +195,42 @@ test('zijpaneel: toont de Agendahulp als het tabblad op de agenda staat', async 
   assert.doesNotMatch(document.body.textContent, /Geen ONS-scherm open|Niets om te tonen|Kon het tabblad niet vinden/);
 });
 
-test('zijpaneel: hoort bij zijn ONS-tabblad - ander tabblad kiezen sluit niets, eigen tabblad uit ONS wel', async () => {
+test('zijpaneel: blijft open bij een ander tabblad (melding) en staat er weer bij terugkeer in ONS', async () => {
   let gesloten = 0;
-  const poortBerichten = [];
-  const { dom, env } = zijpaneelMetAgenda((e) => {
-    e.chrome.tabs.get = (id, cb) => cb({ id, active: true, windowId: 1, url: undefined });
-    e.chrome.runtime.connect = () => ({ postMessage: (m) => poortBerichten.push(m) });
-    e.chrome.sidePanel = {};
+  const tabs = { 5: 'https://impegno.onsagenda.nl/invitees/1', 9: undefined };
+  const { dom, env, document } = zijpaneelMetAgenda((e) => {
+    e.chrome.tabs.get = (id, cb) => cb({ id, active: true, windowId: 1, url: tabs[id] });
   });
   dom.window.close = () => { gesloten++; };
   await tick();
-  assert.deepEqual(JSON.parse(JSON.stringify(poortBerichten)), [{ tabId: 5 }], 'meldt zijn tabblad aan de worker');
   env.listeners['tabs.onActivated'][0]({ tabId: 9, windowId: 1 });
   await tick();
-  assert.equal(gesloten, 0, 'ander tabblad: Chrome verbergt het paneel, wij sluiten niets');
-  env.listeners['tabs.onUpdated'][0](5, { status: 'loading' }, { id: 5, active: true, windowId: 1, url: undefined });
+  assert.equal(gesloten, 0, 'ander tabblad: niet sluiten');
+  assert.match(document.body.textContent, /Niet in ONS/);
+  env.listeners['tabs.onActivated'][0]({ tabId: 5, windowId: 1 });
   await tick();
-  assert.equal(gesloten, 1, 'eigen tabblad gaat naar een site buiten ONS: dicht');
+  assert.match(document.querySelector('#paneel').textContent, /Agendahulp/, 'terug in ONS: agendapaneel weer zichtbaar');
+  assert.equal(gesloten, 0);
+});
+
+test('zijpaneel: ONS-scherm zonder agenda (afspraakformulier) sluit snel', async () => {
+  let gesloten = 0;
+  let opAgenda = true;
+  const { dom, env } = zijpaneelMetAgenda((e) => {
+    e.chrome.tabs.sendMessage = (id, msg, cb) => {
+      if (msg.type === 'ag-get-state') cb({ state: opAgenda ? AGENDA_STATE : null });
+      else if (cb) cb(undefined);
+    };
+  });
+  dom.window.close = () => { gesloten++; };
+  await tick();
+  opAgenda = false;
+  const tab = { id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/events/new?invitee_ids%5B%5D=1' };
+  const t0 = Date.now();
+  env.listeners['tabs.onUpdated'][0](5, { url: tab.url }, tab);
+  while (!gesloten && Date.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(gesloten, 1);
+  assert.ok(Date.now() - t0 < 1800, 'binnen ~1,5 s dicht (was 5 s): ' + (Date.now() - t0) + ' ms');
 });
 
 test('zijpaneel: blijft open bij navigeren binnen de agenda, en negeert andere vensters', async () => {
@@ -229,19 +248,15 @@ test('zijpaneel: blijft open bij navigeren binnen de agenda, en negeert andere v
   assert.equal(gesloten, 0);
 });
 
-test('service worker: zijpaneel per ONS-tabblad aan, elders uit, niet opnieuw bij navigeren binnen ONS', () => {
+test('service worker: zet het venster-brede zijpaneel aan bij het starten', () => {
   const env = fakeChrome();
   const opties = [];
   env.chrome.sidePanel.setOptions = (o) => { opties.push({ ...o }); return Promise.resolve(); };
-  env.chrome.tabs.query = (q, cb) => cb([{ id: 3, url: 'https://impegno.onsagenda.nl/invitees/1/calendar' }, { id: 4, url: undefined }]);
   const ctx = vm.createContext({ chrome: env.chrome, setTimeout, clearTimeout, console, Date, Promise, JSON, Math, Object, Array, String, Number, isFinite, parseInt });
   vm.runInContext(read('dist/background.js'), ctx);
-  assert.deepEqual(opties.slice(0, 3), [{ enabled: false }, { tabId: 3, path: 'pages/sidepanel.html', enabled: true }, { tabId: 4, enabled: false }]);
-  const upd = env.listeners['tabs.onUpdated'][0];
-  upd(3, { url: 'https://impegno.onsagenda.nl/invitees/1/calendar?date=2026-10-12' }, { id: 3, url: 'https://impegno.onsagenda.nl/invitees/1/calendar?date=2026-10-12' });
-  assert.equal(opties.length, 3, 'binnen ONS navigeren: niets opnieuw instellen');
-  upd(3, { status: 'loading' }, { id: 3, url: undefined });
-  assert.deepEqual(opties.at(-1), { tabId: 3, enabled: false }, 'tabblad gaat uit ONS: paneel uit');
+  assert.deepEqual(opties, [{ path: 'pages/sidepanel.html', enabled: true }], 'geen instellingen per tabblad meer');
+  env.listeners['tabs.onUpdated'][0](3, { url: 'https://example.org/' }, { id: 3, url: undefined });
+  assert.equal(opties.length, 1);
 });
 
 test('service worker: opent alleen https-adressen in een nieuw tabblad naast het huidige', async () => {
@@ -596,13 +611,14 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   assert.ok(knop(document, 'Alles wissen'));
   knop(document, 'Afspraak maken op 2 momenten').click();
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }], eigen: [] });
-  // Vinkje 'andere instellingen' bij het eerste moment: dan opent eerst het
-  // formulier voor het andere moment (met kopieën), daarna een eigen formulier.
-  assert.match(document.body.textContent, /Apart afspraakformulier/, 'vinkje per gekozen tijd in dit blok');
-  const vink = document.querySelector('[data-eigen="2026-10-08 10:30"]');
+  // Vinkje 'Apart afspraakformulier': niet bij het eerste moment (dat is het
+  // formulier zelf), wel bij de rest. Aangevinkt: geen kopie maar een eigen formulier.
+  assert.equal(document.querySelector('[data-eigen="2026-10-08 10:30"]'), null, 'eerste moment: geen vinkje');
+  assert.match(document.body.textContent, /Apart afspraakformulier/, 'vinkje bij de gekozen tijd in dit blok');
+  const vink = document.querySelector('[data-eigen="2026-10-13 09:00"]');
   vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
   knop(document, 'Afspraak maken op 2 momenten').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-13', time: '09:00', minutes: 60, extra: [], eigen: [{ date: '2026-10-08', time: '10:30' }] });
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [], eigen: [{ date: '2026-10-13', time: '09:00' }] });
   // Na het opslaan in ONS meldt het content-script de kopieën.
   knop(document, 'Terug').click();
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));

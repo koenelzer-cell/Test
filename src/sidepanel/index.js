@@ -23,12 +23,6 @@ const NIETS_TEKST = 'Ga in ONS naar de agenda of open een cliëntvragenlijst; he
 const host = document.getElementById('paneel');
 let huidig = null;        // { soort: 'agenda' | 'vragenlijst', paneel }
 let onsTabId = null;
-// Het ONS-tabblad waarbij dit paneel hoort. Chrome geeft elk ONS-tabblad een
-// eigen zijpaneel (background/side-panel.js): wissel je van tabblad, dan
-// verbergt Chrome het en kom je terug, dan staat het er weer. Dit paneel kijkt
-// dan alleen naar zijn eigen tabblad.
-let mijnTab = null;
-let poort = null;
 
 function leeg() {
   if (huidig) { huidig.paneel.destroy(); huidig = null; }
@@ -214,13 +208,6 @@ function sluitZijpaneel() {
   annuleerSluiten();
   if (onsTabId != null) meldStand(onsTabId, false);
   try {
-    if (mijnTab != null && chrome.sidePanel && typeof chrome.sidePanel.close === 'function') {
-      const r = chrome.sidePanel.close({ tabId: mijnTab });
-      if (r && typeof r.catch === 'function') r.catch(function () { window.close(); });
-      return;
-    }
-  } catch (e) {}
-  try {
     if (chrome.sidePanel && typeof chrome.sidePanel.close === 'function' && mijnVenster != null) {
       const r = chrome.sidePanel.close({ windowId: mijnVenster });
       if (r && typeof r.catch === 'function') r.catch(function () { window.close(); });
@@ -230,25 +217,46 @@ function sluitZijpaneel() {
   window.close();
 }
 
-// Na een navigatie: is er iets te tonen? Zo ja, dan blijft het paneel open
-// (een binnenkomende toestand annuleert het sluiten). Zo niet, dan dicht.
+// Na een navigatie of tabwissel: is er iets te tonen?
+//  - Ander tabblad of site buiten ONS: het paneel blijft open met een korte
+//    melding. Zo staat het meteen weer klaar als je terugkomt in ONS (Chrome
+//    laat een extensie het paneel niet zelf heropenen).
+//  - ONS-scherm zonder agenda of vragenlijst (bijv. een afspraakformulier):
+//    dicht, zodra de pagina antwoordt dat er niets is (meestal binnen ~1 s).
+//    Antwoordt de pagina nog niet (nog aan het laden), dan wachten we tot
+//    SLUIT_NA_MS.
+const KIJK_ELKE_MS = 500;
 function naNavigatie(tab) {
   annuleerSluiten();
-  if (!tab || !isOnsUrl(tab.url)) { sluitZijpaneel(); return; }
+  if (!tab || !isOnsUrl(tab.url)) {
+    if (onsTabId != null) meldStand(onsTabId, false);
+    onsTabId = null;
+    toonMelding('Niet in ONS', 'Ga terug naar je ONS-tabblad; de Agendahulp staat dan meteen weer klaar.');
+    return;
+  }
   onsTabId = tab.id;
   vraagToestand(tab.id);
-  sluitTimer = setTimeout(function () {
+  const begin = Date.now();
+  let leegAchterElkaar = 0;
+  const kijk = function () {
     sluitTimer = null;
-    // Laatste kans: misschien is het content-script net klaar.
     chrome.tabs.sendMessage(tab.id, { type: MSG.SURVEY_GET_STATE }, function (res) {
       void chrome.runtime.lastError;
       if (res && res.state) return;
       chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function (res2) {
         void chrome.runtime.lastError;
-        if (!(res2 && res2.state)) sluitZijpaneel();
+        if (res2 && res2.state) return;
+        // De agendahulp draait op elk ONS-scherm en antwoordt altijd; zegt hij
+        // twee keer achter elkaar 'niets' (één keer kan een tussenstap bij het
+        // wisselen van scherm zijn), dan dicht. Geen antwoord = nog aan het laden.
+        if (res2 && typeof res2 === 'object') leegAchterElkaar++;
+        else leegAchterElkaar = 0;
+        if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) { sluitZijpaneel(); return; }
+        sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
       });
     });
-  }, SLUIT_NA_MS);
+  };
+  sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
 }
 
 function inMijnVenster(windowId) {
@@ -263,9 +271,6 @@ try {
 // paneel hangen op het vorige scherm.
 try {
   chrome.tabs.onActivated.addListener(function (info) {
-    // Paneel van één tabblad: een ander tabblad kiezen verbergt het (Chrome),
-    // er valt niets te sluiten of te wisselen.
-    if (mijnTab != null) return;
     if (!inMijnVenster(info && info.windowId)) return;
     if (onsTabId != null && onsTabId !== info.tabId) meldStand(onsTabId, false);
     onsTabId = null;
@@ -275,7 +280,6 @@ try {
     });
   });
   chrome.tabs.onUpdated.addListener(function (tabId, info, tab) {
-    if (mijnTab != null && tabId !== mijnTab) return;
     if (!tab || !tab.active || !inMijnVenster(tab.windowId)) return;
     // Alleen een echte paginawissel telt: een nieuwe URL, of het begin van
     // laden (naar een site buiten ONS geeft Chrome ons de URL niet door).
@@ -285,28 +289,16 @@ try {
 
 // Zolang deze poort openstaat weten de pagina's dat het zijpaneel actief is:
 // het pagina-paneel blijft dan weg en het randlipje verbergt zich.
-try { poort = chrome.runtime.connect({ name: SIDEPANEL_PORT }); } catch (e) {}
-
-// Bij welk tabblad hoort dit paneel? Het tabblad waarin het werd geopend: het
-// actieve in dit venster. Is dat ONS, dan volgen we alleen dat tabblad.
-function start() {
+// Herstart de worker (dat doet Chrome geregeld), dan valt de poort weg: opnieuw
+// verbinden, anders denkt de ONS-pagina dat het paneel dicht is (of open, en
+// blijft het randlipje weg).
+function verbind() {
   try {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      void chrome.runtime.lastError;
-      const t = tabs && tabs[0];
-      if (t && t.id != null && isOnsUrl(t.url)) {
-        mijnTab = t.id;
-        try { if (poort && poort.postMessage) poort.postMessage({ tabId: mijnTab }); } catch (e) {}
-        vraagToestand(mijnTab);
-        return;
-      }
-      zoekOnsTab();
-    });
-  } catch (e) { zoekOnsTab(); }
+    const p = chrome.runtime.connect({ name: SIDEPANEL_PORT });
+    if (p && p.onDisconnect && p.onDisconnect.addListener) {
+      p.onDisconnect.addListener(function () { void chrome.runtime.lastError; setTimeout(verbind, 300); });
+    }
+  } catch (e) {}
 }
-// Weer zichtbaar (terug naar het ONS-tabblad): meteen bijwerken.
-document.addEventListener('visibilitychange', function () {
-  if (document.visibilityState === 'visible' && mijnTab != null) vraagToestand(mijnTab);
-});
-
-start();
+verbind();
+zoekOnsTab();

@@ -1141,6 +1141,8 @@ export function create(host, actions) {
       BEWAARD.momenten.push({ date: date, startMin: startMin });
     }
     BEWAARD.momenten.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
+    // Het eerste moment is altijd het formulier zelf, nooit apart.
+    if (BEWAARD.momenten[0]) BEWAARD.momenten[0].eigen = false;
     BEWAARD.kopie = null;
   }
   // Vinkje 'Andere instellingen': dit moment krijgt geen kopie maar een eigen
@@ -1166,11 +1168,11 @@ export function create(host, actions) {
   function maakOpMomenten(fout) {
     var ms = BEWAARD.momenten;
     if (!ms.length || !actions.onNewEvent) return;
-    // Zelfde instellingen: één formulier, de rest wordt een kopie. Andere
-    // instellingen: elk een eigen formulier, na elkaar.
-    var zelfde = ms.filter(function (m) { return !m.eigen; });
-    var eigen = ms.filter(function (m) { return m.eigen; });
-    var eerste = zelfde.length ? zelfde.shift() : eigen.shift();
+    // Het eerste moment opent het formulier; daarop lijken de kopieën.
+    // Momenten met een apart formulier krijgen daarna elk een eigen formulier.
+    var eerste = ms[0];
+    var zelfde = ms.slice(1).filter(function (m) { return !m.eigen; });
+    var eigen = ms.slice(1).filter(function (m) { return m.eigen; });
     var tijd = function (m) { return { date: m.date, time: hm(m.startMin) }; };
     actions.onNewEvent({
       date: eerste.date, time: hm(eerste.startMin), minutes: plan.minutes,
@@ -1191,12 +1193,13 @@ export function create(host, actions) {
     balk.setAttribute('data-selectie', String(n));
     if (BEWAARD.balkOpen) {
       var lijst = el('div', { display: 'flex', flexDirection: 'column', margin: '0 0 6px' });
-      BEWAARD.momenten.forEach(function (m) {
+      BEWAARD.momenten.forEach(function (m, i) {
         var rij = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.ink, minHeight: '30px', borderBottom: '1px solid ' + T.lineSoft });
         rij.appendChild(el('span', { flex: '0 0 74px', fontWeight: '600' }, dayLabel(m.date)));
         rij.appendChild(el('span', { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }, hm(m.startMin) + ' – ' + hm(m.startMin + plan.minutes)));
-        var vink = eigenVinkje(m, 'Apart formulier');
-        vink.style.flex = '1 1 auto'; vink.style.justifyContent = 'flex-end'; vink.style.color = T.inkSoft; vink.style.fontSize = '12px';
+        // Het eerste moment is het formulier zelf: geen vinkje.
+        var vink = i === 0 ? el('span', { flex: '1 1 auto' }) : eigenVinkje(m, 'Apart formulier');
+        if (i > 0) { vink.style.flex = '1 1 auto'; vink.style.justifyContent = 'flex-end'; vink.style.color = T.inkSoft; vink.style.fontSize = '12px'; }
         rij.appendChild(vink);
         var weg = el('button', { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '16px', lineHeight: '1', padding: '2px 6px', borderRadius: '6px' }, '\u00d7');
         weg.type = 'button';
@@ -1810,7 +1813,7 @@ export function create(host, actions) {
     box.appendChild(fieldLabel('Begintijd', starts));
     if (metRes.length) box.appendChild(txt('help', 'R = valt in reservering ' + reserveringTekst(metRes), { margin: '8px 0 0' }));
     // Per gekozen tijd in dit blok: andere instellingen dan de rest?
-    var hier = BEWAARD.momenten.filter(function (x) { return x.date === g.date && x.startMin >= g.startMin && x.startMin + duur <= g.endMin; });
+    var hier = BEWAARD.momenten.slice(1).filter(function (x) { return x.date === g.date && x.startMin >= g.startMin && x.startMin + duur <= g.endMin; });
     if (hier.length && BEWAARD.momenten.length > 1) {
       var vinken = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', margin: '10px 0 0' });
       // Eén gekozen tijd in dit blok: alleen de tekst; meer: met de tijd ervoor.

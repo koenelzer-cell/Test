@@ -203,16 +203,21 @@ die klaarstaan geeft `main-world` het opslaan-verzoek van ONS door (POST
 verzoek terug naar ONS, met alleen `valid_from`, `start_time` en `end_time`
 verschoven; de duur is die van de opgeslagen afspraak. Het verzoek (met
 cliëntgegevens zoals ONS ze zelf verstuurt) blijft alleen in het geheugen.
-Herhalende afspraken worden niet gekopieerd. Momenten met 'andere
-instellingen' (`eigen` in dezelfde sleutel) krijgen geen kopie: na elk
+Herhalende afspraken worden niet gekopieerd. Momenten met 'Apart
+afspraakformulier' (`eigen` in dezelfde sleutel; nooit het eerste moment,
+dat is het formulier zelf) krijgen geen kopie: na elk
 opslaan opent de hulp het formulier voor het volgende eigen moment (zelfde
 medewerkers, datum en begintijd vooraf ingevuld).
 
-Het zijpaneel hoort bij één ONS-tabblad (`chrome.sidePanel.setOptions` per
-tabblad, standaard uit; `background/side-panel.js`). Wissel je van tabblad,
-dan verbergt Chrome het; kom je terug, dan staat het er weer. Het paneel
-meldt over zijn poort bij welk tabblad het hoort, zodat het randlipje alleen
-in dat tabblad wijkt.
+Het zijpaneel geldt voor het hele venster. Wissel je naar een tabblad buiten
+ONS, dan blijft het open met de melding 'Niet in ONS'; terug in ONS staat het
+meteen weer klaar (Chrome laat een extensie het paneel niet zelf heropenen,
+dus sluiten we het daar niet). Op een ONS-scherm zonder agenda of vragenlijst
+(zoals een afspraakformulier) sluit het zodra de pagina twee keer 'niets'
+antwoordt (~1 s). Valt de poort weg doordat de worker herstart, dan verbindt
+het paneel opnieuw; het randlipje vraagt bij terugkeer op het tabblad opnieuw
+of het paneel openstaat. (1.6.223/224 probeerden een paneel per tabblad; dat
+kwam niet terug na een tabwissel en is teruggedraaid.)
 
 Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
 (same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).

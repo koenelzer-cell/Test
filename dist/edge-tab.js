@@ -257,6 +257,16 @@
         void chrome.runtime.lastError;
         if (r && r.open) setOpen(true);
       });
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState !== "visible") return;
+        try {
+          chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function(r) {
+            void chrome.runtime.lastError;
+            if (r && typeof r.open === "boolean") setOpen(r.open);
+          });
+        } catch (e) {
+        }
+      });
     } catch (e) {
     }
     function start() {

@@ -628,8 +628,8 @@
       }
       knop.addEventListener("click", function(e) {
         e.preventDefault();
-        var start2 = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
-        toon2 = new Date(start2.getFullYear(), start2.getMonth(), 1);
+        var start = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
+        toon2 = new Date(start.getFullYear(), start.getMonth(), 1);
         openVoor(knop, function(p) {
           p.setAttribute("role", "dialog");
           p.setAttribute("aria-label", "Kies een datum");
@@ -1460,9 +1460,9 @@
         if (pagina === "plan") renderPagina();
       }, plan.tot);
     }
-    function reserveringenIn(g, start2, duur) {
+    function reserveringenIn(g, start, duur) {
       return (g.reservations || []).filter(function(r) {
-        return r.startMin < start2 + duur && r.endMin > start2;
+        return r.startMin < start + duur && r.endMin > start;
       });
     }
     function reserveringTekst(rs) {
@@ -1490,6 +1490,7 @@
       BEWAARD.momenten.sort(function(a, b) {
         return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin;
       });
+      if (BEWAARD.momenten[0]) BEWAARD.momenten[0].eigen = false;
       BEWAARD.kopie = null;
     }
     function eigenVinkje(m, tekst) {
@@ -1518,13 +1519,13 @@
     function maakOpMomenten(fout) {
       var ms = BEWAARD.momenten;
       if (!ms.length || !actions.onNewEvent) return;
-      var zelfde = ms.filter(function(m) {
+      var eerste = ms[0];
+      var zelfde = ms.slice(1).filter(function(m) {
         return !m.eigen;
       });
-      var eigen = ms.filter(function(m) {
+      var eigen = ms.slice(1).filter(function(m) {
         return m.eigen;
       });
-      var eerste = zelfde.length ? zelfde.shift() : eigen.shift();
       var tijd = function(m) {
         return { date: m.date, time: hm(m.startMin) };
       };
@@ -1551,15 +1552,17 @@
       balk.setAttribute("data-selectie", String(n));
       if (BEWAARD.balkOpen) {
         var lijst = el("div", { display: "flex", flexDirection: "column", margin: "0 0 6px" });
-        BEWAARD.momenten.forEach(function(m) {
+        BEWAARD.momenten.forEach(function(m, i) {
           var rij = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: T.ink, minHeight: "30px", borderBottom: "1px solid " + T.lineSoft });
           rij.appendChild(el("span", { flex: "0 0 74px", fontWeight: "600" }, dayLabel(m.date)));
           rij.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, hm(m.startMin) + " – " + hm(m.startMin + plan.minutes)));
-          var vink = eigenVinkje(m, "Apart formulier");
-          vink.style.flex = "1 1 auto";
-          vink.style.justifyContent = "flex-end";
-          vink.style.color = T.inkSoft;
-          vink.style.fontSize = "12px";
+          var vink = i === 0 ? el("span", { flex: "1 1 auto" }) : eigenVinkje(m, "Apart formulier");
+          if (i > 0) {
+            vink.style.flex = "1 1 auto";
+            vink.style.justifyContent = "flex-end";
+            vink.style.color = T.inkSoft;
+            vink.style.fontSize = "12px";
+          }
           rij.appendChild(vink);
           var weg = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 6px", borderRadius: "6px" }, "×");
           weg.type = "button";
@@ -2308,7 +2311,7 @@
       }
       box.appendChild(fieldLabel("Begintijd", starts));
       if (metRes.length) box.appendChild(txt("help", "R = valt in reservering " + reserveringTekst(metRes), { margin: "8px 0 0" }));
-      var hier = BEWAARD.momenten.filter(function(x) {
+      var hier = BEWAARD.momenten.slice(1).filter(function(x) {
         return x.date === g.date && x.startMin >= g.startMin && x.startMin + duur <= g.endMin;
       });
       if (hier.length && BEWAARD.momenten.length > 1) {
@@ -2833,8 +2836,6 @@
   var host = document.getElementById("paneel");
   var huidig = null;
   var onsTabId = null;
-  var mijnTab = null;
-  var poort = null;
   function leeg() {
     if (huidig) {
       huidig.paneel.destroy();
@@ -3033,16 +3034,6 @@
     annuleerSluiten();
     if (onsTabId != null) meldStand(onsTabId, false);
     try {
-      if (mijnTab != null && chrome.sidePanel && typeof chrome.sidePanel.close === "function") {
-        const r = chrome.sidePanel.close({ tabId: mijnTab });
-        if (r && typeof r.catch === "function") r.catch(function() {
-          window.close();
-        });
-        return;
-      }
-    } catch (e) {
-    }
-    try {
       if (chrome.sidePanel && typeof chrome.sidePanel.close === "function" && mijnVenster != null) {
         const r = chrome.sidePanel.close({ windowId: mijnVenster });
         if (r && typeof r.catch === "function") r.catch(function() {
@@ -3054,25 +3045,38 @@
     }
     window.close();
   }
+  var KIJK_ELKE_MS = 500;
   function naNavigatie(tab) {
     annuleerSluiten();
     if (!tab || !isOnsUrl(tab.url)) {
-      sluitZijpaneel();
+      if (onsTabId != null) meldStand(onsTabId, false);
+      onsTabId = null;
+      toonMelding("Niet in ONS", "Ga terug naar je ONS-tabblad; de Agendahulp staat dan meteen weer klaar.");
       return;
     }
     onsTabId = tab.id;
     vraagToestand(tab.id);
-    sluitTimer = setTimeout(function() {
+    const begin = Date.now();
+    let leegAchterElkaar = 0;
+    const kijk = function() {
       sluitTimer = null;
       chrome.tabs.sendMessage(tab.id, { type: MSG.SURVEY_GET_STATE }, function(res) {
         void chrome.runtime.lastError;
         if (res && res.state) return;
         chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function(res2) {
           void chrome.runtime.lastError;
-          if (!(res2 && res2.state)) sluitZijpaneel();
+          if (res2 && res2.state) return;
+          if (res2 && typeof res2 === "object") leegAchterElkaar++;
+          else leegAchterElkaar = 0;
+          if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) {
+            sluitZijpaneel();
+            return;
+          }
+          sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
         });
       });
-    }, SLUIT_NA_MS);
+    };
+    sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
   }
   function inMijnVenster(windowId) {
     return mijnVenster == null || windowId == null || windowId === mijnVenster;
@@ -3086,7 +3090,6 @@
   }
   try {
     chrome.tabs.onActivated.addListener(function(info) {
-      if (mijnTab != null) return;
       if (!inMijnVenster(info && info.windowId)) return;
       if (onsTabId != null && onsTabId !== info.tabId) meldStand(onsTabId, false);
       onsTabId = null;
@@ -3096,39 +3099,24 @@
       });
     });
     chrome.tabs.onUpdated.addListener(function(tabId, info, tab) {
-      if (mijnTab != null && tabId !== mijnTab) return;
       if (!tab || !tab.active || !inMijnVenster(tab.windowId)) return;
       if (info && (info.url || info.status === "loading")) naNavigatie(tab);
     });
   } catch (e) {
   }
-  try {
-    poort = chrome.runtime.connect({ name: SIDEPANEL_PORT });
-  } catch (e) {
-  }
-  function start() {
+  function verbind() {
     try {
-      chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        void chrome.runtime.lastError;
-        const t = tabs && tabs[0];
-        if (t && t.id != null && isOnsUrl(t.url)) {
-          mijnTab = t.id;
-          try {
-            if (poort && poort.postMessage) poort.postMessage({ tabId: mijnTab });
-          } catch (e) {
-          }
-          vraagToestand(mijnTab);
-          return;
-        }
-        zoekOnsTab();
-      });
+      const p = chrome.runtime.connect({ name: SIDEPANEL_PORT });
+      if (p && p.onDisconnect && p.onDisconnect.addListener) {
+        p.onDisconnect.addListener(function() {
+          void chrome.runtime.lastError;
+          setTimeout(verbind, 300);
+        });
+      }
     } catch (e) {
-      zoekOnsTab();
     }
   }
-  document.addEventListener("visibilitychange", function() {
-    if (document.visibilityState === "visible" && mijnTab != null) vraagToestand(mijnTab);
-  });
-  start();
+  verbind();
+  zoekOnsTab();
 })();
 //# sourceMappingURL=sidepanel.js.map

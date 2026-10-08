@@ -208,6 +208,17 @@ import { MSG } from '../shared/messages.js';
       void chrome.runtime.lastError;
       if (r && r.open) setOpen(true);
     });
+    // Terug op dit tabblad: opnieuw vragen. Een gemiste melding (bijv. omdat de
+    // worker herstartte) mag het lipje niet blijvend laten verdwijnen.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function (r) {
+          void chrome.runtime.lastError;
+          if (r && typeof r.open === 'boolean') setOpen(r.open);
+        });
+      } catch (e) {}
+    });
   } catch (e) {}
 
   function start() {

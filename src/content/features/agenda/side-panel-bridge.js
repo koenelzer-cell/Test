@@ -203,5 +203,15 @@ export function askSidePanelState() {
       void chrome.runtime.lastError;
       if (r && r.open) setSidePanelOpen(true);
     });
+    // Terug op dit tabblad: opnieuw vragen (een gemiste melding herstellen).
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function (r) {
+          void chrome.runtime.lastError;
+          if (r && typeof r.open === 'boolean') setSidePanelOpen(r.open);
+        });
+      } catch (e) {}
+    });
   } catch (e) {}
 }

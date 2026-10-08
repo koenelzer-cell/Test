@@ -10906,7 +10906,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.224";
+      return "1.6.225";
     }
   }();
 
@@ -13604,6 +13604,16 @@
       chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function(r) {
         void chrome.runtime.lastError;
         if (r && r.open) setSidePanelOpen(true);
+      });
+      document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState !== "visible") return;
+        try {
+          chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function(r) {
+            void chrome.runtime.lastError;
+            if (r && typeof r.open === "boolean") setSidePanelOpen(r.open);
+          });
+        } catch (e) {
+        }
       });
     } catch (e) {
     }
