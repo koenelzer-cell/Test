@@ -3,6 +3,7 @@
 
 import { listenForMainWorldDetails } from './services/ons-api/event-details.js';
 import { listenForOnsOverlapCalls } from './services/ons-api/event-overlap.js';
+import { listenForCreatedEvents } from './features/appointment/duplicate.js';
 import { startConfigLoading, watchConfigChanges } from './config/loader.js';
 import { seedUiOverridesFromConfig, watchLocalUiOverrides } from './ons/selector-overrides.js';
 import { installFreeDayTracking } from './features/appointment/free-day.js';
@@ -41,6 +42,7 @@ connectConfigHooks({
 startModuleHost();
 listenForMainWorldDetails();
 listenForOnsOverlapCalls();
+listenForCreatedEvents();
 watchConfigChanges();
 const HELPER_CONFIG_READY = startConfigLoading();
 seedUiOverridesFromConfig();

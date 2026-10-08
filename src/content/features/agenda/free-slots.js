@@ -44,19 +44,33 @@ export function checkSlotWithOns(req) {
     .then(function (o) { return { status: status, overlap: o }; });
 }
 
-// minutes: gewenste duur; weeks: hoe ver vooruit (1-8).
+// Zoeken tot en met een datum: hooguit een half jaar vooruit.
+export const MAX_ZOEK_DAGEN = 182;
+
+// minutes: gewenste duur; weeks: hoe ver vooruit (1-8); tot: 'YYYY-MM-DD'
+// (optioneel) zoekt tot en met die datum en gaat voor op weeks.
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
 // bezet.
-export function findFreeSlots(minutes, weeks) {
+export function findFreeSlots(minutes, weeks, tot) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
   if (!(minutes >= 5)) return Promise.reject(new Error('Kies een duur.'));
   weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
   var vandaag = new Date();
-  var tot = new Date(vandaag); tot.setDate(tot.getDate() + weeks * 7 - 1);
-  var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(tot));
+  var dagen = weeks * 7;
+  var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || '')) ? String(tot) : '';
+  if (totDatum) {
+    var p = totDatum.split('-');
+    var eind = new Date(+p[0], +p[1] - 1, +p[2]);
+    var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+    dagen = Math.round((eind - begin) / 86400000) + 1;
+    if (dagen < 1) return Promise.reject(new Error('Kies een datum vanaf vandaag.'));
+    if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een half jaar.'));
+  }
+  var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + dagen - 1);
+  var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
   var limiet = createLimiter(4);
   var haal = function (sjabloon, laag, start, id) {
     return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
@@ -79,10 +93,10 @@ export function findFreeSlots(minutes, weeks) {
     var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
-      now: Date.now(), days: weeks * 7, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, maxResults: 12
+      now: Date.now(), days: dagen, minMinutes: minutes, stepMin: 15,
+      windowStart: win.start, windowEnd: win.end, maxResults: totDatum ? 40 : 12
     });
-    var res = { minutes: minutes, weeks: weeks, windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+    var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
     if (res.onsCheck !== 'ready') return res;
     // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
     // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.

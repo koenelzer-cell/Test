@@ -69,7 +69,7 @@ const agendaActies = {
   onCheckRange: function (from, to, cb, vers) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to, vers: !!vers }, cb); },
   onNewEvent: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb); },
   onSlotCheck: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb); },
-  onFreeSlots: function (minutes, weeks, cb) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks }, cb); },
+  onFreeSlots: function (minutes, weeks, cb, to) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '' }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
@@ -155,6 +155,10 @@ function onMessage(msg, sender) {
 
   if (msg.type === MSG.SURVEY_STATE && msg.state) { toon('vragenlijst', msg.state); return; }
 
+  if (msg.type === MSG.AGENDA_DUPLICATES_DONE) {
+    if (huidig && huidig.soort === 'agenda' && huidig.paneel.setDuplicates) huidig.paneel.setDuplicates(msg);
+    return;
+  }
   if (msg.type === MSG.AGENDA_RANGE_PROGRESS) {
     if (huidig && huidig.soort === 'agenda' && huidig.paneel.setRangeProgress) huidig.paneel.setRangeProgress(msg.kind || 'open', msg.done | 0, msg.total | 0);
     return;

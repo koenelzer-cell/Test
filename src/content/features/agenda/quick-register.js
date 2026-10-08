@@ -14,6 +14,7 @@ import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { fetchOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { storePendingAppointment } from '../appointment/prefill.js';
+import { storePendingDuplicates } from '../appointment/duplicate.js';
 
 // Eén of meer invitees: bij meerdere komt invitee_ids[] er voor elk in, zodat
 // de afspraak voor iedereen in de agenda staat.
@@ -34,6 +35,12 @@ export function openNewEvent(req) {
   if (!ids.length) { var id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
   storePendingAppointment({ date: ymd, time: hhmm });
+  // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
+  var extra = (Array.isArray(req.extra) ? req.extra : []).map(function (m) {
+    var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
+    return (t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || ''))) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+  }).filter(Boolean);
+  storePendingDuplicates(extra);
   spaNavigate(location.origin + newEventUrl(ids));
   return { ok: true };
 }

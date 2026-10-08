@@ -6,6 +6,23 @@
     FROM_MAIN: "from-main"
   };
 
+  // src/shared/storage-keys.js
+  var PAGE_SESSION = {
+    PENDING_REGISTRATION: "onsHelper.pendingReg",
+    // registratie vanuit een afspraak (label, vorm, tijden)
+    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
+    // afspraak vanuit de planhulp (datum, begintijd)
+    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
+    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
+    PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
+    SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
+    SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
+    // + resultaat-id
+    SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
+    SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
+    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge"
+  };
+
   // src/main-world/index.js
   (function onsAgendahulpMainWorld() {
     if (window.__onsAgendahulpMW) return;
@@ -78,10 +95,33 @@
       } catch (e) {
       }
     }
-    function melderVoor(url) {
+    var CREATE_PATH = "/calendar/events";
+    function kopieenKlaar() {
+      try {
+        return sessionStorage.getItem(PAGE_SESSION.PENDING_DUPLICATES) || "";
+      } catch (e) {
+        return "";
+      }
+    }
+    function melderVoor(url, method) {
       var u = String(url || "");
       if (DETAILS_RE.test(u)) return reportDetails;
       if (OVERLAP_RE.test(u)) return reportOverlap;
+      var klaar = String(method || "GET").toUpperCase() === "POST" ? kopieenKlaar() : "";
+      if (klaar) {
+        try {
+          var abs = new URL(u, location.href);
+          if (abs.origin === location.origin && abs.pathname.replace(/\/$/, "") === CREATE_PATH) {
+            return function(url2, text, body) {
+              try {
+                if (typeof body === "string" && body) post("eventCreated", { body, pending: klaar });
+              } catch (e) {
+              }
+            };
+          }
+        } catch (e) {
+        }
+      }
       return null;
     }
     function installDetailsWatcher() {
@@ -90,14 +130,16 @@
         if (typeof origFetch === "function") {
           window.fetch = function(input, init) {
             var url = typeof input === "string" ? input : input && (input.url || input.href) || "";
+            var method = init && init.method || input && typeof input === "object" && input.method || "GET";
+            var body = init && init.body;
             var p = origFetch.apply(this, arguments);
             try {
-              var melder = melderVoor(url);
+              var melder = melderVoor(url, method);
               if (melder) {
                 p.then(function(res) {
                   try {
                     if (res && res.ok && res.clone) res.clone().text().then(function(t) {
-                      melder(url, t);
+                      melder(url, t, body);
                     }, function() {
                     });
                   } catch (e) {
@@ -120,19 +162,20 @@
           XHR.prototype.open = function(method, url) {
             try {
               this.__onsahUrl = url;
+              this.__onsahMethod = method;
             } catch (e) {
             }
             return origOpen.apply(this, arguments);
           };
           var origSend = XHR.prototype.send;
-          XHR.prototype.send = function() {
+          XHR.prototype.send = function(body) {
             try {
               var xhr = this;
-              var melder = melderVoor(xhr.__onsahUrl);
+              var melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
               if (melder) {
                 xhr.addEventListener("load", function() {
                   try {
-                    if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText);
+                    if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText, body);
                   } catch (e) {
                   }
                 });

@@ -525,6 +525,40 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
 });
 
+test('zijpaneel: planhulp - meerdere momenten kiezen, één afspraak met kopieën', async () => {
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
+      { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
+      { date: '2026-10-13', startMin: 540, endMin: 600, minutes: 60 },
+    ] } }),
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  knop(document, '1 u').click();
+  knop(document, 'Vrije tijd zoeken').click();
+  assert.equal(verzonden.at(-1).to, '', 'zonder einddatum zoekt hij per aantal weken');
+  assert.match(document.body.textContent, /Of zoek tot en met/);
+  const blokken = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok');
+  blokken()[0].click();
+  document.querySelector('[data-start="10:45"]').click();
+  knop(document, 'Moment toevoegen aan selectie').click();
+  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
+  assert.ok(knop(document, 'Uit selectie halen'));
+  knop(document, 'Terug').click();
+  assert.match(document.body.textContent, /1 moment gekozen/);
+  blokken()[1].click();
+  knop(document, 'Moment toevoegen aan selectie').click();
+  assert.match(document.body.textContent, /2 momenten gekozen.*do 8 okt10:45 – 11:45.*di 13 okt09:00 – 10:00/s);
+  knop(document, 'Afspraak maken op 2 momenten').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:45', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }] });
+  // Na het opslaan in ONS meldt het content-script de kopieën.
+  knop(document, 'Terug').click();
+  _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));
+  assert.match(document.body.textContent, /Afspraak ook gemaakt op di 13 okt 09:00/);
+  assert.equal(document.querySelector('[data-selectie]'), null, 'selectie leeg na gelukte kopieën');
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {

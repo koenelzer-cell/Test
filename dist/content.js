@@ -116,6 +116,8 @@
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
     // afspraak vanuit de planhulp (datum, begintijd)
+    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
+    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
     SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
     SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
@@ -1155,11 +1157,13 @@
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
-    // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
+    // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
+    // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -1895,6 +1899,232 @@
     return getJson(url).then(parseEventOverlap, function() {
       return null;
     });
+  }
+
+  // src/content/domain/event-duplicate.js
+  var HERHALING = /recurr|repeat|rrule|frequen|interval|valid_until|herhal/i;
+  function heeftWaarde(v) {
+    if (v == null || v === false || v === "" || v === 0) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === "object") return Object.keys(v).some(function(k) {
+      return heeftWaarde(v[k]);
+    });
+    return true;
+  }
+  function lokaleDagEnMinuut(iso) {
+    var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(String(iso || ""));
+    return m ? { date: m[1], min: +m[2] * 60 + +m[3] } : null;
+  }
+  function inspectEventPayload(payload) {
+    var ev = payload && payload.event;
+    if (!ev || typeof ev !== "object") return { ok: false, reason: "geen afspraak" };
+    var s = Date.parse(ev.start_time), e = Date.parse(ev.end_time);
+    if (!(e > s)) return { ok: false, reason: "geen begin- en eindtijd" };
+    var herhaald = Object.keys(ev).some(function(k) {
+      return HERHALING.test(k) && heeftWaarde(ev[k]);
+    });
+    if (herhaald) return { ok: false, reason: "herhalende afspraak" };
+    var b = lokaleDagEnMinuut(ev.start_time);
+    if (!b) return { ok: false, reason: "onbekende tijdnotatie" };
+    return { ok: true, date: b.date, startMin: b.min, minutes: Math.round((e - s) / 6e4) };
+  }
+  function duplicateEventPayload(payload, moment) {
+    var info = inspectEventPayload(payload);
+    if (!info.ok || !moment || !/^\d{4}-\d{2}-\d{2}$/.test(String(moment.date || ""))) return null;
+    var start = moment.startMin, eind = start + info.minutes;
+    if (!(start >= 0) || eind > 24 * 60) return null;
+    var van = isoLocalWithOffset(moment.date, start);
+    var tot = eind === 24 * 60 ? null : isoLocalWithOffset(moment.date, eind);
+    if (!van || !tot) return null;
+    var kopie = JSON.parse(JSON.stringify(payload));
+    var ev = kopie.event;
+    delete ev.id;
+    delete ev.occurrence_id;
+    ev.start_time = van;
+    ev.end_time = tot;
+    ev.valid_from = moment.date;
+    return kopie;
+  }
+  function remainingMoments(payload, moments) {
+    var info = inspectEventPayload(payload);
+    var gezien = /* @__PURE__ */ Object.create(null);
+    if (info.ok) gezien[info.date + "|" + info.startMin] = true;
+    return (moments || []).filter(function(m) {
+      if (!m || !/^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) || !(m.startMin >= 0)) return false;
+      var k = m.date + "|" + m.startMin;
+      if (gezien[k]) return false;
+      gezien[k] = true;
+      return true;
+    }).sort(function(a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin;
+    });
+  }
+
+  // src/content/features/appointment/duplicate.js
+  var KEY2 = PAGE_SESSION.PENDING_DUPLICATES;
+  var GELDIG_MS = 30 * 60 * 1e3;
+  var CREATE_URL = "/calendar/events";
+  function storePendingDuplicates(moments) {
+    try {
+      if (!moments || !moments.length) {
+        sessionStorage.removeItem(KEY2);
+        return;
+      }
+      sessionStorage.setItem(KEY2, JSON.stringify({ moments, ts: Date.now() }));
+    } catch (e) {
+    }
+  }
+  function takePending(pendingText) {
+    try {
+      const p = JSON.parse(pendingText || "null");
+      sessionStorage.removeItem(KEY2);
+      if (!p || !Array.isArray(p.moments) || Date.now() - p.ts > GELDIG_MS) return null;
+      return p.moments;
+    } catch (e) {
+      return null;
+    }
+  }
+  function forgetStaleDuplicates() {
+    try {
+      if (/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) return;
+      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
+      if (p && Date.now() - p.ts > 1e4) sessionStorage.removeItem(KEY2);
+    } catch (e) {
+    }
+  }
+  var DAGEN = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+  var MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+  function momentLabel(m) {
+    const p = String(m.date).split("-");
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    const hm = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
+    return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm;
+  }
+  function toonMelding(tekst, goed, metVerversen) {
+    try {
+      const oud = document.getElementById("onsah-kopie-melding");
+      if (oud) oud.remove();
+      const box = document.createElement("div");
+      box.id = "onsah-kopie-melding";
+      box.setAttribute("role", "status");
+      Object.assign(box.style, {
+        position: "fixed",
+        left: "16px",
+        bottom: "16px",
+        zIndex: "2147483000",
+        maxWidth: "360px",
+        padding: "12px 14px",
+        borderRadius: "12px",
+        background: "#fff",
+        color: "#201d1f",
+        border: "1px solid " + (goed ? "#cfe9dc" : "#f3d6b8"),
+        boxShadow: "0 10px 28px -14px rgba(32,20,15,.45)",
+        font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+      });
+      const t = document.createElement("div");
+      t.textContent = tekst;
+      box.appendChild(t);
+      const rij = document.createElement("div");
+      Object.assign(rij.style, { display: "flex", gap: "8px", marginTop: "8px" });
+      const knop = (label, primair, fn) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        Object.assign(b.style, {
+          height: "30px",
+          padding: "0 12px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          font: "inherit",
+          fontWeight: "600",
+          border: primair ? "0" : "1px solid #ece7e5",
+          background: primair ? "#cc087d" : "#fff",
+          color: primair ? "#fff" : "#201d1f"
+        });
+        b.addEventListener("click", fn);
+        rij.appendChild(b);
+      };
+      if (metVerversen) knop("Agenda verversen", true, () => location.reload());
+      knop("Sluiten", false, () => box.remove());
+      box.appendChild(rij);
+      document.body.appendChild(box);
+      setTimeout(() => {
+        try {
+          box.remove();
+        } catch (e) {
+        }
+      }, 2e4);
+    } catch (e) {
+    }
+  }
+  function meldPaneel(info) {
+    try {
+      chrome.runtime.sendMessage(Object.assign({ type: MSG.AGENDA_DUPLICATES_DONE }, info));
+    } catch (e) {
+    }
+  }
+  async function makeDuplicates(bodyText, moments, post) {
+    post = post || postJson;
+    let payload = null;
+    try {
+      payload = JSON.parse(String(bodyText || ""));
+    } catch (e) {
+    }
+    const info = inspectEventPayload(payload);
+    if (!info.ok) return { made: [], failed: [], skipped: moments || [], reason: info.reason };
+    const rest = remainingMoments(payload, moments);
+    const made = [], failed = [];
+    for (const m of rest) {
+      const kopie = duplicateEventPayload(payload, m);
+      if (!kopie) {
+        failed.push(m);
+        continue;
+      }
+      try {
+        await post(CREATE_URL, kopie);
+        made.push(m);
+      } catch (e) {
+        failed.push(m);
+      }
+    }
+    payload = null;
+    return { made, failed, skipped: [], reason: "" };
+  }
+  var _bezig = false;
+  async function bijOpgeslagen(bodyText, pendingText) {
+    if (_bezig) return;
+    const moments = takePending(pendingText);
+    if (!moments || !moments.length) return;
+    _bezig = true;
+    try {
+      const r = await makeDuplicates(bodyText, moments);
+      const totaal = r.made.length + r.failed.length;
+      if (r.reason) {
+        const uitleg = r.reason === "herhalende afspraak" ? "Dit is een herhalende afspraak; daar maakt de planhulp geen kopieën van." : "Kon deze afspraak niet lezen.";
+        toonMelding("Geen kopieën gemaakt. " + uitleg, false, false);
+      } else if (!totaal) {
+        toonMelding("Afspraak opgeslagen; er waren geen andere momenten meer om te kopiëren.", true, false);
+      } else if (!r.failed.length) {
+        toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + ".", true, true);
+      } else {
+        toonMelding(r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + ". Maak die zelf aan in ONS.", false, r.made.length > 0);
+      }
+      meldPaneel({ made: r.made, failed: r.failed, reason: r.reason });
+    } finally {
+      _bezig = false;
+    }
+  }
+  function listenForCreatedEvents() {
+    try {
+      window.addEventListener("message", function(ev) {
+        if (!ev || ev.origin !== location.origin) return;
+        if (ev.source && ev.source !== window) return;
+        const d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventCreated") return;
+        bijOpgeslagen(d.body, d.pending);
+      }, false);
+    } catch (e) {
+    }
   }
 
   // src/content/config/loader.js
@@ -10498,7 +10728,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.218";
+      return "1.6.219";
     }
   }();
 
@@ -10908,18 +11138,18 @@
   };
 
   // src/content/features/appointment/prefill.js
-  var KEY2 = PAGE_SESSION.PENDING_APPOINTMENT;
-  var GELDIG_MS = 2 * 60 * 1e3;
+  var KEY3 = PAGE_SESSION.PENDING_APPOINTMENT;
+  var GELDIG_MS2 = 2 * 60 * 1e3;
   function storePendingAppointment(req) {
     try {
-      sessionStorage.setItem(KEY2, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
+      sessionStorage.setItem(KEY3, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
     } catch (e) {
     }
   }
   function readPending() {
     try {
-      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
-      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
+      const p = JSON.parse(sessionStorage.getItem(KEY3) || "null");
+      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS2) return null;
       return p;
     } catch (e) {
       return null;
@@ -10927,7 +11157,7 @@
   }
   function clearPending() {
     try {
-      sessionStorage.removeItem(KEY2);
+      sessionStorage.removeItem(KEY3);
     } catch (e) {
     }
   }
@@ -10956,12 +11186,12 @@
       }
     }
   }
-  var _bezig = false;
+  var _bezig2 = false;
   function applyPendingAppointment() {
-    if (_bezig) return;
+    if (_bezig2) return;
     const p = readPending();
     if (!p) return;
-    _bezig = true;
+    _bezig2 = true;
     const datum = onsDateText(p.date);
     let pogingen = 0;
     const tik = () => {
@@ -10973,14 +11203,14 @@
           const s2 = getStartTimeInput();
           if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
           clearPending();
-          _bezig = false;
+          _bezig2 = false;
         }, 250);
         return;
       }
       if (pogingen < 48) setTimeout(tik, 250);
       else {
         clearPending();
-        _bezig = false;
+        _bezig2 = false;
       }
     };
     setTimeout(tik, 300);
@@ -11423,6 +11653,7 @@
     }
   }
   function syncWithUrl() {
+    forgetStaleDuplicates();
     if (!helperConfigReady) return;
     if (!RUNTIME_CONFIG.enabled) {
       deactivate();
@@ -12838,16 +13069,27 @@
       return { status, overlap: o };
     });
   }
-  function findFreeSlots(minutes, weeks) {
+  var MAX_ZOEK_DAGEN = 182;
+  function findFreeSlots(minutes, weeks, tot) {
     var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
     if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
     weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
     var vandaag = /* @__PURE__ */ new Date();
-    var tot = new Date(vandaag);
-    tot.setDate(tot.getDate() + weeks * 7 - 1);
-    var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(tot));
+    var dagen = weeks * 7;
+    var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || "")) ? String(tot) : "";
+    if (totDatum) {
+      var p = totDatum.split("-");
+      var eind = new Date(+p[0], +p[1] - 1, +p[2]);
+      var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+      dagen = Math.round((eind - begin) / 864e5) + 1;
+      if (dagen < 1) return Promise.reject(new Error("Kies een datum vanaf vandaag."));
+      if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error("Kies een datum binnen een half jaar."));
+    }
+    var laatste = new Date(vandaag);
+    laatste.setDate(laatste.getDate() + dagen - 1);
+    var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
     var limiet = createLimiter(4);
     var haal = function(sjabloon, laag, start, id) {
       return limiet(function() {
@@ -12881,14 +13123,14 @@
       var win = workWindow();
       var gaps = findFreeGaps(alles, {
         now: Date.now(),
-        days: weeks * 7,
+        days: dagen,
         minMinutes: minutes,
         stepMin: 15,
         windowStart: win.start,
         windowEnd: win.end,
-        maxResults: 12
+        maxResults: totDatum ? 40 : 12
       });
-      var res = { minutes, weeks, windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+      var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
       if (res.onsCheck !== "ready") return res;
       var nakijk = createLimiter(3);
       return Promise.all(gaps.map(function(g) {
@@ -12967,9 +13209,9 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks) {
-    return onthouden("plan", minutes + "|" + weeks, function() {
-      return findFreeSlots(minutes, weeks);
+  function cachedFreeSlots(minutes, weeks, tot) {
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || ""), function() {
+      return findFreeSlots(minutes, weeks, tot);
     });
   }
   function defaultProductionTo() {
@@ -12979,30 +13221,30 @@
   }
   var _laatstVooraf = 0;
   var _voorafSleutel = "";
-  var _bezig2 = false;
+  var _bezig3 = false;
   function preloadPanelData(force) {
-    if (_bezig2) return;
+    if (_bezig3) return;
     if (document.visibilityState !== "visible") return;
     const sleutel = idsSleutel() + "|" + currentAgendaDate();
     if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
     if (!idsSleutel()) return;
-    _bezig2 = true;
+    _bezig3 = true;
     _voorafSleutel = sleutel;
     _laatstVooraf = Date.now();
     const vandaag = agendaYmd(/* @__PURE__ */ new Date());
     const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
     });
     Promise.resolve().then(stap(() => cachedWeekRatio(currentAgendaDate()))).then(stap(() => cachedFreeSlots(60, 2))).then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
-      _bezig2 = false;
+      _bezig3 = false;
     }, () => {
-      _bezig2 = false;
+      _bezig3 = false;
     });
   }
   function _clearPreloadCache() {
     Object.keys(_cache).forEach((k) => delete _cache[k]);
     _laatstVooraf = 0;
     _voorafSleutel = "";
-    _bezig2 = false;
+    _bezig3 = false;
   }
 
   // src/content/features/agenda/quick-register.js
@@ -13023,6 +13265,11 @@
     }
     if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
     storePendingAppointment({ date: ymd2, time: hhmm });
+    var extra = (Array.isArray(req.extra) ? req.extra : []).map(function(m) {
+      var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));
+      return t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+    }).filter(Boolean);
+    storePendingDuplicates(extra);
     spaNavigate(location.origin + newEventUrl(ids));
     return { ok: true };
   }
@@ -13224,7 +13471,7 @@
             });
             return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {
@@ -14817,6 +15064,7 @@
   startModuleHost();
   listenForMainWorldDetails();
   listenForOnsOverlapCalls();
+  listenForCreatedEvents();
   watchConfigChanges();
   var HELPER_CONFIG_READY = startConfigLoading();
   seedUiOverridesFromConfig();

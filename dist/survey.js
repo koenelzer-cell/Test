@@ -272,6 +272,8 @@
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
     // afspraak vanuit de planhulp (datum, begintijd)
+    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
+    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
     SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
     SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
@@ -847,11 +849,13 @@
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
-    // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
+    // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
+    // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -1360,7 +1364,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.218";
+      return "1.6.219";
     }
   }();
 

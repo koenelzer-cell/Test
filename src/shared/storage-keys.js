@@ -35,6 +35,7 @@ export const PAGE_LOCAL = {
 export const PAGE_SESSION = {
   PENDING_REGISTRATION: 'onsHelper.pendingReg',          // registratie vanuit een afspraak (label, vorm, tijden)
   PENDING_APPOINTMENT: 'onsHelper.pendingAppointment',   // afspraak vanuit de planhulp (datum, begintijd)
+  PENDING_DUPLICATES: 'onsHelper.pendingDuplicates',     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
   PENDING_SURVEY_QUESTION: 'onsHelper.pendingSurveyQuestion',
   SURVEY_CHECKLIST: 'onsHelper.surveyChecklist',
   SURVEY_CATEGORY_URLS: 'onsHelper.surveyCategoryUrls.', // + resultaat-id

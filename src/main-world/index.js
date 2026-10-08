@@ -1,13 +1,15 @@
 /* ============================================================================
    main-world — draait in de PAGINA-context van ONS (manifest: "world": "MAIN").
 
-   Drie taken:
+   Vier taken:
      1) Context melden: omgeving (uit de hostnaam) en gebruikers-ID, voor de
         gefaseerde uitrol in het meldingenkanaal (content/platform/module-host.js).
      2) Details-watcher: de afspraaklabels uit ONS' eigen details-call
         doorgeven, zodat de registratiehulp de registratievorm kan kiezen.
      3) Overlap-watcher: de URL van ONS' eigen overlapcontrole voor afspraken
         doorgeven, zodat de planhulp die controle kan nadoen.
+     4) Afspraak-watcher: alleen als de planhulp kopieën heeft klaargezet, het
+        verzoek doorgeven waarmee ONS een nieuwe afspraak opslaat.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -17,6 +19,7 @@
    verwijderd.)
    ========================================================================== */
 import { PAGE_BRIDGE } from '../shared/messages.js';
+import { PAGE_SESSION } from '../shared/storage-keys.js';
 
 (function onsAgendahulpMainWorld() {
   if (window.__onsAgendahulpMW) return;
@@ -106,10 +109,35 @@ import { PAGE_BRIDGE } from '../shared/messages.js';
       post('eventOverlap', { url: abs.pathname + abs.search, body: String(text == null ? '' : text).slice(0, 4000) });
     } catch (e) {}
   }
-  function melderVoor(url) {
+  /* ---- nieuwe afspraak opgeslagen --------------------------------------
+     Heeft de medewerker in de planhulp meerdere momenten gekozen, dan zet het
+     content-script die klaar in sessionStorage. Alleen dan geven we het
+     verzoek door waarmee ONS de afspraak opslaat (POST /calendar/events): dat
+     is het voorbeeld voor de kopieën (content/features/appointment/duplicate.js).
+     Zonder klaargezette momenten kijken we niet naar dit verzoek.
+     ---------------------------------------------------------------------- */
+  var CREATE_PATH = '/calendar/events';
+  function kopieenKlaar() {
+    try { return sessionStorage.getItem(PAGE_SESSION.PENDING_DUPLICATES) || ''; } catch (e) { return ''; }
+  }
+
+  function melderVoor(url, method) {
     var u = String(url || '');
     if (DETAILS_RE.test(u)) return reportDetails;
     if (OVERLAP_RE.test(u)) return reportOverlap;
+    var klaar = String(method || 'GET').toUpperCase() === 'POST' ? kopieenKlaar() : '';
+    if (klaar) {
+      try {
+        var abs = new URL(u, location.href);
+        // De klaargezette momenten gaan mee zoals ze bij het VERSTUREN stonden:
+        // ONS kan na het opslaan al doorschakelen naar de agenda.
+        if (abs.origin === location.origin && abs.pathname.replace(/\/$/, '') === CREATE_PATH) {
+          return function (url2, text, body) {
+            try { if (typeof body === 'string' && body) post('eventCreated', { body: body, pending: klaar }); } catch (e) {}
+          };
+        }
+      } catch (e) {}
+    }
     return null;
   }
 
@@ -119,13 +147,15 @@ import { PAGE_BRIDGE } from '../shared/messages.js';
       if (typeof origFetch === 'function') {
         window.fetch = function (input, init) {
           var url = (typeof input === 'string') ? input : (input && (input.url || input.href)) || '';
+          var method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
+          var body = init && init.body;
           var p = origFetch.apply(this, arguments);
           // .clone() zodat de pagina zelf de body ongestoord kan lezen.
           try {
-            var melder = melderVoor(url);
+            var melder = melderVoor(url, method);
             if (melder) {
               p.then(function (res) {
-                try { if (res && res.ok && res.clone) res.clone().text().then(function (t) { melder(url, t); }, function () {}); } catch (e) {}
+                try { if (res && res.ok && res.clone) res.clone().text().then(function (t) { melder(url, t, body); }, function () {}); } catch (e) {}
                 return res;
               }, function () {});
             }
@@ -139,17 +169,17 @@ import { PAGE_BRIDGE } from '../shared/messages.js';
       if (XHR && XHR.prototype && typeof XHR.prototype.open === 'function') {
         var origOpen = XHR.prototype.open;
         XHR.prototype.open = function (method, url) {
-          try { this.__onsahUrl = url; } catch (e) {}
+          try { this.__onsahUrl = url; this.__onsahMethod = method; } catch (e) {}
           return origOpen.apply(this, arguments);
         };
         var origSend = XHR.prototype.send;
-        XHR.prototype.send = function () {
+        XHR.prototype.send = function (body) {
           try {
             var xhr = this;
-            var melder = melderVoor(xhr.__onsahUrl);
+            var melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
             if (melder) {
               xhr.addEventListener('load', function () {
-                try { if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText); } catch (e) {}
+                try { if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText, body); } catch (e) {}
               });
             }
           } catch (e) {}

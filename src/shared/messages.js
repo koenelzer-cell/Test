@@ -41,9 +41,10 @@ export const MSG = {
   AGENDA_OPEN_LEAVE: 'ag-open-leave',   //                 verlofdialoog openen in de pagina
   AGENDA_CHECK_RANGE: 'ag-check-range', // { from, to } -> { ok, result | error }  open registraties in een periode
   AGENDA_QUICK_REGISTER: 'ag-quick-register', // { date, time, minutes, force } -> { ok, overlap?, error? }
-  AGENDA_NEW_EVENT: 'ag-new-event',     // { date, time, minutes } -> { ok, error? }  afspraakformulier openen
+  AGENDA_NEW_EVENT: 'ag-new-event',     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+  AGENDA_DUPLICATES_DONE: 'ag-duplicates-done', // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
   AGENDA_SLOT_CHECK: 'ag-slot-check',   // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
-  AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks } -> { ok, result: { gaps, ... } | error }  planhulp
+  AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
   AGENDA_WEEK_RATIO: 'ag-week-ratio',   // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
   AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week
 

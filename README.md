@@ -146,7 +146,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   binnen je werktijden. Heeft de hulp ONS' eigen overlapcontrole voor
   afspraken geleerd (dat gebeurt vanzelf zodra je één keer een afspraak opent
   in ONS), dan kijkt hij elk blok en de gekozen begintijd daar ook na: een
-  vinkje is akkoord, 'ONS: overlap' niet. Alleen wat er echt in de agenda staat telt als bezet:
+  vinkje is akkoord, 'ONS: overlap' niet. Zoeken kan 1, 2 of 4 weken vooruit,
+  of tot en met een zelfgekozen datum (hooguit een half jaar).
+  Zelfde afspraak op meerdere momenten: voeg per vrij blok een moment toe aan
+  je selectie en kies 'Afspraak maken op n momenten'. Je maakt de afspraak één
+  keer in ONS; na het opslaan maakt de hulp dezelfde afspraak (zelfde cliënt,
+  label, uursoort enz.) op de andere momenten. Niet voor herhalende afspraken. Alleen wat er echt in de agenda staat telt als bezet:
   ONS-afspraken (met reistijd), onbeschikbaarheid, geplande bezoeken en
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open

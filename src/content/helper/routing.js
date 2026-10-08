@@ -2,6 +2,7 @@
 // van ONS.
 
 import { applyPendingAppointment } from '../features/appointment/prefill.js';
+import { forgetStaleDuplicates } from '../features/appointment/duplicate.js';
 import { APP_CONFIG, CONFIG } from '../config/app-config.js';
 import { isRegistrationEditOrNew } from '../ons/agenda-location.js';
 import {
@@ -23,6 +24,7 @@ function activationDomainsOk() {
   } catch (e) { return true; }
 }
 export function syncWithUrl() {
+  forgetStaleDuplicates();
   if (!helperConfigReady) return;
   // (#2 uitrol) Centrale kill-switch heeft voorrang op de build-scope.
   if (!RUNTIME_CONFIG.enabled) { deactivate(); removeRegistrationsOverviewPanel(); return; }

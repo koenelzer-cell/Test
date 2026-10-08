@@ -285,6 +285,23 @@ test('meerdere invitees: de planhulp zoekt tijd waarop iedereen vrij is', async 
   assert.deepEqual([...gaps.map((g) => g.startMin + '-' + g.endMin)], ['480-540', '720-780'], 'alleen 08:00-09:00 en 12:00-13:00 zijn voor allebei vrij');
 });
 
+test('planhulp: zoeken tot en met een datum', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const weken = new Set();
+  window.fetch = (url) => { weken.add(/date=([\d-]+)/.exec(url)[1]); return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  const vandaag = new Date();
+  const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  const tot = new Date(vandaag); tot.setDate(tot.getDate() + 60);
+  const r = await api.findFreeSlots(60, 1, ymd(tot));
+  assert.equal(r.to, ymd(tot));
+  assert.equal(r.lastDate, ymd(tot));
+  assert.ok(weken.size >= 9, 'alle weken tot die datum opgehaald (' + weken.size + ')');
+  const teVer = new Date(vandaag); teVer.setDate(teVer.getDate() + 400);
+  await assert.rejects(api.findFreeSlots(60, 1, ymd(teVer)), /half jaar/);
+  const gisteren = new Date(vandaag); gisteren.setDate(gisteren.getDate() - 1);
+  await assert.rejects(api.findFreeSlots(60, 1, ymd(gisteren)), /vanaf vandaag/);
+});
+
 test('reistijd van een afspraak staat in minuten (echt voorbeeld uit ONS)', (t) => {
   const oudeTz = process.env.TZ;
   process.env.TZ = 'Europe/Amsterdam';

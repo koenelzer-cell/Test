@@ -176,6 +176,7 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 | `/product_selection/product_list` | uursoorten voor medewerker + cliënt(en) | `products.js` | dropdown openen en uitlezen (`ons/uursoort-options.js`) |
 | `/worksheet/registrations/detect_overlap` | overlapcontrole door ONS (alleen nieuwe registraties) | `open-registrations.js` | eigen vergelijking (`features/overlap.js`) |
 | `/event_planner/overlap_detection` | planhulp: vrij blok en gekozen begintijd bij ONS nakijken | `services/ons-api/event-overlap.js`, `domain/event-overlap.js` | alleen de eigen berekening (`domain/free-slots.js`) |
+| `POST /calendar/events` | planhulp: kopieën van een net opgeslagen afspraak op de andere gekozen momenten | `features/appointment/duplicate.js`, `domain/event-duplicate.js` | — (mislukte kopieën worden gemeld; zelf aanmaken) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
 | `/invitees/{id}/registrations/new?declaration[…]` | snel registreren: ONS-formulier vooraf ingevuld (paginaroute, geen API) | `features/agenda/quick-register.js` | — |
 
@@ -192,6 +193,16 @@ eigen afspraak vallen eruit. Het sjabloon (alleen rollen en korte vaste
 waarden, geen tijden of id's) staat in de localStorage van de ONS-pagina
 (`onsHelper.eventOverlapTemplate`). Zonder sjabloon, of als het antwoord niet
 te lezen is, doet de planhulp geen ONS-controle en rekent hij alleen zelf.
+
+Meerdere momenten: de planhulp zet de overige momenten (datum en begintijd)
+klaar in sessionStorage (`onsHelper.pendingDuplicates`, een half uur geldig,
+vervalt als je het afspraakformulier verlaat zonder op te slaan). Alleen als
+die klaarstaan geeft `main-world` het opslaan-verzoek van ONS door (POST
+`/calendar/events`). Het content-script stuurt per moment een kopie van dat
+verzoek terug naar ONS, met alleen `valid_from`, `start_time` en `end_time`
+verschoven; de duur is die van de opgeslagen afspraak. Het verzoek (met
+cliëntgegevens zoals ONS ze zelf verstuurt) blijft alleen in het geheugen.
+Herhalende afspraken worden niet gekopieerd.
 
 Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
 (same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).
