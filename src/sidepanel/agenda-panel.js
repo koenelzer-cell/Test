@@ -1195,7 +1195,7 @@ export function create(host, actions) {
         var rij = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.ink, minHeight: '30px', borderBottom: '1px solid ' + T.lineSoft });
         rij.appendChild(el('span', { flex: '0 0 74px', fontWeight: '600' }, dayLabel(m.date)));
         rij.appendChild(el('span', { flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }, hm(m.startMin) + ' – ' + hm(m.startMin + plan.minutes)));
-        var vink = eigenVinkje(m, 'Eigen');
+        var vink = eigenVinkje(m, 'Apart formulier');
         vink.style.flex = '1 1 auto'; vink.style.justifyContent = 'flex-end'; vink.style.color = T.inkSoft; vink.style.fontSize = '12px';
         rij.appendChild(vink);
         var weg = el('button', { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '16px', lineHeight: '1', padding: '2px 6px', borderRadius: '6px' }, '\u00d7');
@@ -1813,7 +1813,8 @@ export function create(host, actions) {
     var hier = BEWAARD.momenten.filter(function (x) { return x.date === g.date && x.startMin >= g.startMin && x.startMin + duur <= g.endMin; });
     if (hier.length && BEWAARD.momenten.length > 1) {
       var vinken = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', margin: '10px 0 0' });
-      hier.forEach(function (x) { vinken.appendChild(eigenVinkje(x, hm(x.startMin) + ': andere instellingen (eigen afspraakformulier)')); });
+      // Eén gekozen tijd in dit blok: alleen de tekst; meer: met de tijd ervoor.
+      hier.forEach(function (x) { vinken.appendChild(eigenVinkje(x, (hier.length > 1 ? hm(x.startMin) + ' · ' : '') + 'Apart afspraakformulier')); });
       box.appendChild(vinken);
     }
     // ONS' overlapcontrole voor de laatst gekozen begintijd.

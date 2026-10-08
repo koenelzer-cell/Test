@@ -598,7 +598,7 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }], eigen: [] });
   // Vinkje 'andere instellingen' bij het eerste moment: dan opent eerst het
   // formulier voor het andere moment (met kopieën), daarna een eigen formulier.
-  assert.match(document.body.textContent, /09:00: andere instellingen \(eigen afspraakformulier\)/, 'vinkje per gekozen tijd in dit blok');
+  assert.match(document.body.textContent, /Apart afspraakformulier/, 'vinkje per gekozen tijd in dit blok');
   const vink = document.querySelector('[data-eigen="2026-10-08 10:30"]');
   vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
   knop(document, 'Afspraak maken op 2 momenten').click();
