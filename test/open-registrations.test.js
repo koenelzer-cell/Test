@@ -260,6 +260,8 @@ test('meerdere invitees: alle agenda\'s uit de URL, ook bij springen en afspraak
   assert.equal(api.newEventUrl(['13970', '45267']), '/events/new?invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267&redirect_to_calendar=true');
   api.openNewEvent({ date: '2026-11-02', time: '10:00', minutes: 60 });
   assert.match(geklikt.at(-1), /invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267/);
+  const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
+  assert.deepEqual([klaar.date, klaar.time, klaar.minutes], ['2026-11-02', '10:00', 60], 'duur gaat mee: eindtijd wordt ingevuld, geen duurvraag');
 });
 
 test('meerdere invitees: de planhulp zoekt tijd waarop iedereen vrij is', async (t) => {

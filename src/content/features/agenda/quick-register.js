@@ -26,7 +26,7 @@ export function openNewEvent(req) {
   var ids = currentInviteeIds();
   if (!ids.length) { var id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
-  storePendingAppointment({ date: ymd, time: hhmm });
+  storePendingAppointment({ date: ymd, time: hhmm, minutes: minutes });
   // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
   // Momenten met eigen instellingen krijgen daarna elk een nieuw formulier.
   var lees = function (lijst) {

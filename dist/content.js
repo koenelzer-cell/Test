@@ -3335,401 +3335,6 @@
     return (ovSel ? deepQueryAll(ovSel) : deepQueryAll('[data-qa="recurrence-type"]')).find((el) => visible(el) && !isOwnPopup(el)) || null;
   }
 
-  // src/content/features/appointment/prefill.js
-  var KEY2 = PAGE_SESSION.PENDING_APPOINTMENT;
-  var GELDIG_MS = 2 * 60 * 1e3;
-  function storePendingAppointment(req) {
-    try {
-      sessionStorage.setItem(KEY2, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() }));
-    } catch (e) {
-    }
-  }
-  function readPending() {
-    try {
-      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
-      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
-      return p;
-    } catch (e) {
-      return null;
-    }
-  }
-  function clearPending() {
-    try {
-      sessionStorage.removeItem(KEY2);
-    } catch (e) {
-    }
-  }
-  function onsDateText(ymd2) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
-    return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
-  }
-  function schrijf(inp, text) {
-    typeIntoSearchField(inp, text);
-    inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
-    inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
-    try {
-      inp.blur && inp.blur();
-    } catch (e) {
-    }
-    const root = inp.getRootNode && inp.getRootNode();
-    const host = root && root.host;
-    if (host) {
-      try {
-        host.value = text;
-      } catch (e) {
-      }
-      try {
-        host.dispatchEvent(new Event("change", { bubbles: true }));
-      } catch (e) {
-      }
-    }
-  }
-  var _bezig = false;
-  function applyPendingAppointment() {
-    if (_bezig) return;
-    const p = readPending();
-    if (!p) return;
-    _bezig = true;
-    const datum = onsDateText(p.date);
-    let pogingen = 0;
-    const tik = () => {
-      pogingen++;
-      const d = getDateInput(), s = getStartTimeInput();
-      if (d && s) {
-        if (datum && inputTextValue(d) !== datum) schrijf(d, datum);
-        setTimeout(() => {
-          const s2 = getStartTimeInput();
-          if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
-          clearPending();
-          _bezig = false;
-        }, 250);
-        return;
-      }
-      if (pogingen < 48) setTimeout(tik, 250);
-      else {
-        clearPending();
-        _bezig = false;
-      }
-    };
-    setTimeout(tik, 300);
-  }
-
-  // src/content/features/appointment/duplicate.js
-  var KEY3 = PAGE_SESSION.PENDING_DUPLICATES;
-  var GELDIG_MS2 = 30 * 60 * 1e3;
-  var CREATE_URL = "/calendar/events";
-  function storePendingDuplicates(moments, eigen) {
-    try {
-      moments = moments || [];
-      eigen = eigen || [];
-      if (!moments.length && !eigen.length) {
-        sessionStorage.removeItem(KEY3);
-        return;
-      }
-      sessionStorage.setItem(KEY3, JSON.stringify({ moments, eigen, ts: Date.now() }));
-    } catch (e) {
-    }
-  }
-  function takePending(pendingText) {
-    try {
-      const p = JSON.parse(pendingText || "null");
-      sessionStorage.removeItem(KEY3);
-      if (!p || !Array.isArray(p.moments) || Date.now() - p.ts > GELDIG_MS2) return null;
-      return { moments: p.moments, eigen: Array.isArray(p.eigen) ? p.eigen : [] };
-    } catch (e) {
-      return null;
-    }
-  }
-  function forgetStaleDuplicates() {
-    try {
-      if (/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) return;
-      const p = JSON.parse(sessionStorage.getItem(KEY3) || "null");
-      if (p && Date.now() - p.ts > 1e4) sessionStorage.removeItem(KEY3);
-    } catch (e) {
-    }
-  }
-  var DAGEN = ["zo", "ma", "di", "wo", "do", "vr", "za"];
-  var MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-  function momentLabel(m) {
-    const p = String(m.date).split("-");
-    const d = new Date(+p[0], +p[1] - 1, +p[2]);
-    const hm = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
-    return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm;
-  }
-  function toonMelding(tekst, goed, metVerversen) {
-    try {
-      const oud = document.getElementById("onsah-kopie-melding");
-      if (oud) oud.remove();
-      const box = document.createElement("div");
-      box.id = "onsah-kopie-melding";
-      box.setAttribute("role", "status");
-      Object.assign(box.style, {
-        position: "fixed",
-        left: "16px",
-        bottom: "16px",
-        zIndex: "2147483000",
-        maxWidth: "360px",
-        padding: "12px 14px",
-        borderRadius: "12px",
-        background: "#fff",
-        color: "#201d1f",
-        border: "1px solid " + (goed ? "#cfe9dc" : "#f3d6b8"),
-        boxShadow: "0 10px 28px -14px rgba(32,20,15,.45)",
-        font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
-      });
-      const t = document.createElement("div");
-      t.textContent = tekst;
-      box.appendChild(t);
-      const rij = document.createElement("div");
-      Object.assign(rij.style, { display: "flex", gap: "8px", marginTop: "8px" });
-      const knop = (label, primair, fn) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = label;
-        Object.assign(b.style, {
-          height: "30px",
-          padding: "0 12px",
-          borderRadius: "8px",
-          cursor: "pointer",
-          font: "inherit",
-          fontWeight: "600",
-          border: primair ? "0" : "1px solid #ece7e5",
-          background: primair ? "#cc087d" : "#fff",
-          color: primair ? "#fff" : "#201d1f"
-        });
-        b.addEventListener("click", fn);
-        rij.appendChild(b);
-      };
-      if (metVerversen) knop("Agenda verversen", true, () => location.reload());
-      knop("Sluiten", false, () => box.remove());
-      box.appendChild(rij);
-      document.body.appendChild(box);
-      setTimeout(() => {
-        try {
-          box.remove();
-        } catch (e) {
-        }
-      }, 2e4);
-    } catch (e) {
-    }
-  }
-  function meldPaneel(info) {
-    try {
-      chrome.runtime.sendMessage(Object.assign({ type: MSG.AGENDA_DUPLICATES_DONE }, info));
-    } catch (e) {
-    }
-  }
-  async function makeDuplicates(bodyText, moments, post) {
-    post = post || postJson;
-    let payload = null;
-    try {
-      payload = JSON.parse(String(bodyText || ""));
-    } catch (e) {
-    }
-    const info = inspectEventPayload(payload);
-    if (!info.ok) return { made: [], failed: [], skipped: moments || [], reason: info.reason };
-    const rest = remainingMoments(payload, moments);
-    const made = [], failed = [];
-    for (const m of rest) {
-      const kopie = duplicateEventPayload(payload, m);
-      if (!kopie) {
-        failed.push(m);
-        continue;
-      }
-      try {
-        await post(CREATE_URL, kopie);
-        made.push(m);
-      } catch (e) {
-        failed.push(m);
-      }
-    }
-    payload = null;
-    return { made, failed, skipped: [], reason: "" };
-  }
-  var _bezig2 = false;
-  function volgendeEigen(eigen, bodyText) {
-    const volgende = eigen[0];
-    storePendingDuplicates([], eigen.slice(1));
-    storePendingAppointment({ date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) });
-    let ids = [];
-    try {
-      const ev = JSON.parse(String(bodyText || "")).event;
-      ids = (ev && ev.employee_ids || []).map(String);
-    } catch (e) {
-    }
-    if (!ids.length) ids = currentInviteeIds();
-    if (!ids.length) return false;
-    setTimeout(function() {
-      spaNavigate(location.origin + newEventUrl(ids));
-    }, 1200);
-    return true;
-  }
-  async function bijOpgeslagen(bodyText, pendingText) {
-    if (_bezig2) return;
-    const p = takePending(pendingText);
-    if (!p || !p.moments.length && !p.eigen.length) return;
-    _bezig2 = true;
-    try {
-      const verder = p.eigen.length ? " Volgende afspraak met eigen instellingen: " + momentLabel(p.eigen[0]) + " (" + p.eigen.length + (p.eigen.length === 1 ? " te gaan)." : " te gaan).") : "";
-      if (!p.moments.length) {
-        volgendeEigen(p.eigen, bodyText);
-        toonMelding("Afspraak opgeslagen." + verder, true, false);
-        meldPaneel({ made: [], failed: [], reason: "", next: p.eigen[0], left: p.eigen.length });
-        return;
-      }
-      const r = await makeDuplicates(bodyText, p.moments);
-      if (p.eigen.length) volgendeEigen(p.eigen, bodyText);
-      const totaal = r.made.length + r.failed.length;
-      if (r.reason) {
-        const uitleg = r.reason === "herhalende afspraak" ? "Dit is een herhalende afspraak; daar maakt de planhulp geen kopieën van." : "Kon deze afspraak niet lezen.";
-        toonMelding("Geen kopieën gemaakt. " + uitleg, false, false);
-      } else if (!totaal) {
-        toonMelding("Afspraak opgeslagen; er waren geen andere momenten meer om te kopiëren.", true, false);
-      } else if (!r.failed.length) {
-        toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + "." + verder, true, !p.eigen.length);
-      } else {
-        toonMelding(r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + ". Maak die zelf aan in ONS." + verder, false, r.made.length > 0 && !p.eigen.length);
-      }
-      meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: p.eigen[0] || null, left: p.eigen.length });
-    } finally {
-      _bezig2 = false;
-    }
-  }
-  function listenForCreatedEvents() {
-    try {
-      window.addEventListener("message", function(ev) {
-        if (!ev || ev.origin !== location.origin) return;
-        if (ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventCreated") return;
-        bijOpgeslagen(d.body, d.pending);
-      }, false);
-    } catch (e) {
-    }
-  }
-
-  // src/content/config/loader.js
-  function loadBundledConfig() {
-    try {
-      if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.getURL) return Promise.resolve();
-      const url = chrome.runtime.getURL("config.json");
-      return fetch(url).then(function(r) {
-        return r && r.ok ? r.json() : null;
-      }).then(function(obj) {
-        if (obj) {
-          const cfg = obj.helperConfig ? obj.helperConfig : obj;
-          applyHelperConfig(cfg);
-          const features = cfg.features || {};
-          if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
-          if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-        }
-      }).catch(function() {
-      });
-    } catch (e) {
-      return Promise.resolve();
-    }
-  }
-  var HELPER_SCOPE = "all";
-  var RUNTIME_CONFIG = { enabled: true, appointmentHelperEnabled: true, registrationHelperEnabled: true };
-  var _presenceDeadlineOverride = null;
-  function applyRuntimeConfig(cfg) {
-    if (!cfg || typeof cfg !== "object") return;
-    if (typeof cfg.enabled === "boolean") RUNTIME_CONFIG.enabled = cfg.enabled;
-    if (typeof cfg.appointmentHelperEnabled === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = cfg.appointmentHelperEnabled;
-    if (typeof cfg.registrationHelperEnabled === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = cfg.registrationHelperEnabled;
-    if (typeof cfg.presenceDeadlineOverride === "string") _presenceDeadlineOverride = cfg.presenceDeadlineOverride || null;
-    if (cfg.helperConfig && typeof cfg.helperConfig === "object") {
-      try {
-        applyHelperConfig(cfg.helperConfig);
-      } catch (e) {
-      }
-    } else {
-      try {
-        applyHelperConfig(cfg);
-      } catch (e) {
-      }
-    }
-    const features = cfg.helperConfig && cfg.helperConfig.features || cfg.features || {};
-    if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
-    if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-    runConfigHook("configApplied");
-  }
-  function loadManagedConfig() {
-    function readStorage(area2, keys) {
-      return new Promise(function(resolve) {
-        try {
-          if (!area2 || typeof area2.get !== "function") {
-            resolve(null);
-            return;
-          }
-          area2.get(keys, function(result) {
-            try {
-              if (chrome.runtime && chrome.runtime.lastError) {
-                resolve(null);
-                return;
-              }
-            } catch (e) {
-            }
-            resolve(result || null);
-          });
-        } catch (e) {
-          resolve(null);
-        }
-      });
-    }
-    try {
-      if (typeof chrome === "undefined" || !chrome.storage) return Promise.resolve();
-      return readStorage(chrome.storage.sync || chrome.storage.local, [SYNC.SECTOR, SYNC.COLOR_PROFILE]).then(function(profile) {
-        const previousSelection = ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE;
-        setActiveTeam(
-          profile && profile.colorProfile || null,
-          profile && (profile.sector || (APP_CONFIG.profileSectors || {})[profile.colorProfile]) || null
-        );
-        refreshEffectiveConfig();
-        if (previousSelection !== ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE) {
-          try {
-            runConfigHook("teamChanged");
-          } catch (e) {
-          }
-        }
-        return readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
-      }).then(function(res) {
-        try {
-          if (res && res[LOCAL.TEST_CONFIG]) applyRuntimeConfig(res[LOCAL.TEST_CONFIG]);
-        } catch (e) {
-        }
-        return readStorage(chrome.storage.managed, null);
-      }).then(function(cfg) {
-        try {
-          if (cfg) applyRuntimeConfig(cfg);
-        } catch (e) {
-        }
-        runConfigHook("configApplied");
-      });
-    } catch (e) {
-      return Promise.resolve();
-    }
-  }
-  function watchConfigChanges() {
-    try {
-      if (chrome && chrome.storage && chrome.storage.onChanged) {
-        chrome.storage.onChanged.addListener((changes, area2) => {
-          if (area2 === "managed" || area2 === "local" || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
-        });
-      }
-    } catch (e) {
-    }
-  }
-  var helperConfigReady = false;
-  function startConfigLoading() {
-    return loadBundledConfig().then(function() {
-      return loadManagedConfig();
-    }).catch(function() {
-    }).then(function() {
-      helperConfigReady = true;
-    });
-  }
-
   // src/content/ons/uursoort-options.js
   function splitUursoortCategoryText(text) {
     let raw = String(text || "").replace(/\s+/g, " ").trim();
@@ -4676,121 +4281,6 @@
     }
   }
 
-  // src/content/features/appointment/end-time.js
-  function clearEndTime() {
-    const input2 = getEndTimeInput();
-    if (!input2) return false;
-    setInputTextComposed(input2, "");
-    return true;
-  }
-  function setAppointmentEndTimePlusMinutes(minutes) {
-    const startText = String(appointmentCurrentStartTimeText() || appointmentFlow.activeAppointmentStartTimeText || "").trim();
-    if (!/^(\d{1,2}):(\d{2})$/.test(startText)) return false;
-    appointmentFlow.activeAppointmentStartTimeText = startText;
-    restoreAppointmentStartTime();
-    const next = addMinutesText(startText, minutes);
-    if (!next) return false;
-    const apply = () => {
-      const fresh = getEndTimeInput();
-      if (!fresh) return false;
-      return setAppointmentEndInputText(fresh, next);
-    };
-    const ok = apply();
-    [80, 220, 420].forEach((delay) => setTimeout(() => {
-      const fresh = getEndTimeInput();
-      if (fresh && inputTextValue(fresh) !== next) setAppointmentEndInputText(fresh, next);
-    }, delay));
-    return ok;
-  }
-  function enforceAppointmentEndTime(minutes) {
-    if (!minutes) return false;
-    if (appointmentFlow.appointmentEndTimeUserOwned) return false;
-    const fresh = appointmentCurrentStartTimeText();
-    if (fresh) appointmentFlow.activeAppointmentStartTimeText = fresh;
-    const startText = String(appointmentFlow.activeAppointmentStartTimeText || "").trim();
-    if (!/^(\d{1,2}):(\d{2})$/.test(startText)) return false;
-    restoreAppointmentStartTime();
-    const wanted = addMinutesText(startText, minutes);
-    const endInput = getEndTimeInput();
-    if (!wanted || !endInput) return false;
-    const current = inputTextValue(endInput);
-    if (appointmentFlow.helperEndText && /^(\d{1,2}):(\d{2})$/.test(current) && current !== appointmentFlow.helperEndText) {
-      appointmentFlow.appointmentEndTimeUserOwned = true;
-      return false;
-    }
-    if (current !== wanted) setAppointmentEndInputText(endInput, wanted);
-    else appointmentFlow.helperEndText = wanted;
-    return true;
-  }
-  function scheduleAppointmentEndTime(minutes) {
-    appointmentFlow.activeAppointmentDurationMinutes = minutes || appointmentFlow.activeAppointmentDurationMinutes;
-    if (!appointmentFlow.activeAppointmentDurationMinutes) return;
-    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
-    appointmentFlow.appointmentTimeGuardTimers = [];
-    [0, 140, 420].forEach((delay) => {
-      const timer = setTimeout(() => safe(() => {
-        restoreAppointmentStartTime();
-        enforceAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-      }), delay);
-      appointmentFlow.appointmentTimeGuardTimers.push(timer);
-    });
-  }
-
-  // src/content/features/appointment/travel.js
-  function appointmentTravelStepperButton(input2, dir) {
-    if (!input2) return null;
-    const ir = rect(input2);
-    const buttons = deepQueryAll('button,[role="button"],uc-button').filter((btn) => visible(btn) && !isOwnPopup(btn)).map((btn) => ({ btn, r: rect(btn), text: clean(btn.textContent || btn.getAttribute("aria-label") || btn.getAttribute("title") || "") })).filter(({ r }) => r.top < ir.bottom + 10 && r.bottom > ir.top - 10 && r.left >= ir.left - 4 && r.left <= ir.right + 130);
-    const plus = buttons.filter((b) => /\+|plus|verhoog|increase|increment/.test(b.text)).sort((a, b) => a.r.left - b.r.left).pop();
-    const minus = buttons.filter((b) => /\u2212|-|min|verlaag|decrease|decrement/.test(b.text)).sort((a, b) => a.r.left - b.r.left)[0];
-    if (dir > 0) return plus && plus.btn || buttons.sort((a, b) => b.r.left - a.r.left)[0]?.btn || null;
-    return minus && minus.btn || buttons.sort((a, b) => a.r.left - b.r.left)[0]?.btn || null;
-  }
-  function clickTravelStepperToValue(input2, wanted) {
-    if (!input2) return false;
-    const current = Number.parseInt(inputTextValue(input2) || "0", 10);
-    if (!Number.isFinite(current) || current === wanted) return current === wanted;
-    const diff = wanted - current;
-    const btn = appointmentTravelStepperButton(input2, diff);
-    if (!btn) return false;
-    const count = Math.min(Math.abs(diff), 80);
-    for (let i = 0; i < count; i++) clickOption(btn);
-    return true;
-  }
-  function setAppointmentTravelTotalMinutes(totalMinutes) {
-    const there = appointmentTravelInput("heen");
-    const back = appointmentTravelInput("terug");
-    if (!there || !back) return false;
-    const thereText = String(Math.ceil(totalMinutes / 2));
-    const backText = String(Math.floor(totalMinutes / 2));
-    setInputTextOnsVerified(there, thereText);
-    setInputTextOnsVerified(back, backText);
-    setTimeout(() => {
-      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-    }, 180);
-    setTimeout(() => {
-      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-    }, 460);
-    return true;
-  }
-  function clearAppointmentTravelTimes() {
-    const fields = [appointmentTravelInput("heen"), appointmentTravelInput("terug")].filter(Boolean);
-    if (!fields.length) return true;
-    for (const field2 of fields) setInputTextQuiet(field2, "0");
-    return true;
-  }
-  function appointmentTravelTotalMinutes() {
-    const there = appointmentTravelInput("heen");
-    const back = appointmentTravelInput("terug");
-    if (!there || !back) return null;
-    const a = parseInt(inputTextValue(there), 10);
-    const b = parseInt(inputTextValue(back), 10);
-    const total = (isFinite(a) ? a : 0) + (isFinite(b) ? b : 0);
-    return total > 0 ? total : null;
-  }
-
   // src/content/ui/managed-text.js
   function effectiveTextConfig(key) {
     return (APP_CONFIG.texts || {})[key] || {};
@@ -4915,38 +4405,95 @@
     return APP_CONFIG.features && APP_CONFIG.features.managedTexts === false ? null : effectiveTextConfig(key);
   }
 
-  // src/content/ui/choice-style.js
-  function onsahPaletteSolidColor(key) {
-    const def = APP_CONFIG.palette && APP_CONFIG.palette[key];
-    const raw = String(def && (def.legend || def.fill) || "").trim();
-    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    return m ? "rgb(" + m[1] + "," + m[2] + "," + m[3] + ")" : "#999";
+  // src/content/features/appointment/travel.js
+  function appointmentTravelStepperButton(input2, dir) {
+    if (!input2) return null;
+    const ir = rect(input2);
+    const buttons = deepQueryAll('button,[role="button"],uc-button').filter((btn) => visible(btn) && !isOwnPopup(btn)).map((btn) => ({ btn, r: rect(btn), text: clean(btn.textContent || btn.getAttribute("aria-label") || btn.getAttribute("title") || "") })).filter(({ r }) => r.top < ir.bottom + 10 && r.bottom > ir.top - 10 && r.left >= ir.left - 4 && r.left <= ir.right + 130);
+    const plus = buttons.filter((b) => /\+|plus|verhoog|increase|increment/.test(b.text)).sort((a, b) => a.r.left - b.r.left).pop();
+    const minus = buttons.filter((b) => /\u2212|-|min|verlaag|decrease|decrement/.test(b.text)).sort((a, b) => a.r.left - b.r.left)[0];
+    if (dir > 0) return plus && plus.btn || buttons.sort((a, b) => b.r.left - a.r.left)[0]?.btn || null;
+    return minus && minus.btn || buttons.sort((a, b) => a.r.left - b.r.left)[0]?.btn || null;
   }
-  function onsahCategoryColor(clientPresent, index) {
-    const pair = clientPresent ? ["rood", "blauw"] : ["geel", "groen"];
-    return onsahPaletteSolidColor(pair[(index || 0) % 2]);
-  }
-  function onsahChoiceDotColor(choice, index) {
-    const key = choice && choice.kleur;
-    if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
-    return onsahCategoryColor(choice && choice.clientPresent, index);
-  }
-  function onsahChoiceDirectIndirectLabel(choice) {
-    const forms = APP_CONFIG && APP_CONFIG.registrationForms || [];
-    const labels = choice && choice.etiketten && choice.etiketten.length ? choice.etiketten : choice && choice.etiket ? [choice.etiket] : [];
-    if (!labels.length) return "";
-    for (let i = 0; i < forms.length; i++) {
-      const f = forms[i];
-      if (f.labels && f.labels.some((l) => labels.indexOf(l) !== -1)) return directIndirectLabel(f.startVerdeling);
-    }
-    return "";
-  }
-  function onsahRegistrationIsDirect(choice) {
-    if (!choice) return true;
-    if (choice.directFullDuration) return true;
-    if (choice.indirectFullDuration) return false;
-    if (choice.startSplit) return choice.startSplit.directPct >= choice.startSplit.indirectPct;
+  function clickTravelStepperToValue(input2, wanted) {
+    if (!input2) return false;
+    const current = Number.parseInt(inputTextValue(input2) || "0", 10);
+    if (!Number.isFinite(current) || current === wanted) return current === wanted;
+    const diff = wanted - current;
+    const btn = appointmentTravelStepperButton(input2, diff);
+    if (!btn) return false;
+    const count = Math.min(Math.abs(diff), 80);
+    for (let i = 0; i < count; i++) clickOption(btn);
     return true;
+  }
+  function setAppointmentTravelTotalMinutes(totalMinutes) {
+    const there = appointmentTravelInput("heen");
+    const back = appointmentTravelInput("terug");
+    if (!there || !back) return false;
+    const thereText = String(Math.ceil(totalMinutes / 2));
+    const backText = String(Math.floor(totalMinutes / 2));
+    setInputTextOnsVerified(there, thereText);
+    setInputTextOnsVerified(back, backText);
+    setTimeout(() => {
+      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
+      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
+    }, 180);
+    setTimeout(() => {
+      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
+      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
+    }, 460);
+    return true;
+  }
+  function clearAppointmentTravelTimes() {
+    const fields = [appointmentTravelInput("heen"), appointmentTravelInput("terug")].filter(Boolean);
+    if (!fields.length) return true;
+    for (const field2 of fields) setInputTextQuiet(field2, "0");
+    return true;
+  }
+  function appointmentTravelTotalMinutes() {
+    const there = appointmentTravelInput("heen");
+    const back = appointmentTravelInput("terug");
+    if (!there || !back) return null;
+    const a = parseInt(inputTextValue(there), 10);
+    const b = parseInt(inputTextValue(back), 10);
+    const total = (isFinite(a) ? a : 0) + (isFinite(b) ? b : 0);
+    return total > 0 ? total : null;
+  }
+
+  // src/content/ons/busy-cursor.js
+  var _busyDepth = 0;
+  var _busyStyleEl = null;
+  function _ensureBusyStyle() {
+    if (_busyStyleEl) return;
+    _busyStyleEl = document.createElement("style");
+    _busyStyleEl.id = "ons-helper-busy-style";
+    _busyStyleEl.textContent = "html.ons-helper-busy, html.ons-helper-busy * { cursor: progress !important; }";
+    (document.head || document.documentElement).appendChild(_busyStyleEl);
+  }
+  function setBusyCursor(on) {
+    _ensureBusyStyle();
+    if (on) {
+      _busyDepth++;
+      document.documentElement.classList.add("ons-helper-busy");
+    } else {
+      _busyDepth = Math.max(0, _busyDepth - 1);
+      if (_busyDepth === 0) document.documentElement.classList.remove("ons-helper-busy");
+    }
+  }
+  function busyWhile(maxMs, run) {
+    setBusyCursor(true);
+    let done = false;
+    const clear = () => {
+      if (!done) {
+        done = true;
+        setBusyCursor(false);
+      }
+    };
+    const guard = setTimeout(clear, maxMs || 6e3);
+    run(() => {
+      clearTimeout(guard);
+      clear();
+    });
   }
 
   // src/content/ui/controls.js
@@ -5149,6 +4696,456 @@
     b.appendChild(document.createTextNode(label || "Terug"));
     Object.assign(b.style, { display: "inline-flex", alignItems: "center", justifyContent: "flex-start", gap: "6px", textAlign: "left", width: "100%" });
     return b;
+  }
+
+  // src/content/services/ons-api/clients.js
+  function pickClientIdFromSearch(json, name) {
+    const clients = json && Array.isArray(json.clients) ? json.clients : Array.isArray(json) ? json : [];
+    if (!clients.length) return null;
+    const namesOf = (c) => [c && c.display_name, c && c.name, c && c.sortable_name, c && c.full_name].filter(Boolean).map(clean);
+    const idOf = (c) => c && c.id != null ? String(c.id) : null;
+    const want = clean(name);
+    if (want) {
+      const exact = clients.find((c) => namesOf(c).some((n) => n === want));
+      if (exact) return idOf(exact);
+      const tokens = want.split(" ").filter(Boolean);
+      if (tokens.length) {
+        const tokMatch = clients.filter((c) => {
+          const blob = namesOf(c).join(" ");
+          return tokens.every((t) => blob.indexOf(t) !== -1);
+        });
+        if (tokMatch.length === 1) return idOf(tokMatch[0]);
+      }
+    }
+    if (clients.length === 1) return idOf(clients[0]);
+    return null;
+  }
+  async function searchClients(term, outOfCare) {
+    try {
+      const json = await getJson(_apiUrl("searchClients", { term, outOfCare }));
+      return json && Array.isArray(json.clients) ? json.clients : Array.isArray(json) ? json : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  var clientIdByName = /* @__PURE__ */ Object.create(null);
+  async function findClientIdByName(name) {
+    const nm = String(name || "").trim();
+    if (!nm) return null;
+    if (clientIdByName[nm]) return clientIdByName[nm];
+    const clients = await searchClients(nm, "false");
+    let id = pickClientIdFromSearch({ clients }, nm);
+    if (!id) {
+      const more = await searchClients(nm, "true");
+      const byId = /* @__PURE__ */ new Map();
+      clients.concat(more).forEach((c) => {
+        if (c && c.id != null) byId.set(String(c.id), c);
+      });
+      id = pickClientIdFromSearch({ clients: Array.from(byId.values()) }, nm);
+    }
+    if (id) {
+      clientIdByName[nm] = id;
+      return id;
+    }
+    return null;
+  }
+
+  // src/content/services/ons-api/employee.js
+  async function getEmployeeIdAsync() {
+    return employeeIdFromUrl() || employeeIdFromDom() || await employeeIdFromCalendarVariables() || await employeeIdFromPageScript();
+  }
+  function employeeIdFromUrl() {
+    const href = String(location.href || "");
+    const m = href.match(/\/invitees\/(\d+)/i) || href.match(/(?:employee_id|invitee_id)[s]?(?:%5B%5D|\[\])=(\d+)/i);
+    return m ? m[1] : null;
+  }
+  function employeeIdFromDom() {
+    const input2 = document.querySelector('input[name*="employee_id"], [data-employee-id], input[name="agenda_owner_id"], input[name*="invitee_id"]');
+    return input2 && (input2.value || input2.getAttribute("data-employee-id")) || null;
+  }
+  async function employeeIdFromCalendarVariables() {
+    try {
+      const json = await getJson(_apiUrl("calendarVariables", { date: agendaYmd(/* @__PURE__ */ new Date()) }));
+      const employee = json && Array.isArray(json.invitees) ? json.invitees.find((i) => i.type === "employee" && i.id != null) : null;
+      return employee ? String(employee.id) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  var PAGE_SCRIPT_TIMEOUT_MS = 1500;
+  function employeeIdFromPageScript() {
+    return new Promise((resolve) => {
+      const eventId = "ons_data_" + Math.random().toString(36).slice(2, 11);
+      const script = document.createElement("script");
+      script.textContent = `
+      try {
+        let empId = null;
+        if (typeof onsContext === "function") {
+          let ctx = onsContext();
+          if (ctx && ctx.userId) empId = ctx.userId;
+        }
+        window.dispatchEvent(new CustomEvent("${eventId}", { detail: { empId: empId } }));
+      } catch(e) {
+        window.dispatchEvent(new CustomEvent("${eventId}", { detail: {} }));
+      }
+    `;
+      let settled = false;
+      const finish = (id) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener(eventId, listener);
+        script.remove();
+        resolve(id);
+      };
+      const listener = (e) => finish(e.detail && e.detail.empId ? String(e.detail.empId) : null);
+      const timer = setTimeout(() => finish(null), PAGE_SCRIPT_TIMEOUT_MS);
+      window.addEventListener(eventId, listener);
+      document.documentElement.appendChild(script);
+    });
+  }
+
+  // src/content/services/ons-api/products.js
+  function parseProductList(json) {
+    if (!json || !Array.isArray(json.basic_list)) return [];
+    const cats = ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"];
+    const out = [], seen = /* @__PURE__ */ new Set();
+    json.basic_list.forEach(function(group) {
+      if (!Array.isArray(group) || cats.indexOf(group[0]) === -1) return;
+      const items = Array.isArray(group[1]) ? group[1] : [];
+      items.forEach(function(item) {
+        const name = Array.isArray(item) ? String(item[0] == null ? "" : item[0]).trim() : "";
+        if (!name) return;
+        const key = clean(name);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        out.push(name);
+      });
+    });
+    return out;
+  }
+  var PRODUCT_LIST_TTL_MS = 5 * 60 * 1e3;
+  var productListCache = /* @__PURE__ */ Object.create(null);
+  async function fetchProductList({ date, employeeId, clientIds }) {
+    let url = _apiUrl("productList", { date, employeeId, clientId: clientIds[0] });
+    for (let k = 1; k < clientIds.length; k++) {
+      url += "&client_ids%5B%5D=" + encodeURIComponent(clientIds[k]);
+    }
+    const cached = productListCache[url];
+    if (cached && Date.now() - cached.ts < PRODUCT_LIST_TTL_MS && cached.list && cached.list.length) {
+      return cached.list.slice();
+    }
+    const json = await getJson(url);
+    if (!json || !Array.isArray(json.basic_list)) throw new Error("ongeldige product_selection response");
+    const list = parseProductList(json);
+    if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() };
+    return list;
+  }
+
+  // src/content/features/appointment/uursoort-source.js
+  function clientScope(context2, trigger) {
+    if (context2 && context2.card) return context2.card;
+    if (trigger && trigger.closest) {
+      return trigger.closest('ul[class*="_selected-clients_"] > li') || trigger.closest('ul[data-qa="selected_clients"] > li') || trigger.closest("li") || null;
+    }
+    return null;
+  }
+  function scopeClientName(scope, context2) {
+    if (scope) {
+      const el = scope.querySelector('span[class*="invitee-name"], span[class*="_invitee-name_"]');
+      const nm = el ? String(el.innerText || el.textContent || "").trim() : "";
+      if (nm) return nm;
+    }
+    return context2 && context2.name ? String(context2.name).trim() : "";
+  }
+  async function getClientIdsAsync(context2, trigger) {
+    const candidates = [];
+    const add = (v) => {
+      const s = String(v == null ? "" : v).trim();
+      if (/^\d+$/.test(s) && !candidates.includes(s)) candidates.push(s);
+    };
+    const scope = clientScope(context2, trigger);
+    const name = String(context2 && context2.name || scopeClientName(scope, null) || "").trim();
+    if (name) {
+      const byName = await findClientIdByName(name);
+      if (byName) return [byName];
+    }
+    if (context2 && context2.clientId != null) add(context2.clientId);
+    if (scope) {
+      scope.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
+      scope.querySelectorAll("[data-client-id],[data-patient-id]").forEach((el) => {
+        add(el.getAttribute("data-client-id"));
+        add(el.getAttribute("data-patient-id"));
+      });
+      if (candidates.length) return candidates.slice(0, 1);
+    }
+    const href = String(location.href || "");
+    const m = href.match(/client_id[s]?(?:%5B%5D|\[\])=(\d+)/g);
+    if (m) m.forEach((match) => {
+      const id = match.match(/(\d+)/);
+      if (id) add(id[1]);
+    });
+    else {
+      const singleMatch = href.match(/\/clients\/(\d+)/i);
+      if (singleMatch) add(singleMatch[1]);
+    }
+    document.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
+    return candidates;
+  }
+  async function fetchClientUursoortOptionsApi(context2, trigger) {
+    const employeeId = await getEmployeeIdAsync();
+    const clientIds = await getClientIdsAsync(context2, trigger);
+    if (!employeeId) throw new Error("geen employee-id gevonden");
+    if (!clientIds || clientIds.length === 0) throw new Error("geen client-id gevonden");
+    return fetchProductList({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
+  }
+  function prefetchClientUursoorten(context2, trigger) {
+    try {
+      fetchClientUursoortOptionsApi(context2 || null, trigger || null).catch(function() {
+      });
+    } catch (e) {
+    }
+  }
+  var prefetchedNames = /* @__PURE__ */ Object.create(null);
+  function resetPrefetchedUursoorten() {
+    prefetchedNames = /* @__PURE__ */ Object.create(null);
+  }
+  function maybePrefetchUursoorten() {
+    try {
+      invalidateClientEntries();
+      findClientEntries().forEach(function(e) {
+        const nm = e && e.name ? String(e.name).trim() : "";
+        if (!nm) return;
+        const key = (location.pathname || "") + "|" + clean(nm);
+        if (prefetchedNames[key]) return;
+        prefetchedNames[key] = true;
+        prefetchClientUursoorten({ name: nm, trigger: e && e.uursoortTrigger || null }, e && e.uursoortTrigger || null);
+      });
+    } catch (e) {
+    }
+  }
+  function listUursoortOptions(cb, triggerArg = null, attempt = 0, scrape = false, clientContext = null) {
+    const trigger = triggerArg || getUursoortTrigger();
+    if (!trigger) {
+      cb(null);
+      return;
+    }
+    if (scrape) {
+      scrapeUursoortOptions(cb, trigger, triggerArg, attempt, clientContext);
+      return;
+    }
+    fetchClientUursoortOptionsApi(clientContext, trigger).then(function(out) {
+      if (out && out.length > 0) cb(out);
+      else throw new Error("API leverde een lege lijst op");
+    }).catch(function() {
+      dismissOpenDropdowns();
+      setTimeout(() => listUursoortOptions(cb, triggerArg, attempt, true, clientContext), 70);
+    });
+  }
+  function scrapeUursoortOptions(cb, trigger, triggerArg, attempt, clientContext) {
+    const openedBy = openSelectCombobox(trigger) || trigger;
+    setTimeout(() => {
+      const input2 = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
+      if (input2) {
+        input2.focus();
+        setInputTextComposed(input2, "");
+      }
+      setTimeout(() => {
+        scanClientUursoortOptions(trigger, (out) => {
+          if (!out.length && attempt < 2) {
+            clickEmptyModalSpot();
+            setTimeout(() => listUursoortOptions(cb, triggerArg, attempt + 1, true, clientContext), 140);
+            return;
+          }
+          cb(out);
+          setTimeout(clickEmptyModalSpot, 60);
+        });
+      }, input2 ? 140 : 20);
+    }, 170);
+  }
+
+  // src/content/features/appointment/undo.js
+  var _appointmentSnapshot = null;
+  function takeAppointmentSnapshot() {
+    try {
+      const lees = (el) => el ? String(inputTextValue(el) || "") : null;
+      _appointmentSnapshot = {
+        titel: lees(OnsAdapter.afspraak.titelVeld()),
+        eind: lees(OnsAdapter.afspraak.eindtijdVeld()),
+        heen: lees(OnsAdapter.afspraak.reistijdVeld("heen")),
+        terug: lees(OnsAdapter.afspraak.reistijdVeld("terug")),
+        labels: OnsAdapter.afspraak.labels()
+      };
+    } catch (e) {
+      _appointmentSnapshot = null;
+    }
+    return _appointmentSnapshot;
+  }
+  function hasAppointmentSnapshot() {
+    return !!_appointmentSnapshot;
+  }
+  function clearAppointmentSnapshot() {
+    _appointmentSnapshot = null;
+  }
+  function restoreAppointmentSnapshot(onDone) {
+    const snap = _appointmentSnapshot;
+    if (!snap) {
+      if (onDone) onDone(false);
+      return;
+    }
+    const zet = (el, waarde) => {
+      if (el && waarde != null) setInputTextOns(el, waarde);
+    };
+    try {
+      zet(OnsAdapter.afspraak.titelVeld(), snap.titel);
+      zet(OnsAdapter.afspraak.eindtijdVeld(), snap.eind);
+      zet(OnsAdapter.afspraak.reistijdVeld("heen"), snap.heen);
+      zet(OnsAdapter.afspraak.reistijdVeld("terug"), snap.terug);
+    } catch (e) {
+    }
+    OnsAdapter.afspraak.wisLabels(function() {
+      const terug = (snap.labels || []).slice();
+      const volgende = function() {
+        if (!terug.length) {
+          OnsAdapter.clienten.wisUursoorten(function() {
+            clearAppointmentSnapshot();
+            if (onDone) onDone(true);
+          });
+          return;
+        }
+        OnsAdapter.afspraak.zetLabel(terug.shift(), volgende);
+      };
+      volgende();
+    });
+  }
+  function clearSettings() {
+    appointmentFlow.appointmentClearingSettings = true;
+    appointmentFlow.appointmentAwaitingManualUursoort = false;
+    appointmentFlow.uursoortQueueGen++;
+    appointmentFlow.uursoortQueueActive = false;
+    appointmentFlow.appointmentFlowBusy = false;
+    resetPrefetchedUursoorten();
+    appointmentFlow.pendingChoice = null;
+    appointmentFlow.appointmentTypeApplied = false;
+    appointmentFlow.helperEndText = "";
+    appointmentFlow.appointmentEndTimeUserOwned = false;
+    appointmentFlow.activeNonClientOption = null;
+    showLoadingState("Instellingen verwijderen...");
+    setStatus("Instellingen verwijderen...");
+    appointmentFlow.activeAppointmentDurationMinutes = null;
+    appointmentFlow.activeAppointmentStartTimeText = "";
+    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
+    appointmentFlow.appointmentTimeGuardTimers = [];
+    const afterOpen = () => {
+      const titleOk = clearTitle();
+      const endTimeOk = clearEndTime();
+      const travelOk = clearAppointmentTravelTimes();
+      clearKnownLabels((labelOk) => clearAllUursoorten(() => {
+        appointmentFlow.appointmentClearingSettings = false;
+        showChoices();
+        const msg = ["Instellingen verwijderd"];
+        if (!titleOk) msg.push("titel niet gevonden");
+        if (!endTimeOk) msg.push("eindtijd niet gevonden");
+        if (!travelOk) msg.push("reistijd niet gevonden");
+        if (!labelOk) msg.push("label niet verwijderd");
+        invalidateClientEntries();
+        try {
+          maybePrefetchUursoorten();
+        } catch (e) {
+        }
+        if (anyUursoortPresent()) msg.push("verwijder zelf nog eventueel de uursoorten");
+        setStatus(msg.join(" | "), titleOk && endTimeOk && travelOk && labelOk);
+      }));
+    };
+    if (hasClientInAppointment() && uursoortContexts().length < findClientEntries().length) ensureClientExpanded(() => afterOpen());
+    else afterOpen();
+  }
+  function addResetButton(body) {
+    const reset = mkButton("Verwijder instellingen", () => safe(clearSettings), { tick: false, chevron: false, accent: "#a3241f", accentWash: "#fbeceb" });
+    body.appendChild(reset);
+  }
+
+  // src/content/ui/modal-shell.js
+  function mkModalShell(id, titleText, opts) {
+    opts = opts || {};
+    var old = document.getElementById(id);
+    if (old) old.remove();
+    var overlay = document.createElement("div");
+    overlay.id = id;
+    overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(20,15,13,.5);display:flex;align-items:center;justify-content:center;padding:16px";
+    var card = document.createElement("div");
+    card.style.cssText = "background:#fff;color:#201d1f;max-width:" + (opts.maxWidth || "420px") + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex';
+    var spine = document.createElement("div");
+    spine.style.cssText = "width:14px;flex:0 0 auto;background:" + (opts.spineColor || "#cc087d") + ";";
+    var mainCol = document.createElement("div");
+    mainCol.style.cssText = "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto";
+    var head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #f1ecea;position:sticky;top:0;background:#fff";
+    var htitle = document.createElement("div");
+    htitle.textContent = titleText;
+    htitle.style.cssText = "font-weight:800;font-size:15px;color:#201d1f";
+    var close = document.createElement("button");
+    close.type = "button";
+    close.setAttribute("aria-label", "Sluiten");
+    close.style.cssText = "border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex:0 0 auto";
+    close.appendChild(svgCloseIcon());
+    onsahFocusRing(close);
+    head.append(htitle, close);
+    mainCol.appendChild(head);
+    var body = document.createElement("div");
+    body.style.cssText = "padding:14px 16px";
+    mainCol.appendChild(body);
+    card.appendChild(spine);
+    card.appendChild(mainCol);
+    overlay.appendChild(card);
+    var closeModal = function() {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+    };
+    function onKey(e) {
+      if (e.key === "Escape") closeModal();
+    }
+    document.addEventListener("keydown", onKey);
+    close.addEventListener("click", closeModal);
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay) closeModal();
+    });
+    (document.body || document.documentElement).appendChild(overlay);
+    return { overlay, body, close: closeModal };
+  }
+
+  // src/content/ui/choice-style.js
+  function onsahPaletteSolidColor(key) {
+    const def = APP_CONFIG.palette && APP_CONFIG.palette[key];
+    const raw = String(def && (def.legend || def.fill) || "").trim();
+    const m = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    return m ? "rgb(" + m[1] + "," + m[2] + "," + m[3] + ")" : "#999";
+  }
+  function onsahCategoryColor(clientPresent, index) {
+    const pair = clientPresent ? ["rood", "blauw"] : ["geel", "groen"];
+    return onsahPaletteSolidColor(pair[(index || 0) % 2]);
+  }
+  function onsahChoiceDotColor(choice, index) {
+    const key = choice && choice.kleur;
+    if (key && APP_CONFIG.palette && APP_CONFIG.palette[key]) return onsahPaletteSolidColor(key);
+    return onsahCategoryColor(choice && choice.clientPresent, index);
+  }
+  function onsahChoiceDirectIndirectLabel(choice) {
+    const forms = APP_CONFIG && APP_CONFIG.registrationForms || [];
+    const labels = choice && choice.etiketten && choice.etiketten.length ? choice.etiketten : choice && choice.etiket ? [choice.etiket] : [];
+    if (!labels.length) return "";
+    for (let i = 0; i < forms.length; i++) {
+      const f = forms[i];
+      if (f.labels && f.labels.some((l) => labels.indexOf(l) !== -1)) return directIndirectLabel(f.startVerdeling);
+    }
+    return "";
+  }
+  function onsahRegistrationIsDirect(choice) {
+    if (!choice) return true;
+    if (choice.directFullDuration) return true;
+    if (choice.indirectFullDuration) return false;
+    if (choice.startSplit) return choice.startSplit.directPct >= choice.startSplit.indirectPct;
+    return true;
   }
 
   // src/content/ui/duration-picker.js
@@ -5508,215 +5505,6 @@
     b.renderWizardScreen(container, name, p);
     return true;
   }
-
-  // src/content/ons/busy-cursor.js
-  var _busyDepth = 0;
-  var _busyStyleEl = null;
-  function _ensureBusyStyle() {
-    if (_busyStyleEl) return;
-    _busyStyleEl = document.createElement("style");
-    _busyStyleEl.id = "ons-helper-busy-style";
-    _busyStyleEl.textContent = "html.ons-helper-busy, html.ons-helper-busy * { cursor: progress !important; }";
-    (document.head || document.documentElement).appendChild(_busyStyleEl);
-  }
-  function setBusyCursor(on) {
-    _ensureBusyStyle();
-    if (on) {
-      _busyDepth++;
-      document.documentElement.classList.add("ons-helper-busy");
-    } else {
-      _busyDepth = Math.max(0, _busyDepth - 1);
-      if (_busyDepth === 0) document.documentElement.classList.remove("ons-helper-busy");
-    }
-  }
-  function busyWhile(maxMs, run) {
-    setBusyCursor(true);
-    let done = false;
-    const clear = () => {
-      if (!done) {
-        done = true;
-        setBusyCursor(false);
-      }
-    };
-    const guard = setTimeout(clear, maxMs || 6e3);
-    run(() => {
-      clearTimeout(guard);
-      clear();
-    });
-  }
-
-  // src/content/features/appointment/recurrence.js
-  function doorplannenWarnText() {
-    const c = resolveText("doorplannen_waarschuwing");
-    return c && c.text || "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.";
-  }
-  function recurrenceValue() {
-    const sel = findRecurrenceField();
-    if (sel) {
-      const combo = deepQueryAll('[role="combobox"]', sel)[0];
-      if (combo) {
-        const v = clean(combo.getAttribute("aria-description") || combo.textContent || "");
-        if (v) return v;
-      }
-      const t = clean(sel.textContent || "");
-      if (t) return t;
-    }
-    const head = findRecurrenceHeader();
-    if (head) {
-      let spans;
-      try {
-        spans = head.querySelectorAll("span");
-      } catch (e) {
-        spans = [];
-      }
-      if (spans.length >= 2) return clean(spans[spans.length - 1].textContent || "");
-    }
-    return "";
-  }
-  function recurrenceIsSet() {
-    const v = recurrenceValue();
-    return !!v && v !== "niet";
-  }
-  function recurrenceHeaderExpanded() {
-    const h = findRecurrenceHeader();
-    return !!(h && h.getAttribute("aria-expanded") === "true");
-  }
-  function clickRecurrenceHeader(head) {
-    if (!head) return false;
-    return clickUiButton(head) || clickElementCenter(head) || (clickOption(head), true);
-  }
-  function expandRecurrence() {
-    const head = findRecurrenceHeader();
-    if (head && head.getAttribute("aria-expanded") !== "true") clickRecurrenceHeader(head);
-    pollFor(() => findRecurrenceField(), (field2) => {
-      if (field2) {
-        try {
-          highlightField(field2, 5e3);
-        } catch (e) {
-        }
-      }
-    }, { timeout: 2e3, interval: 50 });
-    return !!head;
-  }
-  function recurrenceCombo() {
-    const field2 = findRecurrenceField();
-    return field2 ? deepQueryAll('[role="combobox"]', field2)[0] || null : null;
-  }
-  function setRecurrenceToNiet(done) {
-    if (!recurrenceIsSet()) {
-      if (done) done(true);
-      return;
-    }
-    const combo = recurrenceCombo();
-    if (!combo) {
-      if (done) done(false);
-      return;
-    }
-    clickElementCenter(combo);
-    pollFor(() => {
-      const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
-      return opts.find((o) => clean(o.textContent) === "niet") || null;
-    }, (opt) => {
-      if (opt) clickElementCenter(opt);
-      else {
-        try {
-          combo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-        } catch (e) {
-        }
-      }
-      if (done) done(!!opt);
-    }, { timeout: 2e3, interval: 50 });
-  }
-  function collapseRecurrence() {
-    const finish = () => {
-      const head = findRecurrenceHeader();
-      if (head && head.getAttribute("aria-expanded") === "true") clickRecurrenceHeader(head);
-    };
-    if (!recurrenceIsSet()) {
-      finish();
-      return true;
-    }
-    setRecurrenceToNiet(() => {
-      setTimeout(finish, 60);
-    });
-    return true;
-  }
-  function doorplannenBlocksSave() {
-    return !(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false) && appointmentFlow.appointmentDoorplannen && !recurrenceIsSet();
-  }
-
-  // src/content/features/appointment/ons-adapter.js
-  var _onsGemist = /* @__PURE__ */ new Set();
-  function _onsLees(naam, fn) {
-    let waarde = null;
-    try {
-      waarde = fn();
-    } catch (e) {
-      waarde = null;
-    }
-    const leeg = waarde == null || waarde === "" || waarde === false || Array.isArray(waarde) && waarde.length === 0;
-    if (leeg) _onsGemist.add(naam);
-    else _onsGemist.delete(naam);
-    return waarde;
-  }
-  function onsGemisteVelden() {
-    return Array.from(_onsGemist);
-  }
-  function onsVergeetGemist() {
-    _onsGemist.clear();
-  }
-  var OnsAdapter = {
-    // Waar zijn we, en in welk scherm?
-    context: {
-      modal: () => _onsLees("afspraakvenster", findModal),
-      heeftClient: () => hasClientInAppointment()
-    },
-    // De afspraak zelf.
-    afspraak: {
-      titelVeld: () => _onsLees("titel", getTitleInput),
-      datumVeld: () => _onsLees("datum", getDateInput),
-      begintijdVeld: () => _onsLees("begintijd", getStartTimeInput),
-      eindtijdVeld: () => _onsLees("eindtijd", getEndTimeInput),
-      labelVeld: () => _onsLees("label", getEtiketTrigger),
-      herhalingVeld: () => _onsLees("herhaling", findRecurrenceField),
-      reistijdVeld: (richting) => _onsLees("reistijd " + richting, () => appointmentTravelInput(richting)),
-      titel() {
-        const el = this.titelVeld();
-        return el ? String(inputTextValue(el) || "").trim() : "";
-      },
-      eindtijd() {
-        const el = this.eindtijdVeld();
-        return el ? String(inputTextValue(el) || "").trim() : "";
-      },
-      labels() {
-        try {
-          return (labelChips(getEtiketTrigger()) || []).map((c) => String(c.name || "").trim()).filter(Boolean);
-        } catch (e) {
-          return [];
-        }
-      },
-      reistijdTotaal: () => appointmentTravelTotalMinutes(),
-      zetTitel: (tekst) => setAppointmentTitleText(tekst),
-      zetLabel: (naam, klaar) => setLabel(naam, klaar),
-      wisLabels: (klaar) => clearKnownLabels(klaar),
-      zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),
-      wisReistijd: () => clearAppointmentTravelTimes(),
-      wisTitel: () => clearTitle(),
-      wisEindtijd: () => clearEndTime()
-    },
-    // De cliënten in de afspraak en hun uursoort — het veld waar het in de
-    // praktijk het vaakst misgaat.
-    clienten: {
-      lijst: () => _onsLees("cliëntkaarten", findClientEntries),
-      ververs: () => invalidateClientEntries(),
-      klapUit: (klaar) => ensureClientExpanded(klaar),
-      uursoort: (entry) => entryUursoortText(entry),
-      heeftUursoort: (entry) => entryUursoortIsSet(entry),
-      uursoortVeld: (entry) => entry ? entry.uursoortTrigger : null,
-      zetUursoort: (tekst, klaar, trigger) => chooseUursoort(tekst, klaar, trigger),
-      wisUursoorten: (klaar) => clearAllUursoorten(klaar)
-    }
-  };
 
   // src/content/services/ons-api/open-registrations.js
   var OVERLAP_TTL_MS = 6e4;
@@ -6445,1389 +6233,6 @@
     }
     box.appendChild(ul);
     body.appendChild(box);
-  }
-
-  // src/content/platform/module-host.js
-  function onsEnvironment() {
-    try {
-      return String(location.hostname.split(".")[0] || "");
-    } catch (e) {
-      return "";
-    }
-  }
-  var context = { environment: onsEnvironment(), userId: "", url: location.href, ready: false };
-  function trustedMessage(ev) {
-    if (!ev) return false;
-    if (ev.origin !== location.origin) return false;
-    if (ev.source && ev.source !== window) return false;
-    return true;
-  }
-  function listenForContext() {
-    window.addEventListener("message", function(ev) {
-      if (!trustedMessage(ev)) return;
-      const d = ev && ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "context") return;
-      context.environment = d.environment || context.environment;
-      if (d.userId) context.userId = String(d.userId);
-      context.url = d.url || location.href;
-      context.ready = true;
-    }, false);
-  }
-  function urlMatches(patterns, url) {
-    if (!patterns || !patterns.length) return true;
-    for (let i = 0; i < patterns.length; i++) {
-      const rx = "^" + String(patterns[i]).replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
-      try {
-        if (new RegExp(rx).test(url)) return true;
-      } catch (e) {
-      }
-    }
-    return false;
-  }
-  var CLIENT_HEADER_SELECTORS = [
-    '[data-qa="client_header"]',
-    '[data-qa="client-header"]',
-    "uc-client-header",
-    ".client-header",
-    '[class*="client-header"]',
-    '[class*="_client-header_"]'
-  ];
-  function isVisible(el) {
-    if (!el) return false;
-    try {
-      const view = el.ownerDocument && el.ownerDocument.defaultView || window;
-      const s = view.getComputedStyle(el);
-      if (s && (s.display === "none" || s.visibility === "hidden" || s.opacity === "0")) return false;
-    } catch (e) {
-    }
-    return true;
-  }
-  function clientHeaderVisible() {
-    for (let i = 0; i < CLIENT_HEADER_SELECTORS.length; i++) {
-      try {
-        const el = document.querySelector(CLIENT_HEADER_SELECTORS[i]);
-        if (el && isVisible(el)) return true;
-      } catch (e) {
-      }
-    }
-    return false;
-  }
-  var ROLLOUT = { enabled: false, groups: {} };
-  function setRollout(cfg) {
-    if (!cfg || typeof cfg !== "object") {
-      ROLLOUT = { enabled: false, groups: {} };
-      return;
-    }
-    ROLLOUT = { enabled: !!cfg.enabled, groups: cfg.groups && typeof cfg.groups === "object" ? cfg.groups : {} };
-  }
-  function userInGroup(userId, groupName) {
-    const members = ROLLOUT.groups[groupName];
-    if (!Array.isArray(members)) return false;
-    const id = String(userId || "").trim().toLowerCase();
-    if (!id) return false;
-    return members.some(function(m) {
-      return String(m || "").trim().toLowerCase() === id;
-    });
-  }
-  function isAllowedUser(meta) {
-    const tg = meta && meta.testGroup;
-    if (!tg || !ROLLOUT.enabled) return true;
-    const groups = Array.isArray(tg) ? tg : [tg];
-    return groups.some(function(g) {
-      return userInGroup(context.userId, g);
-    });
-  }
-  var MESSAGES = {};
-  var barEl = null;
-  function messageIsEmpty(v) {
-    if (v == null) return true;
-    if (typeof v === "string") return v === "";
-    if (typeof v === "object") return !(v.title && String(v.title).length) && !(Array.isArray(v.items) && v.items.length);
-    return true;
-  }
-  function setMessage(id, value) {
-    if (messageIsEmpty(value)) delete MESSAGES[id];
-    else MESSAGES[id] = value;
-  }
-  function currentMessages() {
-    return Object.keys(MESSAGES).map(function(k) {
-      return { id: k, value: MESSAGES[k] };
-    });
-  }
-  function messageApiFor(id) {
-    return {
-      setMessage: function(value) {
-        setMessage(id, value);
-      },
-      clearMessage: function() {
-        setMessage(id, "");
-      }
-    };
-  }
-  function buildBar() {
-    const bar = document.createElement("div");
-    bar.className = "onsah-meldingen";
-    bar.setAttribute("data-ons-agendahulp", "meldingen");
-    try {
-      bar.setAttribute("popover", "manual");
-    } catch (e) {
-    }
-    bar.style.cssText = 'position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;pointer-events:none;';
-    return bar;
-  }
-  function ensureBarOnTop() {
-    if (!barEl) return;
-    try {
-      if (typeof barEl.showPopover === "function" && !barEl.matches(":popover-open")) barEl.showPopover();
-    } catch (e) {
-    }
-  }
-  function fillCard(card, value) {
-    if (typeof value === "string") {
-      card.appendChild(document.createTextNode(value));
-      return;
-    }
-    if (value && typeof value === "object") {
-      if (value.title) {
-        const h = document.createElement("div");
-        h.textContent = String(value.title);
-        h.style.cssText = "font-weight:700;color:#9b1c1c;margin-bottom:3px;";
-        card.appendChild(h);
-      }
-      if (Array.isArray(value.items) && value.items.length) {
-        const ul = document.createElement("ul");
-        ul.style.cssText = "margin:0;padding:0 0 0 16px;";
-        value.items.forEach(function(it) {
-          const li = document.createElement("li");
-          li.textContent = String(it && it.text != null ? it.text : it);
-          li.style.color = it && it.sev === "error" ? "#9b1c1c" : it && it.sev === "warn" ? "#7a5200" : "#222";
-          ul.appendChild(li);
-        });
-        card.appendChild(ul);
-      }
-    }
-  }
-  function renderMessages() {
-    const items = currentMessages();
-    if (!items.length) {
-      if (barEl) {
-        try {
-          barEl.remove();
-        } catch (e) {
-        }
-        barEl = null;
-      }
-      return;
-    }
-    const host = document.body || document.documentElement;
-    if (!host) return;
-    if (!barEl || !barEl.isConnected) {
-      barEl = buildBar();
-      host.appendChild(barEl);
-    }
-    ensureBarOnTop();
-    barEl.textContent = "";
-    items.forEach(function(item) {
-      const card = document.createElement("div");
-      card.className = "onsah-melding";
-      card.setAttribute("data-melding", item.id);
-      card.style.cssText = "pointer-events:auto;background:#fff;border:1px solid #cc087d;border-left:4px solid #cc087d;border-radius:10px;padding:9px 11px;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.16);";
-      fillCard(card, item.value);
-      barEl.appendChild(card);
-    });
-  }
-  var ModuleBase = {
-    create: function(metadata, impl) {
-      const meta = metadata || {};
-      const id = meta.id || "module";
-      return {
-        id,
-        meta,
-        isActive: function() {
-          if (meta.environments && meta.environments.length && meta.environments.indexOf(onsEnvironment()) === -1) return false;
-          if (!urlMatches(meta.urls || meta.match, location.href)) return false;
-          if (meta.requiresClientHeader && !clientHeaderVisible()) return false;
-          if (!isAllowedUser(meta)) return false;
-          return true;
-        },
-        run: function() {
-          try {
-            if (impl && impl.run) impl.run(context, messageApiFor(id));
-          } catch (e) {
-          }
-        }
-      };
-    }
-  };
-  var REGISTRY = [];
-  function register(mod) {
-    REGISTRY.push(mod);
-  }
-  var ENGINE_INTERVAL_MS = 1e3;
-  var started = false;
-  function startModuleHost() {
-    if (started || window.__onsAgendahulpModules) return;
-    started = true;
-    window.__onsAgendahulpModules = true;
-    listenForContext();
-    setInterval(function() {
-      if (!document.hasFocus()) return;
-      for (let i = 0; i < REGISTRY.length; i++) {
-        const m = REGISTRY[i];
-        try {
-          if (m.isActive()) m.run();
-          else setMessage(m.id, "");
-        } catch (e) {
-        }
-      }
-      try {
-        renderMessages();
-      } catch (e) {
-      }
-    }, ENGINE_INTERVAL_MS);
-  }
-
-  // src/content/features/quality.js
-  function appointmentMissingHooks() {
-    onsVergeetGemist();
-    OnsAdapter.afspraak.labelVeld();
-    OnsAdapter.afspraak.datumVeld();
-    OnsAdapter.afspraak.begintijdVeld();
-    return onsGemisteVelden();
-  }
-  function helperQualityIssues() {
-    const out = [];
-    try {
-      if (helperPanel.activeMode === "events" && hasClientInAppointment()) {
-        const miss = appointmentMissingHooks();
-        if (miss.length) out.push({ sev: "error", msg: "Afspraakhulp herkent niet: " + miss.join(", ") + "." });
-      }
-      if (helperPanel.activeMode === "events" && appointmentFlow.appointmentDoorplannen && appointmentFlow.appointmentSaveScreenActive && !(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false) && !recurrenceIsSet()) {
-        out.push({ sev: "warn", msg: doorplannenWarnText() });
-      }
-      if (helperPanel.activeMode === "registrations") {
-        registrationCompletenessIssues().forEach((it) => out.push(it));
-      }
-    } catch (e) {
-    }
-    return out;
-  }
-  function highlightField(el, ms) {
-    try {
-      if (!el || el.nodeType !== 1) return;
-      const prevOutline = el.style.outline, prevOffset = el.style.outlineOffset;
-      el.style.outline = "2px solid #cc087d";
-      el.style.outlineOffset = "2px";
-      try {
-        el.scrollIntoView({ block: "center", inline: "nearest" });
-      } catch (e) {
-      }
-      setTimeout(() => {
-        try {
-          el.style.outline = prevOutline;
-          el.style.outlineOffset = prevOffset;
-        } catch (e) {
-        }
-      }, ms || 6e3);
-    } catch (e) {
-    }
-  }
-  function mkProblemBanner(missing) {
-    const wrap = document.createElement("div");
-    Object.assign(wrap.style, { border: "1px solid #b3261e", background: "#fdecea", borderRadius: "8px", padding: "8px 10px", margin: "0 0 8px" });
-    wrap.appendChild(mkText(
-      "probleem_hulp_werkt_niet",
-      "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.",
-      { color: "#b3261e", fontWeight: "700", fontSize: "13px", lineHeight: "1.35" }
-    ));
-    const sub = document.createElement("div");
-    Object.assign(sub.style, { marginTop: "4px", fontSize: "12px", color: "#b3261e" });
-    if (missing && missing.length) sub.appendChild(document.createTextNode("Niet herkend: " + missing.join(", ") + ". "));
-    const a = document.createElement("a");
-    a.textContent = "Meld probleem";
-    a.href = supportTopdeskUrl();
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    Object.assign(a.style, { color: "#b3261e", textDecoration: "underline", fontWeight: "700" });
-    sub.appendChild(a);
-    wrap.appendChild(sub);
-    return wrap;
-  }
-  function registerQualityModule() {
-    register(ModuleBase.create(
-      { id: "kwaliteit", urls: ["https://*.onsagenda.nl/*", "https://*.ons-dossier.nl/*"] },
-      { run: function(ctx, api) {
-        let issues = [];
-        try {
-          if (helperPanel.helperEnabled) issues = helperQualityIssues();
-        } catch (e) {
-          issues = [];
-        }
-        if (!issues.length) {
-          api.clearMessage();
-          return;
-        }
-        const errs = issues.filter((i) => i.sev === "error").length;
-        api.setMessage({
-          title: errs ? "Controleer voor opslaan" : "Aandachtspunt",
-          items: issues.map((i) => ({ text: i.msg, sev: i.sev }))
-        });
-      } }
-    ));
-  }
-
-  // src/content/features/appointment/uursoort-screens.js
-  function clientsMissingUursoort() {
-    return findClientEntries().filter((entry) => !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName(entry.name)).filter(Boolean);
-  }
-  function missingUursoortText(names) {
-    if (!names.length) return "Alle uursoorten zijn ingevuld.";
-    if (names.length === 1) return `Voeg de uursoort toe voor ${names[0]}.`;
-    const last = names[names.length - 1];
-    return `Voeg de uursoort toe voor ${names.slice(0, -1).join(", ")} en ${last}.`;
-  }
-  function showManualUursoortInstruction() {
-    const body = $body();
-    if (!body) return;
-    markScreen("manualUursoortInstruction");
-    appointmentFlow.appointmentFlowBusy = false;
-    appointmentFlow.appointmentAwaitingManualUursoort = true;
-    scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-    const _subNode = mkText("afspraak_uursoort_sub", "Daarna gaat de afspraak vanzelf verder.", { fontSize: "12px", color: "#666", lineHeight: "1.35", padding: "0 0 8px" });
-    const _instrNode = mkText("probleem_uursoort_zelf", "Kies zelf de uursoort in het gemarkeerde veld hieronder.", { fontSize: "12px", color: "#704b00", lineHeight: "1.35", padding: "0 0 8px" });
-    try {
-      highlightField(getUursoortTrigger() || (typeof findClientUursoortTrigger === "function" ? findClientUursoortTrigger() : null));
-    } catch (e) {
-    }
-    const onWatchTick = () => safe(() => {
-      if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations" || helperPanel._infoPanelRestore) return;
-      checkNow();
-    });
-    const renderMissing = () => {
-      const names = clientsMissingUursoort();
-      renderScreen(body, "manualUursoort", {
-        missingText: missingUursoortText(names),
-        subNode: _subNode,
-        instructionNode: _instrNode,
-        tokens: ONSAH_TOKENS,
-        onBack: function() {
-          helperPanel.suppressAutoUntil = Date.now() + 1200;
-          safe(() => {
-            appointmentFlow.appointmentAwaitingManualUursoort = false;
-            appointmentFlow.appointmentForceChoiceOnce = true;
-            showChoices();
-          });
-        },
-        onWatchTick,
-        watchIntervalMs: 600
-      });
-      return names;
-    };
-    const checkNow = () => {
-      invalidateClientEntries();
-      const names = renderMissing();
-      if (!names.length && hasUursoortSelected()) {
-        showAppointmentReadyToSave();
-        return true;
-      }
-      setStatus(names.length ? `Wacht op uursoort: ${names.join(", ")}` : "Uursoort gevonden", !names.length);
-      return false;
-    };
-    checkNow();
-  }
-  function showUursoort(options, afterPick, clientContext = null) {
-    const body = $body();
-    if (!body) return;
-    clearScreenMark();
-    renderScreen(body, "pickList", {
-      title: clientContext ? `Uursoort ${clientContext.firstName}` : "Kies uursoort",
-      titleWeight: 600,
-      loading: false,
-      options,
-      emptyMessage: "Geen uursoorten gevonden - open het veld handmatig.",
-      emptyColor: "#b3261e",
-      tokens: ONSAH_TOKENS,
-      onBack: function() {
-        helperPanel.suppressAutoUntil = Date.now() + 1200;
-        appointmentFlow.autoSelectingNewClient = false;
-        showChoices();
-      },
-      onPick: function(o) {
-        safe(function() {
-          setStatus("Bezig...");
-          const freshTrigger = clientContext ? freshUursoortTriggerForContext(clientContext) : null;
-          if (clientContext && !freshTrigger) {
-            setStatus(`uursoort-veld voor ${clientContext.firstName} niet gevonden`, false);
-            return;
-          }
-          chooseUursoort(o, (ok) => {
-            const done = () => {
-              showAppointmentReadyToSave();
-              setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
-            };
-            if (afterPick) afterPick(done);
-            else done();
-          }, freshTrigger || null);
-        });
-      }
-    });
-  }
-
-  // src/content/services/ons-api/clients.js
-  function pickClientIdFromSearch(json, name) {
-    const clients = json && Array.isArray(json.clients) ? json.clients : Array.isArray(json) ? json : [];
-    if (!clients.length) return null;
-    const namesOf = (c) => [c && c.display_name, c && c.name, c && c.sortable_name, c && c.full_name].filter(Boolean).map(clean);
-    const idOf = (c) => c && c.id != null ? String(c.id) : null;
-    const want = clean(name);
-    if (want) {
-      const exact = clients.find((c) => namesOf(c).some((n) => n === want));
-      if (exact) return idOf(exact);
-      const tokens = want.split(" ").filter(Boolean);
-      if (tokens.length) {
-        const tokMatch = clients.filter((c) => {
-          const blob = namesOf(c).join(" ");
-          return tokens.every((t) => blob.indexOf(t) !== -1);
-        });
-        if (tokMatch.length === 1) return idOf(tokMatch[0]);
-      }
-    }
-    if (clients.length === 1) return idOf(clients[0]);
-    return null;
-  }
-  async function searchClients(term, outOfCare) {
-    try {
-      const json = await getJson(_apiUrl("searchClients", { term, outOfCare }));
-      return json && Array.isArray(json.clients) ? json.clients : Array.isArray(json) ? json : [];
-    } catch (e) {
-      return [];
-    }
-  }
-  var clientIdByName = /* @__PURE__ */ Object.create(null);
-  async function findClientIdByName(name) {
-    const nm = String(name || "").trim();
-    if (!nm) return null;
-    if (clientIdByName[nm]) return clientIdByName[nm];
-    const clients = await searchClients(nm, "false");
-    let id = pickClientIdFromSearch({ clients }, nm);
-    if (!id) {
-      const more = await searchClients(nm, "true");
-      const byId = /* @__PURE__ */ new Map();
-      clients.concat(more).forEach((c) => {
-        if (c && c.id != null) byId.set(String(c.id), c);
-      });
-      id = pickClientIdFromSearch({ clients: Array.from(byId.values()) }, nm);
-    }
-    if (id) {
-      clientIdByName[nm] = id;
-      return id;
-    }
-    return null;
-  }
-
-  // src/content/services/ons-api/employee.js
-  async function getEmployeeIdAsync() {
-    return employeeIdFromUrl() || employeeIdFromDom() || await employeeIdFromCalendarVariables() || await employeeIdFromPageScript();
-  }
-  function employeeIdFromUrl() {
-    const href = String(location.href || "");
-    const m = href.match(/\/invitees\/(\d+)/i) || href.match(/(?:employee_id|invitee_id)[s]?(?:%5B%5D|\[\])=(\d+)/i);
-    return m ? m[1] : null;
-  }
-  function employeeIdFromDom() {
-    const input2 = document.querySelector('input[name*="employee_id"], [data-employee-id], input[name="agenda_owner_id"], input[name*="invitee_id"]');
-    return input2 && (input2.value || input2.getAttribute("data-employee-id")) || null;
-  }
-  async function employeeIdFromCalendarVariables() {
-    try {
-      const json = await getJson(_apiUrl("calendarVariables", { date: agendaYmd(/* @__PURE__ */ new Date()) }));
-      const employee = json && Array.isArray(json.invitees) ? json.invitees.find((i) => i.type === "employee" && i.id != null) : null;
-      return employee ? String(employee.id) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  var PAGE_SCRIPT_TIMEOUT_MS = 1500;
-  function employeeIdFromPageScript() {
-    return new Promise((resolve) => {
-      const eventId = "ons_data_" + Math.random().toString(36).slice(2, 11);
-      const script = document.createElement("script");
-      script.textContent = `
-      try {
-        let empId = null;
-        if (typeof onsContext === "function") {
-          let ctx = onsContext();
-          if (ctx && ctx.userId) empId = ctx.userId;
-        }
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: { empId: empId } }));
-      } catch(e) {
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: {} }));
-      }
-    `;
-      let settled = false;
-      const finish = (id) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        window.removeEventListener(eventId, listener);
-        script.remove();
-        resolve(id);
-      };
-      const listener = (e) => finish(e.detail && e.detail.empId ? String(e.detail.empId) : null);
-      const timer = setTimeout(() => finish(null), PAGE_SCRIPT_TIMEOUT_MS);
-      window.addEventListener(eventId, listener);
-      document.documentElement.appendChild(script);
-    });
-  }
-
-  // src/content/services/ons-api/products.js
-  function parseProductList(json) {
-    if (!json || !Array.isArray(json.basic_list)) return [];
-    const cats = ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"];
-    const out = [], seen = /* @__PURE__ */ new Set();
-    json.basic_list.forEach(function(group) {
-      if (!Array.isArray(group) || cats.indexOf(group[0]) === -1) return;
-      const items = Array.isArray(group[1]) ? group[1] : [];
-      items.forEach(function(item) {
-        const name = Array.isArray(item) ? String(item[0] == null ? "" : item[0]).trim() : "";
-        if (!name) return;
-        const key = clean(name);
-        if (!key || seen.has(key)) return;
-        seen.add(key);
-        out.push(name);
-      });
-    });
-    return out;
-  }
-  var PRODUCT_LIST_TTL_MS = 5 * 60 * 1e3;
-  var productListCache = /* @__PURE__ */ Object.create(null);
-  async function fetchProductList({ date, employeeId, clientIds }) {
-    let url = _apiUrl("productList", { date, employeeId, clientId: clientIds[0] });
-    for (let k = 1; k < clientIds.length; k++) {
-      url += "&client_ids%5B%5D=" + encodeURIComponent(clientIds[k]);
-    }
-    const cached = productListCache[url];
-    if (cached && Date.now() - cached.ts < PRODUCT_LIST_TTL_MS && cached.list && cached.list.length) {
-      return cached.list.slice();
-    }
-    const json = await getJson(url);
-    if (!json || !Array.isArray(json.basic_list)) throw new Error("ongeldige product_selection response");
-    const list = parseProductList(json);
-    if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() };
-    return list;
-  }
-
-  // src/content/features/appointment/uursoort-source.js
-  function clientScope(context2, trigger) {
-    if (context2 && context2.card) return context2.card;
-    if (trigger && trigger.closest) {
-      return trigger.closest('ul[class*="_selected-clients_"] > li') || trigger.closest('ul[data-qa="selected_clients"] > li') || trigger.closest("li") || null;
-    }
-    return null;
-  }
-  function scopeClientName(scope, context2) {
-    if (scope) {
-      const el = scope.querySelector('span[class*="invitee-name"], span[class*="_invitee-name_"]');
-      const nm = el ? String(el.innerText || el.textContent || "").trim() : "";
-      if (nm) return nm;
-    }
-    return context2 && context2.name ? String(context2.name).trim() : "";
-  }
-  async function getClientIdsAsync(context2, trigger) {
-    const candidates = [];
-    const add = (v) => {
-      const s = String(v == null ? "" : v).trim();
-      if (/^\d+$/.test(s) && !candidates.includes(s)) candidates.push(s);
-    };
-    const scope = clientScope(context2, trigger);
-    const name = String(context2 && context2.name || scopeClientName(scope, null) || "").trim();
-    if (name) {
-      const byName = await findClientIdByName(name);
-      if (byName) return [byName];
-    }
-    if (context2 && context2.clientId != null) add(context2.clientId);
-    if (scope) {
-      scope.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
-      scope.querySelectorAll("[data-client-id],[data-patient-id]").forEach((el) => {
-        add(el.getAttribute("data-client-id"));
-        add(el.getAttribute("data-patient-id"));
-      });
-      if (candidates.length) return candidates.slice(0, 1);
-    }
-    const href = String(location.href || "");
-    const m = href.match(/client_id[s]?(?:%5B%5D|\[\])=(\d+)/g);
-    if (m) m.forEach((match) => {
-      const id = match.match(/(\d+)/);
-      if (id) add(id[1]);
-    });
-    else {
-      const singleMatch = href.match(/\/clients\/(\d+)/i);
-      if (singleMatch) add(singleMatch[1]);
-    }
-    document.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
-    return candidates;
-  }
-  async function fetchClientUursoortOptionsApi(context2, trigger) {
-    const employeeId = await getEmployeeIdAsync();
-    const clientIds = await getClientIdsAsync(context2, trigger);
-    if (!employeeId) throw new Error("geen employee-id gevonden");
-    if (!clientIds || clientIds.length === 0) throw new Error("geen client-id gevonden");
-    return fetchProductList({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
-  }
-  function prefetchClientUursoorten(context2, trigger) {
-    try {
-      fetchClientUursoortOptionsApi(context2 || null, trigger || null).catch(function() {
-      });
-    } catch (e) {
-    }
-  }
-  var prefetchedNames = /* @__PURE__ */ Object.create(null);
-  function resetPrefetchedUursoorten() {
-    prefetchedNames = /* @__PURE__ */ Object.create(null);
-  }
-  function maybePrefetchUursoorten() {
-    try {
-      invalidateClientEntries();
-      findClientEntries().forEach(function(e) {
-        const nm = e && e.name ? String(e.name).trim() : "";
-        if (!nm) return;
-        const key = (location.pathname || "") + "|" + clean(nm);
-        if (prefetchedNames[key]) return;
-        prefetchedNames[key] = true;
-        prefetchClientUursoorten({ name: nm, trigger: e && e.uursoortTrigger || null }, e && e.uursoortTrigger || null);
-      });
-    } catch (e) {
-    }
-  }
-  function listUursoortOptions(cb, triggerArg = null, attempt = 0, scrape = false, clientContext = null) {
-    const trigger = triggerArg || getUursoortTrigger();
-    if (!trigger) {
-      cb(null);
-      return;
-    }
-    if (scrape) {
-      scrapeUursoortOptions(cb, trigger, triggerArg, attempt, clientContext);
-      return;
-    }
-    fetchClientUursoortOptionsApi(clientContext, trigger).then(function(out) {
-      if (out && out.length > 0) cb(out);
-      else throw new Error("API leverde een lege lijst op");
-    }).catch(function() {
-      dismissOpenDropdowns();
-      setTimeout(() => listUursoortOptions(cb, triggerArg, attempt, true, clientContext), 70);
-    });
-  }
-  function scrapeUursoortOptions(cb, trigger, triggerArg, attempt, clientContext) {
-    const openedBy = openSelectCombobox(trigger) || trigger;
-    setTimeout(() => {
-      const input2 = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
-      if (input2) {
-        input2.focus();
-        setInputTextComposed(input2, "");
-      }
-      setTimeout(() => {
-        scanClientUursoortOptions(trigger, (out) => {
-          if (!out.length && attempt < 2) {
-            clickEmptyModalSpot();
-            setTimeout(() => listUursoortOptions(cb, triggerArg, attempt + 1, true, clientContext), 140);
-            return;
-          }
-          cb(out);
-          setTimeout(clickEmptyModalSpot, 60);
-        });
-      }, input2 ? 140 : 20);
-    }, 170);
-  }
-
-  // src/content/features/appointment/uursoort-queue.js
-  function uursoortContexts() {
-    return findClientEntries().filter((entry) => entry.uursoortTrigger).map((entry) => ({
-      firstName: entry.firstName,
-      name: entry.name,
-      trigger: entry.uursoortTrigger
-    }));
-  }
-  function freshUursoortContext(context2) {
-    if (!context2) return context2;
-    const entry = findClientEntries().find(
-      (item) => item.name === context2.name
-    );
-    return entry && entry.uursoortTrigger ? {
-      firstName: entry.firstName,
-      name: entry.name,
-      trigger: entry.uursoortTrigger
-    } : context2;
-  }
-  function freshUursoortTriggerForContext(context2) {
-    return (freshUursoortContext(context2) || {}).trigger || null;
-  }
-  function clearUursoortContexts(contexts, onDone, index = 0) {
-    if (!contexts.length || index >= contexts.length) {
-      onDone();
-      return;
-    }
-    invalidateClientEntries();
-    const ctx = freshUursoortContext(contexts[index]);
-    clearUursoort(
-      () => setTimeout(
-        () => clearUursoortContexts(contexts, onDone, index + 1),
-        120
-      ),
-      ctx && ctx.trigger
-    );
-  }
-  function clearAllUursoorten(onDone, attempt = 0) {
-    invalidateClientEntries();
-    const contexts = uursoortContexts().filter(
-      (ctx) => entryUursoortIsSet(
-        findClientEntries().find((e) => e.name === ctx.name) || {}
-      )
-    );
-    if (!contexts.length || attempt >= 6) {
-      onDone();
-      return;
-    }
-    clearUursoortContexts(contexts, () => {
-      setTimeout(() => clearAllUursoorten(onDone, attempt + 1), 200);
-    });
-  }
-  function clientsMissingUursoortEntries(exclude) {
-    invalidateClientEntries();
-    return findClientEntries().filter(
-      (e) => !(exclude && exclude.has(typeof clean === "function" ? clean(e.name) : e.name)) && !entryUursoortIsSet(e)
-    );
-  }
-  function showUursoortQueue(contexts, index, afterAll) {
-    if (appointmentFlow.uursoortQueueActive) return;
-    appointmentFlow.uursoortQueueActive = true;
-    const myGen = appointmentFlow.uursoortQueueGen;
-    const stale = () => myGen !== appointmentFlow.uursoortQueueGen;
-    const handled = /* @__PURE__ */ new Set();
-    const expandTries = /* @__PURE__ */ new Map();
-    const nullTries = /* @__PURE__ */ new Map();
-    let guard = 0;
-    const done = () => {
-      if (stale()) return;
-      appointmentFlow.uursoortQueueActive = false;
-      setTimeout(afterAll, 60);
-    };
-    const settleThenDone = (n) => {
-      if (stale()) return;
-      const missing = clientsMissingUursoortEntries(handled);
-      if (missing.length) {
-        step();
-        return;
-      }
-      const needed = 1;
-      if (n >= needed) {
-        done();
-        return;
-      }
-      showLoadingState("Controleren...");
-      const wait = findClientEntries().length <= 1 ? 130 : 320;
-      setTimeout(() => settleThenDone(n + 1), wait);
-    };
-    const step = () => {
-      if (stale()) return;
-      if (++guard > 300) {
-        done();
-        return;
-      }
-      const missing = clientsMissingUursoortEntries(handled);
-      if (!missing.length) {
-        settleThenDone(0);
-        return;
-      }
-      const entry = missing.find((e) => e.uursoortTrigger) || missing[0];
-      if (!entry.uursoortTrigger) {
-        const key = clean(entry.name);
-        const n = (expandTries.get(key) || 0) + 1;
-        expandTries.set(key, n);
-        if (n > 25) {
-          handled.add(key);
-          setTimeout(step, 60);
-          return;
-        }
-        showLoadingState(`Kaart openen voor ${entry.firstName}...`);
-        if (entry.toggle && inviteeToggleExpanded(entry.toggle) === false) clickInviteeToggle(entry.toggle);
-        else ensureClientExpanded(() => {
-        });
-        setTimeout(step, 200);
-        return;
-      }
-      const ctx = { firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger };
-      showLoadingState(`Uursoort laden voor ${ctx.firstName}...`);
-      listUursoortOptions((opts) => {
-        if (opts === null) {
-          const nkey = clean(ctx.name);
-          const nt = (nullTries.get(nkey) || 0) + 1;
-          nullTries.set(nkey, nt);
-          if (nt <= 8) {
-            setTimeout(step, 200);
-            return;
-          }
-          handled.add(nkey);
-          setTimeout(step, 180);
-          return;
-        }
-        showUursoort(opts, () => {
-          handled.add(clean(ctx.name));
-          setTimeout(step, 160);
-        }, ctx);
-      }, freshUursoortTriggerForContext(ctx) || ctx.trigger, 0, false, entry);
-    };
-    step();
-  }
-  function uursoortContextsForNames(names) {
-    const wanted = new Set(names.map(clean));
-    return findClientEntries().filter((entry) => wanted.has(clean(entry.name)) && entry.uursoortTrigger).map((entry) => ({ firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger }));
-  }
-  function startUursoortForNewClients(names, attempt = 0) {
-    if (!appointmentFlow.pendingChoice || !appointmentFlow.pendingChoice.pickUursoort || appointmentFlow.autoSelectingNewClient) return;
-    appointmentFlow.autoSelectingNewClient = true;
-    ensureClientExpanded(() => {
-      const contexts = uursoortContextsForNames(names);
-      if (!contexts.length && attempt < 8) {
-        appointmentFlow.autoSelectingNewClient = false;
-        setTimeout(() => startUursoortForNewClients(names, attempt + 1), 220);
-        return;
-      }
-      if (!contexts.length) {
-        appointmentFlow.autoSelectingNewClient = false;
-        setStatus("Nieuwe client gevonden | uursoortveld niet gevonden", false);
-        return;
-      }
-      setStatus(`Uursoort kiezen voor ${contexts.map((ctx) => ctx.firstName).join(" - ")}...`);
-      showUursoortQueue(contexts, 0, () => {
-        appointmentFlow.autoSelectingNewClient = false;
-        showChoices();
-        setStatus("Uursoort voor nieuwe client gezet");
-      });
-    });
-  }
-  function handleClientListChanges() {
-    const entries = findClientEntries();
-    const currentNames = new Set(entries.map((e) => e.name));
-    if (appointmentFlow.knownClientNames.size) {
-      for (const name of appointmentFlow.knownClientNames) {
-        if (!currentNames.has(name)) removeFirstNameFromTitle(firstNameFromName(name));
-      }
-    }
-    if (!entries.length) {
-      appointmentFlow.knownClientNames.clear();
-      return;
-    }
-    maybePrefetchUursoorten();
-    const firstSeed = !appointmentFlow.knownClientNames.size;
-    const added = entries.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
-    appointmentFlow.knownClientNames = new Set(currentNames);
-    if (firstSeed || !added.length) return;
-    if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
-      setTitleForChoice(appointmentFlow.pendingChoice, () => {
-      });
-      const addedNames = added.map((e) => e.name).filter(Boolean);
-      const state = computeAppointmentUursoortState();
-      if (addedNames.length && (state === "MIXED" || state === "CHOICE")) {
-        startUursoortForNewClients(addedNames);
-      } else {
-        ensureClientExpanded(() => showManualUursoortInstruction());
-      }
-    }
-  }
-
-  // src/content/features/appointment/undo.js
-  var _appointmentSnapshot = null;
-  function takeAppointmentSnapshot() {
-    try {
-      const lees = (el) => el ? String(inputTextValue(el) || "") : null;
-      _appointmentSnapshot = {
-        titel: lees(OnsAdapter.afspraak.titelVeld()),
-        eind: lees(OnsAdapter.afspraak.eindtijdVeld()),
-        heen: lees(OnsAdapter.afspraak.reistijdVeld("heen")),
-        terug: lees(OnsAdapter.afspraak.reistijdVeld("terug")),
-        labels: OnsAdapter.afspraak.labels()
-      };
-    } catch (e) {
-      _appointmentSnapshot = null;
-    }
-    return _appointmentSnapshot;
-  }
-  function hasAppointmentSnapshot() {
-    return !!_appointmentSnapshot;
-  }
-  function clearAppointmentSnapshot() {
-    _appointmentSnapshot = null;
-  }
-  function restoreAppointmentSnapshot(onDone) {
-    const snap = _appointmentSnapshot;
-    if (!snap) {
-      if (onDone) onDone(false);
-      return;
-    }
-    const zet = (el, waarde) => {
-      if (el && waarde != null) setInputTextOns(el, waarde);
-    };
-    try {
-      zet(OnsAdapter.afspraak.titelVeld(), snap.titel);
-      zet(OnsAdapter.afspraak.eindtijdVeld(), snap.eind);
-      zet(OnsAdapter.afspraak.reistijdVeld("heen"), snap.heen);
-      zet(OnsAdapter.afspraak.reistijdVeld("terug"), snap.terug);
-    } catch (e) {
-    }
-    OnsAdapter.afspraak.wisLabels(function() {
-      const terug = (snap.labels || []).slice();
-      const volgende = function() {
-        if (!terug.length) {
-          OnsAdapter.clienten.wisUursoorten(function() {
-            clearAppointmentSnapshot();
-            if (onDone) onDone(true);
-          });
-          return;
-        }
-        OnsAdapter.afspraak.zetLabel(terug.shift(), volgende);
-      };
-      volgende();
-    });
-  }
-  function clearSettings() {
-    appointmentFlow.appointmentClearingSettings = true;
-    appointmentFlow.appointmentAwaitingManualUursoort = false;
-    appointmentFlow.uursoortQueueGen++;
-    appointmentFlow.uursoortQueueActive = false;
-    appointmentFlow.appointmentFlowBusy = false;
-    resetPrefetchedUursoorten();
-    appointmentFlow.pendingChoice = null;
-    appointmentFlow.appointmentTypeApplied = false;
-    appointmentFlow.helperEndText = "";
-    appointmentFlow.appointmentEndTimeUserOwned = false;
-    appointmentFlow.activeNonClientOption = null;
-    showLoadingState("Instellingen verwijderen...");
-    setStatus("Instellingen verwijderen...");
-    appointmentFlow.activeAppointmentDurationMinutes = null;
-    appointmentFlow.activeAppointmentStartTimeText = "";
-    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
-    appointmentFlow.appointmentTimeGuardTimers = [];
-    const afterOpen = () => {
-      const titleOk = clearTitle();
-      const endTimeOk = clearEndTime();
-      const travelOk = clearAppointmentTravelTimes();
-      clearKnownLabels((labelOk) => clearAllUursoorten(() => {
-        appointmentFlow.appointmentClearingSettings = false;
-        showChoices();
-        const msg = ["Instellingen verwijderd"];
-        if (!titleOk) msg.push("titel niet gevonden");
-        if (!endTimeOk) msg.push("eindtijd niet gevonden");
-        if (!travelOk) msg.push("reistijd niet gevonden");
-        if (!labelOk) msg.push("label niet verwijderd");
-        invalidateClientEntries();
-        try {
-          maybePrefetchUursoorten();
-        } catch (e) {
-        }
-        if (anyUursoortPresent()) msg.push("verwijder zelf nog eventueel de uursoorten");
-        setStatus(msg.join(" | "), titleOk && endTimeOk && travelOk && labelOk);
-      }));
-    };
-    if (hasClientInAppointment() && uursoortContexts().length < findClientEntries().length) ensureClientExpanded(() => afterOpen());
-    else afterOpen();
-  }
-  function addResetButton(body) {
-    const reset = mkButton("Verwijder instellingen", () => safe(clearSettings), { tick: false, chevron: false, accent: "#a3241f", accentWash: "#fbeceb" });
-    body.appendChild(reset);
-  }
-
-  // src/content/ui/modal-shell.js
-  function mkModalShell(id, titleText, opts) {
-    opts = opts || {};
-    var old = document.getElementById(id);
-    if (old) old.remove();
-    var overlay = document.createElement("div");
-    overlay.id = id;
-    overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(20,15,13,.5);display:flex;align-items:center;justify-content:center;padding:16px";
-    var card = document.createElement("div");
-    card.style.cssText = "background:#fff;color:#201d1f;max-width:" + (opts.maxWidth || "420px") + ';width:100%;max-height:calc(100vh - 40px);border-radius:20px;box-shadow:0 24px 64px rgba(20,15,13,.4);font:13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;overflow:hidden;display:flex';
-    var spine = document.createElement("div");
-    spine.style.cssText = "width:14px;flex:0 0 auto;background:" + (opts.spineColor || "#cc087d") + ";";
-    var mainCol = document.createElement("div");
-    mainCol.style.cssText = "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;overflow:auto";
-    var head = document.createElement("div");
-    head.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #f1ecea;position:sticky;top:0;background:#fff";
-    var htitle = document.createElement("div");
-    htitle.textContent = titleText;
-    htitle.style.cssText = "font-weight:800;font-size:15px;color:#201d1f";
-    var close = document.createElement("button");
-    close.type = "button";
-    close.setAttribute("aria-label", "Sluiten");
-    close.style.cssText = "border:1px solid #ece7e5;background:#f6f2f0;color:#6b6367;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex:0 0 auto";
-    close.appendChild(svgCloseIcon());
-    onsahFocusRing(close);
-    head.append(htitle, close);
-    mainCol.appendChild(head);
-    var body = document.createElement("div");
-    body.style.cssText = "padding:14px 16px";
-    mainCol.appendChild(body);
-    card.appendChild(spine);
-    card.appendChild(mainCol);
-    overlay.appendChild(card);
-    var closeModal = function() {
-      overlay.remove();
-      document.removeEventListener("keydown", onKey);
-    };
-    function onKey(e) {
-      if (e.key === "Escape") closeModal();
-    }
-    document.addEventListener("keydown", onKey);
-    close.addEventListener("click", closeModal);
-    overlay.addEventListener("click", function(e) {
-      if (e.target === overlay) closeModal();
-    });
-    (document.body || document.documentElement).appendChild(overlay);
-    return { overlay, body, close: closeModal };
-  }
-
-  // src/content/features/appointment/invitee-guard.js
-  var STRAY_ADD_EVENTS = ["pointerdown", "mousedown", "click"];
-  function findAddInviteeButtonFast() {
-    const tp = document.getElementById("teleport");
-    if (!tp) return null;
-    const header = tp.querySelector('div[slot="header"], [class*="_header_"]') || tp;
-    let candidates;
-    try {
-      candidates = header.querySelectorAll("uc-button, button");
-    } catch (e) {
-      return null;
-    }
-    for (const btn of candidates) {
-      if (!visible(btn) || isOwnPopup(btn)) continue;
-      const txt = clean(uiText(btn) || btn.textContent || "");
-      const hasAdd = btn.shadowRoot && (btn.shadowRoot.querySelector('uc-icon[icon="add"]') || btn.shadowRoot.querySelector('[icon="add"]')) || btn.querySelector && btn.querySelector('uc-icon[icon="add"]');
-      if (/(^|[^a-z])toevoegen([^a-z]|$)/.test(txt) || hasAdd) return btn;
-    }
-    return null;
-  }
-  function findAddClientButton() {
-    const fast = findAddInviteeButtonFast();
-    if (fast) return fast;
-    const scope = document;
-    const headings = deepQueryAll("h1,h2,h3,div,span,p", scope).filter(function(el) {
-      const txt = clean(el.textContent || "");
-      return visible(el) && !isOwnPopup(el) && (txt === "genodigden" || txt.startsWith("genodigden") && txt.length < 80);
-    }).sort(function(a, b) {
-      return rect(a).top - rect(b).top || rect(a).left - rect(b).left;
-    });
-    const hasAddIcon = function(b) {
-      return !!(b && (b.querySelector && (b.querySelector('uc-icon[icon="add"]') || b.querySelector('[icon="add"]')) || b.shadowRoot && (b.shadowRoot.querySelector('uc-icon[icon="add"]') || b.shadowRoot.querySelector('[icon="add"]'))));
-    };
-    const buttonText = function(b) {
-      return clean(uiText(b) || b.textContent || b.shadowRoot && b.shadowRoot.textContent || "");
-    };
-    const candidates = deepQueryAll('uc-button,button,[role="button"]', scope).filter(function(b) {
-      if (isOwnPopup(b)) return false;
-      const r = rect(b);
-      if (r.width <= 0 || r.height <= 0) return false;
-      return /toevoegen/.test(buttonText(b)) || hasAddIcon(b);
-    }).map(function(b) {
-      const r = rect(b);
-      const nearestHeading = headings.reduce(function(best, h) {
-        const hr = rect(h);
-        if (r.top < hr.top - 55 || r.top > hr.top + 160) return best;
-        if (r.left < hr.left + 120 || r.left > hr.left + 900) return best;
-        const dy = Math.abs(r.top + r.height / 2 - (hr.top + hr.height / 2));
-        const sameHeaderBand = r.top >= hr.top - 36 && r.top <= hr.top + 110;
-        const rightOfHeading = r.left > hr.left + 120;
-        const score = dy + Math.abs(r.left - hr.left) / 6 + (sameHeaderBand ? -600 : 0) + (rightOfHeading ? -250 : 0);
-        return Math.min(best, score);
-      }, headings.length ? 99999 : 0);
-      const txt = buttonText(b);
-      const textBonus = /toevoegen/.test(txt) ? -700 : 0;
-      const iconBonus = hasAddIcon(b) ? -150 : 0;
-      const agendaPenalty = nearestHeading >= 99999 ? 1e5 : 0;
-      return { button: b, score: nearestHeading + textBonus + iconBonus + agendaPenalty };
-    }).sort(function(a, b) {
-      return a.score - b.score;
-    });
-    return candidates.length && candidates[0].score < 5e4 ? candidates[0].button : null;
-  }
-  function clickAddClientButton() {
-    const btn = findAddClientButton();
-    if (!btn) {
-      setStatus('Knop "Cliënt toevoegen" niet gevonden', false);
-      return false;
-    }
-    appointmentFlow.intentionalAddClientClick = true;
-    appointmentFlow.allowInviteeModalUntil = Date.now() + 6e3;
-    try {
-      clickUiButton(btn);
-    } finally {
-      setTimeout(() => {
-        appointmentFlow.intentionalAddClientClick = false;
-      }, 400);
-    }
-    setStatus("Cliënt toevoegen geopend");
-    return true;
-  }
-  function findInviteeSearchModal() {
-    for (const m of deepQueryAll('uc-modal,[role="dialog"],dialog')) {
-      if (!visible(m) || isOwnPopup(m)) continue;
-      const al = clean(m.getAttribute && (m.getAttribute("aria-label") || "") || "");
-      if (al === "afspraak toevoegen" || al === "afspraakdetails") continue;
-      if (/zoek naar genodigden|genodigde toevoegen|genodigde zoeken/.test(al)) return m;
-      const txt = clean((m.textContent || "").slice(0, 500));
-      if (/zoek naar (clienten|genodigden)/.test(txt) && /medewerker/.test(txt) && /(groep|team|locatie)/.test(txt)) return m;
-    }
-    return null;
-  }
-  function closeInviteeSearchModal(modal) {
-    const closeBtn = deepQueryAll(UI_OVERRIDES.afsCloseButton || 'uc-button[aria-label*="sluit" i], button[aria-label*="sluit" i]', modal).find((b) => visible(b) && !isOwnPopup(b));
-    if (closeBtn) {
-      clickUiButton(closeBtn);
-      return true;
-    }
-    const dlg = deepQueryAll('dialog,[role="dialog"]', modal)[0] || modal;
-    try {
-      dlg.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, composed: true, cancelable: true }));
-    } catch (e) {
-    }
-    return false;
-  }
-  function maybeDismissStrayInviteeModal(attempt = 0) {
-    if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations") return;
-    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
-    const modal = findInviteeSearchModal();
-    if (!modal) {
-      if (attempt < 6) setTimeout(() => maybeDismissStrayInviteeModal(attempt + 1), 70);
-      return;
-    }
-    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
-    closeInviteeSearchModal(modal);
-    if (attempt < 6) setTimeout(() => maybeDismissStrayInviteeModal(attempt + 1), 90);
-  }
-  function inviteeAddButtonGuard(e) {
-    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
-    if (e.isTrusted) {
-      appointmentFlow.allowInviteeModalUntil = Date.now() + 6e3;
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-  }
-  function guardInviteeAddButton() {
-    if (helperPanel.activeMode === "registrations") return;
-    const btn = findAddInviteeButtonFast();
-    if (!btn) return;
-    const targets = [btn];
-    const inner = btn.shadowRoot && btn.shadowRoot.querySelector("button");
-    if (inner) targets.push(inner);
-    for (const el of targets) {
-      if (el.__onsInviteeGuarded) continue;
-      el.__onsInviteeGuarded = true;
-      for (const type of STRAY_ADD_EVENTS) el.addEventListener(type, inviteeAddButtonGuard, true);
-    }
-  }
-
-  // src/content/features/appointment/prereqs.js
-  function resumeAppointmentHelperAfterEnable() {
-    helperPanel._infoPanelRestore = null;
-    helperPanel._disabledRestore = null;
-    appointmentFlow.appointmentAwaitingManualUursoort = false;
-    updateSubmitGuard();
-    if (!hasAppointmentPrereqs()) {
-      if (hasClientInAppointment()) ensureClientExpanded(() => {
-      });
-      showAppointmentNeedsPrereqs();
-      updateSubmitGuard();
-      return;
-    }
-    ensureClientExpanded((expanded) => {
-      appointmentFlow.appointmentForceChoiceOnce = true;
-      showChoices();
-      updateSubmitGuard();
-      setStatus(expanded ? "Clientkaarten open" : "Clientkaarten openen...", expanded);
-    });
-  }
-  function showAppointmentNeedsPrereqs() {
-    const body = $body();
-    if (!body) return;
-    appointmentFlow.nonClientFreeTitleScreenActive = false;
-    markScreen("appointmentNeedsPrereqs");
-    const dateTimeReady = hasAppointmentDate() && hasAppointmentStartTime();
-    if (!dateTimeReady) {
-      renderScreen(body, "infoScreen", {
-        title: "Vul begintijd en datum in.",
-        titleStyle: { lineHeight: 1.35, padding: "4px 0 8px" },
-        body: ""
-      });
-      setStatus("Wacht op begintijd en datum");
-      return;
-    }
-    if (hasClientInAppointment()) {
-      showChoices();
-      return;
-    }
-    const _cats = nonClientCategoriesActive();
-    renderScreen(body, "needsPrereqs", {
-      categories: _cats.map(function(cat) {
-        return { label: cat.label };
-      }),
-      tokens: ONSAH_TOKENS,
-      onAddClient: function() {
-        safe(clickAddClientButton);
-      },
-      onPickCategory: function(i) {
-        safe(function() {
-          const cat = _cats[i];
-          if (cat.directOption) handleNonClientOption(cat.directOption);
-          else showNonClientCategory(cat);
-        });
-      },
-      onReset: function() {
-        safe(clearNonClientSettings);
-      }
-    });
-    setStatus("Kies een categorie of voeg een cliënt toe");
-  }
-  function refreshAppointmentPrereqScreen() {
-    const body = $body();
-    if (!body) return;
-    if (Date.now() < helperPanel.suppressAutoUntil) return;
-    refreshFreeDayFromBackgroundCalendar();
-    if (appointmentFlow.appointmentFreeDay) {
-      showFreeDayInactive();
-      return;
-    }
-    if (helperPanel._infoPanelRestore) return;
-    if (appointmentFlow.appointmentFlowBusy) return;
-    if (appointmentFlow.uursoortQueueActive) return;
-    if (appointmentFlow.nonClientBusy) return;
-    if (appointmentFlow.appointmentClearingSettings) {
-      showLoadingState("Instellingen verwijderen...");
-      return;
-    }
-    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
-      if (hasClientInAppointment() && hasAppointmentPrereqs()) {
-        appointmentFlow.nonClientFreeTitleScreenActive = false;
-        appointmentFlow.activeNonClientOption = null;
-        showChoices();
-        return;
-      }
-      if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) {
-        if (appointmentFlow.nonClientFreeTitleScreenActive || !text.includes("als de instellingen kloppen")) {
-          appointmentFlow.nonClientFreeTitleScreenActive = false;
-          showAppointmentReadyToSave();
-        }
-        return;
-      }
-      if (appointmentFlow.nonClientFreeTitleScreenActive) return;
-    }
-    if (appointmentFlow.nonClientNoUursoortActive && appointmentFlow.activeNonClientOption && !appointmentFlow.activeNonClientOption.freeTitle) {
-      if (nonClientUursoortSet()) {
-        appointmentFlow.nonClientNoUursoortActive = false;
-        showAppointmentReadyToSave();
-      }
-      return;
-    }
-    const text = clean(body.textContent || "");
-    if (appointmentNeedsAvailabilityConfirmation() && !text.includes("al een afspraak") && !appointmentInSaveStage()) {
-      showAvailabilityWarning();
-      return;
-    }
-    const choiceScreen = CONFIG.choices.every((choice) => text.includes(clean(choice.label)));
-    if (appointmentFlow.appointmentAwaitingManualUursoort && hasAppointmentPrereqs()) {
-      if (!isScreen("manualUursoortInstruction")) showManualUursoortInstruction();
-      return;
-    }
-    if (appointmentFlow.appointmentSaveScreenActive) {
-      if (!choiceScreen && appointmentSaveStageStillValid()) return;
-      appointmentFlow.appointmentSaveScreenActive = false;
-    }
-    if (appointmentReadyToSave() && !choiceScreen) {
-      showAppointmentReadyToSave();
-      return;
-    }
-    const prereqScreen = text.includes("vul client, begintijd en datum in") || text.includes("voeg een client toe voor clientgerelateerde afspraken") || text.includes("voeg evt. een client toe aan de afspraak");
-    const nonClientSubScreen = text.includes("niet clientgerelateerde afspraken") || text.includes(" duur:") || nonClientCategoriesActive().some(function(c) {
-      return text.includes(clean(c.label)) && text.includes("terug");
-    });
-    const clientDurationScreen = !!appointmentFlow.pendingChoice && (text.includes(" duur:") || text.includes("totale reistijd"));
-    if (hasClientInAppointment() && hasAppointmentPrereqs() && !choiceScreen && !clientDurationScreen) {
-      appointmentFlow.activeNonClientOption = null;
-      showChoices();
-      return;
-    }
-    if (prereqScreen && hasAppointmentPrereqs()) showChoices();
-    else if (!hasAppointmentPrereqs() && nonClientSubScreen) return;
-    else if (!hasAppointmentPrereqs() && !prereqScreen) showAppointmentNeedsPrereqs();
-  }
-
-  // src/content/features/appointment/duration.js
-  function applyAppointmentDuration(choice, minutes) {
-    appointmentFlow.appointmentFlowBusy = true;
-    appointmentFlow.activeAppointmentDurationMinutes = minutes;
-    appointmentFlow.activeAppointmentStartTimeText = appointmentCurrentStartTimeText();
-    if (choice.addTravelTime) {
-      const endOk = setAppointmentEndTimePlusMinutes(minutes);
-      scheduleAppointmentEndTime(minutes);
-      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
-      setTimeout(() => showAppointmentTravelSelection(choice), 80);
-    } else {
-      clearAppointmentTravelTimes();
-      const endOk = setAppointmentEndTimePlusMinutes(minutes);
-      scheduleAppointmentEndTime(minutes);
-      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
-      setTimeout(() => {
-        handleChoice(choice);
-        scheduleAppointmentEndTime(minutes);
-        [120, 350, 650].forEach((d) => setTimeout(() => safe(() => enforceAppointmentEndTime(minutes)), d));
-      }, 80);
-    }
-  }
-  function showAppointmentDurationSelection(choice) {
-    const body = $body();
-    if (!body) return;
-    if (!hasAppointmentPrereqs()) {
-      showAppointmentNeedsPrereqs();
-      return;
-    }
-    markScreen("appointmentDurationSelection", { choice });
-    appointmentFlow.appointmentFlowBusy = false;
-    const _st = choice.durationStep > 0 ? choice.durationStep : gsNum("durationStepMin", 15);
-    const _mx = choice.maxDuration > 0 ? choice.maxDuration : gsNum("registrationMaxMin", 180);
-    const _durValues = [];
-    for (let m = _st; m <= _mx; m += _st) _durValues.push(m);
-    renderScreen(body, "duration", {
-      title: `${choice.label} duur:`,
-      tokens: ONSAH_TOKENS,
-      onBack: function() {
-        helperPanel.suppressAutoUntil = Date.now() + 1200;
-        safe(showChoices);
-      },
-      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, void 0, durationLabelStyle("duur"))
-    });
-  }
-  function showAppointmentTravelSelection(choice) {
-    const body = $body();
-    if (!body) return;
-    markScreen("appointmentTravelSelection", { choice });
-    appointmentFlow.appointmentFlowBusy = false;
-    const _ts = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelStepMin > 0 ? APP_CONFIG.generalSettings.travelStepMin : 5;
-    const _tm = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelMaxMin > 0 ? APP_CONFIG.generalSettings.travelMaxMin : 60;
-    const _travelValues = [];
-    for (let m = 0; m <= _tm; m += _ts) _travelValues.push(m);
-    renderScreen(body, "duration", {
-      title: "Totale reistijd (heen en terug):",
-      tokens: ONSAH_TOKENS,
-      onBack: function() {
-        helperPanel.suppressAutoUntil = Date.now() + 1200;
-        safe(showChoices);
-      },
-      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
-        appointmentFlow.appointmentFlowBusy = true;
-        const ok = setAppointmentTravelTotalMinutes(minutes);
-        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : "Reistijdvelden niet gevonden", ok);
-        setTimeout(() => handleChoice(choice), 70);
-      }), choice.pickerStyle, void 0, durationLabelStyle("duur"))
-    });
   }
 
   // src/content/features/registration/prereqs.js
@@ -8568,436 +6973,6 @@
     return hasRegistrationPrereqs() && hasRegistrationEndTime() && hasRegistrationHourTypeSelected() && !registrationReportNeedsContent();
   }
 
-  // src/content/helper/screen-restore.js
-  function refreshMainScreen() {
-    if (!helperPanel.helperEnabled) {
-      showDisabledState();
-      return;
-    }
-    if (helperPanel.activeMode === "registrations") showRegistrationChoices();
-    else showChoices();
-  }
-  function renderMarkedScreen(screen) {
-    if (!screen || !screen.name) return false;
-    const a = screen.args || {};
-    switch (screen.name) {
-      case "registrationNoShowPrompt":
-        showRegistrationNoShowPrompt();
-        return true;
-      case "registrationNeedsClient":
-        showRegistrationNeedsClient();
-        return true;
-      case "registrationDurationAsk":
-        showRegistrationDurationAsk(a.choice);
-        return true;
-      case "registrationPortionQuestion":
-        showRegistrationPortionQuestion(a.choice);
-        return true;
-      case "registrationPortionDuration":
-        showRegistrationPortionDuration(a.choice);
-        return true;
-      case "registrationTravelSelection":
-        showRegistrationTravelSelection(a.choice);
-        return true;
-      case "registrationHourTypeSelection":
-        showRegistrationHourTypeSelection(a.index != null ? a.index : registrationFlow.activeRegistrationHourTypeIndex || 0);
-        return true;
-      case "registrationReportPrompt":
-        showRegistrationReportPrompt(a.choice);
-        return true;
-      case "registrationChoices":
-        showRegistrationChoices();
-        return true;
-      case "nonClientFreeTitlePrompt":
-        showNonClientFreeTitlePrompt(a.opt);
-        return true;
-      case "nonClientDurationSelection":
-        showNonClientDurationSelection(a.opt);
-        return true;
-      case "appointmentNeedsPrereqs":
-        showAppointmentNeedsPrereqs();
-        return true;
-      case "appointmentReadyToSave":
-        showAppointmentReadyToSave();
-        return true;
-      case "appointmentDurationSelection":
-        showAppointmentDurationSelection(a.choice);
-        return true;
-      case "appointmentTravelSelection":
-        showAppointmentTravelSelection(a.choice);
-        return true;
-      case "manualUursoortInstruction":
-        showManualUursoortInstruction();
-        return true;
-      case "choices":
-        showChoices();
-        return true;
-      default:
-        return false;
-    }
-  }
-  function createCurrentScreenRestore() {
-    const marked = currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null;
-    const body = $body();
-    const currentText = clean(body && body.textContent || "");
-    const registrationChoice = registrationFlow.activeRegistrationChoice;
-    const appointmentChoice = appointmentFlow.pendingChoice;
-    const registrationScreen = {
-      noShowPrompt: currentText.includes("no show?"),
-      needsClient: /vul client, begintijd en datum in/.test(currentText),
-      duration: !!registrationChoice && / duur:/.test(currentText),
-      portionQuestion: !!registrationChoice && /tijd aanwezig in deze registratie/.test(currentText),
-      portionDuration: !!registrationChoice && /^duur .* tijd:/.test(currentText),
-      travel: !!registrationChoice && /totale reistijd/.test(currentText),
-      hourType: /^uursoort(?:selectie|\s)/.test(currentText),
-      submit: !!registrationChoice && /richtlijn rapporteren|schrijf nu je rapportage|indienen/.test(currentText)
-    };
-    const nonClientOpt = appointmentFlow.activeNonClientOption;
-    const appointmentScreen = {
-      needsPrereqs: /vul client, begintijd en datum in|voeg evt\. een client toe aan de afspraak/.test(currentText),
-      nonClientMenu: /niet clientgerelateerde afspraken/.test(currentText),
-      nonClientDuration: !!nonClientOpt && / duur:/.test(currentText),
-      nonClientFreeTitle: !!nonClientOpt && !!nonClientOpt.freeTitle && /vul de titel aan na/.test(currentText),
-      unavailable: /onbeschikbaar|al een afspraak|alsnog doorgaan/.test(currentText),
-      duration: !!appointmentChoice && / duur:/.test(currentText),
-      travel: !!appointmentChoice && /totale reistijd/.test(currentText),
-      manualUursoort: appointmentFlow.appointmentAwaitingManualUursoort || currentText.includes("voeg de juiste uursoort toe aan de client"),
-      readyToSave: /als de instellingen kloppen|voeg eventueel nog een locatie/.test(currentText)
-    };
-    return () => {
-      if (renderMarkedScreen(marked)) return;
-      if (helperPanel.activeMode === "registrations") {
-        if (registrationScreen.noShowPrompt) {
-          showRegistrationNoShowPrompt();
-          return;
-        }
-        if (registrationScreen.needsClient) {
-          showRegistrationNeedsClient();
-          return;
-        }
-        if (registrationScreen.duration && registrationChoice) {
-          showRegistrationDurationAsk(registrationChoice);
-          return;
-        }
-        if (registrationScreen.portionQuestion && registrationChoice) {
-          showRegistrationPortionQuestion(registrationChoice);
-          return;
-        }
-        if (registrationScreen.portionDuration && registrationChoice) {
-          showRegistrationPortionDuration(registrationChoice);
-          return;
-        }
-        if (registrationScreen.travel && registrationChoice) {
-          showRegistrationTravelSelection(registrationChoice);
-          return;
-        }
-        if (registrationScreen.hourType) {
-          showRegistrationHourTypeSelection(registrationFlow.activeRegistrationHourTypeIndex || 0);
-          return;
-        }
-        if (registrationScreen.submit && registrationChoice) {
-          showRegistrationReportPrompt(registrationChoice);
-          return;
-        }
-        showRegistrationChoices();
-        return;
-      }
-      if (appointmentScreen.nonClientFreeTitle && nonClientOpt) {
-        showNonClientFreeTitlePrompt(nonClientOpt);
-        return;
-      }
-      if (appointmentScreen.nonClientDuration && nonClientOpt) {
-        showNonClientDurationSelection(nonClientOpt);
-        return;
-      }
-      if (appointmentScreen.nonClientMenu) {
-        showAppointmentNeedsPrereqs();
-        return;
-      }
-      if (appointmentScreen.readyToSave && nonClientOpt) {
-        showAppointmentReadyToSave();
-        return;
-      }
-      if (appointmentScreen.needsPrereqs) {
-        showAppointmentNeedsPrereqs();
-        return;
-      }
-      if (appointmentScreen.duration && appointmentChoice) {
-        showAppointmentDurationSelection(appointmentChoice);
-        return;
-      }
-      if (appointmentScreen.travel && appointmentChoice) {
-        showAppointmentTravelSelection(appointmentChoice);
-        return;
-      }
-      if (appointmentScreen.manualUursoort) {
-        showManualUursoortInstruction();
-        return;
-      }
-      if (appointmentScreen.readyToSave) {
-        showAppointmentReadyToSave();
-        return;
-      }
-      showChoices();
-    };
-  }
-
-  // src/content/features/appointment/availability.js
-  function unavailableInvitees() {
-    const out = [];
-    const seen = /* @__PURE__ */ new Set();
-    for (const el of deepQueryAll("span, div")) {
-      if (isOwnPopup(el)) continue;
-      const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
-      if (!txt.includes("heeft al een afspraak")) continue;
-      const name = txt.replace(/\s*heeft al een afspraak.*$/i, "").trim();
-      if (!name) continue;
-      const key = name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ name, firstName: firstNameFromName(name), role: "" });
-    }
-    return out.sort((a, b) => a.firstName.localeCompare(b.firstName));
-  }
-  function availabilityPersonKey(entry) {
-    return clean(entry.name || entry.firstName || "").toLowerCase().replace(/\s+/g, " ");
-  }
-  function appointmentNeedsAvailabilityConfirmation() {
-    return false;
-  }
-  function showAvailabilityWarning() {
-    const body = $body();
-    if (!body) return;
-    const entries = unavailableInvitees().filter((entry) => !appointmentFlow.appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
-    if (!entries.length) {
-      showChoices();
-      return;
-    }
-    if (!helperPanel._availabilityRestore) helperPanel._availabilityRestore = createCurrentScreenRestore();
-    const names = entries.map((entry) => entry.firstName).filter(Boolean);
-    const nameText = names.length <= 1 ? names[0] || "Deze genodigde" : `${names.slice(0, -1).join(", ")} en ${names[names.length - 1]}`;
-    setStatus("Let op: al een afspraak", false);
-    const shell = mkModalShell("onsAvailabilityWarningModal", "Toch doorgaan?", { spineColor: "#b45309", maxWidth: "360px" });
-    const msg = document.createElement("div");
-    msg.textContent = `${nameText} ${names.length === 1 ? "heeft" : "hebben"} op dit moment al een afspraak.`;
-    Object.assign(msg.style, { fontSize: "13.5px", color: "#4a4448", lineHeight: "1.45", margin: "0 0 16px" });
-    shell.body.appendChild(msg);
-    const actions = document.createElement("div");
-    Object.assign(actions.style, { display: "flex", justifyContent: "flex-end", gap: "8px" });
-    const noBtn = document.createElement("button");
-    noBtn.type = "button";
-    noBtn.textContent = "Nee";
-    Object.assign(noBtn.style, { appearance: "none", border: "1px solid #ece7e5", background: "transparent", color: "#6b6367", borderRadius: "999px", padding: "9px 16px", font: '600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: "pointer" });
-    onsahFocusRing(noBtn);
-    noBtn.addEventListener("click", () => safe(() => {
-      shell.close();
-      helperPanel._availabilityRestore = null;
-      resetBody(body);
-      const msg2 = document.createElement("div");
-      msg2.textContent = "Plan een andere datum/tijdstip in of sluit het scherm af.";
-      Object.assign(msg2.style, { fontSize: "13px", color: "#333", lineHeight: "1.45", padding: "4px 0 8px" });
-      body.appendChild(msg2);
-      body.appendChild(mkButton("Afsluiten", () => safe(closeOnsModal)));
-      body.appendChild(mkButton("Terug", () => safe(showChoices)));
-      setStatus("Niet doorgaan gekozen", false);
-    }));
-    const yesBtn = mkPillButton("Ja, doorgaan", () => safe(() => {
-      shell.close();
-      entries.forEach((entry) => appointmentFlow.appointmentAvailabilityConfirmedPeople.add(availabilityPersonKey(entry)));
-      helperPanel._availabilityRestore = null;
-      if (appointmentInSaveStage()) {
-        if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) appointmentFlow.nonClientFreeTitleScreenActive = false;
-        showAppointmentReadyToSave();
-      } else {
-        appointmentFlow.appointmentForceChoiceOnce = true;
-        showChoices();
-      }
-      setStatus("");
-    }), { from: "#b45309", to: "#8a3d05", shadowRgb: "180,83,9" });
-    actions.append(noBtn, yesBtn);
-    shell.body.appendChild(actions);
-  }
-
-  // src/content/features/appointment/choices.js
-  function showNeedsTeamChoice() {
-    const body = $body();
-    if (!body) return;
-    clearScreenMark();
-    renderScreen(body, "infoScreen", {
-      title: "Kies eerst je team om de hulp te gebruiken.",
-      titleStyle: { padding: "6px 0" },
-      body: "Open de extensie (het pictogram naast de adresbalk) en kies je team/kleurprofiel. Daarna verschijnen de afspraaktypes en registraties hier."
-    });
-    setStatus("Kies eerst je team", false);
-  }
-  function showChoices() {
-    const body = $body();
-    if (!body) return;
-    appointmentFlow.appointmentDoorplannen = false;
-    if (appointmentFlow.appointmentClearingSettings) {
-      showLoadingState("Instellingen verwijderen...");
-      return;
-    }
-    if (helperNeedsTeamChoice()) {
-      showNeedsTeamChoice();
-      return;
-    }
-    appointmentFlow.nonClientFreeTitleScreenActive = false;
-    appointmentFlow.appointmentAwaitingManualUursoort = false;
-    appointmentFlow.activeNonClientOption = null;
-    const forceChoice = appointmentFlow.appointmentForceChoiceOnce;
-    appointmentFlow.appointmentForceChoiceOnce = false;
-    if (!hasAppointmentPrereqs()) {
-      showAppointmentNeedsPrereqs();
-      return;
-    }
-    if (appointmentNeedsAvailabilityConfirmation()) {
-      showAvailabilityWarning();
-      return;
-    }
-    if (!forceChoice && appointmentReadyToSave()) {
-      showAppointmentReadyToSave();
-      return;
-    }
-    markScreen("choices");
-    if (appointmentFlow.clientWaitTimer) {
-      clearTimeout(appointmentFlow.clientWaitTimer);
-      appointmentFlow.clientWaitTimer = null;
-    }
-    if (appointmentFlow.appointmentTypeApplied) {
-      renderChoicesBlocked(body);
-      return;
-    }
-    ensureClientExpanded((expanded) => {
-      if (!expanded) setStatus("Clientkaart openen...", false);
-    });
-    const _missingHooks = appointmentMissingHooks();
-    if (_missingHooks.length) {
-      resetBody(body);
-      body.appendChild(mkProblemBanner(_missingHooks));
-      CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
-        appointmentFlow.pendingChoice = choice;
-        prepareClientAndHandleChoice(choice);
-      }), { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) })));
-      addResetButton(body);
-      setStatus("");
-      return;
-    }
-    renderChoicesReact(body, false);
-    setStatus("");
-  }
-  function renderChoicesReact(body, blocked) {
-    const choices = CONFIG.choices.map((choice, i) => ({
-      label: choice.label,
-      tick: onsahChoiceDotColor(choice, i),
-      meta: onsahChoiceDirectIndirectLabel(choice)
-    }));
-    renderScreen(body, "choices", {
-      choices,
-      blocked: !!blocked,
-      blockedNote: "Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.",
-      tokens: ONSAH_TOKENS,
-      onPick: function(i) {
-        safe(function() {
-          const choice = CONFIG.choices[i];
-          appointmentFlow.pendingChoice = choice;
-          prepareClientAndHandleChoice(choice);
-        });
-      },
-      onReset: function() {
-        safe(clearSettings);
-      },
-      showSaveNav: !!blocked && appointmentReadyToSave(),
-      onSaveNav: function() {
-        safe(function() {
-          appointmentFlow.appointmentForceChoiceOnce = false;
-          showAppointmentReadyToSave();
-        });
-      }
-    });
-  }
-  function renderChoicesBlocked(body) {
-    renderChoicesReact(body, true);
-    setStatus("Verwijder eerst de instellingen", false);
-  }
-  function prepareClientAndHandleChoice(choice) {
-    setStatus("");
-    if (!hasAppointmentPrereqs()) {
-      showAppointmentNeedsPrereqs();
-      return;
-    }
-    takeAppointmentSnapshot();
-    appointmentFlow.appointmentFlowBusy = true;
-    if (!choice.addTravelTime) clearAppointmentTravelTimes();
-    busyWhile(6e3, (done) => {
-      ensureClientExpanded((expanded) => {
-        done();
-        if (!expanded) setStatus("Clientkaart openen...", false);
-        if (choice.defaultDuration > 0) applyAppointmentDuration(choice, choice.defaultDuration);
-        else showAppointmentDurationSelection(choice);
-      });
-    });
-  }
-  function handleChoice(choice) {
-    appointmentFlow.appointmentTypeApplied = true;
-    setBusyCursor(true);
-    let _choiceDone = false;
-    const _finishBusy = () => {
-      if (!_choiceDone) {
-        _choiceDone = true;
-        setBusyCursor(false);
-      }
-    };
-    const _busyGuard = setTimeout(_finishBusy, 8e3);
-    const _endBusy = () => {
-      clearTimeout(_busyGuard);
-      _finishBusy();
-    };
-    scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-    if (!choice.addTravelTime) clearAppointmentTravelTimes();
-    setStatus("Bezig...");
-    const desiredClientPresent = choice.clientPresent;
-    setTitleForChoice(choice, (titleOk) => {
-      scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-      applyClientPresent(desiredClientPresent, (clOk) => {
-        scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-        const msg = [];
-        msg.push(titleOk ? "titel gezet" : "titel niet gevonden");
-        msg.push(clOk ? `aanwezig ${desiredClientPresent ? "aan" : "uit"}` : "aanwezig niet gevonden");
-        const base = msg.join(" | ");
-        setStatus(base, titleOk && clOk);
-        if (choice.pickUursoort) {
-          invalidateClientEntries();
-          if (!hasClientInAppointment()) {
-            scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-            const afterLabel = () => ensureClientExpanded(() => {
-              showManualUursoortInstruction();
-              _endBusy();
-            });
-            setLabelsExclusive(choiceLabels(choice), afterLabel);
-            setStatus(base + " | voeg uursoort handmatig toe", titleOk && clOk);
-          } else {
-            setStatus("Uursoorten uit cliëntkaart laden...");
-            showUursoortQueue([], 0, () => {
-              scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-              const finishSave = () => {
-                _endBusy();
-                showAppointmentReadyToSave();
-              };
-              setLabelsExclusive(choiceLabels(choice), finishSave);
-            });
-          }
-        } else {
-          const afterLabel = () => clearUursoort(() => {
-            setStatus(base + " | uursoort leeg", titleOk && clOk);
-            _endBusy();
-          });
-          setLabelsExclusive(choiceLabels(choice), afterLabel);
-        }
-      });
-    });
-  }
-
   // src/content/features/registration/reset.js
   function clearRegistrationSettings() {
     registrationFlow.activeRegistrationChoice = null;
@@ -9730,6 +7705,459 @@
     return "Let op: op deze dag staat al " + watStaatEr + " van " + _klokTekst(hit.startMin) + " tot " + _klokTekst(hit.endMin) + (hit.uursoort ? " (" + hit.uursoort + ")" : "") + ".";
   }
 
+  // src/content/features/appointment/free-day.js
+  function elementIsFreeDayUnavailability(el) {
+    if (!el || isOwnPopup(el)) return false;
+    const type = el.getAttribute && el.getAttribute("data-type") || "";
+    const cls = (el.className || "") + "";
+    return type === "unavailability" || /\bunavailable\b/.test(cls);
+  }
+  var FREE_DAY_MIN_MINUTES = 240;
+  function unavailabilityMinutes(el, col) {
+    let mins = parseInt(el.getAttribute("data-duration"), 10);
+    if (mins > 0) return mins;
+    const h = col && (col.clientHeight || col.getBoundingClientRect && col.getBoundingClientRect().height) || 0;
+    if (h > 0 && el.getBoundingClientRect) {
+      const r = el.getBoundingClientRect();
+      if (r.height > 0) return r.height / h * 24 * 60;
+    }
+    return 0;
+  }
+  function columnUnavailabilityMinutes(col) {
+    if (!col) return 0;
+    let total = 0;
+    const seen = /* @__PURE__ */ new Set();
+    const add = (el) => {
+      if (!elementIsFreeDayUnavailability(el)) return;
+      const id = el.getAttribute("data-id") || el.getAttribute("data-time") + "|" + el.getAttribute("data-date");
+      if (seen.has(id)) return;
+      seen.add(id);
+      total += unavailabilityMinutes(el, col);
+    };
+    try {
+      col.querySelectorAll(ONS.unavailability).forEach(add);
+    } catch (e) {
+    }
+    const date = col.getAttribute("data-date");
+    if (date) {
+      try {
+        document.querySelectorAll('[data-type="unavailability"][data-date="' + date + '"], .js_calendar_occurrence.unavailable[data-date="' + date + '"]').forEach(add);
+      } catch (e) {
+      }
+    }
+    return total;
+  }
+  function dateHasFreeDayUnavailability(date) {
+    const col = document.querySelector(ONS.dayColumn + '[data-date="' + date + '"]');
+    return columnUnavailabilityMinutes(col || { getAttribute: () => date }) > FREE_DAY_MIN_MINUTES;
+  }
+  function dayColumnLooksFree(col) {
+    if (!col) return false;
+    return columnUnavailabilityMinutes(col) > FREE_DAY_MIN_MINUTES;
+  }
+  function trackCalendarClickForFreeDay(e) {
+    const t = e.target;
+    if (!t || t.closest && isOwnPopup(t)) return;
+    const col = t.closest && t.closest(ONS.dayColumn);
+    if (!col) return;
+    appointmentFlow.appointmentFreeDay = dayColumnLooksFree(col);
+    appointmentFlow.appointmentFreeDayDate = col.getAttribute("data-date") || null;
+  }
+  function installFreeDayTracking() {
+    document.addEventListener("click", trackCalendarClickForFreeDay, true);
+  }
+  function refreshFreeDayFromBackgroundCalendar() {
+    if (!appointmentFlow.appointmentFreeDayDate) return;
+    const col = document.querySelector('.day.js_day[data-date="' + appointmentFlow.appointmentFreeDayDate + '"]');
+    if (col && dayColumnLooksFree(col)) appointmentFlow.appointmentFreeDay = true;
+    else if (dateHasFreeDayUnavailability(appointmentFlow.appointmentFreeDayDate)) appointmentFlow.appointmentFreeDay = true;
+  }
+  function showFreeDayInactive() {
+    const body = $body();
+    if (!body) return;
+    clearScreenMark();
+    renderScreen(body, "infoScreen", {
+      title: "Vrije dag",
+      titleStyle: { fontWeight: 700, fontSize: 14, color: "#555", padding: "4px 0 2px" },
+      body: "Deze dag is grijs gemarkeerd. De afspraakhulp is hier niet actief.",
+      bodyStyle: { lineHeight: 1.35 }
+    });
+    setSubmitBlocked(false);
+    setStatus("Vrije dag — hulp inactief", false);
+  }
+
+  // src/content/features/appointment/invitee-guard.js
+  var STRAY_ADD_EVENTS = ["pointerdown", "mousedown", "click"];
+  function findAddInviteeButtonFast() {
+    const tp = document.getElementById("teleport");
+    if (!tp) return null;
+    const header = tp.querySelector('div[slot="header"], [class*="_header_"]') || tp;
+    let candidates;
+    try {
+      candidates = header.querySelectorAll("uc-button, button");
+    } catch (e) {
+      return null;
+    }
+    for (const btn of candidates) {
+      if (!visible(btn) || isOwnPopup(btn)) continue;
+      const txt = clean(uiText(btn) || btn.textContent || "");
+      const hasAdd = btn.shadowRoot && (btn.shadowRoot.querySelector('uc-icon[icon="add"]') || btn.shadowRoot.querySelector('[icon="add"]')) || btn.querySelector && btn.querySelector('uc-icon[icon="add"]');
+      if (/(^|[^a-z])toevoegen([^a-z]|$)/.test(txt) || hasAdd) return btn;
+    }
+    return null;
+  }
+  function findAddClientButton() {
+    const fast = findAddInviteeButtonFast();
+    if (fast) return fast;
+    const scope = document;
+    const headings = deepQueryAll("h1,h2,h3,div,span,p", scope).filter(function(el) {
+      const txt = clean(el.textContent || "");
+      return visible(el) && !isOwnPopup(el) && (txt === "genodigden" || txt.startsWith("genodigden") && txt.length < 80);
+    }).sort(function(a, b) {
+      return rect(a).top - rect(b).top || rect(a).left - rect(b).left;
+    });
+    const hasAddIcon = function(b) {
+      return !!(b && (b.querySelector && (b.querySelector('uc-icon[icon="add"]') || b.querySelector('[icon="add"]')) || b.shadowRoot && (b.shadowRoot.querySelector('uc-icon[icon="add"]') || b.shadowRoot.querySelector('[icon="add"]'))));
+    };
+    const buttonText = function(b) {
+      return clean(uiText(b) || b.textContent || b.shadowRoot && b.shadowRoot.textContent || "");
+    };
+    const candidates = deepQueryAll('uc-button,button,[role="button"]', scope).filter(function(b) {
+      if (isOwnPopup(b)) return false;
+      const r = rect(b);
+      if (r.width <= 0 || r.height <= 0) return false;
+      return /toevoegen/.test(buttonText(b)) || hasAddIcon(b);
+    }).map(function(b) {
+      const r = rect(b);
+      const nearestHeading = headings.reduce(function(best, h) {
+        const hr = rect(h);
+        if (r.top < hr.top - 55 || r.top > hr.top + 160) return best;
+        if (r.left < hr.left + 120 || r.left > hr.left + 900) return best;
+        const dy = Math.abs(r.top + r.height / 2 - (hr.top + hr.height / 2));
+        const sameHeaderBand = r.top >= hr.top - 36 && r.top <= hr.top + 110;
+        const rightOfHeading = r.left > hr.left + 120;
+        const score = dy + Math.abs(r.left - hr.left) / 6 + (sameHeaderBand ? -600 : 0) + (rightOfHeading ? -250 : 0);
+        return Math.min(best, score);
+      }, headings.length ? 99999 : 0);
+      const txt = buttonText(b);
+      const textBonus = /toevoegen/.test(txt) ? -700 : 0;
+      const iconBonus = hasAddIcon(b) ? -150 : 0;
+      const agendaPenalty = nearestHeading >= 99999 ? 1e5 : 0;
+      return { button: b, score: nearestHeading + textBonus + iconBonus + agendaPenalty };
+    }).sort(function(a, b) {
+      return a.score - b.score;
+    });
+    return candidates.length && candidates[0].score < 5e4 ? candidates[0].button : null;
+  }
+  function clickAddClientButton() {
+    const btn = findAddClientButton();
+    if (!btn) {
+      setStatus('Knop "Cliënt toevoegen" niet gevonden', false);
+      return false;
+    }
+    appointmentFlow.intentionalAddClientClick = true;
+    appointmentFlow.allowInviteeModalUntil = Date.now() + 6e3;
+    try {
+      clickUiButton(btn);
+    } finally {
+      setTimeout(() => {
+        appointmentFlow.intentionalAddClientClick = false;
+      }, 400);
+    }
+    setStatus("Cliënt toevoegen geopend");
+    return true;
+  }
+  function findInviteeSearchModal() {
+    for (const m of deepQueryAll('uc-modal,[role="dialog"],dialog')) {
+      if (!visible(m) || isOwnPopup(m)) continue;
+      const al = clean(m.getAttribute && (m.getAttribute("aria-label") || "") || "");
+      if (al === "afspraak toevoegen" || al === "afspraakdetails") continue;
+      if (/zoek naar genodigden|genodigde toevoegen|genodigde zoeken/.test(al)) return m;
+      const txt = clean((m.textContent || "").slice(0, 500));
+      if (/zoek naar (clienten|genodigden)/.test(txt) && /medewerker/.test(txt) && /(groep|team|locatie)/.test(txt)) return m;
+    }
+    return null;
+  }
+  function closeInviteeSearchModal(modal) {
+    const closeBtn = deepQueryAll(UI_OVERRIDES.afsCloseButton || 'uc-button[aria-label*="sluit" i], button[aria-label*="sluit" i]', modal).find((b) => visible(b) && !isOwnPopup(b));
+    if (closeBtn) {
+      clickUiButton(closeBtn);
+      return true;
+    }
+    const dlg = deepQueryAll('dialog,[role="dialog"]', modal)[0] || modal;
+    try {
+      dlg.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, composed: true, cancelable: true }));
+    } catch (e) {
+    }
+    return false;
+  }
+  function maybeDismissStrayInviteeModal(attempt = 0) {
+    if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations") return;
+    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
+    const modal = findInviteeSearchModal();
+    if (!modal) {
+      if (attempt < 6) setTimeout(() => maybeDismissStrayInviteeModal(attempt + 1), 70);
+      return;
+    }
+    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
+    closeInviteeSearchModal(modal);
+    if (attempt < 6) setTimeout(() => maybeDismissStrayInviteeModal(attempt + 1), 90);
+  }
+  function inviteeAddButtonGuard(e) {
+    if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
+    if (e.isTrusted) {
+      appointmentFlow.allowInviteeModalUntil = Date.now() + 6e3;
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  }
+  function guardInviteeAddButton() {
+    if (helperPanel.activeMode === "registrations") return;
+    const btn = findAddInviteeButtonFast();
+    if (!btn) return;
+    const targets = [btn];
+    const inner = btn.shadowRoot && btn.shadowRoot.querySelector("button");
+    if (inner) targets.push(inner);
+    for (const el of targets) {
+      if (el.__onsInviteeGuarded) continue;
+      el.__onsInviteeGuarded = true;
+      for (const type of STRAY_ADD_EVENTS) el.addEventListener(type, inviteeAddButtonGuard, true);
+    }
+  }
+
+  // src/content/features/appointment/uursoort-screens.js
+  function clientsMissingUursoort() {
+    return findClientEntries().filter((entry) => !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName(entry.name)).filter(Boolean);
+  }
+  function missingUursoortText(names) {
+    if (!names.length) return "Alle uursoorten zijn ingevuld.";
+    if (names.length === 1) return `Voeg de uursoort toe voor ${names[0]}.`;
+    const last = names[names.length - 1];
+    return `Voeg de uursoort toe voor ${names.slice(0, -1).join(", ")} en ${last}.`;
+  }
+  function showManualUursoortInstruction() {
+    const body = $body();
+    if (!body) return;
+    markScreen("manualUursoortInstruction");
+    appointmentFlow.appointmentFlowBusy = false;
+    appointmentFlow.appointmentAwaitingManualUursoort = true;
+    scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+    const _subNode = mkText("afspraak_uursoort_sub", "Daarna gaat de afspraak vanzelf verder.", { fontSize: "12px", color: "#666", lineHeight: "1.35", padding: "0 0 8px" });
+    const _instrNode = mkText("probleem_uursoort_zelf", "Kies zelf de uursoort in het gemarkeerde veld hieronder.", { fontSize: "12px", color: "#704b00", lineHeight: "1.35", padding: "0 0 8px" });
+    try {
+      highlightField(getUursoortTrigger() || (typeof findClientUursoortTrigger === "function" ? findClientUursoortTrigger() : null));
+    } catch (e) {
+    }
+    const onWatchTick = () => safe(() => {
+      if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations" || helperPanel._infoPanelRestore) return;
+      checkNow();
+    });
+    const renderMissing = () => {
+      const names = clientsMissingUursoort();
+      renderScreen(body, "manualUursoort", {
+        missingText: missingUursoortText(names),
+        subNode: _subNode,
+        instructionNode: _instrNode,
+        tokens: ONSAH_TOKENS,
+        onBack: function() {
+          helperPanel.suppressAutoUntil = Date.now() + 1200;
+          safe(() => {
+            appointmentFlow.appointmentAwaitingManualUursoort = false;
+            appointmentFlow.appointmentForceChoiceOnce = true;
+            showChoices();
+          });
+        },
+        onWatchTick,
+        watchIntervalMs: 600
+      });
+      return names;
+    };
+    const checkNow = () => {
+      invalidateClientEntries();
+      const names = renderMissing();
+      if (!names.length && hasUursoortSelected()) {
+        showAppointmentReadyToSave();
+        return true;
+      }
+      setStatus(names.length ? `Wacht op uursoort: ${names.join(", ")}` : "Uursoort gevonden", !names.length);
+      return false;
+    };
+    checkNow();
+  }
+  function showUursoort(options, afterPick, clientContext = null) {
+    const body = $body();
+    if (!body) return;
+    clearScreenMark();
+    renderScreen(body, "pickList", {
+      title: clientContext ? `Uursoort ${clientContext.firstName}` : "Kies uursoort",
+      titleWeight: 600,
+      loading: false,
+      options,
+      emptyMessage: "Geen uursoorten gevonden - open het veld handmatig.",
+      emptyColor: "#b3261e",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        appointmentFlow.autoSelectingNewClient = false;
+        showChoices();
+      },
+      onPick: function(o) {
+        safe(function() {
+          setStatus("Bezig...");
+          const freshTrigger = clientContext ? freshUursoortTriggerForContext(clientContext) : null;
+          if (clientContext && !freshTrigger) {
+            setStatus(`uursoort-veld voor ${clientContext.firstName} niet gevonden`, false);
+            return;
+          }
+          chooseUursoort(o, (ok) => {
+            const done = () => {
+              showAppointmentReadyToSave();
+              setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
+            };
+            if (afterPick) afterPick(done);
+            else done();
+          }, freshTrigger || null);
+        });
+      }
+    });
+  }
+
+  // src/content/features/appointment/prereqs.js
+  function resumeAppointmentHelperAfterEnable() {
+    helperPanel._infoPanelRestore = null;
+    helperPanel._disabledRestore = null;
+    appointmentFlow.appointmentAwaitingManualUursoort = false;
+    updateSubmitGuard();
+    if (!hasAppointmentPrereqs()) {
+      if (hasClientInAppointment()) ensureClientExpanded(() => {
+      });
+      showAppointmentNeedsPrereqs();
+      updateSubmitGuard();
+      return;
+    }
+    ensureClientExpanded((expanded) => {
+      appointmentFlow.appointmentForceChoiceOnce = true;
+      showChoices();
+      updateSubmitGuard();
+      setStatus(expanded ? "Clientkaarten open" : "Clientkaarten openen...", expanded);
+    });
+  }
+  function showAppointmentNeedsPrereqs() {
+    const body = $body();
+    if (!body) return;
+    appointmentFlow.nonClientFreeTitleScreenActive = false;
+    markScreen("appointmentNeedsPrereqs");
+    const dateTimeReady = hasAppointmentDate() && hasAppointmentStartTime();
+    if (!dateTimeReady) {
+      renderScreen(body, "infoScreen", {
+        title: "Vul begintijd en datum in.",
+        titleStyle: { lineHeight: 1.35, padding: "4px 0 8px" },
+        body: ""
+      });
+      setStatus("Wacht op begintijd en datum");
+      return;
+    }
+    if (hasClientInAppointment()) {
+      showChoices();
+      return;
+    }
+    const _cats = nonClientCategoriesActive();
+    renderScreen(body, "needsPrereqs", {
+      categories: _cats.map(function(cat) {
+        return { label: cat.label };
+      }),
+      tokens: ONSAH_TOKENS,
+      onAddClient: function() {
+        safe(clickAddClientButton);
+      },
+      onPickCategory: function(i) {
+        safe(function() {
+          const cat = _cats[i];
+          if (cat.directOption) handleNonClientOption(cat.directOption);
+          else showNonClientCategory(cat);
+        });
+      },
+      onReset: function() {
+        safe(clearNonClientSettings);
+      }
+    });
+    setStatus("Kies een categorie of voeg een cliënt toe");
+  }
+  function refreshAppointmentPrereqScreen() {
+    const body = $body();
+    if (!body) return;
+    if (Date.now() < helperPanel.suppressAutoUntil) return;
+    refreshFreeDayFromBackgroundCalendar();
+    if (appointmentFlow.appointmentFreeDay) {
+      showFreeDayInactive();
+      return;
+    }
+    if (helperPanel._infoPanelRestore) return;
+    if (appointmentFlow.appointmentFlowBusy) return;
+    if (appointmentFlow.uursoortQueueActive) return;
+    if (appointmentFlow.nonClientBusy) return;
+    if (appointmentFlow.appointmentClearingSettings) {
+      showLoadingState("Instellingen verwijderen...");
+      return;
+    }
+    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
+      if (hasClientInAppointment() && hasAppointmentPrereqs()) {
+        appointmentFlow.nonClientFreeTitleScreenActive = false;
+        appointmentFlow.activeNonClientOption = null;
+        showChoices();
+        return;
+      }
+      if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) {
+        if (appointmentFlow.nonClientFreeTitleScreenActive || !text.includes("als de instellingen kloppen")) {
+          appointmentFlow.nonClientFreeTitleScreenActive = false;
+          showAppointmentReadyToSave();
+        }
+        return;
+      }
+      if (appointmentFlow.nonClientFreeTitleScreenActive) return;
+    }
+    if (appointmentFlow.nonClientNoUursoortActive && appointmentFlow.activeNonClientOption && !appointmentFlow.activeNonClientOption.freeTitle) {
+      if (nonClientUursoortSet()) {
+        appointmentFlow.nonClientNoUursoortActive = false;
+        showAppointmentReadyToSave();
+      }
+      return;
+    }
+    const text = clean(body.textContent || "");
+    if (appointmentNeedsAvailabilityConfirmation() && !text.includes("al een afspraak") && !appointmentInSaveStage()) {
+      showAvailabilityWarning();
+      return;
+    }
+    const choiceScreen = CONFIG.choices.every((choice) => text.includes(clean(choice.label)));
+    if (appointmentFlow.appointmentAwaitingManualUursoort && hasAppointmentPrereqs()) {
+      if (!isScreen("manualUursoortInstruction")) showManualUursoortInstruction();
+      return;
+    }
+    if (appointmentFlow.appointmentSaveScreenActive) {
+      if (!choiceScreen && appointmentSaveStageStillValid()) return;
+      appointmentFlow.appointmentSaveScreenActive = false;
+    }
+    if (appointmentReadyToSave() && !choiceScreen) {
+      showAppointmentReadyToSave();
+      return;
+    }
+    const prereqScreen = text.includes("vul client, begintijd en datum in") || text.includes("voeg een client toe voor clientgerelateerde afspraken") || text.includes("voeg evt. een client toe aan de afspraak");
+    const nonClientSubScreen = text.includes("niet clientgerelateerde afspraken") || text.includes(" duur:") || nonClientCategoriesActive().some(function(c) {
+      return text.includes(clean(c.label)) && text.includes("terug");
+    });
+    const clientDurationScreen = !!appointmentFlow.pendingChoice && (text.includes(" duur:") || text.includes("totale reistijd"));
+    if (hasClientInAppointment() && hasAppointmentPrereqs() && !choiceScreen && !clientDurationScreen) {
+      appointmentFlow.activeNonClientOption = null;
+      showChoices();
+      return;
+    }
+    if (prereqScreen && hasAppointmentPrereqs()) showChoices();
+    else if (!hasAppointmentPrereqs() && nonClientSubScreen) return;
+    else if (!hasAppointmentPrereqs() && !prereqScreen) showAppointmentNeedsPrereqs();
+  }
+
   // src/content/features/appointment/save.js
   function appointmentInSaveStage() {
     if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) return nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption);
@@ -9908,6 +8336,1304 @@
     else setStatus(ready ? "Klaar om op te slaan" : freeTitle ? "Vul de titel aan" : nonClient ? "Voeg nog een uursoort toe" : "Voeg eerst bij elke client een uursoort toe", ready);
     updateSubmitGuard();
     appointmentFlow.appointmentSaveScreenActive = true;
+  }
+
+  // src/content/features/appointment/duration.js
+  function applyAppointmentDuration(choice, minutes) {
+    appointmentFlow.appointmentFlowBusy = true;
+    appointmentFlow.activeAppointmentDurationMinutes = minutes;
+    appointmentFlow.activeAppointmentStartTimeText = appointmentCurrentStartTimeText();
+    if (choice.addTravelTime) {
+      const endOk = setAppointmentEndTimePlusMinutes(minutes);
+      scheduleAppointmentEndTime(minutes);
+      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
+      setTimeout(() => showAppointmentTravelSelection(choice), 80);
+    } else {
+      clearAppointmentTravelTimes();
+      const endOk = setAppointmentEndTimePlusMinutes(minutes);
+      scheduleAppointmentEndTime(minutes);
+      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
+      setTimeout(() => {
+        handleChoice(choice);
+        scheduleAppointmentEndTime(minutes);
+        [120, 350, 650].forEach((d) => setTimeout(() => safe(() => enforceAppointmentEndTime(minutes)), d));
+      }, 80);
+    }
+  }
+  function showAppointmentDurationSelection(choice) {
+    const body = $body();
+    if (!body) return;
+    if (!hasAppointmentPrereqs()) {
+      showAppointmentNeedsPrereqs();
+      return;
+    }
+    markScreen("appointmentDurationSelection", { choice });
+    appointmentFlow.appointmentFlowBusy = false;
+    const _st = choice.durationStep > 0 ? choice.durationStep : gsNum("durationStepMin", 15);
+    const _mx = choice.maxDuration > 0 ? choice.maxDuration : gsNum("registrationMaxMin", 180);
+    const _durValues = [];
+    for (let m = _st; m <= _mx; m += _st) _durValues.push(m);
+    renderScreen(body, "duration", {
+      title: `${choice.label} duur:`,
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        safe(showChoices);
+      },
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, void 0, durationLabelStyle("duur"))
+    });
+  }
+  function showAppointmentTravelSelection(choice) {
+    const body = $body();
+    if (!body) return;
+    markScreen("appointmentTravelSelection", { choice });
+    appointmentFlow.appointmentFlowBusy = false;
+    const _ts = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelStepMin > 0 ? APP_CONFIG.generalSettings.travelStepMin : 5;
+    const _tm = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelMaxMin > 0 ? APP_CONFIG.generalSettings.travelMaxMin : 60;
+    const _travelValues = [];
+    for (let m = 0; m <= _tm; m += _ts) _travelValues.push(m);
+    renderScreen(body, "duration", {
+      title: "Totale reistijd (heen en terug):",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        safe(showChoices);
+      },
+      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
+        appointmentFlow.appointmentFlowBusy = true;
+        const ok = setAppointmentTravelTotalMinutes(minutes);
+        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : "Reistijdvelden niet gevonden", ok);
+        setTimeout(() => handleChoice(choice), 70);
+      }), choice.pickerStyle, void 0, durationLabelStyle("duur"))
+    });
+  }
+
+  // src/content/helper/screen-restore.js
+  function refreshMainScreen() {
+    if (!helperPanel.helperEnabled) {
+      showDisabledState();
+      return;
+    }
+    if (helperPanel.activeMode === "registrations") showRegistrationChoices();
+    else showChoices();
+  }
+  function renderMarkedScreen(screen) {
+    if (!screen || !screen.name) return false;
+    const a = screen.args || {};
+    switch (screen.name) {
+      case "registrationNoShowPrompt":
+        showRegistrationNoShowPrompt();
+        return true;
+      case "registrationNeedsClient":
+        showRegistrationNeedsClient();
+        return true;
+      case "registrationDurationAsk":
+        showRegistrationDurationAsk(a.choice);
+        return true;
+      case "registrationPortionQuestion":
+        showRegistrationPortionQuestion(a.choice);
+        return true;
+      case "registrationPortionDuration":
+        showRegistrationPortionDuration(a.choice);
+        return true;
+      case "registrationTravelSelection":
+        showRegistrationTravelSelection(a.choice);
+        return true;
+      case "registrationHourTypeSelection":
+        showRegistrationHourTypeSelection(a.index != null ? a.index : registrationFlow.activeRegistrationHourTypeIndex || 0);
+        return true;
+      case "registrationReportPrompt":
+        showRegistrationReportPrompt(a.choice);
+        return true;
+      case "registrationChoices":
+        showRegistrationChoices();
+        return true;
+      case "nonClientFreeTitlePrompt":
+        showNonClientFreeTitlePrompt(a.opt);
+        return true;
+      case "nonClientDurationSelection":
+        showNonClientDurationSelection(a.opt);
+        return true;
+      case "appointmentNeedsPrereqs":
+        showAppointmentNeedsPrereqs();
+        return true;
+      case "appointmentReadyToSave":
+        showAppointmentReadyToSave();
+        return true;
+      case "appointmentDurationSelection":
+        showAppointmentDurationSelection(a.choice);
+        return true;
+      case "appointmentTravelSelection":
+        showAppointmentTravelSelection(a.choice);
+        return true;
+      case "manualUursoortInstruction":
+        showManualUursoortInstruction();
+        return true;
+      case "choices":
+        showChoices();
+        return true;
+      default:
+        return false;
+    }
+  }
+  function createCurrentScreenRestore() {
+    const marked = currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null;
+    const body = $body();
+    const currentText = clean(body && body.textContent || "");
+    const registrationChoice = registrationFlow.activeRegistrationChoice;
+    const appointmentChoice = appointmentFlow.pendingChoice;
+    const registrationScreen = {
+      noShowPrompt: currentText.includes("no show?"),
+      needsClient: /vul client, begintijd en datum in/.test(currentText),
+      duration: !!registrationChoice && / duur:/.test(currentText),
+      portionQuestion: !!registrationChoice && /tijd aanwezig in deze registratie/.test(currentText),
+      portionDuration: !!registrationChoice && /^duur .* tijd:/.test(currentText),
+      travel: !!registrationChoice && /totale reistijd/.test(currentText),
+      hourType: /^uursoort(?:selectie|\s)/.test(currentText),
+      submit: !!registrationChoice && /richtlijn rapporteren|schrijf nu je rapportage|indienen/.test(currentText)
+    };
+    const nonClientOpt = appointmentFlow.activeNonClientOption;
+    const appointmentScreen = {
+      needsPrereqs: /vul client, begintijd en datum in|voeg evt\. een client toe aan de afspraak/.test(currentText),
+      nonClientMenu: /niet clientgerelateerde afspraken/.test(currentText),
+      nonClientDuration: !!nonClientOpt && / duur:/.test(currentText),
+      nonClientFreeTitle: !!nonClientOpt && !!nonClientOpt.freeTitle && /vul de titel aan na/.test(currentText),
+      unavailable: /onbeschikbaar|al een afspraak|alsnog doorgaan/.test(currentText),
+      duration: !!appointmentChoice && / duur:/.test(currentText),
+      travel: !!appointmentChoice && /totale reistijd/.test(currentText),
+      manualUursoort: appointmentFlow.appointmentAwaitingManualUursoort || currentText.includes("voeg de juiste uursoort toe aan de client"),
+      readyToSave: /als de instellingen kloppen|voeg eventueel nog een locatie/.test(currentText)
+    };
+    return () => {
+      if (renderMarkedScreen(marked)) return;
+      if (helperPanel.activeMode === "registrations") {
+        if (registrationScreen.noShowPrompt) {
+          showRegistrationNoShowPrompt();
+          return;
+        }
+        if (registrationScreen.needsClient) {
+          showRegistrationNeedsClient();
+          return;
+        }
+        if (registrationScreen.duration && registrationChoice) {
+          showRegistrationDurationAsk(registrationChoice);
+          return;
+        }
+        if (registrationScreen.portionQuestion && registrationChoice) {
+          showRegistrationPortionQuestion(registrationChoice);
+          return;
+        }
+        if (registrationScreen.portionDuration && registrationChoice) {
+          showRegistrationPortionDuration(registrationChoice);
+          return;
+        }
+        if (registrationScreen.travel && registrationChoice) {
+          showRegistrationTravelSelection(registrationChoice);
+          return;
+        }
+        if (registrationScreen.hourType) {
+          showRegistrationHourTypeSelection(registrationFlow.activeRegistrationHourTypeIndex || 0);
+          return;
+        }
+        if (registrationScreen.submit && registrationChoice) {
+          showRegistrationReportPrompt(registrationChoice);
+          return;
+        }
+        showRegistrationChoices();
+        return;
+      }
+      if (appointmentScreen.nonClientFreeTitle && nonClientOpt) {
+        showNonClientFreeTitlePrompt(nonClientOpt);
+        return;
+      }
+      if (appointmentScreen.nonClientDuration && nonClientOpt) {
+        showNonClientDurationSelection(nonClientOpt);
+        return;
+      }
+      if (appointmentScreen.nonClientMenu) {
+        showAppointmentNeedsPrereqs();
+        return;
+      }
+      if (appointmentScreen.readyToSave && nonClientOpt) {
+        showAppointmentReadyToSave();
+        return;
+      }
+      if (appointmentScreen.needsPrereqs) {
+        showAppointmentNeedsPrereqs();
+        return;
+      }
+      if (appointmentScreen.duration && appointmentChoice) {
+        showAppointmentDurationSelection(appointmentChoice);
+        return;
+      }
+      if (appointmentScreen.travel && appointmentChoice) {
+        showAppointmentTravelSelection(appointmentChoice);
+        return;
+      }
+      if (appointmentScreen.manualUursoort) {
+        showManualUursoortInstruction();
+        return;
+      }
+      if (appointmentScreen.readyToSave) {
+        showAppointmentReadyToSave();
+        return;
+      }
+      showChoices();
+    };
+  }
+
+  // src/content/features/appointment/availability.js
+  function unavailableInvitees() {
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const el of deepQueryAll("span, div")) {
+      if (isOwnPopup(el)) continue;
+      const txt = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!txt.includes("heeft al een afspraak")) continue;
+      const name = txt.replace(/\s*heeft al een afspraak.*$/i, "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ name, firstName: firstNameFromName(name), role: "" });
+    }
+    return out.sort((a, b) => a.firstName.localeCompare(b.firstName));
+  }
+  function availabilityPersonKey(entry) {
+    return clean(entry.name || entry.firstName || "").toLowerCase().replace(/\s+/g, " ");
+  }
+  function appointmentNeedsAvailabilityConfirmation() {
+    return false;
+  }
+  function showAvailabilityWarning() {
+    const body = $body();
+    if (!body) return;
+    const entries = unavailableInvitees().filter((entry) => !appointmentFlow.appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
+    if (!entries.length) {
+      showChoices();
+      return;
+    }
+    if (!helperPanel._availabilityRestore) helperPanel._availabilityRestore = createCurrentScreenRestore();
+    const names = entries.map((entry) => entry.firstName).filter(Boolean);
+    const nameText = names.length <= 1 ? names[0] || "Deze genodigde" : `${names.slice(0, -1).join(", ")} en ${names[names.length - 1]}`;
+    setStatus("Let op: al een afspraak", false);
+    const shell = mkModalShell("onsAvailabilityWarningModal", "Toch doorgaan?", { spineColor: "#b45309", maxWidth: "360px" });
+    const msg = document.createElement("div");
+    msg.textContent = `${nameText} ${names.length === 1 ? "heeft" : "hebben"} op dit moment al een afspraak.`;
+    Object.assign(msg.style, { fontSize: "13.5px", color: "#4a4448", lineHeight: "1.45", margin: "0 0 16px" });
+    shell.body.appendChild(msg);
+    const actions = document.createElement("div");
+    Object.assign(actions.style, { display: "flex", justifyContent: "flex-end", gap: "8px" });
+    const noBtn = document.createElement("button");
+    noBtn.type = "button";
+    noBtn.textContent = "Nee";
+    Object.assign(noBtn.style, { appearance: "none", border: "1px solid #ece7e5", background: "transparent", color: "#6b6367", borderRadius: "999px", padding: "9px 16px", font: '600 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', cursor: "pointer" });
+    onsahFocusRing(noBtn);
+    noBtn.addEventListener("click", () => safe(() => {
+      shell.close();
+      helperPanel._availabilityRestore = null;
+      resetBody(body);
+      const msg2 = document.createElement("div");
+      msg2.textContent = "Plan een andere datum/tijdstip in of sluit het scherm af.";
+      Object.assign(msg2.style, { fontSize: "13px", color: "#333", lineHeight: "1.45", padding: "4px 0 8px" });
+      body.appendChild(msg2);
+      body.appendChild(mkButton("Afsluiten", () => safe(closeOnsModal)));
+      body.appendChild(mkButton("Terug", () => safe(showChoices)));
+      setStatus("Niet doorgaan gekozen", false);
+    }));
+    const yesBtn = mkPillButton("Ja, doorgaan", () => safe(() => {
+      shell.close();
+      entries.forEach((entry) => appointmentFlow.appointmentAvailabilityConfirmedPeople.add(availabilityPersonKey(entry)));
+      helperPanel._availabilityRestore = null;
+      if (appointmentInSaveStage()) {
+        if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) appointmentFlow.nonClientFreeTitleScreenActive = false;
+        showAppointmentReadyToSave();
+      } else {
+        appointmentFlow.appointmentForceChoiceOnce = true;
+        showChoices();
+      }
+      setStatus("");
+    }), { from: "#b45309", to: "#8a3d05", shadowRgb: "180,83,9" });
+    actions.append(noBtn, yesBtn);
+    shell.body.appendChild(actions);
+  }
+
+  // src/content/features/appointment/choices.js
+  function showNeedsTeamChoice() {
+    const body = $body();
+    if (!body) return;
+    clearScreenMark();
+    renderScreen(body, "infoScreen", {
+      title: "Kies eerst je team om de hulp te gebruiken.",
+      titleStyle: { padding: "6px 0" },
+      body: "Open de extensie (het pictogram naast de adresbalk) en kies je team/kleurprofiel. Daarna verschijnen de afspraaktypes en registraties hier."
+    });
+    setStatus("Kies eerst je team", false);
+  }
+  function showChoices() {
+    const body = $body();
+    if (!body) return;
+    appointmentFlow.appointmentDoorplannen = false;
+    if (appointmentFlow.appointmentClearingSettings) {
+      showLoadingState("Instellingen verwijderen...");
+      return;
+    }
+    if (helperNeedsTeamChoice()) {
+      showNeedsTeamChoice();
+      return;
+    }
+    appointmentFlow.nonClientFreeTitleScreenActive = false;
+    appointmentFlow.appointmentAwaitingManualUursoort = false;
+    appointmentFlow.activeNonClientOption = null;
+    const forceChoice = appointmentFlow.appointmentForceChoiceOnce;
+    appointmentFlow.appointmentForceChoiceOnce = false;
+    if (!hasAppointmentPrereqs()) {
+      showAppointmentNeedsPrereqs();
+      return;
+    }
+    if (appointmentNeedsAvailabilityConfirmation()) {
+      showAvailabilityWarning();
+      return;
+    }
+    if (!forceChoice && appointmentReadyToSave()) {
+      showAppointmentReadyToSave();
+      return;
+    }
+    markScreen("choices");
+    if (appointmentFlow.clientWaitTimer) {
+      clearTimeout(appointmentFlow.clientWaitTimer);
+      appointmentFlow.clientWaitTimer = null;
+    }
+    if (appointmentFlow.appointmentTypeApplied) {
+      renderChoicesBlocked(body);
+      return;
+    }
+    ensureClientExpanded((expanded) => {
+      if (!expanded) setStatus("Clientkaart openen...", false);
+    });
+    const _missingHooks = appointmentMissingHooks();
+    if (_missingHooks.length) {
+      resetBody(body);
+      body.appendChild(mkProblemBanner(_missingHooks));
+      CONFIG.choices.forEach((choice, i) => body.appendChild(mkButton(choice.label, () => safe(() => {
+        appointmentFlow.pendingChoice = choice;
+        prepareClientAndHandleChoice(choice);
+      }), { tick: onsahChoiceDotColor(choice, i), meta: onsahChoiceDirectIndirectLabel(choice) })));
+      addResetButton(body);
+      setStatus("");
+      return;
+    }
+    renderChoicesReact(body, false);
+    setStatus("");
+  }
+  function renderChoicesReact(body, blocked) {
+    const choices = CONFIG.choices.map((choice, i) => ({
+      label: choice.label,
+      tick: onsahChoiceDotColor(choice, i),
+      meta: onsahChoiceDirectIndirectLabel(choice)
+    }));
+    renderScreen(body, "choices", {
+      choices,
+      blocked: !!blocked,
+      blockedNote: "Er zijn al instellingen toegepast. Verwijder eerst de instellingen om een ander afspraaktype te kiezen.",
+      tokens: ONSAH_TOKENS,
+      onPick: function(i) {
+        safe(function() {
+          const choice = CONFIG.choices[i];
+          appointmentFlow.pendingChoice = choice;
+          prepareClientAndHandleChoice(choice);
+        });
+      },
+      onReset: function() {
+        safe(clearSettings);
+      },
+      showSaveNav: !!blocked && appointmentReadyToSave(),
+      onSaveNav: function() {
+        safe(function() {
+          appointmentFlow.appointmentForceChoiceOnce = false;
+          showAppointmentReadyToSave();
+        });
+      }
+    });
+  }
+  function renderChoicesBlocked(body) {
+    renderChoicesReact(body, true);
+    setStatus("Verwijder eerst de instellingen", false);
+  }
+  function prepareClientAndHandleChoice(choice) {
+    setStatus("");
+    if (!hasAppointmentPrereqs()) {
+      showAppointmentNeedsPrereqs();
+      return;
+    }
+    takeAppointmentSnapshot();
+    appointmentFlow.appointmentFlowBusy = true;
+    if (!choice.addTravelTime) clearAppointmentTravelTimes();
+    busyWhile(6e3, (done) => {
+      ensureClientExpanded((expanded) => {
+        done();
+        if (!expanded) setStatus("Clientkaart openen...", false);
+        const gepland = plannedAppointmentMinutes();
+        if (gepland) applyAppointmentDuration(choice, gepland);
+        else if (choice.defaultDuration > 0) applyAppointmentDuration(choice, choice.defaultDuration);
+        else showAppointmentDurationSelection(choice);
+      });
+    });
+  }
+  function handleChoice(choice) {
+    appointmentFlow.appointmentTypeApplied = true;
+    setBusyCursor(true);
+    let _choiceDone = false;
+    const _finishBusy = () => {
+      if (!_choiceDone) {
+        _choiceDone = true;
+        setBusyCursor(false);
+      }
+    };
+    const _busyGuard = setTimeout(_finishBusy, 8e3);
+    const _endBusy = () => {
+      clearTimeout(_busyGuard);
+      _finishBusy();
+    };
+    scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+    if (!choice.addTravelTime) clearAppointmentTravelTimes();
+    setStatus("Bezig...");
+    const desiredClientPresent = choice.clientPresent;
+    setTitleForChoice(choice, (titleOk) => {
+      scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+      applyClientPresent(desiredClientPresent, (clOk) => {
+        scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+        const msg = [];
+        msg.push(titleOk ? "titel gezet" : "titel niet gevonden");
+        msg.push(clOk ? `aanwezig ${desiredClientPresent ? "aan" : "uit"}` : "aanwezig niet gevonden");
+        const base = msg.join(" | ");
+        setStatus(base, titleOk && clOk);
+        if (choice.pickUursoort) {
+          invalidateClientEntries();
+          if (!hasClientInAppointment()) {
+            scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+            const afterLabel = () => ensureClientExpanded(() => {
+              showManualUursoortInstruction();
+              _endBusy();
+            });
+            setLabelsExclusive(choiceLabels(choice), afterLabel);
+            setStatus(base + " | voeg uursoort handmatig toe", titleOk && clOk);
+          } else {
+            setStatus("Uursoorten uit cliëntkaart laden...");
+            showUursoortQueue([], 0, () => {
+              scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+              const finishSave = () => {
+                _endBusy();
+                showAppointmentReadyToSave();
+              };
+              setLabelsExclusive(choiceLabels(choice), finishSave);
+            });
+          }
+        } else {
+          const afterLabel = () => clearUursoort(() => {
+            setStatus(base + " | uursoort leeg", titleOk && clOk);
+            _endBusy();
+          });
+          setLabelsExclusive(choiceLabels(choice), afterLabel);
+        }
+      });
+    });
+  }
+
+  // src/content/features/appointment/uursoort-queue.js
+  function uursoortContexts() {
+    return findClientEntries().filter((entry) => entry.uursoortTrigger).map((entry) => ({
+      firstName: entry.firstName,
+      name: entry.name,
+      trigger: entry.uursoortTrigger
+    }));
+  }
+  function freshUursoortContext(context2) {
+    if (!context2) return context2;
+    const entry = findClientEntries().find(
+      (item) => item.name === context2.name
+    );
+    return entry && entry.uursoortTrigger ? {
+      firstName: entry.firstName,
+      name: entry.name,
+      trigger: entry.uursoortTrigger
+    } : context2;
+  }
+  function freshUursoortTriggerForContext(context2) {
+    return (freshUursoortContext(context2) || {}).trigger || null;
+  }
+  function clearUursoortContexts(contexts, onDone, index = 0) {
+    if (!contexts.length || index >= contexts.length) {
+      onDone();
+      return;
+    }
+    invalidateClientEntries();
+    const ctx = freshUursoortContext(contexts[index]);
+    clearUursoort(
+      () => setTimeout(
+        () => clearUursoortContexts(contexts, onDone, index + 1),
+        120
+      ),
+      ctx && ctx.trigger
+    );
+  }
+  function clearAllUursoorten(onDone, attempt = 0) {
+    invalidateClientEntries();
+    const contexts = uursoortContexts().filter(
+      (ctx) => entryUursoortIsSet(
+        findClientEntries().find((e) => e.name === ctx.name) || {}
+      )
+    );
+    if (!contexts.length || attempt >= 6) {
+      onDone();
+      return;
+    }
+    clearUursoortContexts(contexts, () => {
+      setTimeout(() => clearAllUursoorten(onDone, attempt + 1), 200);
+    });
+  }
+  function clientsMissingUursoortEntries(exclude) {
+    invalidateClientEntries();
+    return findClientEntries().filter(
+      (e) => !(exclude && exclude.has(typeof clean === "function" ? clean(e.name) : e.name)) && !entryUursoortIsSet(e)
+    );
+  }
+  function showUursoortQueue(contexts, index, afterAll) {
+    if (appointmentFlow.uursoortQueueActive) return;
+    appointmentFlow.uursoortQueueActive = true;
+    const myGen = appointmentFlow.uursoortQueueGen;
+    const stale = () => myGen !== appointmentFlow.uursoortQueueGen;
+    const handled = /* @__PURE__ */ new Set();
+    const expandTries = /* @__PURE__ */ new Map();
+    const nullTries = /* @__PURE__ */ new Map();
+    let guard = 0;
+    const done = () => {
+      if (stale()) return;
+      appointmentFlow.uursoortQueueActive = false;
+      setTimeout(afterAll, 60);
+    };
+    const settleThenDone = (n) => {
+      if (stale()) return;
+      const missing = clientsMissingUursoortEntries(handled);
+      if (missing.length) {
+        step();
+        return;
+      }
+      const needed = 1;
+      if (n >= needed) {
+        done();
+        return;
+      }
+      showLoadingState("Controleren...");
+      const wait = findClientEntries().length <= 1 ? 130 : 320;
+      setTimeout(() => settleThenDone(n + 1), wait);
+    };
+    const step = () => {
+      if (stale()) return;
+      if (++guard > 300) {
+        done();
+        return;
+      }
+      const missing = clientsMissingUursoortEntries(handled);
+      if (!missing.length) {
+        settleThenDone(0);
+        return;
+      }
+      const entry = missing.find((e) => e.uursoortTrigger) || missing[0];
+      if (!entry.uursoortTrigger) {
+        const key = clean(entry.name);
+        const n = (expandTries.get(key) || 0) + 1;
+        expandTries.set(key, n);
+        if (n > 25) {
+          handled.add(key);
+          setTimeout(step, 60);
+          return;
+        }
+        showLoadingState(`Kaart openen voor ${entry.firstName}...`);
+        if (entry.toggle && inviteeToggleExpanded(entry.toggle) === false) clickInviteeToggle(entry.toggle);
+        else ensureClientExpanded(() => {
+        });
+        setTimeout(step, 200);
+        return;
+      }
+      const ctx = { firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger };
+      showLoadingState(`Uursoort laden voor ${ctx.firstName}...`);
+      listUursoortOptions((opts) => {
+        if (opts === null) {
+          const nkey = clean(ctx.name);
+          const nt = (nullTries.get(nkey) || 0) + 1;
+          nullTries.set(nkey, nt);
+          if (nt <= 8) {
+            setTimeout(step, 200);
+            return;
+          }
+          handled.add(nkey);
+          setTimeout(step, 180);
+          return;
+        }
+        showUursoort(opts, () => {
+          handled.add(clean(ctx.name));
+          setTimeout(step, 160);
+        }, ctx);
+      }, freshUursoortTriggerForContext(ctx) || ctx.trigger, 0, false, entry);
+    };
+    step();
+  }
+  function uursoortContextsForNames(names) {
+    const wanted = new Set(names.map(clean));
+    return findClientEntries().filter((entry) => wanted.has(clean(entry.name)) && entry.uursoortTrigger).map((entry) => ({ firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger }));
+  }
+  function startUursoortForNewClients(names, attempt = 0) {
+    if (!appointmentFlow.pendingChoice || !appointmentFlow.pendingChoice.pickUursoort || appointmentFlow.autoSelectingNewClient) return;
+    appointmentFlow.autoSelectingNewClient = true;
+    ensureClientExpanded(() => {
+      const contexts = uursoortContextsForNames(names);
+      if (!contexts.length && attempt < 8) {
+        appointmentFlow.autoSelectingNewClient = false;
+        setTimeout(() => startUursoortForNewClients(names, attempt + 1), 220);
+        return;
+      }
+      if (!contexts.length) {
+        appointmentFlow.autoSelectingNewClient = false;
+        setStatus("Nieuwe client gevonden | uursoortveld niet gevonden", false);
+        return;
+      }
+      setStatus(`Uursoort kiezen voor ${contexts.map((ctx) => ctx.firstName).join(" - ")}...`);
+      showUursoortQueue(contexts, 0, () => {
+        appointmentFlow.autoSelectingNewClient = false;
+        showChoices();
+        setStatus("Uursoort voor nieuwe client gezet");
+      });
+    });
+  }
+  function handleClientListChanges() {
+    const entries = findClientEntries();
+    const currentNames = new Set(entries.map((e) => e.name));
+    if (appointmentFlow.knownClientNames.size) {
+      for (const name of appointmentFlow.knownClientNames) {
+        if (!currentNames.has(name)) removeFirstNameFromTitle(firstNameFromName(name));
+      }
+    }
+    if (!entries.length) {
+      appointmentFlow.knownClientNames.clear();
+      return;
+    }
+    maybePrefetchUursoorten();
+    const firstSeed = !appointmentFlow.knownClientNames.size;
+    const added = entries.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
+    appointmentFlow.knownClientNames = new Set(currentNames);
+    if (firstSeed || !added.length) return;
+    if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
+      setTitleForChoice(appointmentFlow.pendingChoice, () => {
+      });
+      const addedNames = added.map((e) => e.name).filter(Boolean);
+      const state = computeAppointmentUursoortState();
+      if (addedNames.length && (state === "MIXED" || state === "CHOICE")) {
+        startUursoortForNewClients(addedNames);
+      } else {
+        ensureClientExpanded(() => showManualUursoortInstruction());
+      }
+    }
+  }
+
+  // src/content/features/appointment/ons-adapter.js
+  var _onsGemist = /* @__PURE__ */ new Set();
+  function _onsLees(naam, fn) {
+    let waarde = null;
+    try {
+      waarde = fn();
+    } catch (e) {
+      waarde = null;
+    }
+    const leeg = waarde == null || waarde === "" || waarde === false || Array.isArray(waarde) && waarde.length === 0;
+    if (leeg) _onsGemist.add(naam);
+    else _onsGemist.delete(naam);
+    return waarde;
+  }
+  function onsGemisteVelden() {
+    return Array.from(_onsGemist);
+  }
+  function onsVergeetGemist() {
+    _onsGemist.clear();
+  }
+  var OnsAdapter = {
+    // Waar zijn we, en in welk scherm?
+    context: {
+      modal: () => _onsLees("afspraakvenster", findModal),
+      heeftClient: () => hasClientInAppointment()
+    },
+    // De afspraak zelf.
+    afspraak: {
+      titelVeld: () => _onsLees("titel", getTitleInput),
+      datumVeld: () => _onsLees("datum", getDateInput),
+      begintijdVeld: () => _onsLees("begintijd", getStartTimeInput),
+      eindtijdVeld: () => _onsLees("eindtijd", getEndTimeInput),
+      labelVeld: () => _onsLees("label", getEtiketTrigger),
+      herhalingVeld: () => _onsLees("herhaling", findRecurrenceField),
+      reistijdVeld: (richting) => _onsLees("reistijd " + richting, () => appointmentTravelInput(richting)),
+      titel() {
+        const el = this.titelVeld();
+        return el ? String(inputTextValue(el) || "").trim() : "";
+      },
+      eindtijd() {
+        const el = this.eindtijdVeld();
+        return el ? String(inputTextValue(el) || "").trim() : "";
+      },
+      labels() {
+        try {
+          return (labelChips(getEtiketTrigger()) || []).map((c) => String(c.name || "").trim()).filter(Boolean);
+        } catch (e) {
+          return [];
+        }
+      },
+      reistijdTotaal: () => appointmentTravelTotalMinutes(),
+      zetTitel: (tekst) => setAppointmentTitleText(tekst),
+      zetLabel: (naam, klaar) => setLabel(naam, klaar),
+      wisLabels: (klaar) => clearKnownLabels(klaar),
+      zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),
+      wisReistijd: () => clearAppointmentTravelTimes(),
+      wisTitel: () => clearTitle(),
+      wisEindtijd: () => clearEndTime()
+    },
+    // De cliënten in de afspraak en hun uursoort — het veld waar het in de
+    // praktijk het vaakst misgaat.
+    clienten: {
+      lijst: () => _onsLees("cliëntkaarten", findClientEntries),
+      ververs: () => invalidateClientEntries(),
+      klapUit: (klaar) => ensureClientExpanded(klaar),
+      uursoort: (entry) => entryUursoortText(entry),
+      heeftUursoort: (entry) => entryUursoortIsSet(entry),
+      uursoortVeld: (entry) => entry ? entry.uursoortTrigger : null,
+      zetUursoort: (tekst, klaar, trigger) => chooseUursoort(tekst, klaar, trigger),
+      wisUursoorten: (klaar) => clearAllUursoorten(klaar)
+    }
+  };
+
+  // src/content/platform/module-host.js
+  function onsEnvironment() {
+    try {
+      return String(location.hostname.split(".")[0] || "");
+    } catch (e) {
+      return "";
+    }
+  }
+  var context = { environment: onsEnvironment(), userId: "", url: location.href, ready: false };
+  function trustedMessage(ev) {
+    if (!ev) return false;
+    if (ev.origin !== location.origin) return false;
+    if (ev.source && ev.source !== window) return false;
+    return true;
+  }
+  function listenForContext() {
+    window.addEventListener("message", function(ev) {
+      if (!trustedMessage(ev)) return;
+      const d = ev && ev.data;
+      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "context") return;
+      context.environment = d.environment || context.environment;
+      if (d.userId) context.userId = String(d.userId);
+      context.url = d.url || location.href;
+      context.ready = true;
+    }, false);
+  }
+  function urlMatches(patterns, url) {
+    if (!patterns || !patterns.length) return true;
+    for (let i = 0; i < patterns.length; i++) {
+      const rx = "^" + String(patterns[i]).replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
+      try {
+        if (new RegExp(rx).test(url)) return true;
+      } catch (e) {
+      }
+    }
+    return false;
+  }
+  var CLIENT_HEADER_SELECTORS = [
+    '[data-qa="client_header"]',
+    '[data-qa="client-header"]',
+    "uc-client-header",
+    ".client-header",
+    '[class*="client-header"]',
+    '[class*="_client-header_"]'
+  ];
+  function isVisible(el) {
+    if (!el) return false;
+    try {
+      const view = el.ownerDocument && el.ownerDocument.defaultView || window;
+      const s = view.getComputedStyle(el);
+      if (s && (s.display === "none" || s.visibility === "hidden" || s.opacity === "0")) return false;
+    } catch (e) {
+    }
+    return true;
+  }
+  function clientHeaderVisible() {
+    for (let i = 0; i < CLIENT_HEADER_SELECTORS.length; i++) {
+      try {
+        const el = document.querySelector(CLIENT_HEADER_SELECTORS[i]);
+        if (el && isVisible(el)) return true;
+      } catch (e) {
+      }
+    }
+    return false;
+  }
+  var ROLLOUT = { enabled: false, groups: {} };
+  function setRollout(cfg) {
+    if (!cfg || typeof cfg !== "object") {
+      ROLLOUT = { enabled: false, groups: {} };
+      return;
+    }
+    ROLLOUT = { enabled: !!cfg.enabled, groups: cfg.groups && typeof cfg.groups === "object" ? cfg.groups : {} };
+  }
+  function userInGroup(userId, groupName) {
+    const members = ROLLOUT.groups[groupName];
+    if (!Array.isArray(members)) return false;
+    const id = String(userId || "").trim().toLowerCase();
+    if (!id) return false;
+    return members.some(function(m) {
+      return String(m || "").trim().toLowerCase() === id;
+    });
+  }
+  function isAllowedUser(meta) {
+    const tg = meta && meta.testGroup;
+    if (!tg || !ROLLOUT.enabled) return true;
+    const groups = Array.isArray(tg) ? tg : [tg];
+    return groups.some(function(g) {
+      return userInGroup(context.userId, g);
+    });
+  }
+  var MESSAGES = {};
+  var barEl = null;
+  function messageIsEmpty(v) {
+    if (v == null) return true;
+    if (typeof v === "string") return v === "";
+    if (typeof v === "object") return !(v.title && String(v.title).length) && !(Array.isArray(v.items) && v.items.length);
+    return true;
+  }
+  function setMessage(id, value) {
+    if (messageIsEmpty(value)) delete MESSAGES[id];
+    else MESSAGES[id] = value;
+  }
+  function currentMessages() {
+    return Object.keys(MESSAGES).map(function(k) {
+      return { id: k, value: MESSAGES[k] };
+    });
+  }
+  function messageApiFor(id) {
+    return {
+      setMessage: function(value) {
+        setMessage(id, value);
+      },
+      clearMessage: function() {
+        setMessage(id, "");
+      }
+    };
+  }
+  function buildBar() {
+    const bar = document.createElement("div");
+    bar.className = "onsah-meldingen";
+    bar.setAttribute("data-ons-agendahulp", "meldingen");
+    try {
+      bar.setAttribute("popover", "manual");
+    } catch (e) {
+    }
+    bar.style.cssText = 'position:fixed;top:auto;right:auto;bottom:16px;left:16px;margin:0;border:0;padding:0;background:transparent;z-index:2147483647;max-width:340px;max-height:none;overflow:visible;width:auto;display:flex;flex-direction:column;gap:8px;font:13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;pointer-events:none;';
+    return bar;
+  }
+  function ensureBarOnTop() {
+    if (!barEl) return;
+    try {
+      if (typeof barEl.showPopover === "function" && !barEl.matches(":popover-open")) barEl.showPopover();
+    } catch (e) {
+    }
+  }
+  function fillCard(card, value) {
+    if (typeof value === "string") {
+      card.appendChild(document.createTextNode(value));
+      return;
+    }
+    if (value && typeof value === "object") {
+      if (value.title) {
+        const h = document.createElement("div");
+        h.textContent = String(value.title);
+        h.style.cssText = "font-weight:700;color:#9b1c1c;margin-bottom:3px;";
+        card.appendChild(h);
+      }
+      if (Array.isArray(value.items) && value.items.length) {
+        const ul = document.createElement("ul");
+        ul.style.cssText = "margin:0;padding:0 0 0 16px;";
+        value.items.forEach(function(it) {
+          const li = document.createElement("li");
+          li.textContent = String(it && it.text != null ? it.text : it);
+          li.style.color = it && it.sev === "error" ? "#9b1c1c" : it && it.sev === "warn" ? "#7a5200" : "#222";
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+      }
+    }
+  }
+  function renderMessages() {
+    const items = currentMessages();
+    if (!items.length) {
+      if (barEl) {
+        try {
+          barEl.remove();
+        } catch (e) {
+        }
+        barEl = null;
+      }
+      return;
+    }
+    const host = document.body || document.documentElement;
+    if (!host) return;
+    if (!barEl || !barEl.isConnected) {
+      barEl = buildBar();
+      host.appendChild(barEl);
+    }
+    ensureBarOnTop();
+    barEl.textContent = "";
+    items.forEach(function(item) {
+      const card = document.createElement("div");
+      card.className = "onsah-melding";
+      card.setAttribute("data-melding", item.id);
+      card.style.cssText = "pointer-events:auto;background:#fff;border:1px solid #cc087d;border-left:4px solid #cc087d;border-radius:10px;padding:9px 11px;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.16);";
+      fillCard(card, item.value);
+      barEl.appendChild(card);
+    });
+  }
+  var ModuleBase = {
+    create: function(metadata, impl) {
+      const meta = metadata || {};
+      const id = meta.id || "module";
+      return {
+        id,
+        meta,
+        isActive: function() {
+          if (meta.environments && meta.environments.length && meta.environments.indexOf(onsEnvironment()) === -1) return false;
+          if (!urlMatches(meta.urls || meta.match, location.href)) return false;
+          if (meta.requiresClientHeader && !clientHeaderVisible()) return false;
+          if (!isAllowedUser(meta)) return false;
+          return true;
+        },
+        run: function() {
+          try {
+            if (impl && impl.run) impl.run(context, messageApiFor(id));
+          } catch (e) {
+          }
+        }
+      };
+    }
+  };
+  var REGISTRY = [];
+  function register(mod) {
+    REGISTRY.push(mod);
+  }
+  var ENGINE_INTERVAL_MS = 1e3;
+  var started = false;
+  function startModuleHost() {
+    if (started || window.__onsAgendahulpModules) return;
+    started = true;
+    window.__onsAgendahulpModules = true;
+    listenForContext();
+    setInterval(function() {
+      if (!document.hasFocus()) return;
+      for (let i = 0; i < REGISTRY.length; i++) {
+        const m = REGISTRY[i];
+        try {
+          if (m.isActive()) m.run();
+          else setMessage(m.id, "");
+        } catch (e) {
+        }
+      }
+      try {
+        renderMessages();
+      } catch (e) {
+      }
+    }, ENGINE_INTERVAL_MS);
+  }
+
+  // src/content/features/quality.js
+  function appointmentMissingHooks() {
+    onsVergeetGemist();
+    OnsAdapter.afspraak.labelVeld();
+    OnsAdapter.afspraak.datumVeld();
+    OnsAdapter.afspraak.begintijdVeld();
+    return onsGemisteVelden();
+  }
+  function helperQualityIssues() {
+    const out = [];
+    try {
+      if (helperPanel.activeMode === "events" && hasClientInAppointment()) {
+        const miss = appointmentMissingHooks();
+        if (miss.length) out.push({ sev: "error", msg: "Afspraakhulp herkent niet: " + miss.join(", ") + "." });
+      }
+      if (helperPanel.activeMode === "events" && appointmentFlow.appointmentDoorplannen && appointmentFlow.appointmentSaveScreenActive && !(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false) && !recurrenceIsSet()) {
+        out.push({ sev: "warn", msg: doorplannenWarnText() });
+      }
+      if (helperPanel.activeMode === "registrations") {
+        registrationCompletenessIssues().forEach((it) => out.push(it));
+      }
+    } catch (e) {
+    }
+    return out;
+  }
+  function highlightField(el, ms) {
+    try {
+      if (!el || el.nodeType !== 1) return;
+      const prevOutline = el.style.outline, prevOffset = el.style.outlineOffset;
+      el.style.outline = "2px solid #cc087d";
+      el.style.outlineOffset = "2px";
+      try {
+        el.scrollIntoView({ block: "center", inline: "nearest" });
+      } catch (e) {
+      }
+      setTimeout(() => {
+        try {
+          el.style.outline = prevOutline;
+          el.style.outlineOffset = prevOffset;
+        } catch (e) {
+        }
+      }, ms || 6e3);
+    } catch (e) {
+    }
+  }
+  function mkProblemBanner(missing) {
+    const wrap = document.createElement("div");
+    Object.assign(wrap.style, { border: "1px solid #b3261e", background: "#fdecea", borderRadius: "8px", padding: "8px 10px", margin: "0 0 8px" });
+    wrap.appendChild(mkText(
+      "probleem_hulp_werkt_niet",
+      "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.",
+      { color: "#b3261e", fontWeight: "700", fontSize: "13px", lineHeight: "1.35" }
+    ));
+    const sub = document.createElement("div");
+    Object.assign(sub.style, { marginTop: "4px", fontSize: "12px", color: "#b3261e" });
+    if (missing && missing.length) sub.appendChild(document.createTextNode("Niet herkend: " + missing.join(", ") + ". "));
+    const a = document.createElement("a");
+    a.textContent = "Meld probleem";
+    a.href = supportTopdeskUrl();
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    Object.assign(a.style, { color: "#b3261e", textDecoration: "underline", fontWeight: "700" });
+    sub.appendChild(a);
+    wrap.appendChild(sub);
+    return wrap;
+  }
+  function registerQualityModule() {
+    register(ModuleBase.create(
+      { id: "kwaliteit", urls: ["https://*.onsagenda.nl/*", "https://*.ons-dossier.nl/*"] },
+      { run: function(ctx, api) {
+        let issues = [];
+        try {
+          if (helperPanel.helperEnabled) issues = helperQualityIssues();
+        } catch (e) {
+          issues = [];
+        }
+        if (!issues.length) {
+          api.clearMessage();
+          return;
+        }
+        const errs = issues.filter((i) => i.sev === "error").length;
+        api.setMessage({
+          title: errs ? "Controleer voor opslaan" : "Aandachtspunt",
+          items: issues.map((i) => ({ text: i.msg, sev: i.sev }))
+        });
+      } }
+    ));
+  }
+
+  // src/content/features/appointment/recurrence.js
+  function doorplannenWarnText() {
+    const c = resolveText("doorplannen_waarschuwing");
+    return c && c.text || "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.";
+  }
+  function recurrenceValue() {
+    const sel = findRecurrenceField();
+    if (sel) {
+      const combo = deepQueryAll('[role="combobox"]', sel)[0];
+      if (combo) {
+        const v = clean(combo.getAttribute("aria-description") || combo.textContent || "");
+        if (v) return v;
+      }
+      const t = clean(sel.textContent || "");
+      if (t) return t;
+    }
+    const head = findRecurrenceHeader();
+    if (head) {
+      let spans;
+      try {
+        spans = head.querySelectorAll("span");
+      } catch (e) {
+        spans = [];
+      }
+      if (spans.length >= 2) return clean(spans[spans.length - 1].textContent || "");
+    }
+    return "";
+  }
+  function recurrenceIsSet() {
+    const v = recurrenceValue();
+    return !!v && v !== "niet";
+  }
+  function recurrenceHeaderExpanded() {
+    const h = findRecurrenceHeader();
+    return !!(h && h.getAttribute("aria-expanded") === "true");
+  }
+  function clickRecurrenceHeader(head) {
+    if (!head) return false;
+    return clickUiButton(head) || clickElementCenter(head) || (clickOption(head), true);
+  }
+  function expandRecurrence() {
+    const head = findRecurrenceHeader();
+    if (head && head.getAttribute("aria-expanded") !== "true") clickRecurrenceHeader(head);
+    pollFor(() => findRecurrenceField(), (field2) => {
+      if (field2) {
+        try {
+          highlightField(field2, 5e3);
+        } catch (e) {
+        }
+      }
+    }, { timeout: 2e3, interval: 50 });
+    return !!head;
+  }
+  function recurrenceCombo() {
+    const field2 = findRecurrenceField();
+    return field2 ? deepQueryAll('[role="combobox"]', field2)[0] || null : null;
+  }
+  function setRecurrenceToNiet(done) {
+    if (!recurrenceIsSet()) {
+      if (done) done(true);
+      return;
+    }
+    const combo = recurrenceCombo();
+    if (!combo) {
+      if (done) done(false);
+      return;
+    }
+    clickElementCenter(combo);
+    pollFor(() => {
+      const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
+      return opts.find((o) => clean(o.textContent) === "niet") || null;
+    }, (opt) => {
+      if (opt) clickElementCenter(opt);
+      else {
+        try {
+          combo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        } catch (e) {
+        }
+      }
+      if (done) done(!!opt);
+    }, { timeout: 2e3, interval: 50 });
+  }
+  function collapseRecurrence() {
+    const finish = () => {
+      const head = findRecurrenceHeader();
+      if (head && head.getAttribute("aria-expanded") === "true") clickRecurrenceHeader(head);
+    };
+    if (!recurrenceIsSet()) {
+      finish();
+      return true;
+    }
+    setRecurrenceToNiet(() => {
+      setTimeout(finish, 60);
+    });
+    return true;
+  }
+  function doorplannenBlocksSave() {
+    return !(APP_CONFIG.features && APP_CONFIG.features.doorplannenToggle === false) && appointmentFlow.appointmentDoorplannen && !recurrenceIsSet();
+  }
+
+  // src/content/features/appointment/submit-guard.js
+  function submitButtons() {
+    const ov = overrideEl("afsOpslaan");
+    if (ov) return [ov];
+    return deepQueryAll('button[type="submit"], uc-button[type="submit"]').filter((btn) => visible(btn) && !isOwnPopup(btn));
+  }
+  function setSubmitBlocked(blocked) {
+    for (const btn of submitButtons()) {
+      const target = btn.shadowRoot ? btn.shadowRoot.querySelector('button[type="submit"], button') || btn : btn;
+      try {
+        btn.setAttribute("aria-disabled", blocked ? "true" : "false");
+      } catch (e) {
+      }
+      try {
+        target.setAttribute("aria-disabled", blocked ? "true" : "false");
+      } catch (e) {
+      }
+      if (target instanceof HTMLButtonElement) target.disabled = blocked;
+      if (btn instanceof HTMLButtonElement) btn.disabled = blocked;
+      for (const el of [target, btn]) {
+        if (el && el.style) {
+          el.style.opacity = blocked ? "0.45" : "";
+          el.style.cursor = blocked ? "not-allowed" : "";
+          el.style.pointerEvents = blocked ? "auto" : "";
+        }
+      }
+    }
+  }
+  function updateSubmitGuard() {
+    if (appointmentFlow.appointmentFreeDay) {
+      setSubmitBlocked(false);
+      return;
+    }
+    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
+      setSubmitBlocked(!nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption) || doorplannenBlocksSave());
+      return;
+    }
+    const missing = appointmentFlow.activeNonClientOption ? !nonClientUursoortSet() : !hasUursoortSelected();
+    setSubmitBlocked(shouldRequireUursoortForSubmit() && missing || appointmentLabelRequiredButMissing() || doorplannenBlocksSave());
+  }
+  function isSubmitButtonNode(el) {
+    let n = el;
+    for (let i = 0; n && i < 8; i++) {
+      if (n.nodeType === 1 && n.matches && n.matches('button[type="submit"], uc-button[type="submit"]')) return true;
+      if (n.parentElement) n = n.parentElement;
+      else {
+        const root = n.getRootNode && n.getRootNode();
+        n = root && root.host ? root.host : null;
+      }
+    }
+    return false;
+  }
+  function blockSubmitIfNoUursoort(e) {
+    if (!helperPanel.helperEnabled) return;
+    if (appointmentFlow.appointmentFreeDay) return;
+    if (isOwnPopup(e.target)) return;
+    if (e.type === "click" && !isSubmitButtonNode(e.target)) return;
+    const doorplannenBlock = doorplannenBlocksSave();
+    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
+      if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption) && !doorplannenBlock) {
+        updateSubmitGuard();
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      updateSubmitGuard();
+      if (!nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) setStatus("Vul eerst de titel aan.", false);
+      else {
+        setStatus("Stel de herhaling in of zet doorplannen uit", false);
+        try {
+          highlightField(findRecurrenceField() || findRecurrenceHeader(), 5e3);
+        } catch (e2) {
+        }
+      }
+      return;
+    }
+    const uursoortOk = !shouldRequireUursoortForSubmit() || (appointmentFlow.activeNonClientOption ? nonClientUursoortSet() : hasUursoortSelected());
+    const labelMissing = appointmentLabelRequiredButMissing();
+    if (uursoortOk && !labelMissing && !doorplannenBlock) {
+      updateSubmitGuard();
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    updateSubmitGuard();
+    if (labelMissing) setStatus("Voeg eerst een label aan de afspraak toe.", false);
+    else if (!uursoortOk) setStatus(appointmentFlow.activeNonClientOption ? "Voeg nog een uursoort toe." : "Voeg eerst bij elke client een uursoort toe.", false);
+    else {
+      setStatus("Stel de herhaling in of zet doorplannen uit", false);
+      try {
+        highlightField(findRecurrenceField() || findRecurrenceHeader(), 5e3);
+      } catch (e2) {
+      }
+    }
   }
 
   // src/content/features/appointment/non-client.js
@@ -10722,183 +10448,476 @@
     updateSubmitGuard();
   }
 
-  // src/content/features/appointment/submit-guard.js
-  function submitButtons() {
-    const ov = overrideEl("afsOpslaan");
-    if (ov) return [ov];
-    return deepQueryAll('button[type="submit"], uc-button[type="submit"]').filter((btn) => visible(btn) && !isOwnPopup(btn));
+  // src/content/features/appointment/end-time.js
+  function clearEndTime() {
+    const input2 = getEndTimeInput();
+    if (!input2) return false;
+    setInputTextComposed(input2, "");
+    return true;
   }
-  function setSubmitBlocked(blocked) {
-    for (const btn of submitButtons()) {
-      const target = btn.shadowRoot ? btn.shadowRoot.querySelector('button[type="submit"], button') || btn : btn;
+  function setAppointmentEndTimePlusMinutes(minutes) {
+    const startText = String(appointmentCurrentStartTimeText() || appointmentFlow.activeAppointmentStartTimeText || "").trim();
+    if (!/^(\d{1,2}):(\d{2})$/.test(startText)) return false;
+    appointmentFlow.activeAppointmentStartTimeText = startText;
+    restoreAppointmentStartTime();
+    const next = addMinutesText(startText, minutes);
+    if (!next) return false;
+    const apply = () => {
+      const fresh = getEndTimeInput();
+      if (!fresh) return false;
+      return setAppointmentEndInputText(fresh, next);
+    };
+    const ok = apply();
+    [80, 220, 420].forEach((delay) => setTimeout(() => {
+      const fresh = getEndTimeInput();
+      if (fresh && inputTextValue(fresh) !== next) setAppointmentEndInputText(fresh, next);
+    }, delay));
+    return ok;
+  }
+  function enforceAppointmentEndTime(minutes) {
+    if (!minutes) return false;
+    if (appointmentFlow.appointmentEndTimeUserOwned) return false;
+    const fresh = appointmentCurrentStartTimeText();
+    if (fresh) appointmentFlow.activeAppointmentStartTimeText = fresh;
+    const startText = String(appointmentFlow.activeAppointmentStartTimeText || "").trim();
+    if (!/^(\d{1,2}):(\d{2})$/.test(startText)) return false;
+    restoreAppointmentStartTime();
+    const wanted = addMinutesText(startText, minutes);
+    const endInput = getEndTimeInput();
+    if (!wanted || !endInput) return false;
+    const current = inputTextValue(endInput);
+    if (appointmentFlow.helperEndText && /^(\d{1,2}):(\d{2})$/.test(current) && current !== appointmentFlow.helperEndText) {
+      appointmentFlow.appointmentEndTimeUserOwned = true;
+      return false;
+    }
+    if (current !== wanted) setAppointmentEndInputText(endInput, wanted);
+    else appointmentFlow.helperEndText = wanted;
+    return true;
+  }
+  function scheduleAppointmentEndTime(minutes) {
+    appointmentFlow.activeAppointmentDurationMinutes = minutes || appointmentFlow.activeAppointmentDurationMinutes;
+    if (!appointmentFlow.activeAppointmentDurationMinutes) return;
+    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
+    appointmentFlow.appointmentTimeGuardTimers = [];
+    [0, 140, 420].forEach((delay) => {
+      const timer = setTimeout(() => safe(() => {
+        restoreAppointmentStartTime();
+        enforceAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
+      }), delay);
+      appointmentFlow.appointmentTimeGuardTimers.push(timer);
+    });
+  }
+
+  // src/content/features/appointment/prefill.js
+  var KEY2 = PAGE_SESSION.PENDING_APPOINTMENT;
+  var GELDIG_MS = 2 * 60 * 1e3;
+  function storePendingAppointment(req) {
+    const minutes = parseInt(req.minutes, 10);
+    try {
+      sessionStorage.setItem(KEY2, JSON.stringify({ date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() }));
+    } catch (e) {
+    }
+  }
+  var _geplandeDuur = null;
+  function plannedAppointmentMinutes() {
+    if (!_geplandeDuur) return null;
+    if (!/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) {
+      _geplandeDuur = null;
+      return null;
+    }
+    return _geplandeDuur;
+  }
+  function readPending() {
+    try {
+      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
+      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
+      return p;
+    } catch (e) {
+      return null;
+    }
+  }
+  function clearPending() {
+    try {
+      sessionStorage.removeItem(KEY2);
+    } catch (e) {
+    }
+  }
+  function onsDateText(ymd2) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
+    return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
+  }
+  function schrijf(inp, text) {
+    typeIntoSearchField(inp, text);
+    inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
+    inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
+    try {
+      inp.blur && inp.blur();
+    } catch (e) {
+    }
+    const root = inp.getRootNode && inp.getRootNode();
+    const host = root && root.host;
+    if (host) {
       try {
-        btn.setAttribute("aria-disabled", blocked ? "true" : "false");
+        host.value = text;
       } catch (e) {
       }
       try {
-        target.setAttribute("aria-disabled", blocked ? "true" : "false");
+        host.dispatchEvent(new Event("change", { bubbles: true }));
       } catch (e) {
       }
-      if (target instanceof HTMLButtonElement) target.disabled = blocked;
-      if (btn instanceof HTMLButtonElement) btn.disabled = blocked;
-      for (const el of [target, btn]) {
-        if (el && el.style) {
-          el.style.opacity = blocked ? "0.45" : "";
-          el.style.cursor = blocked ? "not-allowed" : "";
-          el.style.pointerEvents = blocked ? "auto" : "";
-        }
-      }
     }
   }
-  function updateSubmitGuard() {
-    if (appointmentFlow.appointmentFreeDay) {
-      setSubmitBlocked(false);
-      return;
-    }
-    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
-      setSubmitBlocked(!nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption) || doorplannenBlocksSave());
-      return;
-    }
-    const missing = appointmentFlow.activeNonClientOption ? !nonClientUursoortSet() : !hasUursoortSelected();
-    setSubmitBlocked(shouldRequireUursoortForSubmit() && missing || appointmentLabelRequiredButMissing() || doorplannenBlocksSave());
-  }
-  function isSubmitButtonNode(el) {
-    let n = el;
-    for (let i = 0; n && i < 8; i++) {
-      if (n.nodeType === 1 && n.matches && n.matches('button[type="submit"], uc-button[type="submit"]')) return true;
-      if (n.parentElement) n = n.parentElement;
-      else {
-        const root = n.getRootNode && n.getRootNode();
-        n = root && root.host ? root.host : null;
-      }
-    }
-    return false;
-  }
-  function blockSubmitIfNoUursoort(e) {
-    if (!helperPanel.helperEnabled) return;
-    if (appointmentFlow.appointmentFreeDay) return;
-    if (isOwnPopup(e.target)) return;
-    if (e.type === "click" && !isSubmitButtonNode(e.target)) return;
-    const doorplannenBlock = doorplannenBlocksSave();
-    if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
-      if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption) && !doorplannenBlock) {
-        updateSubmitGuard();
+  var _bezig = false;
+  function applyPendingAppointment() {
+    if (_bezig) return;
+    const p = readPending();
+    if (!p) return;
+    _bezig = true;
+    _geplandeDuur = p.minutes > 0 ? p.minutes : null;
+    const datum = onsDateText(p.date);
+    let pogingen = 0;
+    const tik = () => {
+      pogingen++;
+      const d = getDateInput(), s = getStartTimeInput();
+      if (d && s) {
+        if (datum && inputTextValue(d) !== datum) schrijf(d, datum);
+        setTimeout(() => {
+          const s2 = getStartTimeInput();
+          if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
+          clearPending();
+          _bezig = false;
+          if (p.minutes > 0) setTimeout(() => {
+            try {
+              setAppointmentEndTimePlusMinutes(p.minutes);
+            } catch (e) {
+            }
+          }, 250);
+        }, 250);
         return;
       }
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-      updateSubmitGuard();
-      if (!nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) setStatus("Vul eerst de titel aan.", false);
+      if (pogingen < 48) setTimeout(tik, 250);
       else {
-        setStatus("Stel de herhaling in of zet doorplannen uit", false);
+        clearPending();
+        _bezig = false;
+      }
+    };
+    setTimeout(tik, 300);
+  }
+
+  // src/content/features/appointment/duplicate.js
+  var KEY3 = PAGE_SESSION.PENDING_DUPLICATES;
+  var GELDIG_MS2 = 30 * 60 * 1e3;
+  var CREATE_URL = "/calendar/events";
+  function storePendingDuplicates(moments, eigen) {
+    try {
+      moments = moments || [];
+      eigen = eigen || [];
+      if (!moments.length && !eigen.length) {
+        sessionStorage.removeItem(KEY3);
+        return;
+      }
+      sessionStorage.setItem(KEY3, JSON.stringify({ moments, eigen, ts: Date.now() }));
+    } catch (e) {
+    }
+  }
+  function takePending(pendingText) {
+    try {
+      const p = JSON.parse(pendingText || "null");
+      sessionStorage.removeItem(KEY3);
+      if (!p || !Array.isArray(p.moments) || Date.now() - p.ts > GELDIG_MS2) return null;
+      return { moments: p.moments, eigen: Array.isArray(p.eigen) ? p.eigen : [] };
+    } catch (e) {
+      return null;
+    }
+  }
+  function forgetStaleDuplicates() {
+    try {
+      if (/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) return;
+      const p = JSON.parse(sessionStorage.getItem(KEY3) || "null");
+      if (p && Date.now() - p.ts > 1e4) sessionStorage.removeItem(KEY3);
+    } catch (e) {
+    }
+  }
+  var DAGEN = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+  var MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+  function momentLabel(m) {
+    const p = String(m.date).split("-");
+    const d = new Date(+p[0], +p[1] - 1, +p[2]);
+    const hm = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
+    return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm;
+  }
+  function toonMelding(tekst, goed, metVerversen) {
+    try {
+      const oud = document.getElementById("onsah-kopie-melding");
+      if (oud) oud.remove();
+      const box = document.createElement("div");
+      box.id = "onsah-kopie-melding";
+      box.setAttribute("role", "status");
+      Object.assign(box.style, {
+        position: "fixed",
+        left: "16px",
+        bottom: "16px",
+        zIndex: "2147483000",
+        maxWidth: "360px",
+        padding: "12px 14px",
+        borderRadius: "12px",
+        background: "#fff",
+        color: "#201d1f",
+        border: "1px solid " + (goed ? "#cfe9dc" : "#f3d6b8"),
+        boxShadow: "0 10px 28px -14px rgba(32,20,15,.45)",
+        font: '13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+      });
+      const t = document.createElement("div");
+      t.textContent = tekst;
+      box.appendChild(t);
+      const rij = document.createElement("div");
+      Object.assign(rij.style, { display: "flex", gap: "8px", marginTop: "8px" });
+      const knop = (label, primair, fn) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        Object.assign(b.style, {
+          height: "30px",
+          padding: "0 12px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          font: "inherit",
+          fontWeight: "600",
+          border: primair ? "0" : "1px solid #ece7e5",
+          background: primair ? "#cc087d" : "#fff",
+          color: primair ? "#fff" : "#201d1f"
+        });
+        b.addEventListener("click", fn);
+        rij.appendChild(b);
+      };
+      if (metVerversen) knop("Agenda verversen", true, () => location.reload());
+      knop("Sluiten", false, () => box.remove());
+      box.appendChild(rij);
+      document.body.appendChild(box);
+      setTimeout(() => {
         try {
-          highlightField(findRecurrenceField() || findRecurrenceHeader(), 5e3);
-        } catch (e2) {
+          box.remove();
+        } catch (e) {
         }
+      }, 2e4);
+    } catch (e) {
+    }
+  }
+  function meldPaneel(info) {
+    try {
+      chrome.runtime.sendMessage(Object.assign({ type: MSG.AGENDA_DUPLICATES_DONE }, info));
+    } catch (e) {
+    }
+  }
+  async function makeDuplicates(bodyText, moments, post) {
+    post = post || postJson;
+    let payload = null;
+    try {
+      payload = JSON.parse(String(bodyText || ""));
+    } catch (e) {
+    }
+    const info = inspectEventPayload(payload);
+    if (!info.ok) return { made: [], failed: [], skipped: moments || [], reason: info.reason };
+    const rest = remainingMoments(payload, moments);
+    const made = [], failed = [];
+    for (const m of rest) {
+      const kopie = duplicateEventPayload(payload, m);
+      if (!kopie) {
+        failed.push(m);
+        continue;
       }
-      return;
-    }
-    const uursoortOk = !shouldRequireUursoortForSubmit() || (appointmentFlow.activeNonClientOption ? nonClientUursoortSet() : hasUursoortSelected());
-    const labelMissing = appointmentLabelRequiredButMissing();
-    if (uursoortOk && !labelMissing && !doorplannenBlock) {
-      updateSubmitGuard();
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-    updateSubmitGuard();
-    if (labelMissing) setStatus("Voeg eerst een label aan de afspraak toe.", false);
-    else if (!uursoortOk) setStatus(appointmentFlow.activeNonClientOption ? "Voeg nog een uursoort toe." : "Voeg eerst bij elke client een uursoort toe.", false);
-    else {
-      setStatus("Stel de herhaling in of zet doorplannen uit", false);
       try {
-        highlightField(findRecurrenceField() || findRecurrenceHeader(), 5e3);
-      } catch (e2) {
+        await post(CREATE_URL, kopie);
+        made.push(m);
+      } catch (e) {
+        failed.push(m);
       }
+    }
+    payload = null;
+    return { made, failed, skipped: [], reason: "" };
+  }
+  var _bezig2 = false;
+  function volgendeEigen(eigen, bodyText) {
+    const volgende = eigen[0];
+    storePendingDuplicates([], eigen.slice(1));
+    storePendingAppointment({ date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) });
+    let ids = [];
+    try {
+      const ev = JSON.parse(String(bodyText || "")).event;
+      ids = (ev && ev.employee_ids || []).map(String);
+    } catch (e) {
+    }
+    if (!ids.length) ids = currentInviteeIds();
+    if (!ids.length) return false;
+    setTimeout(function() {
+      spaNavigate(location.origin + newEventUrl(ids));
+    }, 1200);
+    return true;
+  }
+  async function bijOpgeslagen(bodyText, pendingText) {
+    if (_bezig2) return;
+    const p = takePending(pendingText);
+    if (!p || !p.moments.length && !p.eigen.length) return;
+    _bezig2 = true;
+    try {
+      const verder = p.eigen.length ? " Volgende afspraak met eigen instellingen: " + momentLabel(p.eigen[0]) + " (" + p.eigen.length + (p.eigen.length === 1 ? " te gaan)." : " te gaan).") : "";
+      if (!p.moments.length) {
+        volgendeEigen(p.eigen, bodyText);
+        toonMelding("Afspraak opgeslagen." + verder, true, false);
+        meldPaneel({ made: [], failed: [], reason: "", next: p.eigen[0], left: p.eigen.length });
+        return;
+      }
+      const r = await makeDuplicates(bodyText, p.moments);
+      if (p.eigen.length) volgendeEigen(p.eigen, bodyText);
+      const totaal = r.made.length + r.failed.length;
+      if (r.reason) {
+        const uitleg = r.reason === "herhalende afspraak" ? "Dit is een herhalende afspraak; daar maakt de planhulp geen kopieën van." : "Kon deze afspraak niet lezen.";
+        toonMelding("Geen kopieën gemaakt. " + uitleg, false, false);
+      } else if (!totaal) {
+        toonMelding("Afspraak opgeslagen; er waren geen andere momenten meer om te kopiëren.", true, false);
+      } else if (!r.failed.length) {
+        toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + "." + verder, true, !p.eigen.length);
+      } else {
+        toonMelding(r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + ". Maak die zelf aan in ONS." + verder, false, r.made.length > 0 && !p.eigen.length);
+      }
+      meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: p.eigen[0] || null, left: p.eigen.length });
+    } finally {
+      _bezig2 = false;
+    }
+  }
+  function listenForCreatedEvents() {
+    try {
+      window.addEventListener("message", function(ev) {
+        if (!ev || ev.origin !== location.origin) return;
+        if (ev.source && ev.source !== window) return;
+        const d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventCreated") return;
+        bijOpgeslagen(d.body, d.pending);
+      }, false);
+    } catch (e) {
     }
   }
 
-  // src/content/features/appointment/free-day.js
-  function elementIsFreeDayUnavailability(el) {
-    if (!el || isOwnPopup(el)) return false;
-    const type = el.getAttribute && el.getAttribute("data-type") || "";
-    const cls = (el.className || "") + "";
-    return type === "unavailability" || /\bunavailable\b/.test(cls);
-  }
-  var FREE_DAY_MIN_MINUTES = 240;
-  function unavailabilityMinutes(el, col) {
-    let mins = parseInt(el.getAttribute("data-duration"), 10);
-    if (mins > 0) return mins;
-    const h = col && (col.clientHeight || col.getBoundingClientRect && col.getBoundingClientRect().height) || 0;
-    if (h > 0 && el.getBoundingClientRect) {
-      const r = el.getBoundingClientRect();
-      if (r.height > 0) return r.height / h * 24 * 60;
-    }
-    return 0;
-  }
-  function columnUnavailabilityMinutes(col) {
-    if (!col) return 0;
-    let total = 0;
-    const seen = /* @__PURE__ */ new Set();
-    const add = (el) => {
-      if (!elementIsFreeDayUnavailability(el)) return;
-      const id = el.getAttribute("data-id") || el.getAttribute("data-time") + "|" + el.getAttribute("data-date");
-      if (seen.has(id)) return;
-      seen.add(id);
-      total += unavailabilityMinutes(el, col);
-    };
+  // src/content/config/loader.js
+  function loadBundledConfig() {
     try {
-      col.querySelectorAll(ONS.unavailability).forEach(add);
+      if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.getURL) return Promise.resolve();
+      const url = chrome.runtime.getURL("config.json");
+      return fetch(url).then(function(r) {
+        return r && r.ok ? r.json() : null;
+      }).then(function(obj) {
+        if (obj) {
+          const cfg = obj.helperConfig ? obj.helperConfig : obj;
+          applyHelperConfig(cfg);
+          const features = cfg.features || {};
+          if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
+          if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
+        }
+      }).catch(function() {
+      });
     } catch (e) {
+      return Promise.resolve();
     }
-    const date = col.getAttribute("data-date");
-    if (date) {
+  }
+  var HELPER_SCOPE = "all";
+  var RUNTIME_CONFIG = { enabled: true, appointmentHelperEnabled: true, registrationHelperEnabled: true };
+  var _presenceDeadlineOverride = null;
+  function applyRuntimeConfig(cfg) {
+    if (!cfg || typeof cfg !== "object") return;
+    if (typeof cfg.enabled === "boolean") RUNTIME_CONFIG.enabled = cfg.enabled;
+    if (typeof cfg.appointmentHelperEnabled === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = cfg.appointmentHelperEnabled;
+    if (typeof cfg.registrationHelperEnabled === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = cfg.registrationHelperEnabled;
+    if (typeof cfg.presenceDeadlineOverride === "string") _presenceDeadlineOverride = cfg.presenceDeadlineOverride || null;
+    if (cfg.helperConfig && typeof cfg.helperConfig === "object") {
       try {
-        document.querySelectorAll('[data-type="unavailability"][data-date="' + date + '"], .js_calendar_occurrence.unavailable[data-date="' + date + '"]').forEach(add);
+        applyHelperConfig(cfg.helperConfig);
+      } catch (e) {
+      }
+    } else {
+      try {
+        applyHelperConfig(cfg);
       } catch (e) {
       }
     }
-    return total;
+    const features = cfg.helperConfig && cfg.helperConfig.features || cfg.features || {};
+    if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
+    if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
+    runConfigHook("configApplied");
   }
-  function dateHasFreeDayUnavailability(date) {
-    const col = document.querySelector(ONS.dayColumn + '[data-date="' + date + '"]');
-    return columnUnavailabilityMinutes(col || { getAttribute: () => date }) > FREE_DAY_MIN_MINUTES;
+  function loadManagedConfig() {
+    function readStorage(area2, keys) {
+      return new Promise(function(resolve) {
+        try {
+          if (!area2 || typeof area2.get !== "function") {
+            resolve(null);
+            return;
+          }
+          area2.get(keys, function(result) {
+            try {
+              if (chrome.runtime && chrome.runtime.lastError) {
+                resolve(null);
+                return;
+              }
+            } catch (e) {
+            }
+            resolve(result || null);
+          });
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+    try {
+      if (typeof chrome === "undefined" || !chrome.storage) return Promise.resolve();
+      return readStorage(chrome.storage.sync || chrome.storage.local, [SYNC.SECTOR, SYNC.COLOR_PROFILE]).then(function(profile) {
+        const previousSelection = ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE;
+        setActiveTeam(
+          profile && profile.colorProfile || null,
+          profile && (profile.sector || (APP_CONFIG.profileSectors || {})[profile.colorProfile]) || null
+        );
+        refreshEffectiveConfig();
+        if (previousSelection !== ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE) {
+          try {
+            runConfigHook("teamChanged");
+          } catch (e) {
+          }
+        }
+        return readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
+      }).then(function(res) {
+        try {
+          if (res && res[LOCAL.TEST_CONFIG]) applyRuntimeConfig(res[LOCAL.TEST_CONFIG]);
+        } catch (e) {
+        }
+        return readStorage(chrome.storage.managed, null);
+      }).then(function(cfg) {
+        try {
+          if (cfg) applyRuntimeConfig(cfg);
+        } catch (e) {
+        }
+        runConfigHook("configApplied");
+      });
+    } catch (e) {
+      return Promise.resolve();
+    }
   }
-  function dayColumnLooksFree(col) {
-    if (!col) return false;
-    return columnUnavailabilityMinutes(col) > FREE_DAY_MIN_MINUTES;
+  function watchConfigChanges() {
+    try {
+      if (chrome && chrome.storage && chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, area2) => {
+          if (area2 === "managed" || area2 === "local" || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
+        });
+      }
+    } catch (e) {
+    }
   }
-  function trackCalendarClickForFreeDay(e) {
-    const t = e.target;
-    if (!t || t.closest && isOwnPopup(t)) return;
-    const col = t.closest && t.closest(ONS.dayColumn);
-    if (!col) return;
-    appointmentFlow.appointmentFreeDay = dayColumnLooksFree(col);
-    appointmentFlow.appointmentFreeDayDate = col.getAttribute("data-date") || null;
-  }
-  function installFreeDayTracking() {
-    document.addEventListener("click", trackCalendarClickForFreeDay, true);
-  }
-  function refreshFreeDayFromBackgroundCalendar() {
-    if (!appointmentFlow.appointmentFreeDayDate) return;
-    const col = document.querySelector('.day.js_day[data-date="' + appointmentFlow.appointmentFreeDayDate + '"]');
-    if (col && dayColumnLooksFree(col)) appointmentFlow.appointmentFreeDay = true;
-    else if (dateHasFreeDayUnavailability(appointmentFlow.appointmentFreeDayDate)) appointmentFlow.appointmentFreeDay = true;
-  }
-  function showFreeDayInactive() {
-    const body = $body();
-    if (!body) return;
-    clearScreenMark();
-    renderScreen(body, "infoScreen", {
-      title: "Vrije dag",
-      titleStyle: { fontWeight: 700, fontSize: 14, color: "#555", padding: "4px 0 2px" },
-      body: "Deze dag is grijs gemarkeerd. De afspraakhulp is hier niet actief.",
-      bodyStyle: { lineHeight: 1.35 }
+  var helperConfigReady = false;
+  function startConfigLoading() {
+    return loadBundledConfig().then(function() {
+      return loadManagedConfig();
+    }).catch(function() {
+    }).then(function() {
+      helperConfigReady = true;
     });
-    setSubmitBlocked(false);
-    setStatus("Vrije dag — hulp inactief", false);
   }
 
   // src/shared/version.js
@@ -10906,7 +10925,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.225";
+      return "1.6.226";
     }
   }();
 
@@ -13327,7 +13346,7 @@
       if (id != null) ids = [String(id)];
     }
     if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
-    storePendingAppointment({ date: ymd2, time: hhmm });
+    storePendingAppointment({ date: ymd2, time: hhmm, minutes });
     var lees = function(lijst) {
       return (Array.isArray(lijst) ? lijst : []).map(function(m) {
         var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));

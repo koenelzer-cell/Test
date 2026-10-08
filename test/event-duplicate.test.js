@@ -4,7 +4,12 @@ process.env.TZ = 'Europe/Amsterdam';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { duplicateEventPayload, inspectEventPayload, remainingMoments } from '../src/content/domain/event-duplicate.js';
-import { makeDuplicates } from '../src/content/features/appointment/duplicate.js';
+// duplicate.js haalt (via het afspraakformulier) modules binnen die bij het
+// laden naar location/document kijken: een minimale pagina-omgeving.
+const { JSDOM } = await import('jsdom');
+const _dom = new JSDOM('<!doctype html><body></body>', { url: 'https://impegno.onsagenda.nl/' });
+for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'localStorage', 'sessionStorage']) { if (!(k in globalThis)) globalThis[k] = _dom.window[k]; }
+const { makeDuplicates } = await import('../src/content/features/appointment/duplicate.js');
 
 // Vorm zoals ONS hem stuurt (POST /calendar/events), met nepgegevens.
 const VOORBEELD = () => ({ event: {

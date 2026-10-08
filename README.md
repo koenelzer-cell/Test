@@ -166,7 +166,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open
   (/invitees/13970,45267/...), dan zoekt hij tijd waarop iedereen vrij is, en
   opent 'Afspraak maken' het formulier met alle personen erin. De hulp vult in het
-  ONS-formulier de datum en begintijd van het eerste moment in; 'Naar deze dag'
+  ONS-formulier de datum, begintijd en eindtijd (begintijd + gekozen duur) van
+  het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
+  (bij een apart afspraakformulier wel); 'Naar deze dag'
   naast de datum van een blok opent die dag in de agenda.
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.

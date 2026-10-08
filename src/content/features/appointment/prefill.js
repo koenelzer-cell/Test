@@ -9,13 +9,27 @@
 import { getDateInput, getStartTimeInput } from '../../ons/appointment-form.js';
 import { inputTextValue, typeIntoSearchField } from '../../ons/form-controls.js';
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
+import { setAppointmentEndTimePlusMinutes } from './end-time.js';
 
 const KEY = PAGE_SESSION.PENDING_APPOINTMENT;
 const GELDIG_MS = 2 * 60 * 1000;   // een klaargezet tijdstip geldt twee minuten
 
+// minutes (optioneel): de duur uit de planhulp. Dan vult de hulp ook de
+// eindtijd in en slaat de afspraakhulp de duurvraag over. Zonder minutes
+// (een apart afspraakformulier) vraagt de afspraakhulp de duur zoals altijd.
 export function storePendingAppointment(req) {
-  try { sessionStorage.setItem(KEY, JSON.stringify({ date: req.date, time: req.time, ts: Date.now() })); } catch (e) {}
+  const minutes = parseInt(req.minutes, 10);
+  try { sessionStorage.setItem(KEY, JSON.stringify({ date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() })); } catch (e) {}
 }
+
+// Duur die de planhulp voor het open afspraakformulier heeft gekozen, of null.
+let _geplandeDuur = null;
+export function plannedAppointmentMinutes() {
+  if (!_geplandeDuur) return null;
+  if (!/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) { _geplandeDuur = null; return null; }
+  return _geplandeDuur;
+}
+export function clearPlannedAppointmentMinutes() { _geplandeDuur = null; }
 function readPending() {
   try {
     const p = JSON.parse(sessionStorage.getItem(KEY) || 'null');
@@ -52,6 +66,7 @@ export function applyPendingAppointment() {
   const p = readPending();
   if (!p) return;
   _bezig = true;
+  _geplandeDuur = p.minutes > 0 ? p.minutes : null;
   const datum = onsDateText(p.date);
   let pogingen = 0;
   const tik = () => {
@@ -65,6 +80,8 @@ export function applyPendingAppointment() {
         if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
         clearPending();
         _bezig = false;
+        // Eindtijd = begintijd + duur uit de planhulp.
+        if (p.minutes > 0) setTimeout(() => { try { setAppointmentEndTimePlusMinutes(p.minutes); } catch (e) {} }, 250);
       }, 250);
       return;
     }

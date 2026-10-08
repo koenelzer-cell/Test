@@ -28,6 +28,7 @@ import { clearScreenMark, markScreen, resetBody } from '../../screen/screen-stat
 import { renderScreen } from '../../ui/react-bridge.js';
 import { appointmentMissingHooks, mkProblemBanner } from '../quality.js';
 import { applyAppointmentDuration, showAppointmentDurationSelection } from './duration.js';
+import { plannedAppointmentMinutes } from './prefill.js';
 import { showManualUursoortInstruction } from './uursoort-screens.js';
 
 // De hulp vereist een gekozen team: toon een duidelijke melding i.p.v. een lege
@@ -148,7 +149,10 @@ function prepareClientAndHandleChoice(choice) {
       if (!expanded) setStatus('Clientkaart openen...', false);
       // Standaardduur uit de beheerlijst: duurvraag overslaan (net als bij de
       // niet-cliëntcategorieën). Bij addTravelTime volgt nog wél de reistijdvraag.
-      if (choice.defaultDuration > 0) applyAppointmentDuration(choice, choice.defaultDuration);
+      // Duur uit de planhulp gaat voor: die heeft de medewerker net gekozen.
+      const gepland = plannedAppointmentMinutes();
+      if (gepland) applyAppointmentDuration(choice, gepland);
+      else if (choice.defaultDuration > 0) applyAppointmentDuration(choice, choice.defaultDuration);
       else showAppointmentDurationSelection(choice);
     });
   });
