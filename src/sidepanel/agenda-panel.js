@@ -1706,11 +1706,12 @@ export function create(host, actions) {
       regel = noteBox('Reservering: ' + reserveringTekst(resIn) + '.' + (o.overlap === true ? ' Daarom meldt ONS overlap.' : ''), 'warn');
       regel.setAttribute('data-reservering', resIn[0].label || '');
     } else if (o.busy) regel = txt('help', 'ONS kijkt dit tijdstip na…', { margin: '8px 0 0' });
-    else if (o.status === 'ready' && o.overlap === false) regel = noteBox('ONS meldt geen overlap op dit tijdstip.', 'ok');
+    // Geen overlap: niets tonen (alleen afwijkingen verdienen een regel).
+    else if (o.status === 'ready' && o.overlap === false) regel = el('div');
     else if (o.status === 'ready' && o.overlap === true) regel = noteBox('ONS meldt overlap met een andere afspraak op dit tijdstip.', 'warn');
     else if (o.status === 'unknown') regel = txt('help', 'Nog niet nagekeken bij ONS: open één keer een afspraak in ONS, dan leert de hulp de overlapcontrole.', { margin: '8px 0 0' });
     else regel = txt('help', 'ONS\u2019 overlapcontrole gaf geen herkenbaar antwoord.', { margin: '8px 0 0' });
-    if (regel.style && !regel.style.margin) regel.style.margin = '8px 0 0';
+    if (regel.childNodes.length && regel.style && !regel.style.margin) regel.style.margin = '8px 0 0';
     return regel;
   }
 

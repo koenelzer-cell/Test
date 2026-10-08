@@ -515,7 +515,7 @@ test('zijpaneel: planhulp zoekt vrije tijd en geeft opties per vrij blok', async
   assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
   document.querySelector('[data-start="11:00"]').click();
   await tick();
-  assert.match(document.body.textContent, /ONS meldt geen overlap op dit tijdstip/);
+  assert.doesNotMatch(document.body.textContent, /ONS meldt|ONS kijkt/, 'geen overlap: geen melding');
   knop(document, 'Afspraak maken op dit tijdstip').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60 });
   knop(document, 'Naar deze dag in de agenda').click();
