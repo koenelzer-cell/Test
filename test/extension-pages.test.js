@@ -991,6 +991,51 @@ test('zijpaneel: planhulp één afspraak - cliënt zoeken, postcode voor Huisbez
   document.querySelector('[data-start]').click();
   await tick();
   [...document.querySelectorAll('button')].find((b) => b.textContent === 'Afspraak maken').click();
+  await tick();
+  // Keuzes niet op te halen (hier geen antwoord): dan via het formulier, met de cliënt erin.
+  assert.match(document.body.textContent, /De ONS-pagina reageert niet/);
+  knop(document, 'Via het afspraakformulier').click();
   const nieuw = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
   assert.deepEqual(nieuw.clientIds, ['11142']);
+});
+
+test('zijpaneel: afspraak meteen in ONS maken - afspraaktype en uursoort per cliënt, daarna agenda verversen', async () => {
+  const { document, dom, verzonden } = zijpaneelMetTools({
+    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB' }] }),
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 }] } }),
+    'ag-event-options': (msg, cb) => cb({ ok: true, metaKnown: true, labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }],
+      hourTypes: { 11142: [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }] } }),
+    'ag-create-events': (msg, cb) => cb({ ok: true, results: msg.events.map(() => ({ ok: true })) }),
+    'ag-reload': (msg, cb) => cb({ ok: true }),
+  });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const zoek = document.querySelector('[data-plan-client]');
+  zoek.value = 'Tamara'; zoek.dispatchEvent(new dom.window.Event('input'));
+  await new Promise((r) => setTimeout(r, 450));
+  document.querySelector('[data-client-id="11142"]').click();
+  knop(document, 'Vrije tijd zoeken').click();
+  await tick(); await tick();
+  [...document.querySelectorAll('[role="button"], button')].find((b) => /10:00/.test(b.textContent) && /12:00/.test(b.textContent)).click();
+  await tick();
+  document.querySelector('[data-start]').click();
+  await tick();
+  knop(document, 'Afspraak maken').click();
+  await tick();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Afspraak maken');
+  assert.equal(document.querySelector('[data-maak-type]').value, '47', 'standaard Face to face (geen huisbezoek)');
+  assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst een uursoort kiezen');
+  const u = document.querySelector('[data-maak-uursoort="11142"]');
+  assert.deepEqual([...u.querySelectorAll('optgroup')].map((g) => g.label), ['Onlangs gebruikt', 'Toegestaan']);
+  u.value = '1135'; u.dispatchEvent(new dom.window.Event('change'));
+  assert.match(document.body.textContent, /Naam: Face to face - Tamara/);
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const maak = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events')));
+  assert.deepEqual(maak.events, [{ date: '2026-10-12', startMin: 600, minutes: 60, clientId: '11142', hourTypeId: 1135, labelId: 47, name: 'Face to face - Tamara' }]);
+  assert.equal(verzonden.some((m) => m.type === 'ag-new-event'), false, 'geen formulier');
+  assert.match(document.body.textContent, /Afspraak gemaakt in ONS\./);
+  knop(document, 'Agenda verversen').click();
+  assert.ok(verzonden.some((m) => m.type === 'ag-reload'));
 });

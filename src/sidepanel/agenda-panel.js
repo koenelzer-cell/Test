@@ -866,7 +866,7 @@ function telOpen(result, afgewerkt) {
 
 var PAGINA_TITEL = {
   hoofd: 'Agendahulp', clienttijd: 'Cliënttijd', verhouding: 'Verhouding per uursoort',
-  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok', plan: 'Planhulp', route: 'Route van de dag'
+  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok', plan: 'Planhulp', route: 'Route van de dag', maken: 'Afspraak maken'
 };
 
 export function create(host, actions) {
@@ -1293,7 +1293,19 @@ export function create(host, actions) {
     rij2.appendChild(teller);
     var foutHost = el('div');
     var knop = primaryBtn(n > 1 ? 'Afspraak maken op ' + n + ' momenten' : 'Afspraak maken', function () {
-      maakOpMomenten(function (f) { foutHost.innerHTML = ''; foutHost.appendChild(noteBox(f, 'bad')); });
+      var viaForm = function () { maakOpMomenten(function (f) { foutHost.innerHTML = ''; foutHost.appendChild(noteBox(f, 'bad')); }); };
+      // Met een gekozen cliënt: meteen in ONS maken (uursoort kiezen in het zijpaneel).
+      if (kanDirect() && plan.clientId) {
+        naarMaken(BEWAARD.momenten.map(function (m) { return { date: m.date, startMin: m.startMin, minutes: plan.minutes, clientId: plan.clientId, clientName: plan.name }; }),
+          plan.huisbezoek ? 'Huisbezoek' : 'Face to face',
+          function (items) {
+            BEWAARD.momenten = items.map(function (it) { return { date: it.date, startMin: it.startMin, eigen: false }; });
+            naarPagina('plan');
+            maakOpMomenten(function () {});
+          });
+        return;
+      }
+      viaForm();
     });
     Object.assign(knop.style, { marginTop: '0', flex: '1 1 auto', width: 'auto' });
     var aantalEigen = BEWAARD.momenten.filter(function (m) { return m.eigen; }).length;
@@ -1509,17 +1521,27 @@ export function create(host, actions) {
     if (res.unplaced.length) box.appendChild(noteBox('Geen plek gevonden voor: ' + res.unplaced.map(function (i) { return (i + 1) + ' (' + rijNaam(i) + ')'; }).join(', ') + '.', 'warn'));
     var foutHost = el('div');
     var maak = primaryBtn(n === 1 ? 'Afspraak maken' : n + ' afspraken maken', function () {
-      var cl = function (p) { var id = multi.rijen[p.i] && multi.rijen[p.i].clientId; return id ? [id] : []; };
-      var tijd = function (p) { return { date: p.date, time: hm(p.startMin), minutes: p.minutes, clientIds: cl(p) }; };
-      // Volgorde in de tijd: het eerste formulier opent nu, de rest daarna
-      // één voor één (elk met eigen cliënt, datum, begin- en eindtijd).
-      var eerste = res.placed[0];
-      actions.onNewEvent({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: cl(eerste), multi: true, extra: [], eigen: res.placed.slice(1).map(tijd) }, function (r) {
+      var allemaal = res.placed.every(function (p) { return multi.rijen[p.i] && multi.rijen[p.i].clientId; });
+      if (kanDirect() && allemaal) {
+        naarMaken(res.placed.map(function (p) { var r = multi.rijen[p.i]; return { date: p.date, startMin: p.startMin, minutes: p.minutes, clientId: r.clientId, clientName: r.name }; }),
+          'Huisbezoek', function (items) { naarPagina('plan'); viaFormulierMulti(items); });
+        return;
+      }
+      viaFormulierMulti(res.placed.map(function (p) { var r = multi.rijen[p.i]; return { date: p.date, startMin: p.startMin, minutes: p.minutes, clientId: r.clientId, clientName: r.name }; }));
+    });
+    // Oude route: één formulier per afspraak, na elkaar (eigen cliënt, datum,
+    // begin- en eindtijd), op volgorde in de tijd.
+    function viaFormulierMulti(items) {
+      if (!items.length) return;
+      var cl = function (it) { return it.clientId ? [it.clientId] : []; };
+      var tijd = function (it) { return { date: it.date, time: hm(it.startMin), minutes: it.minutes, clientIds: cl(it) }; };
+      var eerste = items[0];
+      actions.onNewEvent({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: cl(eerste), multi: true, extra: [], eigen: items.slice(1).map(tijd) }, function (r) {
         if (!(r && r.ok)) { foutHost.innerHTML = ''; foutHost.appendChild(noteBox((r && r.error) || 'Openen mislukt.', 'bad')); }
       });
-    });
+    }
     maak.setAttribute('data-multi-maak', '');
-    maak.title = 'Opent het afspraakformulier voor de eerste; na het opslaan opent de hulp de volgende, met cliënt, datum, begin- en eindtijd ingevuld.';
+    maak.title = kanDirect() ? 'Kies afspraaktype en uursoort per cliënt; de hulp maakt de afspraken meteen in ONS.' : 'Opent het afspraakformulier voor de eerste; na het opslaan opent de hulp de volgende, met cliënt, datum, begin- en eindtijd ingevuld.';
     box.appendChild(maak);
     var opnieuw = secondaryBtn('Opnieuw plannen', function () { startMulti(true); });
     opnieuw.style.marginTop = '8px';
@@ -1528,7 +1550,7 @@ export function create(host, actions) {
     var zonder = res.placed.filter(function (p) { return !(multi.rijen[p.i] && multi.rijen[p.i].clientId); });
     box.appendChild(txt('help', zonder.length
       ? 'De gekozen cliënten staan al in het formulier; kies zelf de cliënt bij ' + zonder.map(function (p) { return (p.i + 1) + ' (' + rijNaam(p.i) + ')'; }).join(', ') + '.'
-      : 'Elke cliënt staat al in zijn eigen formulier.', { margin: '8px 0 0', fontSize: '11.5px' }));
+      : (kanDirect() ? 'Je kiest hierna per cliënt de uursoort; daarna maakt de hulp alles in één keer in ONS.' : 'Elke cliënt staat al in zijn eigen formulier.'), { margin: '8px 0 0', fontSize: '11.5px' }));
     return box;
   }
   function startMulti(gebaar) {
@@ -1594,6 +1616,145 @@ export function create(host, actions) {
       }));
       return Promise.all([weg, ons]).then(function () { return plan2; });
     });
+  }
+
+  /* ── Afspraak meteen in ONS maken (zonder formulier) ── */
+  // items: [{ date, startMin, minutes, clientId, clientName }]; viaFormulier(items):
+  // de oude route via het afspraakformulier (ook voor wat mislukt).
+  function naarMaken(items, standaardType, viaFormulier) {
+    BEWAARD.maak = { items: items, typeNaam: standaardType, labelId: '', uursoort: {}, opties: null, laden: true, busy: false, error: '', uitslag: null, viaFormulier: viaFormulier };
+    naarPagina('maken');
+    var mk = BEWAARD.maak;
+    var ids = items.map(function (i) { return i.clientId; }).filter(function (c, k, a) { return c && a.indexOf(c) === k; });
+    actions.onEventOptions(ids, function (res) {
+      if (BEWAARD.maak !== mk) return;
+      mk.laden = false;
+      if (!(res && res.ok)) mk.error = (res && res.error) || 'Kon de keuzes niet ophalen uit ONS.';
+      else {
+        mk.opties = res;
+        var lbl = (res.labels || []).filter(function (l) { return l.name.toLowerCase() === String(mk.typeNaam || '').toLowerCase(); })[0];
+        mk.labelId = lbl ? String(lbl.id) : '';
+      }
+      if (pagina === 'maken') renderPagina();
+    });
+  }
+  function kanDirect() { return fAan('plannerDirect') && !!actions.onEventOptions && !!actions.onCreateEvents; }
+  function afspraakNaam(typeNaam, clientNaam) {
+    var voornaam = String(clientNaam || '').trim().split(/\s+/)[0] || '';
+    var t = String(typeNaam || '').trim();
+    return t && voornaam ? t + ' - ' + voornaam : (t || voornaam || 'Afspraak');
+  }
+  function selectEl(attr, opties, waarde, onChange, leeg) {
+    var sel = document.createElement('select');
+    sel.setAttribute(attr[0], attr[1]);
+    Object.assign(sel.style, { height: '34px', width: '100%', border: '1px solid ' + T.line, borderRadius: '8px', padding: '0 8px', font: '400 13px ' + FONT, color: T.ink, background: '#fff', boxSizing: 'border-box' });
+    if (leeg) { var o0 = document.createElement('option'); o0.value = ''; o0.textContent = leeg; sel.appendChild(o0); }
+    opties.forEach(function (o) {
+      var host = sel;
+      if (o.groep) {
+        host = sel.querySelector('optgroup[label="' + o.groep + '"]');
+        if (!host) { host = document.createElement('optgroup'); host.label = o.groep; sel.appendChild(host); }
+      }
+      var op = document.createElement('option'); op.value = String(o.id); op.textContent = o.name;
+      if (String(o.id) === String(waarde)) op.selected = true;
+      host.appendChild(op);
+    });
+    sel.addEventListener('change', function () { onChange(sel.value); });
+    return sel;
+  }
+  function pageMaken() {
+    var mk = BEWAARD.maak, box = el('div');
+    if (!mk) return box;
+    var n = mk.items.length;
+    box.appendChild(txt('help', 'De hulp maakt ' + (n === 1 ? 'de afspraak' : 'de ' + n + ' afspraken') + ' meteen in ONS, zonder formulier. Kies het afspraaktype en per cliënt de uursoort.', { margin: '0 0 10px' }));
+    if (mk.laden) { zorgVoorStijl(); box.appendChild(laadBalk()); return box; }
+    if (mk.error && !mk.opties) {
+      box.appendChild(noteBox(mk.error, 'bad'));
+      if (mk.viaFormulier) box.appendChild(primaryBtn('Via het afspraakformulier', function () { mk.viaFormulier(mk.items); }));
+      return box;
+    }
+    var labels = (mk.opties.labels || []);
+    var typeNaam = function () { var l = labels.filter(function (x) { return String(x.id) === String(mk.labelId); })[0]; return l ? l.name : ''; };
+    var klaar = !!mk.uitslag;
+    if (!klaar) {
+      var typeSel = selectEl(['data-maak-type', ''], labels, mk.labelId, function (v) { mk.labelId = v; renderPagina(); }, 'Geen afspraaktype');
+      box.appendChild(fieldLabel('Afspraaktype', typeSel));
+    }
+    // Per cliënt één kaart met de momenten en de uursoort.
+    var perClient = [];
+    mk.items.forEach(function (it, k) {
+      var g = perClient.filter(function (x) { return x.id === it.clientId; })[0];
+      if (!g) { g = { id: it.clientId, name: it.clientName, items: [] }; perClient.push(g); }
+      g.items.push({ it: it, k: k });
+    });
+    perClient.forEach(function (g) {
+      var kaart = el('div', { border: '1px solid ' + T.line, borderRadius: '10px', padding: '9px 11px', marginTop: '10px', background: '#fff' });
+      kaart.setAttribute('data-maak-client', g.id);
+      kaart.appendChild(el('div', { fontSize: '13px', fontWeight: '700', color: T.ink }, g.name || ('Cliënt ' + g.id)));
+      g.items.forEach(function (x) {
+        var it = x.it;
+        var rij = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: T.ink, minHeight: '24px' });
+        rij.appendChild(el('span', { flex: '0 0 74px' }, dayLabel(it.date)));
+        rij.appendChild(el('span', { flex: '1 1 auto', fontVariantNumeric: 'tabular-nums' }, hm(it.startMin) + ' – ' + hm(it.startMin + it.minutes)));
+        var u = mk.uitslag && mk.uitslag[x.k];
+        if (u) {
+          var st = el('span', { flex: '0 0 auto', fontWeight: '700', color: u.ok ? T.ok : T.bad }, u.ok ? '✓ gemaakt' : 'mislukt');
+          if (!u.ok && u.error) st.title = u.error;
+          st.setAttribute('data-maak-uitslag', u.ok ? 'ok' : 'fout');
+          rij.appendChild(st);
+        }
+        kaart.appendChild(rij);
+      });
+      if (!klaar) {
+        var types = ((mk.opties.hourTypes || {})[g.id] || []).map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Toegestaan' }; });
+        if (!types.length) kaart.appendChild(noteBox('ONS geeft geen uursoorten voor deze cliënt; maak deze via het formulier.', 'warn'));
+        else {
+          var sel = selectEl(['data-maak-uursoort', g.id], types, mk.uursoort[g.id] || '', function (v) { mk.uursoort[g.id] = v; renderPagina(); }, 'Kies uursoort');
+          var lab = fieldLabel('Uursoort', sel); lab.style.marginTop = '6px';
+          kaart.appendChild(lab);
+        }
+        kaart.appendChild(el('div', Object.assign({}, TYPE.help, { marginTop: '6px', fontSize: '11.5px' }), 'Naam: ' + afspraakNaam(typeNaam(), g.name)));
+      }
+      box.appendChild(kaart);
+    });
+    if (!klaar) {
+      if (!mk.opties.metaKnown) box.appendChild(txt('help', 'Tip: sla één keer zelf een afspraak op via het formulier van ONS; de hulp neemt dan de instellingen van dat formulier over.', { margin: '10px 0 0', fontSize: '11.5px' }));
+      var compleet = perClient.every(function (g) { return !!mk.uursoort[g.id]; });
+      var knop = primaryBtn(mk.busy ? 'Bezig met maken…' : (n === 1 ? 'Afspraak maken in ONS' : n + ' afspraken maken in ONS'), function () {
+        mk.busy = true; mk.error = ''; renderPagina();
+        var lijst = mk.items.map(function (it) {
+          return { date: it.date, startMin: it.startMin, minutes: it.minutes, clientId: it.clientId, hourTypeId: Number(mk.uursoort[it.clientId]),
+            labelId: mk.labelId ? Number(mk.labelId) : null, name: afspraakNaam(typeNaam(), it.clientName) };
+        });
+        actions.onCreateEvents(lijst, function (res) {
+          mk.busy = false;
+          if (!(res && res.ok)) { mk.error = (res && res.error) || 'Maken mislukt.'; renderPagina(); return; }
+          mk.uitslag = res.results || [];
+          // Wat gelukt is, hoeft niet meer gekozen te worden.
+          if (mk.uitslag.some(function (r) { return r && r.ok; })) { BEWAARD.momenten = []; BEWAARD.balkOpen = false; if (BEWAARD.multi) BEWAARD.multi.result = null; }
+          renderPagina();
+        });
+      }, mk.busy || !compleet);
+      knop.setAttribute('data-maak-knop', '');
+      box.appendChild(knop);
+      if (mk.error) box.appendChild(noteBox(mk.error, 'bad'));
+      if (mk.viaFormulier) {
+        var form = secondaryBtn('Liever via het afspraakformulier', function () { mk.viaFormulier(mk.items); });
+        form.style.marginTop = '8px';
+        box.appendChild(form);
+      }
+      return box;
+    }
+    var goed = mk.uitslag.filter(function (r) { return r && r.ok; }).length;
+    var mis = mk.items.filter(function (_, k) { return !(mk.uitslag[k] && mk.uitslag[k].ok); });
+    box.appendChild(noteBox(mis.length ? goed + ' van ' + n + ' gemaakt. Niet gelukt: ' + mis.map(function (it) { return dayLabel(it.date) + ' ' + hm(it.startMin); }).join(', ') + '.' : (n === 1 ? 'Afspraak gemaakt in ONS.' : n + ' afspraken gemaakt in ONS.'), mis.length ? 'warn' : 'ok'));
+    if (goed && actions.onReloadAgenda) box.appendChild(primaryBtn('Agenda verversen', function () { actions.onReloadAgenda(); }));
+    if (mis.length && mk.viaFormulier) {
+      var rest = secondaryBtn('Mislukte via het formulier maken', function () { mk.viaFormulier(mis); });
+      rest.style.marginTop = '8px';
+      box.appendChild(rest);
+    }
+    return box;
   }
 
   // Planhulp (eigen pagina): kies duur en periode, zoek vrije blokken binnen
@@ -1850,7 +2011,7 @@ export function create(host, actions) {
   }
   function terugKnop() {
     // Een vrij blok hoort bij de planhulp: terug naar die lijst.
-    var doel = pagina === 'vrijblok' ? 'plan' : 'hoofd';
+    var doel = pagina === 'vrijblok' || pagina === 'maken' ? 'plan' : 'hoofd';
     var back = tekstKnop(PIJL_TERUG, 'Terug', function () { naarPagina(doel); });
     back.style.margin = '0 0 10px -6px';
     return back;
@@ -2427,6 +2588,7 @@ export function create(host, actions) {
       : pagina === 'vrijblok' ? pageSlot()
       : pagina === 'plan' ? pagePlan()
       : pagina === 'route' ? pageRoute()
+      : pagina === 'maken' ? pageMaken()
       : pageInfo();
     paginaBox.appendChild(inhoud);
     renderLive();

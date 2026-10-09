@@ -432,6 +432,37 @@ test('meerdere afspraken plannen: elk een eigen formulier met eigen duur (eindti
   assert.match(geklikt.at(-1) || '', /invitee_ids%5B%5D=42479&invitee_ids%5B%5D=51486&redirect_to_calendar=true&event%5Bstart_date%5D=2026-11-02$/, 'volgende formulier met de eigen cliënt');
 });
 
+test('afspraak maken zonder formulier: keuzes ophalen, meta leren van een opgeslagen afspraak, verzoek naar ONS', async (t) => {
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  const { api, window } = bootHelper({ url: 'https://impegno.onsagenda.nl/invitees/42479/calendar/day?date=2026-10-27' });
+  const gevraagd = [];
+  window.fetch = (url, init) => {
+    gevraagd.push([url, init && init.method || 'GET', init && init.body ? JSON.parse(init.body) : null]);
+    if (/available_labels/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }]) });
+    if (/product_list/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ basic_list: [['Onlangs gebruikt', [['JW BG H10 Individuele BG midde', 5, [], false, true]]]] }) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+  };
+  const opties = await api.eventOptions(['11142']);
+  assert.deepEqual(JSON.parse(JSON.stringify(opties)), { labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }], hourTypes: { 11142: [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }] }, metaKnown: false });
+  assert.ok(gevraagd.some((g) => g[0] === '/product_selection/product_list?employee_ids%5B%5D=42479&client_ids%5B%5D=11142'));
+  // De medewerker slaat zelf een afspraak op: alleen de ja/nee-instellingen blijven over.
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventMeta', meta: { extended_workflow: true, time_distribution_enabled: true, naam: 'Tamara' } }, origin: window.location.origin, source: window }));
+  assert.deepEqual(JSON.parse(window.localStorage.getItem('onsHelper.eventMetaTemplate')), { extended_workflow: true, time_distribution_enabled: true });
+  const res = await api.createEvents([
+    { date: '2026-10-27', startMin: 17 * 60 + 20, minutes: 60, clientId: '11142', hourTypeId: 5, labelId: 47, name: 'Face to face - Tamara' },
+    { date: '2026-10-27', startMin: 600, minutes: 60, clientId: '11142', hourTypeId: null, labelId: 47, name: 'x' },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(res)), [{ ok: true }, { ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }]);
+  const post = gevraagd.filter((g) => g[1] === 'POST');
+  assert.equal(post.length, 1);
+  assert.equal(post[0][0], '/calendar/events');
+  const ev = post[0][2].event;
+  assert.deepEqual([ev.employee_ids, ev.client_ids, ev.client_information, ev.label_ids, ev.start_time, ev.end_time, ev.meta],
+    [[42479], [11142], { 11142: { hour_type_id: 5, care_order_external_id: null, activity_ids: [] } }, [47], '2026-10-27T17:20:00+01:00', '2026-10-27T18:20:00+01:00', { extended_workflow: true, time_distribution_enabled: true }]);
+});
+
 test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole), BG/J&G-locatie telt als kantoor', async () => {
   const { api, window } = bootHelper({ url: MEER });
   const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // volgende maandag

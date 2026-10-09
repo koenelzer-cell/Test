@@ -194,6 +194,15 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   formulier voor de eerste; na het opslaan opent de hulp de volgende, met
   cliënt, datum, begin- en eindtijd ingevuld (de cliënt gaat mee in
   `invitee_ids[]`, zoals ONS dat zelf doet).
+- **Afspraak meteen in ONS maken** (planhulp, met een gekozen cliënt): na
+  'Afspraak maken' kies je in het zijpaneel het afspraaktype (lijst van ONS)
+  en per cliënt de uursoort (dezelfde lijst als in het formulier: onlangs
+  gebruikt en toegestaan). Eén klik maakt de afspraak - of alle afspraken uit
+  'Meerdere plannen' - met hetzelfde verzoek als het formulier van ONS; naam
+  zoals 'Huisbezoek - Tamara'. Lukt er een niet, dan kun je die alsnog via het
+  formulier maken. Instellingen van het formulier (`meta`, alleen ja/nee en
+  getallen) neemt de hulp over van een afspraak die je zelf opslaat. Schakelaar
+  in het beheerscherm: 'Planhulp: afspraak meteen in ONS maken'.
 - **Cliënt bij één afspraak**: ook in de gewone planhulp kun je de cliënt op
   naam zoeken. Die staat dan meteen in het afspraakformulier (ook bij een
   apart formulier), en bij 'Huisbezoek' is de postcode al ingevuld.

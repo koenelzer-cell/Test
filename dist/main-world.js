@@ -107,20 +107,28 @@
       var u = String(url || "");
       if (DETAILS_RE.test(u)) return reportDetails;
       if (OVERLAP_RE.test(u)) return reportOverlap;
-      var klaar = String(method || "GET").toUpperCase() === "POST" ? kopieenKlaar() : "";
-      if (klaar) {
-        try {
-          var abs = new URL(u, location.href);
-          if (abs.origin === location.origin && abs.pathname.replace(/\/$/, "") === CREATE_PATH) {
-            return function(url2, text, body) {
-              try {
-                if (typeof body === "string" && body) post("eventCreated", { body, pending: klaar });
-              } catch (e) {
-              }
-            };
+      if (String(method || "GET").toUpperCase() !== "POST") return null;
+      try {
+        var abs = new URL(u, location.href);
+        if (abs.origin !== location.origin || abs.pathname.replace(/\/$/, "") !== CREATE_PATH) return null;
+        var klaar = kopieenKlaar();
+        return function(url2, text, body) {
+          if (typeof body !== "string" || !body) return;
+          try {
+            var meta = (JSON.parse(body).event || {}).meta, kaal = {};
+            if (meta && typeof meta === "object") Object.keys(meta).forEach(function(k) {
+              var v = meta[k];
+              if (typeof v === "boolean" || v === null || typeof v === "number") kaal[k] = v;
+            });
+            post("eventMeta", { meta: kaal });
+          } catch (e) {
           }
-        } catch (e) {
-        }
+          try {
+            if (klaar) post("eventCreated", { body, pending: klaar });
+          } catch (e) {
+          }
+        };
+      } catch (e) {
       }
       return null;
     }

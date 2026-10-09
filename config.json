@@ -778,6 +778,7 @@
     "plannerCopies": true,
     "plannerDistance": true,
     "plannerMulti": true,
+    "plannerDirect": true,
     "routeLink": true,
     "preload": true
   },

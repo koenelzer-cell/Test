@@ -62,6 +62,15 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
     met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
+  - **Afspraak maken vanuit de planhulp**: pas na een klik van de
+    medewerker, met het overzicht vooraf. Het verzoek (POST
+    `/calendar/events`) gaat alleen naar dezelfde ONS-omgeving, met de
+    sessie en het CSRF-token van de pagina, en bevat alleen id's (medewerker,
+    cliënt, uursoort, afspraaktype), tijden en de naam van de afspraak. Van
+    afspraken die de medewerker zelf opslaat leest de pagina alleen
+    `event.meta`, en bewaart daarvan alleen ja/nee- en getalwaarden
+    (localStorage `onsHelper.eventMetaTemplate`). Uit te zetten met
+    `features.plannerDirect`.
   - **Meerdere afspraken plannen** (planhulp): de medewerker zoekt een
     cliënt op naam via dezelfde ONS-zoekfunctie als het afspraakformulier
     (`/search_panel/clients`, pas na een korte pauze in het typen). Naam en

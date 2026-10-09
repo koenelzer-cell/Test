@@ -264,6 +264,8 @@
     // gekleurde dagindeling aan/uit ('1'/'0')
     SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth",
     // breedte vragenlijstpaneel (px)
+    EVENT_META_TEMPLATE: "onsHelper.eventMetaTemplate",
+    // instellingen van het afspraakformulier (alleen ja/nee en getallen)
     EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
     // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
   };
@@ -856,6 +858,12 @@
     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_EVENT_OPTIONS: "ag-event-options",
+    // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
+    AGENDA_CREATE_EVENTS: "ag-create-events",
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    AGENDA_RELOAD: "ag-reload",
+    //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -1368,7 +1376,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.236";
+      return "1.6.237";
     }
   }();
 

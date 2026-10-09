@@ -1072,7 +1072,7 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerMulti:true, routeLink:true, preload:true },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerMulti:true, plannerDirect:true, routeLink:true, preload:true },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
   routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
@@ -1178,6 +1178,7 @@ const FEATURE_META = {
   planner:'Zijpaneel: Planhulp',
   plannerCopies:'Planhulp: afspraak op meerdere momenten (kopieën)',
   plannerDistance:'Planhulp: Huisbezoek / rijafstand (PDOK-postcodes)',
+  plannerDirect:'Planhulp: afspraak meteen in ONS maken (afspraaktype + uursoort per cliënt kiezen, zonder formulier)',
   plannerMulti:'Planhulp: meerdere afspraken efficiënt plannen (cliënt zoeken op naam, eigen formulier per afspraak)',
   routeLink:'Zijpaneel: Route van de dag (Google Maps)',
   preload:'Zijpaneel: gegevens vooraf laden'
@@ -3473,7 +3474,7 @@ function troubleValidateConfigWiring(contentJs, configInfo, results) {
     'Registratievormen': ['registrationForms','vorm','startVerdeling','uursoort','eindtijdBeginPlusMin','rapportagePrefix','vraagDirecteTijd','vraagIndirecteTijd','vraagReistijd','labels','relevantForTeams','volgorde'],
     'Kleurzones': ['palette','profileSectors','zoneProfiles','start','end','zone','color','fill','legend'],
     'Beheerbare teksten': ['texts','text','html','bold','italic','sizePx'],
-    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerMulti','routeLink','preload','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerMulti','plannerDirect','routeLink','preload','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
     'Teams': ['profileSectors']
   };
   Object.keys(groups).forEach((group) => {

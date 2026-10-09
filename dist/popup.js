@@ -154,6 +154,12 @@
     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_EVENT_OPTIONS: "ag-event-options",
+    // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
+    AGENDA_CREATE_EVENTS: "ag-create-events",
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    AGENDA_RELOAD: "ag-reload",
+    //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",

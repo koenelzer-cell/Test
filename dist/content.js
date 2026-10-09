@@ -108,6 +108,8 @@
     // gekleurde dagindeling aan/uit ('1'/'0')
     SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth",
     // breedte vragenlijstpaneel (px)
+    EVENT_META_TEMPLATE: "onsHelper.eventMetaTemplate",
+    // instellingen van het afspraakformulier (alleen ja/nee en getallen)
     EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
     // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
   };
@@ -538,7 +540,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerMulti: true, preload: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerMulti: true, plannerDirect: true, preload: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
@@ -1102,6 +1104,9 @@
     registrationDetails: "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
     searchClients: "/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1",
+    availableLabels: "/calendar/events/available_labels",
+    createEvent: "/calendar/events",
+    productOptions: "/product_selection/product_list?employee_ids%5B%5D={employeeId}&client_ids%5B%5D={clientId}",
     productList: "/product_selection/product_list?date={date}&employee_ids[]={employeeId}&client_ids[]={clientId}",
     calendarVariables: "/calendar/calendar_variables?date={date}",
     unavailabilities: "/calendar/unavailabilities",
@@ -1218,6 +1223,12 @@
     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_EVENT_OPTIONS: "ag-event-options",
+    // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
+    AGENDA_CREATE_EVENTS: "ag-create-events",
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    AGENDA_RELOAD: "ag-reload",
+    //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -10867,6 +10878,185 @@
     }
   }
 
+  // src/content/domain/event-create.js
+  function parseProductOptions(json) {
+    var groepen = json && Array.isArray(json.basic_list) ? json.basic_list : [];
+    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
+    ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"].forEach(function(cat) {
+      groepen.forEach(function(g) {
+        if (!Array.isArray(g) || g[0] !== cat || !Array.isArray(g[1])) return;
+        g[1].forEach(function(item) {
+          if (!Array.isArray(item)) return;
+          var naam = String(item[0] == null ? "" : item[0]).trim(), id = item[1];
+          if (!naam || !(typeof id === "number" || /^\d+$/.test(String(id)))) return;
+          id = Number(id);
+          if (gezien[id]) return;
+          gezien[id] = true;
+          uit.push({ id, name: naam, recent: cat === "Onlangs gebruikt" });
+        });
+      });
+    });
+    return uit;
+  }
+  function parseLabels(json) {
+    return (Array.isArray(json) ? json : []).filter(function(l) {
+      return l && l.id != null && l.name;
+    }).map(function(l) {
+      return { id: Number(l.id), name: String(l.name) };
+    });
+  }
+  function learnEventMeta(meta) {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+    var uit = {}, n = 0;
+    Object.keys(meta).forEach(function(k) {
+      var v = meta[k];
+      if (!/^[a-z_]{1,60}$/.test(k)) return;
+      if (typeof v === "boolean" || v === null || typeof v === "number" && isFinite(v)) {
+        uit[k] = v;
+        n++;
+      }
+    });
+    return n ? uit : null;
+  }
+  function buildEventPayload(spec, meta) {
+    spec = spec || {};
+    var start = spec.startMin, eind = start + spec.minutes;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(spec.date || "")) || !(start >= 0) || !(spec.minutes > 0) || eind >= 24 * 60) return null;
+    var emp = (spec.employeeIds || []).map(Number).filter(function(x) {
+      return x > 0;
+    });
+    var cl = (spec.clients || []).filter(function(c) {
+      return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0;
+    });
+    if (!emp.length || !cl.length || cl.length !== (spec.clients || []).length) return null;
+    var info = {};
+    cl.forEach(function(c) {
+      info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
+    });
+    var ev = {
+      valid_from: spec.date,
+      start_time: isoLocalWithOffset(spec.date, start),
+      end_time: isoLocalWithOffset(spec.date, eind),
+      client_ids: cl.map(function(c) {
+        return Number(c.id);
+      }),
+      client_information: info,
+      client_present: true,
+      clients: [],
+      comment: String(spec.comment || ""),
+      custom_location: null,
+      employee_ids: emp,
+      employees: [],
+      group: null,
+      groups: [],
+      hour_type_id: null,
+      label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
+      labels: [],
+      location: null,
+      location_id: null,
+      name: String(spec.name || "Afspraak").slice(0, 200),
+      team_ids: [],
+      teams: [],
+      travel_time_after: 0,
+      travel_time_before: 0
+    };
+    var m = learnEventMeta(meta);
+    if (m) ev.meta = m;
+    return { event: ev };
+  }
+
+  // src/content/features/agenda/event-create.js
+  var META_KEY = PAGE_LOCAL.EVENT_META_TEMPLATE;
+  function directCreateEnabled() {
+    var f = APP_CONFIG.features || {};
+    return f.planner !== false && f.plannerDirect !== false;
+  }
+  function medewerkers() {
+    var ids = currentInviteeIds();
+    if (!ids.length) {
+      var een = currentInviteeId(null) || resolveInviteeId();
+      if (een != null) ids = [String(een)];
+    }
+    return ids;
+  }
+  function leesMeta() {
+    try {
+      return learnEventMeta(JSON.parse(localStorage.getItem(META_KEY) || "null"));
+    } catch (e) {
+      return null;
+    }
+  }
+  function eventOptions(clientIds) {
+    if (!directCreateEnabled()) return Promise.reject(new Error("Afspraken maken vanuit de planhulp staat uit (beheer)."));
+    var ids = medewerkers();
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var uniek = (clientIds || []).map(String).filter(function(c, i, a) {
+      return /^\d+$/.test(c) && a.indexOf(c) === i;
+    }).slice(0, 10);
+    var types = {};
+    return Promise.all([
+      getJson(_apiUrl("availableLabels")).then(parseLabels, function() {
+        return [];
+      }),
+      Promise.all(uniek.map(function(c) {
+        return getJson(_apiUrl("productOptions", { employeeId: ids[0], clientId: c })).then(function(j) {
+          types[c] = parseProductOptions(j);
+        }, function() {
+          types[c] = [];
+        });
+      }))
+    ]).then(function(r) {
+      return { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
+    });
+  }
+  async function createEvents(events, post) {
+    if (!directCreateEnabled()) throw new Error("Afspraken maken vanuit de planhulp staat uit (beheer).");
+    post = post || postJson;
+    var ids = medewerkers();
+    if (!ids.length) throw new Error("Open eerst je agenda in ONS.");
+    var meta = leesMeta(), results = [];
+    for (const e of (events || []).slice(0, 20)) {
+      var payload = buildEventPayload({
+        date: e.date,
+        startMin: e.startMin,
+        minutes: e.minutes,
+        employeeIds: ids,
+        clients: [{ id: e.clientId, hourTypeId: e.hourTypeId }],
+        labelId: e.labelId,
+        name: e.name
+      }, meta);
+      if (!payload) {
+        results.push({ ok: false, error: "Onvolledig (cliënt, uursoort of tijd)." });
+        continue;
+      }
+      try {
+        await post(_apiUrl("createEvent"), payload);
+        results.push({ ok: true });
+      } catch (err) {
+        results.push({ ok: false, error: err && err.message || "Mislukt." });
+      }
+    }
+    return results;
+  }
+  function listenForEventMeta() {
+    try {
+      window.addEventListener("message", function(ev) {
+        if (!ev || ev.origin !== location.origin) return;
+        if (ev.source && ev.source !== window) return;
+        var d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventMeta") return;
+        var m = learnEventMeta(d.meta);
+        if (m) {
+          try {
+            localStorage.setItem(META_KEY, JSON.stringify(m));
+          } catch (e) {
+          }
+        }
+      }, false);
+    } catch (e) {
+    }
+  }
+
   // src/content/config/loader.js
   function loadBundledConfig() {
     try {
@@ -10994,7 +11184,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.236";
+      return "1.6.237";
     }
   }();
 
@@ -13759,7 +13949,7 @@
   }
 
   // src/content/features/agenda/side-panel-bridge.js
-  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerMulti", "routeLink"];
+  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerMulti", "plannerDirect", "routeLink"];
   function routesProxyVoorPaneel() {
     var p = APP_CONFIG.routesProxy || {};
     var url = String(p.url || "").trim().replace(/\/+$/, "");
@@ -13954,6 +14144,41 @@
               }
             });
             return true;
+          case MSG.AGENDA_EVENT_OPTIONS:
+            eventOptions(msg.clientIds).then(function(r) {
+              try {
+                sendResponse(Object.assign({ ok: true }, r));
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Ophalen mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_CREATE_EVENTS:
+            createEvents(msg.events).then(function(results) {
+              try {
+                sendResponse({ ok: true, results });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Maken mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_RELOAD:
+            try {
+              sendResponse({ ok: true });
+            } catch (e) {
+            }
+            setTimeout(function() {
+              location.reload();
+            }, 50);
+            return false;
           case MSG.AGENDA_CLIENT_SEARCH:
             searchClientsForPlan(msg.term).then(function(clients) {
               try {
@@ -15537,6 +15762,8 @@
       quickRegisterUrl,
       newEventUrl,
       openNewEvent,
+      createEvents,
+      eventOptions,
       onsDateText,
       findFreeGaps,
       reservationBlocks,
@@ -15574,6 +15801,7 @@
   listenForMainWorldDetails();
   listenForOnsOverlapCalls();
   listenForCreatedEvents();
+  listenForEventMeta();
   watchConfigChanges();
   var HELPER_CONFIG_READY = startConfigLoading();
   seedUiOverridesFromConfig();

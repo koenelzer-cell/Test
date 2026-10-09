@@ -114,7 +114,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      content-script die klaar in sessionStorage. Alleen dan geven we het
      verzoek door waarmee ONS de afspraak opslaat (POST /calendar/events): dat
      is het voorbeeld voor de kopieën (content/features/appointment/duplicate.js).
-     Zonder klaargezette momenten kijken we niet naar dit verzoek.
+     Altijd (ook zonder klaargezette momenten) geven we alleen event.meta door,
+     en daarvan alleen ja/nee- en getalwaarden: de instellingen van het
+     formulier, nodig om een afspraak vanuit de planhulp te maken
+     (content/features/agenda/event-create.js). Geen cliëntgegevens.
      ---------------------------------------------------------------------- */
   var CREATE_PATH = '/calendar/events';
   function kopieenKlaar() {
@@ -125,19 +128,26 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     var u = String(url || '');
     if (DETAILS_RE.test(u)) return reportDetails;
     if (OVERLAP_RE.test(u)) return reportOverlap;
-    var klaar = String(method || 'GET').toUpperCase() === 'POST' ? kopieenKlaar() : '';
-    if (klaar) {
-      try {
-        var abs = new URL(u, location.href);
-        // De klaargezette momenten gaan mee zoals ze bij het VERSTUREN stonden:
-        // ONS kan na het opslaan al doorschakelen naar de agenda.
-        if (abs.origin === location.origin && abs.pathname.replace(/\/$/, '') === CREATE_PATH) {
-          return function (url2, text, body) {
-            try { if (typeof body === 'string' && body) post('eventCreated', { body: body, pending: klaar }); } catch (e) {}
-          };
-        }
-      } catch (e) {}
-    }
+    if (String(method || 'GET').toUpperCase() !== 'POST') return null;
+    try {
+      var abs = new URL(u, location.href);
+      if (abs.origin !== location.origin || abs.pathname.replace(/\/$/, '') !== CREATE_PATH) return null;
+      // De klaargezette momenten gaan mee zoals ze bij het VERSTUREN stonden:
+      // ONS kan na het opslaan al doorschakelen naar de agenda.
+      var klaar = kopieenKlaar();
+      return function (url2, text, body) {
+        if (typeof body !== 'string' || !body) return;
+        try {
+          var meta = (JSON.parse(body).event || {}).meta, kaal = {};
+          if (meta && typeof meta === 'object') Object.keys(meta).forEach(function (k) {
+            var v = meta[k];
+            if (typeof v === 'boolean' || v === null || typeof v === 'number') kaal[k] = v;
+          });
+          post('eventMeta', { meta: kaal });
+        } catch (e) {}
+        try { if (klaar) post('eventCreated', { body: body, pending: klaar }); } catch (e) {}
+      };
+    } catch (e) {}
     return null;
   }
 

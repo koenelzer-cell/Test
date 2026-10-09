@@ -17,11 +17,12 @@ import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, de
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { searchClientsForPlan } from './client-lookup.js';
+import { createEvents, eventOptions } from './event-create.js';
 import { checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
-export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerMulti', 'routeLink'];
+export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerMulti', 'plannerDirect', 'routeLink'];
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
 // Routes-sleutel; anders niets (dan PDOK-schatting).
 function routesProxyVoorPaneel() {
@@ -193,6 +194,24 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, status: 'ready', overlap: null }); } catch (e2) {}
           });
           return true;
+        case MSG.AGENDA_EVENT_OPTIONS:
+          eventOptions(msg.clientIds).then(function (r) {
+            try { sendResponse(Object.assign({ ok: true }, r)); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Ophalen mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_CREATE_EVENTS:
+          createEvents(msg.events).then(function (results) {
+            try { sendResponse({ ok: true, results: results }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Maken mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_RELOAD:
+          try { sendResponse({ ok: true }); } catch (e) {}
+          setTimeout(function () { location.reload(); }, 50);
+          return false;
         case MSG.AGENDA_CLIENT_SEARCH:
           searchClientsForPlan(msg.term).then(function (clients) {
             try { sendResponse({ ok: true, clients: clients }); } catch (e) {}

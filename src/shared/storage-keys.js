@@ -28,6 +28,7 @@ export const PAGE_LOCAL = {
   HELPER_ENABLED: 'onsHelper.helperEnabled',  // afspraak-/registratiehulp aan/uit ('1'/'0')
   GREY_ENABLED: 'onsHelper.greyEnabled',      // gekleurde dagindeling aan/uit ('1'/'0')
   SURVEY_PANEL_WIDTH: 'onsHelper.surveyPanelWidth', // breedte vragenlijstpaneel (px)
+  EVENT_META_TEMPLATE: 'onsHelper.eventMetaTemplate',      // instellingen van het afspraakformulier (alleen ja/nee en getallen)
   EVENT_OVERLAP_TEMPLATE: 'onsHelper.eventOverlapTemplate', // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
 };
 
