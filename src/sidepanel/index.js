@@ -68,6 +68,7 @@ const agendaActies = {
   onRequestLeave: function () { naarTab({ type: MSG.AGENDA_OPEN_LEAVE }); },
   onCheckRange: function (from, to, cb, vers) { vraagAanTab({ type: MSG.AGENDA_CHECK_RANGE, from: from, to: to, vers: !!vers }, cb); },
   onNewEvent: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb); },
+  onDayRoute: function (date, origin, cb) { vraagAanTab({ type: MSG.AGENDA_DAY_ROUTE, date: date, origin: origin || '' }, cb); },
   onSlotCheck: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb); },
   onFreeSlots: function (minutes, weeks, cb, to) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '' }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },

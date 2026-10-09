@@ -89,7 +89,7 @@ export const DEFAULT_APP_CONFIG = {
     doorplannen_waarschuwing:     { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: '#b3261e', bold: true, italic: false, sizePx: 13 },
   },
   compatibility: { schemaVersion: 7, minimumExtensionVersion: '1.6.114' },
-  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true },
+  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true },
   nonClientCategories: [],
   generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: '*', countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ['do_not_declare'], excludedCalendarTypes: ['unavailability', 'presence'] },
   // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.

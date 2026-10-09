@@ -538,7 +538,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true },
     nonClientCategories: [],
     generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: "*", countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ["do_not_declare"], excludedCalendarTypes: ["unavailability", "presence"] },
     // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.
@@ -1161,6 +1161,8 @@
     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
+    AGENDA_DAY_ROUTE: "ag-day-route",
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route huisbezoeken
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -6121,8 +6123,8 @@
   function _regToMin(raw) {
     const s = (raw == null ? "" : String(raw)).trim();
     if (!s) return null;
-    const hm = s.match(/^(\d{1,2}):(\d{2})$/);
-    if (hm) return +hm[1] * 60 + +hm[2];
+    const hm2 = s.match(/^(\d{1,2}):(\d{2})$/);
+    if (hm2) return +hm2[1] * 60 + +hm2[2];
     if (/^\d{1,4}$/.test(s)) return +s;
     return null;
   }
@@ -10643,8 +10645,8 @@
   function momentLabel(m) {
     const p = String(m.date).split("-");
     const d = new Date(+p[0], +p[1] - 1, +p[2]);
-    const hm = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
-    return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm;
+    const hm2 = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
+    return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm2;
   }
   function toonMelding(tekst, goed, metVerversen) {
     try {
@@ -10925,7 +10927,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.226";
+      return "1.6.227";
     }
   }();
 
@@ -11929,11 +11931,11 @@
   function workdayWindowLabel() {
     const z = activeZones();
     if (!z || !z.length) return "08:00–17:00";
-    const hm = (d) => {
+    const hm2 = (d) => {
       const h = Math.floor(d), m = Math.round((d - h) * 60);
       return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
     };
-    return hm(Math.min.apply(null, z.map((x) => x.from))) + "–" + hm(Math.max.apply(null, z.map((x) => x.to)));
+    return hm2(Math.min.apply(null, z.map((x) => x.from))) + "–" + hm2(Math.max.apply(null, z.map((x) => x.to)));
   }
 
   // src/content/features/agenda/painting.js
@@ -13393,6 +13395,153 @@
     });
   }
 
+  // src/content/domain/route.js
+  function isHomeVisit(entry) {
+    if (!entry) return false;
+    var teksten = _agEntryLabels(entry).concat([entry.hourType || ""]);
+    return teksten.some(function(t) {
+      return /huisbezoek/i.test(String(t || ""));
+    });
+  }
+  function addressFromMapsUrl(url) {
+    var m = /\/maps\/place\/([^/?#"'<>\s]+)/.exec(String(url || ""));
+    if (!m) return "";
+    var t;
+    try {
+      t = decodeURIComponent(m[1].replace(/\+/g, " "));
+    } catch (e) {
+      return "";
+    }
+    return t.replace(/\s+/g, " ").replace(/[,\s]+$/, "").trim();
+  }
+  function schoon(v) {
+    return String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  }
+  function adresUitVelden(o) {
+    var pak = function(re) {
+      for (var k in o) {
+        if (re.test(k) && (typeof o[k] === "string" || typeof o[k] === "number")) return schoon(o[k]);
+      }
+      return "";
+    };
+    var straat = pak(/^(street|straat|street_name|streetname)$/i);
+    var nr = pak(/^(house_?number|huisnummer|number|nr)$/i);
+    var toev = pak(/^(house_?number_?(addition|suffix)|toevoeging|addition|suffix)$/i);
+    var pc = pak(/^(zip_?code|postal_?code|postcode)$/i);
+    var plaats = pak(/^(city|woonplaats|plaats|place|town)$/i);
+    if (!straat || !plaats) return "";
+    var eerste = straat + (nr ? " " + nr + (toev ? (/^[a-z0-9]/i.test(toev) ? "-" : "") + toev : "") : "");
+    return [eerste, pc, plaats].filter(Boolean).join(", ");
+  }
+  function addressFromDetails(json) {
+    var gevonden = { link: "", tekst: "", velden: "" };
+    var gezien = 0;
+    (function loop(v, sleutel, diepte) {
+      if (gevonden.link || diepte > 8 || ++gezien > 5e3) return;
+      if (typeof v === "string") {
+        if (/maps\/place\//.test(v)) {
+          var a = addressFromMapsUrl(v);
+          if (a) gevonden.link = a;
+          return;
+        }
+        if (!gevonden.tekst && /address|adres/i.test(sleutel || "") && !/mail|phone|telefoon|ip_?adres|ip_?address/i.test(sleutel || "")) {
+          var s = schoon(v);
+          if (s.length >= 6 && s.length <= 160 && /\d/.test(s) && /[a-z]/i.test(s) && /[\s,]/.test(s)) gevonden.tekst = s;
+        }
+        return;
+      }
+      if (!v || typeof v !== "object") return;
+      if (Array.isArray(v)) {
+        v.forEach(function(x) {
+          loop(x, sleutel, diepte + 1);
+        });
+        return;
+      }
+      if (!gevonden.velden) {
+        var f = adresUitVelden(v);
+        if (f) gevonden.velden = f;
+      }
+      Object.keys(v).forEach(function(k) {
+        if (/(^|_)(name|naam|first|last|initials|bsn)/i.test(k)) return;
+        loop(v[k], /address|adres/i.test(sleutel || "") ? sleutel + "." + k : k, diepte + 1);
+      });
+    })(json, "", 0);
+    return gevonden.link || gevonden.tekst || gevonden.velden || "";
+  }
+  var STOPS_PER_ROUTE = 10;
+  function routeUrls(addresses, origin) {
+    var stops = (addresses || []).map(schoon).filter(Boolean);
+    if (!stops.length) return [];
+    var uit = [], start = schoon(origin);
+    for (var i = 0; i < stops.length; i += STOPS_PER_ROUTE) {
+      var deel = stops.slice(i, i + STOPS_PER_ROUTE);
+      var bestemming = deel[deel.length - 1];
+      var tussen = deel.slice(0, -1);
+      var q = ["api=1"];
+      if (start) q.push("origin=" + encodeURIComponent(start));
+      q.push("destination=" + encodeURIComponent(bestemming));
+      if (tussen.length) q.push("waypoints=" + tussen.map(encodeURIComponent).join("%7C"));
+      q.push("travelmode=driving");
+      uit.push("https://www.google.com/maps/dir/?" + q.join("&"));
+      start = bestemming;
+    }
+    return uit;
+  }
+
+  // src/content/features/agenda/route.js
+  function routeEnabled() {
+    return !(APP_CONFIG.features && APP_CONFIG.features.routeLink === false);
+  }
+  function hm(ms) {
+    var d = new Date(ms);
+    return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+  }
+  function dayRoute(date, origin) {
+    if (!routeEnabled()) return Promise.reject(new Error("De route staat uit (beheer)."));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return Promise.reject(new Error("Kies een dag."));
+    var ids = viewedInviteeIds(resolveInviteeId());
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    var limiet = createLimiter(3);
+    return Promise.all(ids.map(function(id) {
+      return getJson(_apiUrl("weekEvents", { inviteeId: id, date })).then(function(json) {
+        var bezoeken = mapAgendaWeekResponse(json).filter(function(e) {
+          return e && e.date === date && !e.allDay && e.startMs != null && isHomeVisit(e);
+        }).sort(function(a, b) {
+          return a.startMs - b.startMs;
+        });
+        return Promise.all(bezoeken.map(function(e) {
+          var url = e.detailsUrl || (e.occurrenceId ? _apiUrl("eventDetails", { inviteeId: id, occurrenceId: e.occurrenceId }) : null);
+          if (!url) return Promise.resolve({ start: hm(e.startMs), address: "" });
+          return limiet(function() {
+            return getJson(url);
+          }).then(
+            function(d) {
+              return { start: hm(e.startMs), address: addressFromDetails(d) };
+            },
+            function() {
+              return { start: hm(e.startMs), address: "" };
+            }
+          );
+        }));
+      }).then(function(stops) {
+        var metAdres = stops.filter(function(s) {
+          return s.address;
+        });
+        return {
+          id,
+          name: ids.length > 1 ? inviteeName(id) : "",
+          stops,
+          missing: stops.length - metAdres.length,
+          urls: routeUrls(metAdres.map(function(s) {
+            return s.address;
+          }), origin)
+        };
+      });
+    })).then(function(persons) {
+      return { date, persons };
+    });
+  }
+
   // src/content/features/agenda/side-panel-bridge.js
   var VERSION = SCRIPT_VERSION;
   function agPanelState() {
@@ -13442,6 +13591,7 @@
       productionDefaultTo: defaultProductionTo(),
       // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
       nonClientMarker: _nonClientMarker(),
+      routeEnabled: routeEnabled(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }
@@ -13541,6 +13691,19 @@
               }
             }
             return;
+          case MSG.AGENDA_DAY_ROUTE:
+            dayRoute(msg.date, msg.origin).then(function(result) {
+              try {
+                sendResponse({ ok: true, result });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Route ophalen mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
           case MSG.AGENDA_SLOT_CHECK:
             checkSlotWithOns(msg).then(function(r) {
               try {

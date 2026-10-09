@@ -55,6 +55,8 @@
     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
+    AGENDA_DAY_ROUTE: "ag-day-route",
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route huisbezoeken
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -239,6 +241,7 @@
   var ICON_RANGE = "M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm5.6 8.2-3.1-3.1 1.4-1.4 1.7 1.7 4.5-4.5 1.4 1.4z";
   var ICON_QUICK = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-13h-2v6l5 3 1-1.7-4-2.4z";
   var ICON_PLAN = "M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6v-2H5V9h14v2h2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm9.5 11a3.5 3.5 0 1 0 1.9 6.4l2.2 2.2 1.4-1.4-2.2-2.2A3.5 3.5 0 0 0 16.5 13zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z";
+  var ICON_ROUTE = "M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z";
   var ICON_RATIO = "M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z";
   function tag(text, tone) {
     var c = tone === "bad" ? [T.bad, T.badWash] : tone === "warn" ? [T.warn, T.warnWash] : tone === "ok" ? [T.ok, T.okWash] : [T.inkSoft, T.lineSoft];
@@ -1037,6 +1040,8 @@
     momenten: [],
     kopie: null,
     balkOpen: false,
+    // Route langs de huisbezoeken van een dag (geen cache van adressen buiten dit paneel).
+    route: { date: "", busy: false, result: null, error: "" },
     inviteeId: null
   };
   function legeResultaten() {
@@ -1047,6 +1052,7 @@
     BEWAARD.momenten = [];
     BEWAARD.kopie = null;
     BEWAARD.balkOpen = false;
+    BEWAARD.route = { date: "", busy: false, result: null, error: "" };
   }
   function isoWeek(ymd) {
     var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
@@ -1127,7 +1133,8 @@
     snel: "Snel registreren",
     info: "Over de Agendahulp",
     vrijblok: "Vrij blok",
-    plan: "Planhulp"
+    plan: "Planhulp",
+    route: "Route huisbezoeken"
   };
   function create(host2, actions) {
     actions = actions || {};
@@ -1747,7 +1754,9 @@
       }
       return planBox;
     }
+    var navRouteAan = null;
     function renderNav() {
+      navRouteAan = !(state && state.routeEnabled === false);
       navBox.innerHTML = "";
       navBox.appendChild(navCard(ICON_RATIO, "Verhouding per uursoort", "Direct, indirect en reistijd per cliëntgebonden uursoort", function() {
         naarPagina("verhouding");
@@ -1761,6 +1770,11 @@
       navBox.appendChild(navCard(ICON_PLAN, "Planhulp", "Vrije tijd vinden voor een afspraak in de komende weken", function() {
         naarPagina("plan");
       }));
+      if (!(state && state.routeEnabled === false)) {
+        navBox.appendChild(navCard(ICON_ROUTE, "Route huisbezoeken", "De huisbezoeken van een dag op volgorde in Google Maps", function() {
+          naarPagina("route");
+        }));
+      }
     }
     var liveHost = null;
     var liveSubs = {}, liveSleutel = "";
@@ -1823,6 +1837,7 @@
         startRangeCheck();
       }
       if (p === "plan" && !plan.result && !plan.busy && !plan.error) startPlan();
+      if (p === "route") startRoute();
     }
     function tekstKnop(icoon, tekst, onClick, disabled) {
       var b = document.createElement("button");
@@ -2327,6 +2342,111 @@
       if (uitslag) box.appendChild(uitslag);
       return box;
     }
+    var VERTREK_KEY = "onsah.routeVertrekpunt";
+    var vertrekGeheugen = null;
+    function leesVertrek() {
+      if (vertrekGeheugen != null) return vertrekGeheugen;
+      try {
+        return localStorage.getItem(VERTREK_KEY) || "";
+      } catch (e) {
+        return "";
+      }
+    }
+    function bewaarVertrek(v) {
+      vertrekGeheugen = v || "";
+      try {
+        if (v) localStorage.setItem(VERTREK_KEY, v);
+        else localStorage.removeItem(VERTREK_KEY);
+      } catch (e) {
+      }
+    }
+    function startRoute() {
+      var rt = BEWAARD.route;
+      if (!rt.date) rt.date = state && (state.viewDate || state.today) || "";
+      if (rt.busy || !actions.onDayRoute || !rt.date) return;
+      rt.busy = true;
+      rt.error = "";
+      if (pagina === "route") renderPagina();
+      var voor = rt.date;
+      actions.onDayRoute(rt.date, leesVertrek(), function(res) {
+        if (BEWAARD.route !== rt || rt.date !== voor) return;
+        rt.busy = false;
+        if (res && res.ok && res.result) rt.result = res.result;
+        else {
+          rt.result = null;
+          rt.error = res && res.error || "Route ophalen mislukt.";
+        }
+        if (pagina === "route") renderPagina();
+      });
+    }
+    function pageRoute() {
+      var box = el("div");
+      var rt = BEWAARD.route;
+      box.appendChild(txt("help", "De huisbezoeken van een dag op volgorde van begintijd. ‘Route openen’ opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.", { margin: "0 0 10px" }));
+      var k = maakKiezers();
+      box.appendChild(fieldLabel("Dag", k.datum(rt.date, function(v) {
+        rt.date = v;
+        rt.result = null;
+        rt.busy = false;
+        startRoute();
+      })));
+      box.appendChild(k.host);
+      var vertrek = inputEl("text", leesVertrek(), function() {
+      });
+      vertrek.placeholder = "Bijv. kantooradres (optioneel)";
+      vertrek.setAttribute("data-vertrekpunt", "");
+      vertrek.addEventListener("change", function() {
+        bewaarVertrek(vertrek.value.trim());
+        rt.result = null;
+        startRoute();
+      });
+      var vLab = fieldLabel("Vertrekpunt", vertrek);
+      vLab.style.marginTop = "10px";
+      box.appendChild(vLab);
+      if (rt.busy) {
+        zorgVoorStijl();
+        var lb = laadBalk();
+        lb.style.marginTop = "12px";
+        box.appendChild(lb);
+      }
+      if (rt.error) box.appendChild(noteBox(rt.error, "bad"));
+      var r = rt.result;
+      if (r && !rt.busy) {
+        (r.persons || []).forEach(function(p, i) {
+          var blok = el("div", { marginTop: "14px", paddingTop: i ? "12px" : "0", borderTop: i ? "1px solid " + T.line : "0" });
+          blok.setAttribute("data-route-persoon", p.id || "");
+          if (p.name) blok.appendChild(txt("section", p.name));
+          if (!p.stops.length) {
+            blok.appendChild(txt("help", "Geen huisbezoeken op " + dayLabel(r.date) + "."));
+            box.appendChild(blok);
+            return;
+          }
+          var lijst = el("div", { display: "flex", flexDirection: "column", gap: "4px", margin: "6px 0 0" });
+          p.stops.forEach(function(st, j) {
+            var rij = el("div", { display: "flex", gap: "10px", alignItems: "baseline", fontSize: "13px", color: T.ink, padding: "6px 0", borderBottom: "1px solid " + T.lineSoft });
+            rij.appendChild(el("span", { flex: "0 0 auto", width: "18px", height: "18px", borderRadius: "9px", background: st.address ? T.brand : T.line, color: "#fff", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", justifyContent: "center" }, String(j + 1)));
+            rij.appendChild(el("span", { flex: "0 0 44px", fontWeight: "600", fontVariantNumeric: "tabular-nums" }, st.start));
+            rij.appendChild(st.address ? el("span", { flex: "1 1 auto" }, st.address) : el("span", { flex: "1 1 auto", color: T.warn }, "Adres onbekend"));
+            lijst.appendChild(rij);
+          });
+          blok.appendChild(lijst);
+          if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " huisbezoek zonder adres staat" : " huisbezoeken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
+          (p.urls || []).forEach(function(u, n) {
+            var label = p.urls.length > 1 ? "Route " + (n + 1) + " van " + p.urls.length + " openen" : "Route openen in Google Maps";
+            var b = n === 0 ? primaryBtn(label, function() {
+              window.open(u, "_blank", "noopener");
+            }) : secondaryBtn(label, function() {
+              window.open(u, "_blank", "noopener");
+            });
+            if (n > 0) b.style.marginTop = "6px";
+            b.setAttribute("data-route-url", u);
+            blok.appendChild(b);
+          });
+          box.appendChild(blok);
+        });
+      }
+      return box;
+    }
     function pageInfo() {
       var box = el("div");
       box.appendChild(txt("help", "Gebruik de Agendahulp voor een duidelijk agenda-overzicht.", { margin: "0 0 12px" }));
@@ -2353,7 +2473,7 @@
       if (pagina === "hoofd") return;
       vulStandaarden();
       paginaBox.appendChild(terugKnop());
-      var inhoud = pagina === "clienttijd" ? pageClientTime() : pagina === "verhouding" ? pageRatio() : pagina === "open" ? pageOpen() : pagina === "snel" ? pageQuick() : pagina === "vrijblok" ? pageSlot() : pagina === "plan" ? pagePlan() : pageInfo();
+      var inhoud = pagina === "clienttijd" ? pageClientTime() : pagina === "verhouding" ? pageRatio() : pagina === "open" ? pageOpen() : pagina === "snel" ? pageQuick() : pagina === "vrijblok" ? pageSlot() : pagina === "plan" ? pagePlan() : pagina === "route" ? pageRoute() : pageInfo();
       paginaBox.appendChild(inhoud);
       renderLive();
     }
@@ -2475,6 +2595,8 @@
           return;
         }
         if (inv) BEWAARD.inviteeId = inv;
+        var routeAan = !(state && state.routeEnabled === false);
+        if (routeAan !== navRouteAan) renderNav();
         render();
         vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : "";
         if (vorigeSig && vergelijkSig !== vorigeSig) planHercontrole();
@@ -2900,6 +3022,9 @@
     },
     onNewEvent: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb);
+    },
+    onDayRoute: function(date, origin, cb) {
+      vraagAanTab({ type: MSG.AGENDA_DAY_ROUTE, date, origin: origin || "" }, cb);
     },
     onSlotCheck: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb);

@@ -768,7 +768,8 @@
     "surveyRequired": true,
     "surveyAudit": true,
     "reportGuidelineLink": true,
-    "doorplannenToggle": true
+    "doorplannenToggle": true,
+    "routeLink": true
   },
   "surveys": [
     {

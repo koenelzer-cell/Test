@@ -53,7 +53,19 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - **API-responses van ONS** worden direct teruggebracht tot neutrale velden
   (tijden, uursoortnaam, afspraaklabel, aantal cliënten). Namen, BSN,
   geboortedatum, adres en vrije titels uit die responses worden niet
-  overgenomen.
+  overgenomen. Uitzonderingen, alleen in het geheugen en alleen op verzoek van
+  de medewerker:
+  - **Route huisbezoeken** (zijpaneel, uit te zetten met `features.routeLink`):
+    leest per huisbezoek van de gekozen dag het adres uit de details van ONS
+    (de Google Maps-link `clients[].address.mapUrl`). Geen naam of andere
+    gegevens. Het adres wordt niet opgeslagen en gaat pas naar Google als de
+    medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
+    met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
+    alleen in de `localStorage` van het zijpaneel op dit apparaat.
+  - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS
+    (met cliëntgegevens zoals ONS ze zelf verstuurt) wordt in het geheugen
+    gehouden om dezelfde afspraak op de gekozen momenten aan te maken, en
+    alleen teruggestuurd naar dezelfde ONS-omgeving.
 - **Opslag:**
   - `sessionStorage` van de ONS-pagina (weg bij het sluiten van het tabblad):
     checklist-status van de vragenlijst, tijdelijke audit-cache, de

@@ -626,6 +626,34 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   assert.equal(document.querySelector('[data-selectie]'), null, 'selectie leeg na gelukte kopieën');
 });
 
+test('zijpaneel: route huisbezoeken - lijst op volgorde, adres onbekend gemeld, route openen', async () => {
+  const geopend = [];
+  const { document, verzonden, dom } = zijpaneelMetTools({
+    'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 1,
+      stops: [{ start: '09:00', address: 'Teststraat 1, Stad' }, { start: '11:00', address: '' }, { start: '13:30', address: 'Laan 5, Stad' }],
+      urls: ['https://www.google.com/maps/dir/?api=1&destination=Laan%205%2C%20Stad&waypoints=Teststraat%201%2C%20Stad&travelmode=driving'] }] } }),
+  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12' });
+  dom.window.open = (u) => { geopend.push(u); };
+  await tick();
+  navKnop(document, 'Route huisbezoeken').click();
+  await tick();
+  assert.deepEqual({ type: verzonden.at(-1).type, date: verzonden.at(-1).date }, { type: 'ag-day-route', date: '2026-10-12' }, 'start meteen voor de bekeken dag');
+  assert.match(document.body.textContent, /09:00Teststraat 1, Stad.*11:00Adres onbekend.*13:30Laan 5, Stad/s);
+  assert.match(document.body.textContent, /1 huisbezoek zonder adres staat niet in de route/);
+  knop(document, 'Route openen in Google Maps').click();
+  assert.match(geopend[0], /^https:\/\/www\.google\.com\/maps\/dir\//);
+  const v = document.querySelector('[data-vertrekpunt]');
+  v.value = 'Kantoor 1, Stad'; v.dispatchEvent(new dom.window.Event('change'));
+  await tick();
+  assert.equal(verzonden.at(-1).origin, 'Kantoor 1, Stad', 'vertrekpunt gaat mee en wordt onthouden');
+});
+
+test('zijpaneel: route huisbezoeken staat uit als beheer hem uitzet', async () => {
+  const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, routeEnabled: false });
+  await tick();
+  assert.equal(navKnop(document, 'Route huisbezoeken'), undefined);
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {

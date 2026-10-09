@@ -150,6 +150,8 @@
     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
+    AGENDA_DAY_ROUTE: "ag-day-route",
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route huisbezoeken
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",

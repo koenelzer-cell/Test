@@ -170,6 +170,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel); 'Naar deze dag'
   naast de datum van een blok opent die dag in de agenda.
+- **Route huisbezoeken**: de huisbezoeken (label of uursoort met
+  'huisbezoek') van een dag op volgorde van begintijd, met het adres uit het
+  detailvenster van ONS. 'Route openen' opent Google Maps met alle stops
+  (10 per route; meer = meerdere aansluitende routes), optioneel vanaf een
+  vertrekpunt dat alleen op dit apparaat wordt bewaard. Adressen gaan pas
+  naar Google als je klikt. Uit te zetten in het beheerscherm (`routeLink`).
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 

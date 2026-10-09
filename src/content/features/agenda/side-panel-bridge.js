@@ -17,6 +17,7 @@ import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, de
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { checkSlotWithOns } from './free-slots.js';
+import { dayRoute, routeEnabled } from './route.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
@@ -80,6 +81,7 @@ function agPanelState() {
     productionDefaultTo: defaultProductionTo(),
     // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
     nonClientMarker: _nonClientMarker(),
+    routeEnabled: routeEnabled(),
     today: agendaYmd(new Date())
   };
 }
@@ -153,6 +155,13 @@ export function listenForSidePanelMessages() {
         case MSG.AGENDA_NEW_EVENT:
           try { sendResponse(openNewEvent(msg)); } catch (e) { try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {} }
           return;
+        case MSG.AGENDA_DAY_ROUTE:
+          dayRoute(msg.date, msg.origin).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Route ophalen mislukt.' }); } catch (e2) {}
+          });
+          return true;
         case MSG.AGENDA_SLOT_CHECK:
           checkSlotWithOns(msg).then(function (r) {
             try { sendResponse({ ok: true, status: r.status, overlap: r.overlap }); } catch (e) {}
