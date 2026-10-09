@@ -2816,7 +2816,7 @@
       }
       if (mk.error && !mk.opties) {
         box.appendChild(noteBox(mk.error, "bad"));
-        if (mk.viaFormulier) box.appendChild(primaryBtn("Via het afspraakformulier", function() {
+        if (mk.viaFormulier) box.appendChild(primaryBtn("ONS Afspraakformulier", function() {
           mk.viaFormulier(mk.items);
         }));
         return box;
@@ -2952,7 +2952,7 @@
         box.appendChild(knop);
         if (mk.error) box.appendChild(noteBox(mk.error, "bad"));
         if (mk.viaFormulier) {
-          var form = secondaryBtn("Liever via het afspraakformulier", function() {
+          var form = secondaryBtn("ONS Afspraakformulier", function() {
             mk.viaFormulier(mk.items);
           });
           form.style.marginTop = "8px";

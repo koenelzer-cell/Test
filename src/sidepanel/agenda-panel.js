@@ -1688,7 +1688,7 @@ export function create(host, actions) {
     if (mk.laden) { zorgVoorStijl(); box.appendChild(laadBalk()); return box; }
     if (mk.error && !mk.opties) {
       box.appendChild(noteBox(mk.error, 'bad'));
-      if (mk.viaFormulier) box.appendChild(primaryBtn('Via het afspraakformulier', function () { mk.viaFormulier(mk.items); }));
+      if (mk.viaFormulier) box.appendChild(primaryBtn('ONS Afspraakformulier', function () { mk.viaFormulier(mk.items); }));
       return box;
     }
     var labels = (mk.opties.labels || []);
@@ -1774,7 +1774,7 @@ export function create(host, actions) {
       box.appendChild(knop);
       if (mk.error) box.appendChild(noteBox(mk.error, 'bad'));
       if (mk.viaFormulier) {
-        var form = secondaryBtn('Liever via het afspraakformulier', function () { mk.viaFormulier(mk.items); });
+        var form = secondaryBtn('ONS Afspraakformulier', function () { mk.viaFormulier(mk.items); });
         form.style.marginTop = '8px';
         box.appendChild(form);
       }

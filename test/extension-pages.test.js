@@ -994,7 +994,7 @@ test('zijpaneel: planhulp één afspraak - cliënt zoeken, postcode voor Huisbez
   await tick();
   // Keuzes niet op te halen (hier geen antwoord): dan via het formulier, met de cliënt erin.
   assert.match(document.body.textContent, /De ONS-pagina reageert niet/);
-  knop(document, 'Via het afspraakformulier').click();
+  knop(document, 'ONS Afspraakformulier').click();
   const nieuw = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
   assert.deepEqual(nieuw.clientIds, ['11142']);
 });
