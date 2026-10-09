@@ -616,14 +616,22 @@
     <h2>Functies aan- en uitzetten <span class="badge actief">gefaseerde uitrol</span></h2>
     <p class="uitleg">Schakel onderdelen centraal uit zonder de overige hulp te verwijderen.</p>
     <div id="featureFlags" class="feature-grid"></div>
-    <h3 style="margin:18px 0 4px">Rijtijden via eigen server (Google Routes)</h3>
-    <p class="uitleg">Met een eigen routes-proxy (map <code>server/routes-proxy</code> in de broncode) toont de planhulp rijtijd en km over de weg, en kan Route van de dag de kortste volgorde berekenen. De Google-sleutel staat alleen op die server, nooit hier of in de extensie. Naar de server (en Google) gaan alleen postcodes. Leeg laten = schatting in rechte lijn via PDOK.</p>
+    <h3 style="margin:18px 0 4px">Google Maps: rijtijden en kaart</h3>
+    <p class="uitleg">Met een <b>Routes-sleutel</b> toont de planhulp rijtijd en km over de weg, en berekent Route van de dag de kortste volgorde. Met een <b>kaartsleutel</b> toont Route van de dag een kaart. Naar Google Routes gaan alleen postcodes. Leeg laten = schatting in rechte lijn via PDOK en geen kaart.</p>
+    <div class="beheer-grid">
+      <label class="beheer-veld"><span>Routes-sleutel (alleen Routes API)</span><input id="routesKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
+    </div>
+    <p class="uitleg"><b>Let op:</b> deze sleutel komt in de extensie en is daar te zien. Beperk hem in Google Cloud tot <b>alleen de Routes API</b> en stel bij Quotas een <b>maximum per dag</b> in (bijv. 1000) plus een budgetmelding. Wil je de sleutel geheim houden, gebruik dan de eigen server hieronder (dan heeft de server voorrang en kan dit veld leeg blijven).</p>
+    <details style="margin:6px 0 10px"><summary>Eigen server (optioneel, <code>server/routes-proxy</code>)</summary>
     <div class="beheer-grid">
       <label class="beheer-veld"><span>Server-URL (https)</span><input id="routesProxyUrl" type="text" placeholder="https://agendahulp-routes-….run.app" oninput="markDirty(event)"></label>
       <label class="beheer-veld"><span>Token (PROXY_TOKEN van de server)</span><input id="routesProxyToken" type="password" autocomplete="off" oninput="markDirty(event)"></label>
+    </div>
+    </details>
+    <div class="beheer-grid">
       <label class="beheer-veld"><span>Kaartsleutel (alleen Maps Embed API)</span><input id="mapsEmbedKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
     </div>
-    <p class="uitleg">De kaartsleutel staat wél in de extensie. Gebruik daarom een <b>aparte</b> sleutel die in Google Cloud is beperkt tot <b>alleen de Maps Embed API</b> (kaarten tonen is daar gratis). Nooit de sleutel van de Routes API hier invullen.</p>
+    <p class="uitleg">De kaartsleutel staat wél in de extensie. Gebruik daarom een <b>aparte</b> sleutel die in Google Cloud is beperkt tot <b>alleen de Maps Embed API</b> (kaarten tonen is daar gratis). Gebruik hier niet de Routes-sleutel.</p>
     <h3 style="margin:18px 0 4px">Kantoren voor de planhulp</h3>
     <p class="uitleg">Een afspraak met een ONS-locatie die begint met <b>BG</b> (Begeleiding) of <b>J&amp;G</b> (Jeugd en Gezin) telt in de planhulp als 'op kantoor'. De locatienaam wordt herkend aan een van de herkenningswoorden (hele woorden, na 'BG'/'J&amp;G'; het langste woord wint). Postcode zonder spatie, bijv. 4822NH.</p>
     <table id="tblOffices"><thead><tr>
@@ -1066,7 +1074,7 @@ const DEFAULTS = {
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
   features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, routeLink:true, preload:true },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
-  routesProxy: { url:'', token:'', embedKey:'' },
+  routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
   offices: [
     {sector:"jg",name:"Breda",postcode:"4822NH",match:["breda","oosterhout","geertruidenberg","altena","west brabant oost","west-brabant oost","west-brabant west","west brabant west"]},
@@ -2606,11 +2614,12 @@ function renderFeatures(value) {
   });
 }
 // ===== Rijtijden-server =====
-function renderRoutesProxy(v) { v = v || {}; $('#routesProxyUrl').value = v.url || ''; $('#routesProxyToken').value = v.token || ''; $('#mapsEmbedKey').value = v.embedKey || ''; }
+function renderRoutesProxy(v) { v = v || {}; $('#routesProxyUrl').value = v.url || ''; $('#routesProxyToken').value = v.token || ''; $('#mapsEmbedKey').value = v.embedKey || ''; $('#routesKey').value = v.routesKey || ''; }
 function readRoutesProxy() {
   const url = $('#routesProxyUrl').value.trim().replace(/\/+$/, ''), token = $('#routesProxyToken').value.trim();
-  const embedKey = $('#mapsEmbedKey').value.trim();
-  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: /^[A-Za-z0-9_-]{20,60}$/.test(embedKey) ? embedKey : '' };
+  const embedKey = $('#mapsEmbedKey').value.trim(), routesKey = $('#routesKey').value.trim();
+  const sleutel = (k) => /^[A-Za-z0-9_-]{20,60}$/.test(k) ? k : '';
+  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: sleutel(embedKey), routesKey: sleutel(routesKey) };
 }
 // ===== Kantoren (planhulp) =====
 function addOffice(o) {

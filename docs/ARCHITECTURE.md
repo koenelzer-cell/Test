@@ -179,6 +179,7 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 | `…layer=reservations` | planhulp: reserveringen per vrij blok tonen ('Reservering'); tellen niet als bezet | `features/agenda/free-slots.js`, `domain/free-slots.js` | — (mislukt de laag, dan zonder) |
 | `/calendar/invitee/{id}/events/{occ}/details` (per afspraak met een cliënt) | route van de dag en planhulp-afstand: adres uit `clients[].address.mapUrl` / `asText` | `features/agenda/route.js`, `domain/route.js` | — (zonder adres: 'Adres onbekend', niet in de route) |
 | `api.pdok.nl/bzk/locatieserver/search/v3_1/free?fq=type:postcode` (vanuit het zijpaneel, optionele toestemming) | planhulp: postcode -> middelpunt voor de afstandsschatting | `sidepanel/geo.js` | geen afstand; blokken gewoon op tijd |
+| `routes.googleapis.com` computeRouteMatrix / computeRoutes (direct vanuit het zijpaneel met `routesKey`, optionele toestemming) | idem, zonder server | `sidepanel/geo.js` | hemelsbrede schatting (PDOK) |
 | eigen routes-proxy `POST /matrix`, `/optimize` (vanuit het zijpaneel, CORS) | planhulp: rijtijd/km over de weg; route: kortste volgorde | `sidepanel/geo.js`, `server/routes-proxy/index.mjs` | hemelsbrede schatting (PDOK) |
 | `google.com/maps/embed/v1/directions` (iframe, na klik) | kaart op Route van de dag | `sidepanel/geo.js` | geen kaart |
 | `POST /calendar/events` | planhulp: kopieën van een net opgeslagen afspraak op de andere gekozen momenten | `features/appointment/duplicate.js`, `domain/event-duplicate.js` | — (mislukte kopieën worden gemeld; zelf aanmaken) |

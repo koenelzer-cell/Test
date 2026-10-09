@@ -1,4 +1,4 @@
-import { detour, detourRoad, embedUrl, heeftPdok, lookupPostcodes, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagPdok } from './geo.js';
+import { detour, detourRoad, embedUrl, lookupPostcodes, mapsUrls, normPostcode, optimizeRoute, roadMatrix, toestemmingAfstand, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
 
@@ -1136,8 +1136,10 @@ export function create(host, actions) {
       }, plan.tot, metAfstand);
     };
     if (!pc) { zoek(false); return; }
-    (gebaar === true ? vraagPdok : heeftPdok)(function (ok) {
-      if (!ok) { zoek(false); plan.geo = 'Afstand niet berekend: geen toestemming voor de PDOK-postcodedienst.'; return; }
+    var direct = !!(state && state.routesProxy && state.routesProxy.key);
+    toestemmingAfstand(gebaar === true, direct, function (t) {
+      plan.routesOk = !direct || t.routes;   // directe sleutel zonder toestemming: alleen PDOK
+      if (!t.pdok && !(direct && t.routes)) { zoek(false); plan.geo = 'Afstand niet berekend: geen toestemming voor de postcodedienst.'; return; }
       zoek(true);
     });
   }
@@ -1154,7 +1156,8 @@ export function create(host, actions) {
     // Over de weg via de eigen server (als ingesteld); anders/aanvullend de
     // hemelsbrede schatting via PDOK.
     var proxy = state && state.routesProxy;
-    var weg = proxy ? roadMatrix(proxy, uniek).catch(function () { plan.geo = 'De rijtijden-server reageert niet; afstand in rechte lijn geschat.'; return null; }) : Promise.resolve(null);
+    if (proxy && proxy.key && plan.routesOk === false) proxy = null;
+    var weg = proxy ? roadMatrix(proxy, uniek).catch(function () { plan.geo = 'Google Routes reageert niet; afstand in rechte lijn geschat.'; return null; }) : Promise.resolve(null);
     var pdok = lookupPostcodes(uniek, haalJson).catch(function () { return null; });
     return Promise.all([weg, pdok]).then(function (r) {
       var pair = r[0], coord = r[1];
@@ -2047,11 +2050,16 @@ export function create(host, actions) {
             } else {
               var kb = secondaryBtn(kort && kort.busy ? 'Kortste volgorde berekenen…' : 'Kortste volgorde berekenen', function () {
                 if (p.kort && p.kort.busy) return;
-                p.kort = { busy: true }; renderPagina();
                 var pcs = metPc.map(function (st) { return normPostcode(st.address.match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/)[0]); });
-                optimizeRoute(state.routesProxy, vertrekPc, pcs).then(function (r) {
-                  p.kort = (r && Array.isArray(r.order) && r.order.length === pcs.length) ? r : { fout: 'Geen kortste volgorde gevonden.' };
-                }, function () { p.kort = { fout: 'De rijtijden-server reageert niet.' }; }).then(function () { if (pagina === 'route') renderPagina(); });
+                var reken = function () {
+                  p.kort = { busy: true }; renderPagina();
+                  optimizeRoute(state.routesProxy, vertrekPc, pcs).then(function (r) {
+                    p.kort = (r && Array.isArray(r.order) && r.order.length === pcs.length) ? r : { fout: 'Geen kortste volgorde gevonden.' };
+                  }, function () { p.kort = { fout: 'Google Routes reageert niet.' }; }).then(function () { if (pagina === 'route') renderPagina(); });
+                };
+                // Directe sleutel: eerst (binnen deze klik) toestemming voor Google Routes.
+                if (state.routesProxy.key) vraagRoutes(function (ok) { if (ok) reken(); else { p.kort = { fout: 'Geen toestemming voor Google Routes.' }; renderPagina(); } });
+                else reken();
               });
               kb.style.marginTop = '8px';
               blok.appendChild(kb);

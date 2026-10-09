@@ -21,10 +21,14 @@ import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'routeLink'];
+// Rijtijden: eigen server (url + token) gaat voor; anders direct met de
+// Routes-sleutel; anders niets (dan PDOK-schatting).
 function routesProxyVoorPaneel() {
   var p = APP_CONFIG.routesProxy || {};
   var url = String(p.url || '').trim().replace(/\/+$/, '');
-  return /^https:\/\/[^/]+/.test(url) && p.token ? { url: url, token: String(p.token) } : null;
+  if (/^https:\/\/[^/]+/.test(url) && p.token) return { url: url, token: String(p.token) };
+  var key = String(p.routesKey || '').trim();
+  return /^[A-Za-z0-9_-]{20,60}$/.test(key) ? { key: key } : null;
 }
 function panelFeatures() {
   var f = APP_CONFIG.features || {}, uit = {};

@@ -94,7 +94,10 @@ export const DEFAULT_APP_CONFIG = {
   // Eigen server voor rijtijden over de weg (Google Routes API; zie
   // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
   // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
-  routesProxy: { url: '', token: '', embedKey: '' },
+  // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
+  // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
+  // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.
+  routesProxy: { url: '', token: '', embedKey: '', routesKey: '' },
   // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
   // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
   // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en

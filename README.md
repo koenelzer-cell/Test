@@ -180,13 +180,15 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   of anders je vertrekpunt. De blokken staan meteen op 'Minst rijden'. Er is geen controle op een label: 'Huisbezoek' is alleen het vinkje voor de nieuwe afspraak. Hemelsbreed × 1,3: een schatting, geen
   rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
   de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
-- **Google Maps (optioneel, beheerscherm -> Functies -> Rijtijden via eigen
-  server)**:
-  - *Rijtijden over de weg*: met de eigen routes-proxy (`server/routes-proxy`,
-    Google Routes API; sleutel alleen op die server) toont de planhulp
-    '≈ 12 min · 9 km rijden' en kan Route van de dag de **kortste volgorde**
-    (rondrit vanaf je vertrekpunt) berekenen. Alleen postcodes gaan naar de
-    server. Zonder server: schatting in rechte lijn via PDOK.
+- **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
+  - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
+    met dagmaximum) toont de planhulp '≈ 12 min · 9 km rijden' en berekent
+    Route van de dag de **kortste volgorde** (rondrit vanaf je vertrekpunt).
+    De extensie roept Google zelf aan (toestemming voor
+    `routes.googleapis.com` bij het eerste gebruik); alleen postcodes.
+    Wie de sleutel geheim wil houden gebruikt de eigen server
+    (`server/routes-proxy`), die dan voorrang heeft. Zonder sleutel:
+    schatting in rechte lijn via PDOK.
   - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
     toont Route van de dag na 'Kaart tonen' de route op een kaart.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per

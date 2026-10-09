@@ -143,34 +143,6 @@
       };
     });
   }
-  function heeftPdok(cb) {
-    try {
-      if (!chrome.permissions || !chrome.permissions.contains) {
-        cb(true);
-        return;
-      }
-      chrome.permissions.contains({ origins: [PDOK_ORIGIN] }, function(ok) {
-        void chrome.runtime.lastError;
-        cb(!!ok);
-      });
-    } catch (e) {
-      cb(false);
-    }
-  }
-  function vraagPdok(cb) {
-    try {
-      if (!chrome.permissions || !chrome.permissions.request) {
-        cb(true);
-        return;
-      }
-      chrome.permissions.request({ origins: [PDOK_ORIGIN] }, function(ok) {
-        void chrome.runtime.lastError;
-        cb(!!ok);
-      });
-    } catch (e) {
-      cb(false);
-    }
-  }
   function postProxy(proxy, pad, body, fetchFn) {
     return (fetchFn || fetch)(proxy.url + pad, {
       method: "POST",
@@ -181,14 +153,47 @@
       return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
     });
   }
+  var ROUTES_ORIGIN = "https://routes.googleapis.com/*";
+  var PC6 = /^[1-9]\d{3}[A-Z]{2}$/;
+  function postGoogle(key, url, mask, body, fetchFn) {
+    return (fetchFn || fetch)(url, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": mask },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    });
+  }
+  function sec(d) {
+    return parseInt(String(d || "0").replace(/s$/, ""), 10) || 0;
+  }
+  function plek(pc) {
+    return { waypoint: { address: pc + ", Nederland" } };
+  }
   function roadMatrix(proxy, pcs, fetchFn) {
     var lijst = pcs.filter(function(p, i) {
-      return p && pcs.indexOf(p) === i;
+      return p && pcs.indexOf(p) === i && PC6.test(p);
     }).slice(0, 25);
     if (!proxy || lijst.length < 2) return Promise.resolve(function() {
       return null;
     });
-    return postProxy(proxy, "/matrix", { pcs: lijst }, fetchFn).then(function(j) {
+    var vraag = proxy.key ? postGoogle(
+      proxy.key,
+      "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
+      "originIndex,destinationIndex,distanceMeters,duration,condition",
+      { origins: lijst.map(plek), destinations: lijst.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
+      fetchFn
+    ).then(function(rijen) {
+      var pairs = {};
+      (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
+        if (e.condition !== "ROUTE_EXISTS" || e.originIndex == null || e.destinationIndex == null) return;
+        var a = lijst[e.originIndex], b = lijst[e.destinationIndex];
+        if (a && b && a !== b) pairs[a + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
+      });
+      return { pairs };
+    }) : postProxy(proxy, "/matrix", { pcs: lijst }, fetchFn);
+    return vraag.then(function(j) {
       var pairs = j && j.pairs || {};
       return function(a, b) {
         return a === b ? { m: 0, s: 0 } : pairs[a + "|" + b] || null;
@@ -220,7 +225,69 @@
     return { m: Math.max(0, extra.m), s: Math.max(0, extra.s) };
   }
   function optimizeRoute(proxy, origin, stops, fetchFn) {
-    return postProxy(proxy, "/optimize", { origin, stops }, fetchFn);
+    if (!proxy.key) return postProxy(proxy, "/optimize", { origin, stops }, fetchFn);
+    if (!PC6.test(origin) || !stops.every(function(s) {
+      return PC6.test(s);
+    })) return Promise.reject(new Error("Alleen postcodes"));
+    var adres = function(pc) {
+      return { address: pc + ", Nederland" };
+    };
+    return postGoogle(
+      proxy.key,
+      "https://routes.googleapis.com/directions/v2:computeRoutes",
+      "routes.optimizedIntermediateWaypointIndex,routes.distanceMeters,routes.duration",
+      { origin: adres(origin), destination: adres(origin), intermediates: stops.map(adres), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE", optimizeWaypointOrder: true },
+      fetchFn
+    ).then(function(j) {
+      var route = j && j.routes && j.routes[0];
+      if (!route) throw new Error("Geen route");
+      return { order: Array.isArray(route.optimizedIntermediateWaypointIndex) ? route.optimizedIntermediateWaypointIndex : stops.map(function(_, i) {
+        return i;
+      }), m: route.distanceMeters || 0, s: sec(route.duration) };
+    });
+  }
+  function toestemmingAfstand(gebaar, metRoutes, cb) {
+    var origins = [PDOK_ORIGIN].concat(metRoutes ? [ROUTES_ORIGIN] : []);
+    try {
+      if (!chrome.permissions || !chrome.permissions.contains) {
+        cb({ pdok: true, routes: true });
+        return;
+      }
+      var kijk = function() {
+        chrome.permissions.contains({ origins: [PDOK_ORIGIN] }, function(a) {
+          void chrome.runtime.lastError;
+          if (!metRoutes) {
+            cb({ pdok: !!a, routes: false });
+            return;
+          }
+          chrome.permissions.contains({ origins: [ROUTES_ORIGIN] }, function(b) {
+            void chrome.runtime.lastError;
+            cb({ pdok: !!a, routes: !!b });
+          });
+        });
+      };
+      if (gebaar) chrome.permissions.request({ origins }, function() {
+        void chrome.runtime.lastError;
+        kijk();
+      });
+      else kijk();
+    } catch (e) {
+      cb({ pdok: false, routes: false });
+    }
+  }
+  function vraagRoutes(cb) {
+    try {
+      if (!chrome.permissions || !chrome.permissions.request) {
+        cb(true);
+        return;
+      }
+      chrome.permissions.request({ origins: [ROUTES_ORIGIN] }, function(ok) {
+        void chrome.runtime.lastError;
+        cb(!!ok);
+      });
+    } catch (e) {
+      cb(false);
+    }
   }
   function mapsUrls(adressen, origin, terug) {
     var stops = (adressen || []).filter(Boolean);
@@ -1659,10 +1726,12 @@
         zoek(false);
         return;
       }
-      (gebaar === true ? vraagPdok : heeftPdok)(function(ok) {
-        if (!ok) {
+      var direct = !!(state && state.routesProxy && state.routesProxy.key);
+      toestemmingAfstand(gebaar === true, direct, function(t) {
+        plan.routesOk = !direct || t.routes;
+        if (!t.pdok && !(direct && t.routes)) {
           zoek(false);
-          plan.geo = "Afstand niet berekend: geen toestemming voor de PDOK-postcodedienst.";
+          plan.geo = "Afstand niet berekend: geen toestemming voor de postcodedienst.";
           return;
         }
         zoek(true);
@@ -1687,8 +1756,9 @@
         return a.indexOf(x) === i;
       });
       var proxy = state && state.routesProxy;
+      if (proxy && proxy.key && plan.routesOk === false) proxy = null;
       var weg = proxy ? roadMatrix(proxy, uniek).catch(function() {
-        plan.geo = "De rijtijden-server reageert niet; afstand in rechte lijn geschat.";
+        plan.geo = "Google Routes reageert niet; afstand in rechte lijn geschat.";
         return null;
       }) : Promise.resolve(null);
       var pdok = lookupPostcodes(uniek, haalJson).catch(function() {
@@ -2804,18 +2874,28 @@
               } else {
                 var kb = secondaryBtn(kort && kort.busy ? "Kortste volgorde berekenen…" : "Kortste volgorde berekenen", function() {
                   if (p.kort && p.kort.busy) return;
-                  p.kort = { busy: true };
-                  renderPagina();
                   var pcs = metPc.map(function(st) {
                     return normPostcode(st.address.match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/)[0]);
                   });
-                  optimizeRoute(state.routesProxy, vertrekPc, pcs).then(function(r2) {
-                    p.kort = r2 && Array.isArray(r2.order) && r2.order.length === pcs.length ? r2 : { fout: "Geen kortste volgorde gevonden." };
-                  }, function() {
-                    p.kort = { fout: "De rijtijden-server reageert niet." };
-                  }).then(function() {
-                    if (pagina === "route") renderPagina();
+                  var reken = function() {
+                    p.kort = { busy: true };
+                    renderPagina();
+                    optimizeRoute(state.routesProxy, vertrekPc, pcs).then(function(r2) {
+                      p.kort = r2 && Array.isArray(r2.order) && r2.order.length === pcs.length ? r2 : { fout: "Geen kortste volgorde gevonden." };
+                    }, function() {
+                      p.kort = { fout: "Google Routes reageert niet." };
+                    }).then(function() {
+                      if (pagina === "route") renderPagina();
+                    });
+                  };
+                  if (state.routesProxy.key) vraagRoutes(function(ok) {
+                    if (ok) reken();
+                    else {
+                      p.kort = { fout: "Geen toestemming voor Google Routes." };
+                      renderPagina();
+                    }
                   });
+                  else reken();
                 });
                 kb.style.marginTop = "8px";
                 blok.appendChild(kb);

@@ -71,7 +71,13 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     postcode het middelpunt op — geen huisnummer, geen naam — en houdt de
     coördinaten alleen in het geheugen. Toegang tot `api.pdok.nl` is een
     optionele toestemming die pas bij het eerste gebruik wordt gevraagd.
-  - **Rijtijden-server** (optioneel, `routesProxy.url`/`token`): het
+  - **Routes-sleutel in de extensie** (optioneel, `routesProxy.routesKey`):
+    het zijpaneel roept de Google Routes API zelf aan met alleen postcodes.
+    Die sleutel staat leesbaar in de extensie: beperk hem tot alleen de
+    Routes API en stel een dagmaximum en budgetmelding in. De optionele
+    toestemming `routes.googleapis.com` wordt pas bij het eerste gebruik
+    gevraagd.
+  - **Rijtijden-server** (optioneel, `routesProxy.url`/`token`, gaat voor): het
     zijpaneel stuurt alleen postcodes naar de eigen routes-proxy
     (`server/routes-proxy`), die ze met de Google Routes API doorrekent. De
     Google-sleutel staat alleen op die server; de proxy accepteert alleen

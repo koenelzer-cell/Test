@@ -775,6 +775,50 @@ test('zijpaneel: planhulp met rijtijden-server - minuten en km over de weg', asy
   assert.match(document.body.textContent, /≈ 5 min · 2 km rijden/);
 });
 
+test('zijpaneel: zonder server - planhulp en kortste volgorde rechtstreeks via Google Routes (alleen postcodes)', async () => {
+  const google = [];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 }],
+      visits: { '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2611EB', soort: 'client' }] } } }),
+    'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
+      stops: [{ start: '09:00', address: 'Teststraat 1, 2611EB, Delft' }, { start: '11:00', address: 'Laan 5, 2613RR, Delft' }], urls: [] }] } }),
+  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12', routesProxy: { key: 'ROUTESSLEUTEL_alleen_routes_1' } });
+  dom.window.fetch = (url, init) => {
+    if (/routes\.googleapis\.com/.test(url)) {
+      google.push({ url, key: init.headers['X-Goog-Api-Key'], body: JSON.parse(init.body) });
+      if (/computeRouteMatrix/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve([
+        { originIndex: 0, destinationIndex: 1, distanceMeters: 1500, duration: '300s', condition: 'ROUTE_EXISTS' },
+        { originIndex: 1, destinationIndex: 0, distanceMeters: 1500, duration: '300s', condition: 'ROUTE_EXISTS' }]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ routes: [{ optimizedIntermediateWaypointIndex: [1, 0], distanceMeters: 24000, duration: '1800s' }] }) });
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: 'POINT(4.3571 52.0116)' }] } }) });
+  };
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const hb = document.querySelector('[data-huisbezoek]');
+  hb.checked = true; hb.dispatchEvent(new dom.window.Event('change'));
+  const pc = document.querySelector('[data-postcode]');
+  pc.value = '2611AB'; pc.dispatchEvent(new dom.window.Event('input'));
+  knop(document, 'Vrije tijd zoeken').click();
+  await tick();
+  assert.match(document.body.textContent, /≈ 5 min · 2 km rijden/);
+  assert.equal(google[0].key, 'ROUTESSLEUTEL_alleen_routes_1');
+  assert.deepEqual(google[0].body.origins.map((o) => o.waypoint.address), ['2611AB, Nederland', '2611EB, Nederland'], 'alleen postcodes');
+  knop(document, 'Terug').click();
+  navKnop(document, 'Route van de dag').click();
+  await tick();
+  const v = document.querySelector('[data-vertrekpunt]');
+  v.value = 'Hoge Mosten 58, 4822 NH Breda'; v.dispatchEvent(new dom.window.Event('change'));
+  await tick();
+  knop(document, 'Kortste volgorde berekenen').click();
+  await tick();
+  const opt = google.at(-1);
+  assert.match(opt.url, /directions\/v2:computeRoutes$/);
+  assert.deepEqual([opt.body.origin.address, ...opt.body.intermediates.map((i) => i.address)], ['4822NH, Nederland', '2611EB, Nederland', '2613RR, Nederland']);
+  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km · 30 min \(11:00 → 09:00\)/);
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {
