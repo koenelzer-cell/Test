@@ -24,9 +24,9 @@ Kan ook als Azure App Service / Container App (Node 20, `npm start`).
 
 ## In de extensie
 
-Beheerscherm -> Functies -> *Rijtijden via eigen server*: vul de URL van deze
-server en het `PROXY_TOKEN` in. Zonder server rekent de planhulp met de
-hemelsbrede schatting (PDOK).
+Beheerscherm -> Functies -> Google Maps -> *Eigen server*: vul de URL van deze
+server en het `PROXY_TOKEN` in. Zonder server gebruikt de extensie de
+Routes-sleutel uit het beheerscherm rechtstreeks.
 
 ## Eindpunten
 

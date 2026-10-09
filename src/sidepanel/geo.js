@@ -1,15 +1,10 @@
-// Afstand voor de planhulp: postcode -> coördinaat via de PDOK Locatieserver
-// (Kadaster, gratis, geen sleutel), en een schatting van het extra rijden.
+// Rijtijden voor de planhulp en Route van de dag: Google Routes API.
 //
-// PRIVACY: naar PDOK gaat ALLEEN een postcode (6 tekens): geen huisnummer,
-// geen naam. Coördinaten blijven in het geheugen van het zijpaneel.
+// PRIVACY: naar Google gaat ALLEEN een postcode (6 tekens): geen huisnummer,
+// geen naam. Uitkomsten blijven in het geheugen van het zijpaneel.
 //
-// De afstand is hemelsbreed × WEG_FACTOR: een schatting om blokken te
-// vergelijken, geen rijtijd.
-
-export const PDOK_ORIGIN = 'https://api.pdok.nl/*';
-const PDOK_URL = 'https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?fq=type:postcode&rows=1&fl=postcode,centroide_ll&q=';
-const WEG_FACTOR = 1.3;
+// Zonder server: rechtstreeks met de Routes-sleutel uit het beheerscherm
+// (proxy = { key }), of via de eigen routes-proxy (proxy = { url, token }).
 
 // '2611 eb' -> '2611EB', anders ''.
 export function normPostcode(v) {
@@ -17,74 +12,8 @@ export function normPostcode(v) {
   return m ? m[1] + m[2].toUpperCase() : '';
 }
 
-// PDOK-antwoord -> { lat, lon } of null.
-export function parsePdok(json) {
-  var doc = json && json.response && Array.isArray(json.response.docs) ? json.response.docs[0] : null;
-  var m = doc && /POINT\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/.exec(String(doc.centroide_ll || ''));
-  return m ? { lon: +m[1], lat: +m[2] } : null;
-}
-
-// Hemelsbreed in km (haversine) × wegfactor.
-export function km(a, b) {
-  if (!a || !b) return null;
-  var r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
-  var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h))) * WEG_FACTOR;
-}
-
-// Hoeveel extra km kost een afspraak op [start, start+duur) op die dag, gezien
-// de afspraken ervoor en erna (cliënt of kantoor)? bezoeken: [{ startMin, endMin, pc }] (gesorteerd).
-// thuis: coördinaat van het vertrekpunt (optioneel; geldt als begin en eind van
-// de dag). coord(pc) -> { lat, lon } | null.
-//   -> { km, voor, na } of null als er niets om mee te vergelijken is.
-export function detour(bezoeken, start, duur, nieuw, coord, thuis) {
-  if (!nieuw) return null;
-  var voor = null, na = null;
-  (bezoeken || []).forEach(function (b) {
-    if (b.endMin <= start) voor = b;
-    else if (!na && b.startMin >= start + duur) na = b;
-  });
-  var p = voor ? coord(voor.pc) : thuis, q = na ? coord(na.pc) : thuis;
-  if (!p && !q) return null;
-  var extra;
-  if (p && q) extra = km(p, nieuw) + km(nieuw, q) - km(p, q);
-  else extra = km(p || q, nieuw);
-  return {
-    km: Math.max(0, extra), voor: voor ? voor.pc : '', na: na ? na.pc : '',
-    // Kantoor ervoor of erna (afspraak op een kantoorlocatie): naam voor de uitleg.
-    voorKantoor: voor && voor.soort === 'kantoor' ? (voor.kantoor || 'kantoor') : '',
-    naKantoor: na && na.soort === 'kantoor' ? (na.kantoor || 'kantoor') : ''
-  };
-}
-
-// Postcodes opzoeken (met geheugen). fetchJson: (url) -> Promise<json>.
-const cache = Object.create(null);
-export function lookupPostcodes(pcs, fetchJson) {
-  var nodig = pcs.filter(function (pc, i) { return pc && !(pc in cache) && pcs.indexOf(pc) === i; });
-  return Promise.all(nodig.map(function (pc) {
-    return fetchJson(PDOK_URL + encodeURIComponent(pc)).then(function (j) { cache[pc] = parsePdok(j); }, function () { cache[pc] = null; });
-  })).then(function () { return function (pc) { return cache[pc] || null; }; });
-}
-export function _clearGeoCache() { Object.keys(cache).forEach(function (k) { delete cache[k]; }); }
-
-// Toestemming voor api.pdok.nl (optioneel in het manifest). Vragen kan alleen
-// tijdens een klik; zonder klik alleen kijken.
-export function heeftPdok(cb) {
-  try {
-    if (!chrome.permissions || !chrome.permissions.contains) { cb(true); return; }
-    chrome.permissions.contains({ origins: [PDOK_ORIGIN] }, function (ok) { void chrome.runtime.lastError; cb(!!ok); });
-  } catch (e) { cb(false); }
-}
-export function vraagPdok(cb) {
-  try {
-    if (!chrome.permissions || !chrome.permissions.request) { cb(true); return; }
-    chrome.permissions.request({ origins: [PDOK_ORIGIN] }, function (ok) { void chrome.runtime.lastError; cb(!!ok); });
-  } catch (e) { cb(false); }
-}
-
-/* ── Rijtijden over de weg via de eigen routes-proxy (server/routes-proxy) ──
-   Alleen postcodes gaan naar de server (en van daar naar Google). Werkt via
-   CORS: de server staat precies deze extensie toe; geen extra toestemming. */
+/* Via de eigen routes-proxy (server/routes-proxy): werkt via CORS; de server
+   staat precies deze extensie toe; geen extra toestemming. */
 
 function postProxy(proxy, pad, body, fetchFn) {
   return (fetchFn || fetch)(proxy.url + pad, {
@@ -108,10 +37,18 @@ function postGoogle(key, url, mask, body, fetchFn) {
 function sec(d) { return parseInt(String(d || '0').replace(/s$/, ''), 10) || 0; }
 function plek(pc) { return { waypoint: { address: pc + ', Nederland' } }; }
 
+// Afstanden die al bekend zijn (dit paneel): een tweede klik kost niets.
+const paarCache = Object.create(null);
+export function _clearRouteCache() { Object.keys(paarCache).forEach(function (k) { delete paarCache[k]; }); }
+
 // pcs (uniek, max. 25) -> pair(a, b) -> { m, s } | null
+// Eén computeRouteMatrix (herkomst x bestemming); Google rekent per element.
+// Staan alle paren al in het geheugen, dan geen aanvraag.
 export function roadMatrix(proxy, pcs, fetchFn) {
   var lijst = pcs.filter(function (p, i) { return p && pcs.indexOf(p) === i && PC6.test(p); }).slice(0, 25);
-  if (!proxy || lijst.length < 2) return Promise.resolve(function () { return null; });
+  var lees = function (a, b) { return a === b ? { m: 0, s: 0 } : (paarCache[a + '|' + b] || null); };
+  var bekend = lijst.every(function (a) { return lijst.every(function (b) { return a === b || paarCache[a + '|' + b]; }); });
+  if (!proxy || lijst.length < 2 || bekend) return Promise.resolve(lees);
   var vraag = proxy.key
     ? postGoogle(proxy.key, 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', 'originIndex,destinationIndex,distanceMeters,duration,condition',
       { origins: lijst.map(plek), destinations: lijst.map(plek), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }, fetchFn)
@@ -127,75 +64,9 @@ export function roadMatrix(proxy, pcs, fetchFn) {
     : postProxy(proxy, '/matrix', { pcs: lijst }, fetchFn);
   return vraag.then(function (j) {
     var pairs = (j && j.pairs) || {};
-    return function (a, b) { return a === b ? { m: 0, s: 0 } : (pairs[a + '|' + b] || null); };
+    Object.keys(pairs).forEach(function (k) { paarCache[k] = pairs[k]; });
+    return lees;
   });
-}
-
-// Welke afstanden zijn echt nodig? Per vrij blok: ervoor -> nieuw, nieuw ->
-// erna en ervoor -> erna. Google rekent per element (herkomst x bestemming), dus
-// geen volledige matrix van alle postcodes. -> [[a, b], …] (uniek, a !== b)
-export const MAX_PAREN = 100;
-export function neededPairs(visits, gaps, duur, pcNieuw, thuisPc) {
-  var uit = [], gezien = Object.create(null);
-  var voeg = function (a, b) { if (a && b && a !== b && !gezien[a + '|' + b]) { gezien[a + '|' + b] = 1; uit.push([a, b]); } };
-  (gaps || []).forEach(function (g) {
-    var voor = null, na = null;
-    ((visits || {})[g.date] || []).forEach(function (b) {
-      if (b.endMin <= g.startMin) voor = b;
-      else if (!na && b.startMin >= g.startMin + duur) na = b;
-    });
-    var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
-    voeg(p, pcNieuw); voeg(pcNieuw, q); voeg(p, q);
-  });
-  return uit.slice(0, MAX_PAREN);
-}
-
-// Alleen de gevraagde paren, gegroepeerd per herkomst (één aanvraag per
-// herkomst; elementen = aantal paren). -> pair(a, b) -> { m, s } | null
-export function roadPairs(proxy, paren, fetchFn) {
-  var geldig = (paren || []).filter(function (x) { return PC6.test(x[0]) && PC6.test(x[1]) && x[0] !== x[1]; }).slice(0, MAX_PAREN);
-  var maak = function (pairs) { return function (a, b) { return a === b ? { m: 0, s: 0 } : (pairs[a + '|' + b] || null); }; };
-  if (!proxy || !geldig.length) return Promise.resolve(maak({}));
-  if (!proxy.key) return postProxy(proxy, '/pairs', { pairs: geldig }, fetchFn).then(function (j) { return maak((j && j.pairs) || {}); });
-  var perHerkomst = {};
-  geldig.forEach(function (x) { (perHerkomst[x[0]] = perHerkomst[x[0]] || []).push(x[1]); });
-  var pairs = {};
-  return Promise.all(Object.keys(perHerkomst).map(function (o) {
-    var ds = perHerkomst[o];
-    return postGoogle(proxy.key, 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', 'originIndex,destinationIndex,distanceMeters,duration,condition',
-      { origins: [plek(o)], destinations: ds.map(plek), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }, fetchFn)
-      .then(function (rijen) {
-        (Array.isArray(rijen) ? rijen : []).forEach(function (e) {
-          if (e.condition !== 'ROUTE_EXISTS' || e.destinationIndex == null) return;
-          var b = ds[e.destinationIndex];
-          if (b) pairs[o + '|' + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
-        });
-      });
-  })).then(function () { return maak(pairs); });
-}
-
-// Zelfde als detour(), maar over de weg: extra meters en seconden.
-export function detourRoad(bezoeken, start, duur, pcNieuw, pair, thuisPc) {
-  if (!pcNieuw) return null;
-  var voor = null, na = null;
-  (bezoeken || []).forEach(function (b) {
-    if (b.endMin <= start) voor = b;
-    else if (!na && b.startMin >= start + duur) na = b;
-  });
-  var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
-  if (!p && !q) return null;
-  var som = function (x, y) { return x && y ? { m: x.m + y.m, s: x.s + y.s } : null; };
-  var extra;
-  if (p && q) {
-    var heen = pair(p, pcNieuw), terug = pair(pcNieuw, q), direct = pair(p, q);
-    var via = som(heen, terug);
-    if (!via || !direct) return null;
-    extra = { m: via.m - direct.m, s: via.s - direct.s };
-  } else {
-    extra = p ? pair(p, pcNieuw) : pair(pcNieuw, q);
-    if (!extra) return null;
-  }
-  return { m: Math.max(0, extra.m), s: Math.max(0, extra.s) };
 }
 
 // Kortste rondrit vanaf het vertrekpunt langs de stops -> { order, m, s }.
@@ -218,23 +89,6 @@ export function heeftRoutes(cb) {
     if (!chrome.permissions || !chrome.permissions.contains) { cb(true); return; }
     chrome.permissions.contains({ origins: [ROUTES_ORIGIN] }, function (ok) { void chrome.runtime.lastError; cb(!!ok); });
   } catch (e) { cb(false); }
-}
-// PDOK en (bij een directe sleutel) Google Routes in één vraag: Chrome staat
-// per klik maar één toestemmingsvraag toe. -> cb({ pdok, routes })
-export function toestemmingAfstand(gebaar, metRoutes, cb) {
-  var origins = [PDOK_ORIGIN].concat(metRoutes ? [ROUTES_ORIGIN] : []);
-  try {
-    if (!chrome.permissions || !chrome.permissions.contains) { cb({ pdok: true, routes: true }); return; }
-    var kijk = function () {
-      chrome.permissions.contains({ origins: [PDOK_ORIGIN] }, function (a) {
-        void chrome.runtime.lastError;
-        if (!metRoutes) { cb({ pdok: !!a, routes: false }); return; }
-        chrome.permissions.contains({ origins: [ROUTES_ORIGIN] }, function (b) { void chrome.runtime.lastError; cb({ pdok: !!a, routes: !!b }); });
-      });
-    };
-    if (gebaar) chrome.permissions.request({ origins: origins }, function () { void chrome.runtime.lastError; kijk(); });
-    else kijk();
-  } catch (e) { cb({ pdok: false, routes: false }); }
 }
 export function vraagRoutes(cb) {
   try {

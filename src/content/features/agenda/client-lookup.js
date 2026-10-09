@@ -4,7 +4,7 @@
 //
 // PRIVACY: namen, cliëntnummer en geboortedatum gaan alleen naar het zijpaneel van deze extensie (zoals ONS
 // ze zelf toont) en worden nergens bewaard. Buiten ONS gaat alleen de
-// postcode (PDOK / Google Routes).
+// postcode (Google Routes).
 
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';

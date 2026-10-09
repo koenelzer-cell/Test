@@ -1,5 +1,5 @@
 import { buren, extraKmVan, planMany } from './multi-plan.js';
-import { embedUrl, km, lookupPostcodes, mapsUrls, normPostcode, optimizeRoute, toestemmingAfstand, vraagRoutes } from './geo.js';
+import { embedUrl, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
 
@@ -769,8 +769,7 @@ var BEWAARD = {
   // Planhulp: vrije tijd zoeken.
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-  // huisbezoek: aangevinkt = postcode invullen en sorteren op minst rijden.
-  plan: { modus: 'een', minutes: 60, weeks: 2, tot: '', huisbezoek: false, pc: '', zoek: '', name: '', clientId: '', pcUitOns: false, treffers: null, sorteer: 'afstand', busy: false, result: null, error: '', geo: '' },
+  plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '' },
   // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
   slot: null,
   // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
@@ -786,7 +785,7 @@ function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { modus: BEWAARD.plan ? BEWAARD.plan.modus : 'een', minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', huisbezoek: false, pc: '', zoek: '', name: '', clientId: '', pcUitOns: false, treffers: null, sorteer: 'afstand', busy: false, result: null, error: '', geo: '' };
+  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', busy: false, result: null, error: '' };
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
@@ -1116,8 +1115,6 @@ export function create(host, actions) {
   }
 
   function hm(min) { return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
-  // gebaar: aangeroepen vanuit een klik (dan mag de toestemming voor PDOK
-  // gevraagd worden; zonder klik kijken we alleen of die er al is).
   function startPlan() {
     if (plan.busy || !actions.onFreeSlots) return;
     plan.busy = true; plan.error = ''; plan.result = null;
@@ -1131,7 +1128,6 @@ export function create(host, actions) {
       if (pagina === 'plan') renderPagina();
     }, plan.tot);
   }
-  function haalJson(url) { return fetch(url, { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }); }
   /* ── Meerdere momenten: één afspraak, daarna kopieën ── */
   // Reserveringen (uit het vrije blok) die [start, start+duur) raken.
   function reserveringenIn(g, start, duur) {
@@ -1345,16 +1341,17 @@ export function create(host, actions) {
        Gedupliceerd: dezelfde cliënt(en) in elke afspraak;
        Los: per afspraak een eigen cliënt.
      Afspraaktype per afspraak; wat je bovenaan kiest, nemen de andere over
-     tot je ze zelf wijzigt. Uursoort per cliënt. Huisbezoek: knop met
-     padicoon voor een efficiëntere indeling (multi-plan.js). */
+     tot je ze zelf wijzigt. Uursoort per cliënt. Geavanceerd: reistijd en een
+     knop met padicoon voor een efficiëntere indeling op rijtijd (Google
+     Routes, multi-plan.js). */
   var ICON_PAD = 'M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.3-.84-2.4-2-2.82z';
   function leegClient() { return { zoek: '', name: '', clientId: '', pc: '', pcUitOns: false, treffers: null }; }
   function kanDirect() { return fAan('plannerDirect') && !!actions.onEventOptions && !!actions.onCreateEvents; }
   function naarMaken(momenten, minutes) {
     var items = momenten.map(function (m) {
-      return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, client: leegClient() };
+      return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
     });
-    BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], huisbezoek: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
+    BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
     naarPagina('maken');
     var mk = BEWAARD.maak;
     actions.onEventOptions([], function (res) {
@@ -1368,7 +1365,7 @@ export function create(host, actions) {
   function labelMet(mk, naam) { return mk.labels.filter(function (l) { return l.name.toLowerCase() === naam.toLowerCase(); })[0]; }
   // Standaard afspraaktype voor wat nog niet zelf gekozen is.
   function standaardType(mk) {
-    var l = labelMet(mk, mk.huisbezoek ? 'Huisbezoek' : 'Face to face');
+    var l = labelMet(mk, 'Face to face');
     mk.items.forEach(function (it) { if (!it.typeAangepast) it.labelId = l ? String(l.id) : ''; });
   }
   function zetType(mk, k, v) {
@@ -1377,7 +1374,7 @@ export function create(host, actions) {
     if (k === 0) mk.items.slice(1).forEach(function (it) { if (!it.typeAangepast) it.labelId = v; });
   }
   function typeNaamVan(mk, id) { var l = mk.labels.filter(function (x) { return String(x.id) === String(id); })[0]; return l ? l.name : ''; }
-  function clientsVan(mk, it) { return (mk.modus === 'dup' ? mk.clients : [it.client]).filter(function (c) { return c.clientId; }); }
+  function clientsVan(mk, it) { return (mk.modus === 'dup' ? mk.clients : it.clients).filter(function (c) { return c.clientId; }); }
   function titelVan(mk, it) {
     if (it.titelAangepast) return it.titel;
     // 'Huisbezoek - Tamara' of bij meer cliënten 'Huisbezoek - Tamara & Bram'.
@@ -1439,6 +1436,19 @@ export function create(host, actions) {
     }
     return blok;
   }
+  // Lijst cliënten (elk met uursoort) met '+ Cliënt'. prefix: voor de
+  // sleutels (dup0, dup1 / los0-0, los0-1).
+  function clientsLijst(mk, lijst, prefix, host) {
+    lijst.forEach(function (c, i) {
+      host.appendChild(clientBlok(mk, c, prefix + i, lijst.length > 1 ? function () { lijst.splice(i, 1); mk.eff = null; renderPagina(); } : null));
+    });
+    if (lijst.length < 6) {
+      var plus = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 13px ' + FONT, padding: '0', textAlign: 'left' }, '+ Cliënt');
+      plus.type = 'button'; plus.setAttribute('data-maak-plus', prefix);
+      plus.addEventListener('click', function () { lijst.push(leegClient()); renderPagina(); });
+      host.appendChild(plus);
+    }
+  }
   function vinkVeld(tekst, aan, attr, onChange) {
     var lab = el('label', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', color: T.ink, cursor: 'pointer', userSelect: 'none' });
     var cb = document.createElement('input');
@@ -1476,24 +1486,14 @@ export function create(host, actions) {
         mk.modus = 'dup';
         var cl = el('div', { display: 'flex', flexDirection: 'column', gap: '8px', padding: '9px 11px', border: '1px solid ' + T.line, borderRadius: '10px', background: '#fff' });
         cl.appendChild(el('div', Object.assign({}, TYPE.label, { color: T.ink }), n > 1 ? 'Cliënt(en) in elke afspraak' : 'Cliënt(en)'));
-        mk.clients.forEach(function (c, i) {
-          cl.appendChild(clientBlok(mk, c, 'dup' + i, mk.clients.length > 1 ? function () { mk.clients.splice(i, 1); mk.eff = null; renderPagina(); } : null));
-        });
-        if (mk.clients.length < 6) {
-          var plus = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 13px ' + FONT, padding: '0', textAlign: 'left' }, '+ Cliënt');
-          plus.type = 'button'; plus.setAttribute('data-maak-plus', '');
-          plus.addEventListener('click', function () { mk.clients.push(leegClient()); renderPagina(); });
-          cl.appendChild(plus);
-        }
+        clientsLijst(mk, mk.clients, 'dup', cl);
         box.appendChild(cl);
       }
-      // Huisbezoek: type Huisbezoek en een voorstel voor minder rijden.
-      if (fAan('plannerDistance')) {
-        var hb = vinkVeld('Huisbezoek', mk.huisbezoek, 'data-maak-huisbezoek', function (aan) { mk.huisbezoek = aan; mk.eff = null; standaardType(mk); renderPagina(); });
-        hb.style.marginTop = '12px';
-        box.appendChild(hb);
-        if (mk.huisbezoek) box.appendChild(effBlok(mk));
-      }
+      // Geavanceerd: reistijd per afspraak en een voorstel voor minder rijden.
+      var adv = vinkVeld('Geavanceerd', mk.geavanceerd, 'data-maak-geavanceerd', function (aan) { mk.geavanceerd = aan; mk.eff = null; renderPagina(); });
+      adv.style.marginTop = '12px';
+      box.appendChild(adv);
+      if (mk.geavanceerd && fAan('plannerDistance')) box.appendChild(effBlok(mk));
     }
     // Per afspraak: (los) cliënt, afspraaktype, titel, reistijd.
     mk.items.forEach(function (it, k) {
@@ -1512,8 +1512,8 @@ export function create(host, actions) {
       if (klaar) { kaart.appendChild(el('div', TYPE.help, titelVan(mk, it))); box.appendChild(kaart); return; }
       if (mk.modus === 'los') {
         var cLab = el('div', Object.assign({}, TYPE.label, { display: 'flex', flexDirection: 'column', gap: '4px' }));
-        cLab.appendChild(document.createTextNode('Cliënt'));
-        cLab.appendChild(clientBlok(mk, it.client, 'los' + k, null));
+        cLab.appendChild(document.createTextNode('Cliënt(en)'));
+        clientsLijst(mk, it.clients, 'los' + k + '-', cLab);
         kaart.appendChild(cLab);
       }
       var typeSel = selectEl(['data-maak-type', String(k)], mk.labels, it.labelId, function (v) { zetType(mk, k, v); renderPagina(); }, 'Geen afspraaktype');
@@ -1521,6 +1521,7 @@ export function create(host, actions) {
       var titel = inputEl('text', titelVan(mk, it), function (v) { it.titel = v; it.titelAangepast = true; });
       titel.setAttribute('data-maak-titel', String(k));
       kaart.appendChild(fieldLabel('Titel', titel));
+      if (!mk.geavanceerd) { box.appendChild(kaart); return; }
       var reisRij = el('div', { display: 'flex', gap: '8px' });
       [['reisHeen', 'Reistijd heen (min)', 'heen'], ['reisTerug', 'Reistijd terug (min)', 'terug']].forEach(function (rv) {
         var inp = inputEl('number', it[rv[0]] ? String(it[rv[0]]) : '', function (v) { var nn = parseInt(v, 10); it[rv[0]] = nn > 0 ? Math.min(nn, 240) : 0; });
@@ -1589,10 +1590,15 @@ export function create(host, actions) {
     actions.onNewEvent(req, function (r) { if (!(r && r.ok)) { mk.error = (r && r.error) || 'Openen mislukt.'; renderPagina(); } });
   }
 
-  /* ── Huisbezoek: efficiënter indelen op reistijd ── */
+  /* ── Geavanceerd: efficiënter indelen op rijtijd (Google Routes) ── */
   function pcVan(mk, it) { var c = clientsVan(mk, it)[0]; return c ? normPostcode(c.pc) : ''; }
+  function routesBron() { return state && state.routesProxy && (state.routesProxy.key || state.routesProxy.url) ? state.routesProxy : null; }
   function effBlok(mk) {
     var box = el('div', { marginTop: '8px' });
+    if (!routesBron()) {
+      box.appendChild(txt('help', 'Efficiënter indelen gebruikt de Google Routes API: vul in het beheerscherm (Functies → Google Maps) een Routes-sleutel in.', { margin: '0', fontSize: '11.5px' }));
+      return box;
+    }
     var ontbreekt = mk.items.filter(function (it) { return !pcVan(mk, it); }).length;
     var e = mk.eff;
     var knop = baseButton('', function () { startEff(mk); }, false, !!(e && e.busy) || ontbreekt > 0);
@@ -1601,7 +1607,7 @@ export function create(host, actions) {
     knop.appendChild(ico);
     knop.appendChild(document.createTextNode(e && e.busy ? 'Bezig met rekenen…' : 'Efficiënter indelen'));
     knop.setAttribute('data-maak-efficient', '');
-    knop.title = 'Kijkt naar je andere afspraken op ' + (mk.items.length > 1 ? 'die dagen' : 'die dag') + ' en stelt een indeling met minder reistijd voor. Alleen postcodes gaan naar PDOK.';
+    knop.title = 'Kijkt naar je andere afspraken op ' + (mk.items.length > 1 ? 'die dagen' : 'die dag') + ' en stelt een indeling met minder rijtijd voor (Google Routes; alleen postcodes).';
     box.appendChild(knop);
     if (ontbreekt) box.appendChild(txt('help', 'Kies eerst ' + (mk.items.length > 1 ? 'bij elke afspraak ' : '') + 'een cliënt met adres (postcode uit ONS).', { margin: '4px 0 0', fontSize: '11.5px' }));
     if (!e) return box;
@@ -1609,8 +1615,9 @@ export function create(host, actions) {
     if (!e.voorstel) return box;
     var v = e.voorstel;
     var anders = v.placed.some(function (p) { var it = mk.items[p.i]; return it.date !== p.date || it.startMin !== p.startMin; });
-    if (anders && v.nieuwKm < v.nuKm - 0.5) {
-      var nb = noteBox('Efficiënter: ≈ ' + Math.round(v.nuKm - v.nieuwKm) + ' km minder rijden (nu ≈ ' + Math.round(v.nuKm) + ' km extra, voorstel ≈ ' + Math.round(v.nieuwKm) + ' km).', 'ok');
+    var kmTekst = function (m) { return m < 1000 ? '< 1 km' : Math.round(m / 1000) + ' km'; };
+    if (anders && v.nieuwMin < v.nuMin - 1) {
+      var nb = noteBox('Efficiënter: ≈ ' + Math.round(v.nuMin - v.nieuwMin) + ' min minder rijden (' + kmTekst(Math.max(0, v.nuM - v.nieuwM)) + '). Nu ≈ ' + Math.round(v.nuMin) + ' min extra, voorstel ≈ ' + Math.round(v.nieuwMin) + ' min.', 'ok');
       nb.setAttribute('data-eff-voorstel', '');
       box.appendChild(nb);
       var lijst = el('div', { display: 'flex', flexDirection: 'column', gap: '2px', margin: '6px 0' });
@@ -1629,14 +1636,15 @@ export function create(host, actions) {
       rij.appendChild(neem); rij.appendChild(laat);
       box.appendChild(rij);
     } else {
-      var ok = noteBox('Je indeling is al efficiënt (≈ ' + Math.round(v.nuKm) + ' km extra rijden). De reistijd is ingevuld.', 'ok');
+      var ok = noteBox('Je indeling is al efficiënt (≈ ' + Math.round(v.nuMin) + ' min extra rijden). De reistijd is ingevuld.', 'ok');
       ok.setAttribute('data-eff-al-goed', '');
       box.appendChild(ok);
     }
     return box;
   }
-  function reisInvullen(mk, reis) { (reis || []).forEach(function (r, i) { if (mk.items[i]) { mk.items[i].reisHeen = r.heen; mk.items[i].reisTerug = r.terug; } }); }
+  function reisInvullen(mk, reis) { (reis || []).forEach(function (r, i) { if (mk.items[i] && r) { mk.items[i].reisHeen = r.heen; mk.items[i].reisTerug = r.terug; } }); }
   function overnemen(mk, placed, reis) {
+    // Reistijd hoort bij de afspraak (index), dus eerst invullen, dan sorteren.
     placed.forEach(function (p) { mk.items[p.i].date = p.date; mk.items[p.i].startMin = p.startMin; });
     reisInvullen(mk, reis);
     mk.items.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
@@ -1645,41 +1653,55 @@ export function create(host, actions) {
     renderPagina();
   }
   function startEff(mk) {
+    var bron = routesBron();
+    if (!bron) return;
     var e = mk.eff = { busy: true };
     renderPagina();
     var klaar = function () { e.busy = false; if (BEWAARD.maak === mk && pagina === 'maken') renderPagina(); };
-    toestemmingAfstand(true, false, function (t) {
-      if (!t.pdok) { e.error = 'Geen toestemming voor de postcodedienst (PDOK).'; klaar(); return; }
+    var reken = function () {
       var kortste = Math.min.apply(null, mk.items.map(function (it) { return it.minutes; }));
       actions.onFreeSlots(kortste, plan.weeks, function (res) {
         if (!(res && res.ok && res.result)) { e.error = (res && res.error) || 'Zoeken mislukt.'; klaar(); return; }
         var dagen = {}, perDag = {};
         mk.items.forEach(function (it) { dagen[it.date] = true; perDag[it.date] = (perDag[it.date] || 0) + 1; });
         var gaps = res.result.gaps.filter(function (g) { return dagen[g.date]; });
-        var visits = res.result.visits || {};
+        var visits = {};
+        Object.keys(res.result.visits || {}).forEach(function (d) { if (dagen[d]) visits[d] = res.result.visits[d]; });
         var thuisPc = normPostcode((String(leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [''])[0]);
         var verzoeken = mk.items.map(function (it) { return { pc: pcVan(mk, it), minutes: it.minutes }; });
         var pcs = verzoeken.map(function (v) { return v.pc; }).concat([thuisPc]);
         Object.keys(visits).forEach(function (d) { visits[d].forEach(function (b) { pcs.push(b.pc); }); });
-        lookupPostcodes(pcs.filter(Boolean), haalJson).then(function (coord) {
-          var afstand = function (a, b) { return a === b ? 0 : km(coord(a), coord(b)); };
+        // Eén matrix voor alle postcodes van die dag(en): echte rijtijd en km.
+        roadMatrix(bron, pcs.filter(Boolean)).then(function (pair) {
+          var minuten = function (a, b) { var x = pair(a, b); return x ? x.s / 60 : null; };
+          var meters = function (a, b) { var x = pair(a, b); return x ? x.m : null; };
+          var ontbreekt = verzoeken.some(function (v) { return verzoeken.some(function (w) { return v.pc !== w.pc && minuten(v.pc, w.pc) == null; }); });
+          if (ontbreekt) { e.error = 'Google Routes gaf niet voor alle adressen een rijtijd.'; klaar(); return; }
           var nu = mk.items.map(function (it, i) { return { i: i, date: it.date, startMin: it.startMin, minutes: it.minutes, pc: verzoeken[i].pc }; });
-          var r = planMany(verzoeken, gaps, visits, { afstand: afstand, thuisPc: thuisPc, maxPerDag: Math.max.apply(null, Object.keys(perDag).map(function (d) { return perDag[d]; })) });
+          var max = Math.max.apply(null, Object.keys(perDag).map(function (d) { return perDag[d]; }));
+          var r = planMany(verzoeken, gaps, visits, { afstand: minuten, reistijd: function (a, b) { var x = minuten(a, b); return x == null ? 0 : Math.ceil(x); }, nieuweDag: 20, thuisPc: thuisPc, maxPerDag: max });
           var reis = function (placed) {
             var br = buren(placed, visits, thuisPc), uit = [];
-            var leg = function (a, b) { var x = a && b && a !== b ? afstand(a, b) : 0; return x > 0 ? Math.ceil(x * 60 / 45 / 5) * 5 : 0; };
+            var leg = function (a, b) { var x = a && b && a !== b ? minuten(a, b) : 0; return x > 0 ? Math.ceil(x / 5) * 5 : 0; };
             placed.forEach(function (p, k) { uit[p.i] = { heen: leg(br[k].voor, p.pc), terug: thuisPc && br[k].na === thuisPc ? leg(p.pc, thuisPc) : 0 }; });
             return uit;
           };
-          var nuKm = extraKmVan(nu, visits, afstand, thuisPc);
-          if (r.unplaced.length) e.voorstel = { placed: nu, nuKm: nuKm, nieuwKm: nuKm, reisNu: reis(nu), reisNieuw: reis(nu) };
-          else e.voorstel = { placed: r.placed, nuKm: nuKm, nieuwKm: r.extraKm, reisNu: reis(nu), reisNieuw: reis(r.placed) };
+          var gekozen = r.unplaced.length ? nu : r.placed;
+          e.voorstel = {
+            placed: gekozen,
+            nuMin: extraKmVan(nu, visits, minuten, thuisPc), nieuwMin: extraKmVan(gekozen, visits, minuten, thuisPc),
+            nuM: extraKmVan(nu, visits, meters, thuisPc), nieuwM: extraKmVan(gekozen, visits, meters, thuisPc),
+            reisNu: reis(nu), reisNieuw: reis(gekozen)
+          };
           // Al efficiënt: dan meteen de reistijd invullen.
-          if (!(e.voorstel.nieuwKm < nuKm - 0.5)) reisInvullen(mk, e.voorstel.reisNu);
+          if (!(e.voorstel.nieuwMin < e.voorstel.nuMin - 1)) reisInvullen(mk, e.voorstel.reisNu);
           klaar();
-        }, function () { e.error = 'De postcodedienst reageert niet.'; klaar(); });
+        }, function () { e.error = 'Google Routes reageert niet.'; klaar(); });
       }, plan.tot, true, true);
-    });
+    };
+    // Directe sleutel: eerst (binnen deze klik) toestemming voor routes.googleapis.com.
+    if (bron.key) vraagRoutes(function (ok) { if (ok) reken(); else { e.error = 'Geen toestemming voor Google Routes.'; klaar(); } });
+    else reken();
   }
 
   // Planhulp (eigen pagina): kies duur en periode, zoek vrije blokken binnen

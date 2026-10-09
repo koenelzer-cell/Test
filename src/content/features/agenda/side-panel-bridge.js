@@ -24,7 +24,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
-// Routes-sleutel; anders niets (dan PDOK-schatting).
+// Routes-sleutel; anders niets (dan geen rijtijden).
 function routesProxyVoorPaneel() {
   var p = APP_CONFIG.routesProxy || {};
   var url = String(p.url || '').trim().replace(/\/+$/, '');

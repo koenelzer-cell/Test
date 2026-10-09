@@ -176,7 +176,7 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   momenten een schakelaar:
   - *Gedupliceerd*: dezelfde cliënt(en) in elke afspraak (met '+ Cliënt'
     meerdere cliënten in één afspraak);
-  - *Los*: per afspraak een eigen cliënt.
+  - *Los*: per afspraak een eigen cliënt (ook daar met '+ Cliënt' meerdere).
   Per cliënt kies je de uursoort (zelfde lijst als het formulier: onlangs
   gebruikt en toegestaan), per afspraak het afspraaktype - wat je bij de
   bovenste kiest, nemen de andere over tot je ze zelf wijzigt - plus titel
@@ -188,17 +188,19 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   van het formulier (`meta`, alleen ja/nee en getallen) neemt de hulp over van
   een afspraak die je zelf opslaat. Schakelaar: 'Planhulp: afspraak meteen in
   ONS maken'.
-- **Huisbezoek** (vinkje bij Afspraak maken): type Huisbezoek, en een knop
-  met padicoon **Efficiënter indelen**. Die kijkt naar je andere afspraken op
-  die dag(en) - afspraken met een cliënt (postcode uit ONS) en op een
-  kantoorlocatie ('BG …'/'J&G …', postcodes in het beheerscherm onder
-  Kantoren) - en je vertrekpunt (Route van de dag), en stelt een indeling met
-  minder rijden voor: langste afspraak eerst op de goedkoopste plek, daarna
-  verplaatsen en ruilen, met tijd voor de rit (≈ 45 km/u), niet meer
+- **Geavanceerd** (vinkje bij Afspraak maken): reistijd heen en terug per
+  afspraak, en een knop met padicoon **Efficiënter indelen**. Die kijkt naar
+  je andere afspraken op die dag(en) - afspraken met een cliënt (postcode uit
+  ONS) en op een kantoorlocatie ('BG …'/'J&G …', postcodes in het
+  beheerscherm onder Kantoren) - en je vertrekpunt (Route van de dag), haalt
+  in één keer de echte rijtijden op bij de **Google Routes API** (één matrix
+  met alleen postcodes; dezelfde postcodes nog eens kost niets) en stelt een
+  indeling met minder rijtijd voor: langste afspraak eerst op de goedkoopste
+  plek, daarna verplaatsen en ruilen, met tijd voor de rit, niet meer
   afspraken per dag dan je zelf koos. 'Voorstel overnemen' zet de nieuwe
   tijden én de reistijd; is je indeling al efficiënt, dan vult hij alleen de
-  reistijd in. Rekent op de PDOK-schatting (hemelsbreed × 1,3); alleen
-  postcodes gaan naar PDOK. Schakelaar: 'Afspraak maken: Huisbezoek'.
+  reistijd in. Nodig: een Routes-sleutel (of de eigen server) in het
+  beheerscherm. Schakelaar: 'Afspraak maken: Geavanceerd'.
 - **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
   - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
     met dagmaximum) berekent Route van de dag de **kortste volgorde**

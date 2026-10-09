@@ -77,16 +77,15 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     cliëntnummer, geboortedatum en postcode (uit het adres in ONS) gaan alleen
     naar het zijpaneel van deze extensie, alleen om de juiste cliënt te
     kiezen, en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
-    Buiten ONS gaan alleen postcodes (PDOK, en met een sleutel Google Routes).
+    Buiten ONS gaan alleen postcodes (Google Routes, met een sleutel).
   - **Efficiënter indelen** (alleen als de medewerker bij Afspraak maken
-    'Huisbezoek' aanvinkt en op de knop klikt): van de afspraken met een cliënt op de
+    'Geavanceerd' aanvinkt en op de knop klikt): van de afspraken met een cliënt op de
     gekozen dagen geeft de agendapagina alleen de postcode (6 tekens)
     door aan het zijpaneel; van afspraken op een kantoorlocatie de postcode
     van dat kantoor (uit de configuratie). Het
-    zijpaneel vraagt bij de PDOK Locatieserver (Kadaster, `api.pdok.nl`) per
-    postcode het middelpunt op — geen huisnummer, geen naam — en houdt de
-    coördinaten alleen in het geheugen. Toegang tot `api.pdok.nl` is een
-    optionele toestemming die pas bij het eerste gebruik wordt gevraagd.
+    zijpaneel vraagt met die postcodes — geen huisnummer, geen naam — in één
+    matrix de rijtijden op bij de Google Routes API en houdt ze alleen in het
+    geheugen.
   - **Routes-sleutel in de extensie** (optioneel, `routesProxy.routesKey`):
     het zijpaneel roept de Google Routes API zelf aan met alleen postcodes.
     Die sleutel staat leesbaar in de extensie: beperk hem tot alleen de

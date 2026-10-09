@@ -543,7 +543,7 @@
     features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
-    // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
+    // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
     // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
     // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
     // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
@@ -11192,7 +11192,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.240";
+      return "1.6.241";
     }
   }();
 

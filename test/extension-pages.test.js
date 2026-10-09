@@ -842,9 +842,10 @@ test('randlipje: verdwijnt als het zijpaneel open is en komt terug met animatie'
 });
 
 // Twee momenten kiezen in de planhulp (ma 12 en di 13 okt, 10:00) en naar 'Afspraak maken'.
-const PDOK_PC = { '2611EB': 'POINT(4.3571 52.0116)', '2613RR': 'POINT(4.3650 52.0050)', '5015TA': 'POINT(5.0700 51.5600)', '5017AB': 'POINT(5.0750 51.5620)' };
+// Ligging (lon, lat) voor de nep-rijtijden van Google Routes: rijtijd ~ afstand.
+const LIGGING = { '2611EB': [4.3571, 52.0116], '2613RR': [4.3650, 52.0050], '5015TA': [5.0700, 51.5600], '5017AB': [5.0750, 51.5620] };
 const CLIENTEN = { Tamara: { id: '11142', name: 'Tamara Test', pc: '2611EB', number: '106839', birth: '01-01-1990' }, Bram: { id: '222', name: 'Bram Proef', pc: '5015TA', number: '2', birth: '02-02-2002' } };
-function maakPaneel(extra = {}) {
+function maakPaneel(extra = {}, state = { ...AGENDA_STATE_TOOLS, routesProxy: { key: 'ROUTESSLEUTEL_1' } }) {
   const r = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
       { date: '2026-10-12', startMin: 540, endMin: 1020, minutes: 480 }, { date: '2026-10-13', startMin: 540, endMin: 1020, minutes: 480 },
@@ -855,10 +856,20 @@ function maakPaneel(extra = {}) {
     'ag-create-events': (msg, cb) => cb({ ok: true, results: msg.events.map(() => ({ ok: true })) }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
     ...extra,
-  });
-  r.dom.window.fetch = (url) => {
-    const pc = decodeURIComponent(String(url).split('&q=')[1] || '');
-    return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: PDOK_PC[pc] ? [{ centroide_ll: PDOK_PC[pc] }] : [] } }) });
+  }, state);
+  r.google = [];
+  r.dom.window.fetch = (url, init) => {
+    if (!/routes\.googleapis\.com\/distanceMatrix/.test(url)) return Promise.reject(new Error('onverwacht: ' + url));
+    const body = JSON.parse(init.body);
+    r.google.push({ key: init.headers['X-Goog-Api-Key'], body });
+    const pcs = body.origins.map((o) => o.waypoint.address.slice(0, 6));
+    const rijen = [];
+    pcs.forEach((a, i) => pcs.forEach((b, j) => {
+      const [x1, y1] = LIGGING[a], [x2, y2] = LIGGING[b];
+      const km = Math.hypot((x2 - x1) * 68, (y2 - y1) * 111) * 1.3;
+      rijen.push({ originIndex: i, destinationIndex: j, distanceMeters: Math.round(km * 1000), duration: Math.round(km * 60) + 's', condition: 'ROUTE_EXISTS' });
+    }));
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(rijen) });
   };
   return r;
 }
@@ -920,15 +931,17 @@ test('zijpaneel: afspraak maken gedupliceerd - meerdere cliënten in elke afspra
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
 });
 
-test('zijpaneel: afspraak maken los + huisbezoek - efficiënter indelen op reistijd, overnemen, reistijd ingevuld; ONS Afspraakformulier per cliënt', async () => {
-  const { document, dom, verzonden } = maakPaneel();
+test('zijpaneel: afspraak maken los + geavanceerd - efficiënter indelen op rijtijd (Google Routes), overnemen, reistijd ingevuld; ONS Afspraakformulier per cliënt', async () => {
+  const { document, dom, verzonden, google } = maakPaneel();
   await tweeMomenten(document);
   document.querySelector('[data-maak-modus="los"]').click();
-  await kiesClient(document, dom, 'los0', 'Tamara');   // ma 12 okt, maar die dag zit je in Tilburg
-  await kiesClient(document, dom, 'los1', 'Bram');     // di 13 okt, die dag zit je in Delft
-  const hb = document.querySelector('[data-maak-huisbezoek]');
-  hb.checked = true; hb.dispatchEvent(new dom.window.Event('change'));
-  assert.equal(document.querySelector('[data-maak-type="0"]').value, '46', 'huisbezoek -> type Huisbezoek');
+  await kiesClient(document, dom, 'los0-0', 'Tamara');   // ma 12 okt, maar die dag zit je in Tilburg
+  await kiesClient(document, dom, 'los1-0', 'Bram');     // di 13 okt, die dag zit je in Delft
+  assert.equal(document.querySelector('[data-maak-heen="0"]'), null, 'reistijd pas bij Geavanceerd');
+  const adv = document.querySelector('[data-maak-geavanceerd]');
+  assert.equal(adv.parentElement.textContent, 'Geavanceerd');
+  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  kies(document, dom, '[data-maak-type="0"]', '46');
   const knopEff = document.querySelector('[data-maak-efficient]');
   assert.match(knopEff.textContent, /Efficiënter indelen/);
   assert.ok(knopEff.querySelector('svg'), 'met padicoon');
@@ -936,19 +949,25 @@ test('zijpaneel: afspraak maken los + huisbezoek - efficiënter indelen op reist
   await tick(); await tick(); await tick();
   const vs = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
   assert.equal(vs.visits, true); assert.equal(vs.many, true);
-  assert.match(document.querySelector('[data-eff-voorstel]').textContent, /Efficiënter: ≈ \d+ km minder rijden/);
+  assert.equal(google.length, 1, 'één matrix bij Google Routes');
+  assert.equal(google[0].key, 'ROUTESSLEUTEL_1');
+  assert.deepEqual(google[0].body.origins.map((o) => o.waypoint.address).sort(), ['2611EB, Nederland', '2613RR, Nederland', '5015TA, Nederland', '5017AB, Nederland'], 'alleen postcodes');
+  assert.match(document.querySelector('[data-eff-voorstel]').textContent, /Efficiënter: ≈ \d+ min minder rijden \(\d+ km\)/);
   assert.match(document.body.textContent, /Tamara Test: ma 12 okt 10:00 → di 13 okt/);
   document.querySelector('[data-eff-overnemen]').click();
   // Nu: ma 12 okt Bram (bij Tilburg), di 13 okt Tamara (bij Delft).
-  assert.equal(document.querySelector('[data-maak-zoek="los0"]').value, 'Bram Proef');
-  assert.equal(document.querySelector('[data-maak-zoek="los1"]').value, 'Tamara Test');
+  assert.equal(document.querySelector('[data-maak-zoek="los0-0"]').value, 'Bram Proef');
+  assert.equal(document.querySelector('[data-maak-zoek="los1-0"]').value, 'Tamara Test');
   assert.ok(+document.querySelector('[data-maak-heen="0"]').value > 0, 'reistijd heen ingevuld');
-  // Toch via ONS: elk een eigen formulier met de eigen cliënt.
+  // Los: ook meerdere cliënten in één afspraak (Bram erbij bij Tamara).
+  document.querySelector('[data-maak-plus="los1-"]').click();
+  await kiesClient(document, dom, 'los1-1', 'Bram');
+  // Toch via ONS: elk een eigen formulier met de eigen cliënt(en).
   knop(document, 'ONS Afspraakformulier').click();
   const form = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
   assert.equal(form.multi, true);
   assert.deepEqual(form.clientIds, ['222']);
-  assert.deepEqual(form.eigen.map((e) => e.clientIds), [['11142']]);
+  assert.deepEqual(form.eigen.map((e) => e.clientIds), [['11142', '222']]);
   // Of meteen in ONS.
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
@@ -957,8 +976,19 @@ test('zijpaneel: afspraak maken los + huisbezoek - efficiënter indelen op reist
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
   assert.deepEqual(ev.map((e) => [e.date, e.clients, e.labelId, e.name]), [
     [ev[0].date, [{ id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Bram'],
-    [ev[1].date, [{ id: '11142', hourTypeId: 1135 }], 46, 'Huisbezoek - Tamara'],
+    [ev[1].date, [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Tamara & Bram'],
   ]);
   assert.deepEqual([ev[0].date, ev[1].date], ['2026-10-12', '2026-10-13']);
   assert.ok(ev[0].travelBefore > 0);
+});
+
+test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de knop, geen aanvragen', async () => {
+  const { document, dom, google } = maakPaneel({}, AGENDA_STATE_TOOLS);
+  await tweeMomenten(document);
+  const adv = document.querySelector('[data-maak-geavanceerd]');
+  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelector('[data-maak-efficient]'), null);
+  assert.match(document.body.textContent, /vul in het beheerscherm \(Functies → Google Maps\) een Routes-sleutel in/);
+  assert.ok(document.querySelector('[data-maak-heen="0"]'), 'reistijd wel zelf in te vullen');
+  assert.equal(google.length, 0);
 });

@@ -617,7 +617,7 @@
     <p class="uitleg">Schakel onderdelen centraal uit zonder de overige hulp te verwijderen.</p>
     <div id="featureFlags" class="feature-grid"></div>
     <h3 style="margin:18px 0 4px">Google Maps: rijtijden en kaart</h3>
-    <p class="uitleg">Met een <b>Routes-sleutel</b> toont de planhulp rijtijd en km over de weg, en berekent Route van de dag de kortste volgorde. Met een <b>kaartsleutel</b> toont Route van de dag een kaart. Naar Google Routes gaan alleen postcodes. Leeg laten = schatting in rechte lijn via PDOK en geen kaart.</p>
+    <p class="uitleg">Met een <b>Routes-sleutel</b> kan Afspraak maken (Geavanceerd) de afspraken <b>efficiënter indelen op rijtijd</b> en vult de reistijd in, en berekent Route van de dag de kortste volgorde. Met een <b>kaartsleutel</b> toont Route van de dag een kaart. Naar Google Routes gaan alleen postcodes. Leeg laten = geen rijtijden en geen kaart.</p>
     <div class="beheer-grid">
       <label class="beheer-veld"><span>Routes-sleutel (alleen Routes API)</span><input id="routesKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
     </div>
@@ -1177,7 +1177,7 @@ const FEATURE_META = {
   quickRegister:'Zijpaneel: Snel registreren',
   planner:'Zijpaneel: Planhulp',
   plannerCopies:'Planhulp: afspraak op meerdere momenten (kopieën)',
-  plannerDistance:'Afspraak maken: Huisbezoek + efficiënter indelen op reistijd (PDOK-postcodes)',
+  plannerDistance:'Afspraak maken: Geavanceerd - efficiënter indelen op rijtijd (Google Routes)',
   plannerDirect:'Planhulp: afspraak meteen in ONS maken (cliënt(en), afspraaktype, uursoort per cliënt; gedupliceerd of los)',
   routeLink:'Zijpaneel: Route van de dag (Google Maps)',
   preload:'Zijpaneel: gegevens vooraf laden'

@@ -1,23 +1,22 @@
-// Planhulp: meerdere afspraken (huisbezoeken) tegelijk efficiënt plannen.
+// Planhulp: afspraken (huisbezoeken) efficiënt indelen op reistijd.
 //
-// Zonder server en zonder Google-kosten: de hulp rekent zelf, op de
-// hemelsbrede afstand tussen postcodes (PDOK, zie geo.js). Pas voor het
-// gekozen voorstel vraagt het zijpaneel (met een Routes-sleutel) de echte
-// rijtijden op, en alleen voor de ritten in dat voorstel.
+// De kosten zijn rijminuten over de weg (Google Routes, zie geo.js:
+// roadMatrix); de hulp rekent zelf, zonder server.
 //
 // Werkwijze:
-//  1. Elke afspraak gaat naar de goedkoopste plek (minst extra km) in de vrije
-//     tijd, langste afspraak eerst. Een plek kan alleen als de rit van de
+//  1. Elke afspraak gaat naar de goedkoopste plek (minst extra rijden) in de
+//     vrije tijd, langste afspraak eerst. Een plek kan alleen als de rit van de
 //     afspraak ervoor en naar de afspraak erna in de tussentijd past.
 //  2. Daarna verbeteren: elke afspraak opnieuw de beste plek laten zoeken, en
 //     twee afspraken van plek laten ruilen, zolang het totaal korter wordt.
 //
 // PRIVACY: alleen postcodes en tijden; geen namen of adressen.
 
-// Wat het kost om een nieuwe dag te beginnen zonder vertrekpunt (km): zo
-// worden afspraken liever gebundeld dan elk op een eigen dag gezet.
+// Wat het kost om een nieuwe dag te beginnen zonder vertrekpunt (in de
+// eenheid van afstand(), standaard 15): zo worden afspraken liever gebundeld
+// dan elk op een eigen dag gezet. opts.nieuweDag past dat aan.
 export const NIEUWE_DAG_KM = 15;
-// Gemiddelde snelheid voor de rit tussen afspraken (km/u, schatting).
+// Zonder opts.reistijd: rit in minuten uit km bij deze snelheid.
 export const KM_PER_UUR = 45;
 export const MAX_AFSPRAKEN = 10;
 
@@ -52,13 +51,16 @@ export function kandidaten(gaps, duur, stap) {
 
 // verzoeken: [{ pc, minutes }]; gaps: vrije blokken [{ date, startMin, endMin }]
 // (met de kortste duur gezocht); visits: { date: [{ startMin, endMin, pc }] }
-// (vaste afspraken met postcode). opts: { afstand(a, b) -> km | null,
+// (vaste afspraken met postcode). opts: { afstand(a, b) -> kosten (km of
+// minuten) | null, reistijd(a, b) -> minuten (optioneel), nieuweDag,
 // thuisPc, maxPerDag (0 = geen max), stap }.
 //   -> { placed: [{ i, date, startMin, minutes, pc }], unplaced: [i], extraKm }
 export function planMany(verzoeken, gaps, visits, opts) {
   opts = opts || {};
   var afstand = opts.afstand || function () { return null; };
   var thuis = opts.thuisPc || '';
+  var reis = opts.reistijd || function (a, b) { return reisMin(afstand(a, b)); };
+  var nieuweDag = opts.nieuweDag != null ? opts.nieuweDag : NIEUWE_DAG_KM;
   var maxPerDag = opts.maxPerDag > 0 ? opts.maxPerDag : Infinity;
   var stap = opts.stap || 15;
   visits = visits || {};
@@ -95,17 +97,17 @@ export function planMany(verzoeken, gaps, visits, opts) {
         continue;
       }
       if (!(a.nieuw || b.nieuw) || !a.pc || !b.pc) continue;
-      if (b.startMin - a.endMin < reisMin(afstand(a.pc, b.pc))) return false;
+      if (b.startMin - a.endMin < (reis(a.pc, b.pc) || 0)) return false;
     }
     return true;
   }
-  // Extra km als verzoek i op 'date' komt (los van de tijd: volgorde telt).
+  // Extra kosten als verzoek i op 'date' komt (los van de tijd: volgorde telt).
   function kosten(i, date, t, andere) {
     var basis = vast(date).concat(andere);
     var met = basis.concat([{ startMin: t, endMin: t + verzoeken[i].minutes, pc: verzoeken[i].pc }]);
     var extra = dagKm(met, afstand, thuis) - dagKm(basis, afstand, thuis);
     var leeg = !basis.some(function (s) { return s.pc; });
-    if (leeg && !thuis) extra += NIEUWE_DAG_KM;
+    if (leeg && !thuis) extra += nieuweDag;
     // Bij gelijke kosten: eerder is beter.
     return extra + (dagIndex[date] || 0) * 0.01 + t * 0.00001;
   }
@@ -128,7 +130,7 @@ export function planMany(verzoeken, gaps, visits, opts) {
       var nieuw = nieuwOp(d, -1);
       var met = vast(d).concat(nieuw);
       som += dagKm(met, afstand, thuis) - dagKm(vast(d), afstand, thuis);
-      if (!thuis && !vast(d).some(function (s) { return s.pc; })) som += NIEUWE_DAG_KM;
+      if (!thuis && !vast(d).some(function (s) { return s.pc; })) som += nieuweDag;
       som += (dagIndex[d] || 0) * 0.01;
       nieuw.forEach(function (n) { som += n.startMin * 0.00001; });
     });

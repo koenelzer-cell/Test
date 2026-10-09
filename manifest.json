@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "ONS Agendahulp",
-  "version": "1.6.240",
+  "version": "1.6.241",
   "description": "Afspraak-/registratiehulp en gekleurde dagindeling voor ONS Agenda.",
   "permissions": ["storage", "alarms", "notifications", "contextMenus", "sidePanel"],
-  "optional_host_permissions": ["https://api.pdok.nl/*", "https://routes.googleapis.com/*"],
+  "optional_host_permissions": ["https://routes.googleapis.com/*"],
   "storage": {
     "managed_schema": "managed_schema.json"
   },
