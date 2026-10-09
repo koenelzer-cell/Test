@@ -538,12 +538,14 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
   assert.match(document.body.textContent, /1 u · komende 2 weken/, 'instellingen in één regel');
-  assert.equal(knop(document, '4 weken'), undefined, 'ingeklapt');
-  document.querySelector('[data-plan-wijzig]').click();
+  assert.ok(knop(document, '4 weken'), 'standaard uitgeklapt');
+  assert.equal(document.querySelector('[data-plan-wijzig]').textContent, 'Inklappen');
   knop(document, '4 weken').click();
   await tick();
   assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
   document.querySelector('[data-plan-wijzig]').click();
+  assert.equal(knop(document, '4 weken'), undefined, 'ingeklapt');
+  assert.equal(document.querySelector('[data-plan-wijzig]').textContent, 'Wijzigen');
   assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
   const starts = [...document.querySelectorAll('[data-dag="2026-10-08"][data-start]')].map((b) => b.getAttribute('data-start'));
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past, zonder tussenpagina');
@@ -568,6 +570,9 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.match(document.querySelector('[data-week-titel]').textContent, /^week 41 · 5 – 9 okt$/);
   assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), 'gekozen moment roze in het raster');
   assert.ok(document.querySelector('[data-raster-vrij="10:30-12:00"]'));
+  const dag = document.querySelector('[data-raster-dag="2026-10-08"]');
+  assert.equal([...dag.children].filter((c) => c.style.height === '1px').length, 8, 'een streepje op elk uur (9 t/m 16)');
+  assert.match(document.querySelector('[data-raster-dag="2026-10-05"]').textContent, /Bezet/, 'dag zonder vrije tijd: Bezet');
   document.querySelector('[data-raster] [data-dag="2026-10-08"][data-start="10:30"]').click();
   assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 10:30"]'), 'overlappend moment vervangen');
   assert.equal(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), null);
@@ -895,7 +900,10 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   await kiesClient(document, dom, 'dup0', 'Tamara');
   assert.match(document.querySelector('[data-maak-client="dup0"]').textContent, /TTTamara Testnr\. 106839 · 2611 EB/, 'compacte regel met initialen, nummer en postcode');
   assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst uursoort kiezen');
+  assert.ok(document.querySelector('[data-uursoort-ontbreekt="11142"]'), 'uitroepteken achter de uursoort');
+  assert.equal(document.querySelector('[data-maak-uursoort="11142"]').style.background, 'rgb(255, 255, 255)', 'niet oranje');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
+  assert.equal(document.querySelector('[data-uursoort-ontbreekt="11142"]'), null, 'gekozen: geen uitroepteken');
   document.querySelector('[data-maak-plus]').click();
   await kiesClient(document, dom, 'dup1', 'Bram');
   kies(document, dom, '[data-maak-uursoort="222"]', '5');

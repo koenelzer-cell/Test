@@ -2255,7 +2255,7 @@
       var nm = el("span", { flex: "1 1 auto", minWidth: "0" });
       nm.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px", color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, c.name));
       var sub = [c.number ? "nr. " + c.number : "", c.pc ? normPostcode(c.pc).replace(/^(\d{4})/, "$1 ") : ""].filter(Boolean).join(" · ");
-      if (sub) nm.appendChild(el("span", { display: "block", fontSize: "11px", color: T.inkSoft }, sub));
+      if (sub) nm.appendChild(el("span", { display: "block", fontSize: "11px", color: T.inkSoft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, sub));
       rij.appendChild(nm);
       var types = mk.hourTypes[c.clientId];
       if (types === "laden" || types == null) rij.appendChild(el("span", { fontSize: "11.5px", color: T.inkSoft }, "uursoorten…"));
@@ -2273,8 +2273,11 @@
         }, "Uursoort");
         sel.setAttribute("aria-label", "Uursoort " + c.name);
         Object.assign(sel.style, { width: "128px", flex: "0 0 128px", height: "30px", fontSize: "12px" });
-        if (!mk.uursoort[c.clientId]) Object.assign(sel.style, { color: T.warn, borderColor: "#f0d6a8", background: "#fdf3e2" });
         rij.appendChild(sel);
+        var uitroep = el("span", { flex: "0 0 auto", width: "10px", color: T.bad, fontWeight: "800", fontSize: "15px", textAlign: "center", visibility: mk.uursoort[c.clientId] ? "hidden" : "visible" }, "!");
+        uitroep.title = "Kies een uursoort";
+        uitroep.setAttribute("data-uursoort-ontbreekt", mk.uursoort[c.clientId] ? "" : c.clientId);
+        rij.appendChild(uitroep);
       }
       rij.appendChild(wegKnop(function() {
         if (weg) weg();
@@ -2861,16 +2864,16 @@
       planBox.appendChild(seg);
       var samen = el("div", { display: "flex", alignItems: "center", gap: "8px", border: "1px solid " + T.line, borderRadius: "10px", padding: "8px 10px", background: T.lineSoft });
       samen.appendChild(el("span", { flex: "1 1 auto", fontWeight: "700", fontSize: "13px", color: T.ink }, fmtMin(plan.minutes) + " · " + periodeTekst()));
-      var wijzig = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12.5px " + FONT, padding: "0" }, plan.instOpen ? "Klaar" : "Wijzigen");
+      var wijzig = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12.5px " + FONT, padding: "0" }, plan.instOpen !== false ? "Inklappen" : "Wijzigen");
       wijzig.type = "button";
       wijzig.setAttribute("data-plan-wijzig", "");
       wijzig.addEventListener("click", function() {
-        plan.instOpen = !plan.instOpen;
+        plan.instOpen = plan.instOpen === false;
         renderPagina();
       });
       samen.appendChild(wijzig);
       planBox.appendChild(samen);
-      if (plan.instOpen) {
+      if (plan.instOpen !== false) {
         var inst = el("div", { padding: "4px 2px 6px" });
         var opnieuw = function() {
           plan.result = null;
@@ -3096,7 +3099,7 @@
         raster.appendChild(el("div", { textAlign: "center", color: T.inkSoft, fontWeight: "600" }, n + " " + dag.getDate()));
       });
       var uren = el("div", { position: "relative", height: hoog + "px" });
-      for (var u = ws; u < we; u += 60) uren.appendChild(el("span", { position: "absolute", top: (u - ws) * PX - 1 + "px", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, String(u / 60)));
+      for (var u = ws; u < we; u += 60) uren.appendChild(el("span", { position: "absolute", top: Math.max(0, (u - ws) * PX - 7) + "px", color: T.inkSoft, fontVariantNumeric: "tabular-nums", lineHeight: "14px" }, String(u / 60)));
       raster.appendChild(uren);
       for (var i = 0; i < 5; i++) {
         (function(i2) {
@@ -3173,7 +3176,8 @@
             });
             kol.appendChild(b);
           });
-          if (!(d.per[date] || []).length) kol.appendChild(el("div", { position: "absolute", top: "4px", left: "0", right: "0", textAlign: "center", color: T.inkSoft, fontSize: "10px" }, "geen tijd"));
+          for (var uu = ws + 60; uu < we; uu += 60) kol.appendChild(el("div", { position: "absolute", left: "0", right: "0", top: (uu - ws) * PX + "px", height: "1px", background: "rgba(32,29,31,.16)", pointerEvents: "none", zIndex: "1" }));
+          if (!(d.per[date] || []).length) kol.appendChild(el("div", { position: "absolute", top: "4px", left: "0", right: "0", textAlign: "center", color: T.inkSoft, fontSize: "10px" }, "Bezet"));
           raster.appendChild(kol);
         })(i);
       }
