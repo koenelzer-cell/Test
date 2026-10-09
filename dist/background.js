@@ -62,11 +62,11 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
+    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",

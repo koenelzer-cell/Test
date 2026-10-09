@@ -62,11 +62,11 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
+    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -2306,12 +2306,17 @@
           return;
         }
         t.lijst.forEach(function(c) {
-          var b = el("button", { display: "flex", width: "100%", justifyContent: "space-between", gap: "8px", border: "0", background: "#fff", padding: "7px 10px", cursor: "pointer", font: "400 13px " + FONT, color: T.ink, textAlign: "left" });
+          var b = el("button", { display: "flex", flexDirection: "column", width: "100%", gap: "1px", border: "0", background: "#fff", padding: "7px 10px", cursor: "pointer", font: "400 13px " + FONT, color: T.ink, textAlign: "left" });
           b.type = "button";
           b.setAttribute("role", "option");
           b.setAttribute("data-client-id", c.id);
-          b.appendChild(el("span", {}, c.name || "Cliënt " + c.id));
-          b.appendChild(el("span", { color: T.inkSoft, fontSize: "12px", fontVariantNumeric: "tabular-nums" }, c.pc ? c.pc.slice(0, 4) + " " + c.pc.slice(4) : ""));
+          b.appendChild(el("span", { fontWeight: "600" }, c.name || "Cliënt " + c.id));
+          var extra = [c.number ? "nr. " + c.number : "", c.birth ? "geb. " + c.birth : "", c.pc ? c.pc.slice(0, 4) + " " + c.pc.slice(4) : ""].filter(Boolean).join(" · ");
+          if (extra) {
+            var ex = el("span", { color: T.inkSoft, fontSize: "11.5px", fontVariantNumeric: "tabular-nums" }, extra);
+            ex.setAttribute("data-client-extra", "");
+            b.appendChild(ex);
+          }
           b.addEventListener("mouseenter", function() {
             b.style.background = T.brandWash;
           });
@@ -2562,7 +2567,7 @@
           naarMaken(
             res.placed.map(function(p) {
               var r = multi.rijen[p.i];
-              return { date: p.date, startMin: p.startMin, minutes: p.minutes, clientId: r.clientId, clientName: r.name };
+              return { date: p.date, startMin: p.startMin, minutes: p.minutes, clientId: r.clientId, clientName: r.name, reisHeen: p.reisHeen || 0, reisTerug: p.reisTerug || 0 };
             }),
             "Huisbezoek",
             function(items) {
@@ -2685,6 +2690,19 @@
         plan2.placed.forEach(function(p, k) {
           p.km = extraVoor(br[k], p.pc, afstand);
         });
+        var reis = function(pair) {
+          var leg = function(a, b) {
+            if (!a || !b || a === b) return 0;
+            var w = pair && pair(a, b);
+            var min = w ? w.s / 60 : afstand(a, b) != null ? afstand(a, b) * 60 / 45 : 0;
+            return min > 0 ? Math.ceil(min / 5) * 5 : 0;
+          };
+          plan2.placed.forEach(function(p, k) {
+            p.reisHeen = leg(br[k].voor, p.pc);
+            p.reisTerug = thuisPc && br[k].na === thuisPc ? leg(p.pc, thuisPc) : 0;
+          });
+        };
+        reis(null);
         plan2.visits = visits;
         var proxy = state && state.routesProxy;
         if (proxy && proxy.key && !routesOk) proxy = null;
@@ -2706,6 +2724,7 @@
             } else alles = false;
           });
           if (alles) plan2.weg = tot;
+          reis(pair);
         }, function() {
           multi.geo = multi.geo || "Google Routes reageert niet; afstanden in rechte lijn geschat.";
         }) : Promise.resolve();
@@ -2789,7 +2808,7 @@
       var mk = BEWAARD.maak, box = el("div");
       if (!mk) return box;
       var n = mk.items.length;
-      box.appendChild(txt("help", "De hulp maakt " + (n === 1 ? "de afspraak" : "de " + n + " afspraken") + " meteen in ONS, zonder formulier. Kies het afspraaktype en per cliënt de uursoort.", { margin: "0 0 10px" }));
+      box.appendChild(txt("help", "De hulp maakt " + (n === 1 ? "de afspraak" : "de " + n + " afspraken") + " meteen in ONS, zonder formulier. Kies het afspraaktype en per cliënt de uursoort; titel en reistijd kun je per afspraak aanpassen.", { margin: "0 0 10px" }));
       if (mk.laden) {
         zorgVoorStijl();
         box.appendChild(laadBalk());
@@ -2845,6 +2864,32 @@
             rij.appendChild(st);
           }
           kaart.appendChild(rij);
+          if (!klaar) {
+            if (!it.titelAangepast) it.titel = afspraakNaam(typeNaam(), it.clientName);
+            var titel = inputEl("text", it.titel, function(v) {
+              it.titel = v;
+              it.titelAangepast = true;
+            });
+            titel.setAttribute("data-maak-titel", String(x.k));
+            titel.setAttribute("aria-label", "Titel afspraak " + dayLabel(it.date) + " " + hm(it.startMin));
+            var tLab = fieldLabel("Titel", titel);
+            tLab.style.marginTop = "4px";
+            kaart.appendChild(tLab);
+            var reisRij = el("div", { display: "flex", gap: "8px", marginTop: "6px", marginBottom: "6px" });
+            [["reisHeen", "Reistijd heen (min)"], ["reisTerug", "Reistijd terug (min)"]].forEach(function(rv) {
+              var inp = inputEl("number", it[rv[0]] ? String(it[rv[0]]) : "", function(v) {
+                var n2 = parseInt(v, 10);
+                it[rv[0]] = n2 > 0 ? Math.min(n2, 240) : 0;
+              });
+              inp.min = "0";
+              inp.max = "240";
+              inp.step = "5";
+              inp.placeholder = "0";
+              inp.setAttribute("data-maak-" + (rv[0] === "reisHeen" ? "heen" : "terug"), String(x.k));
+              reisRij.appendChild(fieldLabel(rv[1], inp));
+            });
+            kaart.appendChild(reisRij);
+          }
         });
         if (!klaar) {
           var types = ((mk.opties.hourTypes || {})[g.id] || []).map(function(t) {
@@ -2860,7 +2905,6 @@
             lab.style.marginTop = "6px";
             kaart.appendChild(lab);
           }
-          kaart.appendChild(el("div", Object.assign({}, TYPE.help, { marginTop: "6px", fontSize: "11.5px" }), "Naam: " + afspraakNaam(typeNaam(), g.name)));
         }
         box.appendChild(kaart);
       });
@@ -2881,7 +2925,9 @@
               clientId: it.clientId,
               hourTypeId: Number(mk.uursoort[it.clientId]),
               labelId: mk.labelId ? Number(mk.labelId) : null,
-              name: afspraakNaam(typeNaam(), it.clientName)
+              name: String(it.titel || "").trim() || afspraakNaam(typeNaam(), it.clientName),
+              travelBefore: it.reisHeen || 0,
+              travelAfter: it.reisTerug || 0
             };
           });
           actions.onCreateEvents(lijst, function(res) {

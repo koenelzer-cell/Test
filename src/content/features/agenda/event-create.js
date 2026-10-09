@@ -49,7 +49,7 @@ export function eventOptions(clientIds) {
   ]).then(function (r) { return { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() }; });
 }
 
-// events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }]
+// events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }]
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
   if (!directCreateEnabled()) throw new Error('Afspraken maken vanuit de planhulp staat uit (beheer).');
@@ -60,7 +60,8 @@ export async function createEvents(events, post) {
   for (const e of (events || []).slice(0, 20)) {
     var payload = buildEventPayload({
       date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids,
-      clients: [{ id: e.clientId, hourTypeId: e.hourTypeId }], labelId: e.labelId, name: e.name
+      clients: [{ id: e.clientId, hourTypeId: e.hourTypeId }], labelId: e.labelId, name: e.name,
+      travelBefore: e.travelBefore, travelAfter: e.travelAfter
     }, meta);
     if (!payload) { results.push({ ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }); continue; }
     try { await post(_apiUrl('createEvent'), payload); results.push({ ok: true }); }

@@ -1226,11 +1226,11 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
+    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -10918,6 +10918,10 @@
     });
     return n ? uit : null;
   }
+  function reistijd(v) {
+    var n = Math.round(Number(v));
+    return n > 0 ? Math.min(n, 240) : 0;
+  }
   function buildEventPayload(spec, meta) {
     spec = spec || {};
     var start = spec.startMin, eind = start + spec.minutes;
@@ -10957,8 +10961,9 @@
       name: String(spec.name || "Afspraak").slice(0, 200),
       team_ids: [],
       teams: [],
-      travel_time_after: 0,
-      travel_time_before: 0
+      // Reistijd in MINUTEN, zoals ONS hem in de agenda teruggeeft.
+      travel_time_after: reistijd(spec.travelAfter),
+      travel_time_before: reistijd(spec.travelBefore)
     };
     var m = learnEventMeta(meta);
     if (m) ev.meta = m;
@@ -11023,7 +11028,9 @@
         employeeIds: ids,
         clients: [{ id: e.clientId, hourTypeId: e.hourTypeId }],
         labelId: e.labelId,
-        name: e.name
+        name: e.name,
+        travelBefore: e.travelBefore,
+        travelAfter: e.travelAfter
       }, meta);
       if (!payload) {
         results.push({ ok: false, error: "Onvolledig (cliënt, uursoort of tijd)." });
@@ -11184,7 +11191,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.237";
+      return "1.6.238";
     }
   }();
 
@@ -13885,7 +13892,10 @@
       return c && c.id != null;
     }).slice(0, MAX_TREFFERS).map(function(c) {
       var naam = c.display_name || c.name || c.full_name || c.sortable_name || "";
-      return { id: String(c.id), name: String(naam).replace(/\s+/g, " ").trim(), pc: postcodeFromClient(c) };
+      var tekst = function(v) {
+        return v == null ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, 40);
+      };
+      return { id: String(c.id), name: tekst(naam).slice(0, 200) || String(naam), pc: postcodeFromClient(c), number: tekst(c.identification_no), birth: tekst(c.date_of_birth) };
     });
   }
   function searchClientsForPlan(term) {

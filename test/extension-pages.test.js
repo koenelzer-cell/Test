@@ -1001,7 +1001,7 @@ test('zijpaneel: planhulp één afspraak - cliënt zoeken, postcode voor Huisbez
 
 test('zijpaneel: afspraak meteen in ONS maken - afspraaktype en uursoort per cliënt, daarna agenda verversen', async () => {
   const { document, dom, verzonden } = zijpaneelMetTools({
-    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB' }] }),
+    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB', number: '106839', birth: '01-01-1990' }] }),
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 }] } }),
     'ag-event-options': (msg, cb) => cb({ ok: true, metaKnown: true, labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }],
       hourTypes: { 11142: [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }] } }),
@@ -1014,6 +1014,7 @@ test('zijpaneel: afspraak meteen in ONS maken - afspraaktype en uursoort per cli
   const zoek = document.querySelector('[data-plan-client]');
   zoek.value = 'Tamara'; zoek.dispatchEvent(new dom.window.Event('input'));
   await new Promise((r) => setTimeout(r, 450));
+  assert.equal(document.querySelector('[data-client-extra]').textContent, 'nr. 106839 · geb. 01-01-1990 · 2611 EB', 'cliëntnummer en geboortedatum in de keuzelijst');
   document.querySelector('[data-client-id="11142"]').click();
   knop(document, 'Vrije tijd zoeken').click();
   await tick(); await tick();
@@ -1029,11 +1030,23 @@ test('zijpaneel: afspraak meteen in ONS maken - afspraaktype en uursoort per cli
   const u = document.querySelector('[data-maak-uursoort="11142"]');
   assert.deepEqual([...u.querySelectorAll('optgroup')].map((g) => g.label), ['Onlangs gebruikt', 'Toegestaan']);
   u.value = '1135'; u.dispatchEvent(new dom.window.Event('change'));
-  assert.match(document.body.textContent, /Naam: Face to face - Tamara/);
+  const titel = document.querySelector('[data-maak-titel="0"]');
+  assert.equal(titel.value, 'Face to face - Tamara', 'standaardtitel');
+  const type = document.querySelector('[data-maak-type]');
+  type.value = '46'; type.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelector('[data-maak-titel="0"]').value, 'Huisbezoek - Tamara', 'volgt het type zolang niet aangepast');
+  const t2 = document.querySelector('[data-maak-titel="0"]');
+  t2.value = 'Huisbezoek Tamara - evaluatie'; t2.dispatchEvent(new dom.window.Event('input'));
+  type.value = '47'; document.querySelector('[data-maak-type]').value = '47'; document.querySelector('[data-maak-type]').dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelector('[data-maak-titel="0"]').value, 'Huisbezoek Tamara - evaluatie', 'eigen titel blijft staan');
+  const heen = document.querySelector('[data-maak-heen="0"]');
+  heen.value = '20'; heen.dispatchEvent(new dom.window.Event('input'));
+  const terug = document.querySelector('[data-maak-terug="0"]');
+  terug.value = '15'; terug.dispatchEvent(new dom.window.Event('input'));
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const maak = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events')));
-  assert.deepEqual(maak.events, [{ date: '2026-10-12', startMin: 600, minutes: 60, clientId: '11142', hourTypeId: 1135, labelId: 47, name: 'Face to face - Tamara' }]);
+  assert.deepEqual(maak.events, [{ date: '2026-10-12', startMin: 600, minutes: 60, clientId: '11142', hourTypeId: 1135, labelId: 47, name: 'Huisbezoek Tamara - evaluatie', travelBefore: 20, travelAfter: 15 }]);
   assert.equal(verzonden.some((m) => m.type === 'ag-new-event'), false, 'geen formulier');
   assert.match(document.body.textContent, /Afspraak gemaakt in ONS\./);
   knop(document, 'Agenda verversen').click();

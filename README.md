@@ -183,7 +183,8 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - **Meerdere afspraken plannen** (Planhulp -> 'Meerdere plannen'): zoek per
   afspraak de cliënt op naam (dezelfde zoekfunctie als ONS bij genodigden; pas
   als je even stopt met typen) - de postcode komt uit het adres in ONS, of vul
-  hem zelf in - en kies de duur. 'Plan efficiënt' zet ze in je vrije tijd met
+  hem zelf in; de keuzelijst toont ook cliëntnummer en geboortedatum, zoals
+  ONS) - en kies de duur. 'Plan efficiënt' zet ze in je vrije tijd met
   zo weinig mogelijk rijden: langste afspraak eerst op de goedkoopste plek,
   daarna verplaatsen en ruilen zolang het korter wordt. Houdt rekening met je
   andere afspraken en kantoor die dag, het vertrekpunt (Route van de dag),
@@ -200,7 +201,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   gebruikt en toegestaan). Eén klik maakt de afspraak - of alle afspraken uit
   'Meerdere plannen' - met hetzelfde verzoek als het formulier van ONS; naam
   zoals 'Huisbezoek - Tamara'. Lukt er een niet, dan kun je die alsnog via het
-  formulier maken. Instellingen van het formulier (`meta`, alleen ja/nee en
+  formulier maken. Per afspraak pas je de titel aan (standaard 'Huisbezoek -
+  Tamara'; volgt het type tot je hem zelf wijzigt) en de reistijd heen en
+  terug (minuten); bij 'Meerdere plannen' staat die al ingevuld uit de
+  geplande rit (heen vanaf de stop ervoor, terug naar huis na de laatste).
+  Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat. Schakelaar
   in het beheerscherm: 'Planhulp: afspraak meteen in ONS maken'.
 - **Cliënt bij één afspraak**: ook in de gewone planhulp kun je de cliënt op

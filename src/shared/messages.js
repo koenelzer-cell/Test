@@ -46,9 +46,9 @@ export const MSG = {
   AGENDA_DAY_ROUTE: 'ag-day-route',     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
   AGENDA_SLOT_CHECK: 'ag-slot-check',   // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
   AGENDA_EVENT_OPTIONS: 'ag-event-options', // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
-  AGENDA_CREATE_EVENTS: 'ag-create-events', // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name }] } -> { ok, results: [{ ok, error? }] }
+  AGENDA_CREATE_EVENTS: 'ag-create-events', // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
-  AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
+  AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
   AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
   AGENDA_WEEK_RATIO: 'ag-week-ratio',   // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
   AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week

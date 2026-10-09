@@ -61,9 +61,9 @@ test('cliënt zoeken: naam en postcode uit het search_panel-antwoord van ONS', (
     { id: 7, name: 'Zonder Adres' },
   ] };
   assert.deepEqual(clientsForPlan(json), [
-    { id: '24819', name: 'Test4 Cliënt', pc: '5015TA' },
-    { id: '51486', name: 'R Test', pc: '1058BB' },
-    { id: '7', name: 'Zonder Adres', pc: '' },
+    { id: '24819', name: 'Test4 Cliënt', pc: '5015TA', number: '118916', birth: '01-01-1984' },
+    { id: '51486', name: 'R Test', pc: '1058BB', number: '', birth: '' },
+    { id: '7', name: 'Zonder Adres', pc: '', number: '', birth: '' },
   ]);
   assert.equal(postcodeFromClient({ address: { zipcode: '2611 eb', city: 'Delft' } }), '2611EB');
 });

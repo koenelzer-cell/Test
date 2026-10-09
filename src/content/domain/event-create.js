@@ -57,8 +57,11 @@ export function defaultEventName(labelName, clientName) {
   return l && voornaam ? l + ' - ' + voornaam : (l || voornaam || 'Afspraak');
 }
 
+function reistijd(v) { var n = Math.round(Number(v)); return n > 0 ? Math.min(n, 240) : 0; }
+
 // spec: { date, startMin, minutes, employeeIds: [..], clients: [{ id, hourTypeId }],
-//         labelId, name, comment } -> { event } of null als iets ontbreekt.
+//         labelId, name, comment, travelBefore, travelAfter (minuten) }
+//   -> { event } of null als iets ontbreekt.
 export function buildEventPayload(spec, meta) {
   spec = spec || {};
   var start = spec.startMin, eind = start + spec.minutes;
@@ -90,8 +93,9 @@ export function buildEventPayload(spec, meta) {
     name: String(spec.name || 'Afspraak').slice(0, 200),
     team_ids: [],
     teams: [],
-    travel_time_after: 0,
-    travel_time_before: 0
+    // Reistijd in MINUTEN, zoals ONS hem in de agenda teruggeeft.
+    travel_time_after: reistijd(spec.travelAfter),
+    travel_time_before: reistijd(spec.travelBefore)
   };
   var m = learnEventMeta(meta);
   if (m) ev.meta = m;

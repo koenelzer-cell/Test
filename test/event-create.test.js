@@ -47,6 +47,8 @@ test('verzoek zoals het formulier van ONS het verstuurt (uursoort per cliënt)',
     name: 'Face to face - Tamara', team_ids: [], teams: [], travel_time_after: 0, travel_time_before: 0,
     meta: { extended_workflow: true },
   });
+  const r = buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142, hourTypeId: 5 }], travelBefore: 20, travelAfter: 999 });
+  assert.deepEqual([r.event.travel_time_before, r.event.travel_time_after], [20, 240], 'reistijd in minuten, hooguit 4 uur');
   assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142 }] }), null, 'zonder uursoort niet');
   assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [], clients: [{ id: 11142, hourTypeId: 5 }] }), null, 'zonder medewerker niet');
 });
