@@ -16,6 +16,10 @@ import { fetchWeekRatio } from './week-ratio.js';
 import { findFreeSlots } from './free-slots.js';
 import { resolveInviteeId, currentAgendaDate } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
+import { APP_CONFIG } from '../../config/app-config.js';
+
+// Schakelaar uit het beheerscherm (features.x === false = uit).
+function aan(k) { return !(APP_CONFIG.features && APP_CONFIG.features[k] === false); }
 
 // Hoe lang een resultaat bruikbaar blijft. Afgelopen weken veranderen nauwelijks
 // (productie lang); open registraties toont het paneel direct maar werkt het
@@ -79,6 +83,7 @@ let _laatstVooraf = 0, _voorafSleutel = '', _bezig = false;
 // Rustig na elkaar: eerst wat het snelst klaar is.
 export function preloadPanelData(force) {
   if (_bezig) return;
+  if (!aan('preload')) return;
   if (document.visibilityState !== 'visible') return;
   const sleutel = idsSleutel() + '|' + currentAgendaDate();
   if (!force && sleutel === _voorafSleutel && (Date.now() - _laatstVooraf) < VOORAF_INTERVAL) return;
@@ -87,10 +92,10 @@ export function preloadPanelData(force) {
   const vandaag = agendaYmd(new Date());
   const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {});
   Promise.resolve()
-    .then(stap(() => cachedWeekRatio(currentAgendaDate())))
-    .then(stap(() => cachedFreeSlots(60, 2)))
-    .then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag)))
-    .then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo())))
+    .then(stap(() => aan('weekRatio') && cachedWeekRatio(currentAgendaDate())))
+    .then(stap(() => aan('planner') && cachedFreeSlots(60, 2)))
+    .then(stap(() => aan('openRegistrations') && cachedOpenRange(defaultRangeFrom(), vandaag)))
+    .then(stap(() => aan('production') && cachedProduction(defaultProductionFrom(), defaultProductionTo())))
     .then(() => { _bezig = false; }, () => { _bezig = false; });
 }
 

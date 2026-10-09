@@ -18,6 +18,14 @@ import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
+import { APP_CONFIG } from '../../config/app-config.js';
+
+export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'routeLink'];
+function panelFeatures() {
+  var f = APP_CONFIG.features || {}, uit = {};
+  PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
+  return uit;
+}
 import { agendaYmd } from '../../core/datetime.js';
 import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { SCRIPT_VERSION } from '../../../shared/version.js';
@@ -82,6 +90,8 @@ function agPanelState() {
     // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
     nonClientMarker: _nonClientMarker(),
     routeEnabled: routeEnabled(),
+    // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
+    features: panelFeatures(),
     today: agendaYmd(new Date())
   };
 }

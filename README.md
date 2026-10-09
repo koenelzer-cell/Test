@@ -174,10 +174,17 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   de cliënt in. Elk vrij blok toont dan ongeveer hoeveel km je omrijdt ten
   opzichte van wat er die dag ervoor en erna staat: huisbezoeken (postcode
   van de cliënt) en afspraken op een kantoorlocatie (de ONS-locatie, bijv.
-  'J&G Oosterhout' -> kantoor Breda; lijst in `offices` in de configuratie),
+  'J&G Oosterhout' -> kantoor Breda; alleen locaties die met 'BG' of 'J&G'
+  beginnen; lijst met postcodes en herkenningswoorden te bewerken in het
+  beheerscherm onder Functies -> Kantoren voor de planhulp),
   of anders je vertrekpunt. De blokken staan meteen op 'Minst omrijden'. Hemelsbreed × 1,3: een schatting, geen
   rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
   de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
+- **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
+  uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
+  (met apart: kopieën op meerdere momenten en Huisbezoek/afstand), Route
+  huisbezoeken, Verlof aanvragen en het vooraf laden. Uit = de knop of het
+  onderdeel verdwijnt uit het zijpaneel.
 - **Route huisbezoeken**: de huisbezoeken (label of uursoort met
   'huisbezoek') van een dag op volgorde van begintijd, met het adres uit het
   detailvenster van ONS. 'Route openen' opent Google Maps met alle stops

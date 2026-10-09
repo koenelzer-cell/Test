@@ -769,7 +769,16 @@
     "surveyAudit": true,
     "reportGuidelineLink": true,
     "doorplannenToggle": true,
-    "routeLink": true
+    "leaveRequest": true,
+    "weekRatio": true,
+    "production": true,
+    "openRegistrations": true,
+    "quickRegister": true,
+    "planner": true,
+    "plannerCopies": true,
+    "plannerDistance": true,
+    "routeLink": true,
+    "preload": true
   },
   "surveys": [
     {

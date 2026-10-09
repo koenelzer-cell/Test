@@ -616,6 +616,13 @@
     <h2>Functies aan- en uitzetten <span class="badge actief">gefaseerde uitrol</span></h2>
     <p class="uitleg">Schakel onderdelen centraal uit zonder de overige hulp te verwijderen.</p>
     <div id="featureFlags" class="feature-grid"></div>
+    <h3 style="margin:18px 0 4px">Kantoren voor de planhulp</h3>
+    <p class="uitleg">Een afspraak met een ONS-locatie die begint met <b>BG</b> (Begeleiding) of <b>J&amp;G</b> (Jeugd en Gezin) telt in de planhulp als 'op kantoor'. De locatienaam wordt herkend aan een van de herkenningswoorden (hele woorden, na 'BG'/'J&amp;G'; het langste woord wint). Postcode zonder spatie, bijv. 4822NH.</p>
+    <table id="tblOffices"><thead><tr>
+      <th>Onderdeel</th><th>Kantoor</th><th>Postcode</th><th>Herkenningswoorden (komma's)</th><th></th>
+    </tr></thead><tbody></tbody></table>
+    <div class="rijknoppen"><button class="knop klein" type="button" onclick="addOffice();markDirty(event)">+ Kantoor</button><button class="knop klein" type="button" onclick="testOfficeName()">Locatienaam testen…</button></div>
+    <div id="officeTest" class="beheer-resultaat" hidden></div>
   </div>
 
   <div class="kaart" id="sectorinstellingen" data-settings-page>
@@ -1049,7 +1056,43 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, routeLink:true },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, routeLink:true, preload:true },
+  // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
+  offices: [
+    {sector:"jg",name:"Breda",postcode:"4822NH",match:["breda","oosterhout","geertruidenberg","altena","west brabant oost","west-brabant oost","west-brabant west","west brabant west"]},
+    {sector:"jg",name:"Bergen op Zoom",postcode:"4624DE",match:["bergen op zoom"]},
+    {sector:"jg",name:"Loosduinen (Kracht)",postcode:"2552AE",match:["kracht","loosduinen","den haag"]},
+    {sector:"jg",name:"Tilburg",postcode:"5026RM",match:["tilburg","hart van brabant"]},
+    {sector:"jg",name:"Dongen",postcode:"5102AE",match:["dongen"]},
+    {sector:"jg",name:"Eindhoven",postcode:"5612EK",match:["eindhoven","zuidoost brabant","zuidoost-brabant"]},
+    {sector:"jg",name:"Helmond",postcode:"5701MJ",match:["helmond"]},
+    {sector:"jg",name:"Gouda",postcode:"2803PB",match:["gouda","midden-holland","midden holland"]},
+    {sector:"jg",name:"Nieuwegein",postcode:"3432ET",match:["nieuwegein","lekstroom","utrecht"]},
+    {sector:"jg",name:"Oss",postcode:"5344AT",match:["oss","nob","noordoost-brabant","noordoost brabant"]},
+    {sector:"jg",name:"Rijswijk",postcode:"2285VL",match:["rijswijk","delft"]},
+    {sector:"jg",name:"Waalwijk",postcode:"5141PA",match:["waalwijk","loon op zand"]},
+    {sector:"jg",name:"Zoetermeer",postcode:"2713JA",match:["zoetermeer"]},
+    {sector:"bv",name:"Bergen op Zoom",postcode:"4624DE",match:["bergen op zoom","brabantse wal"]},
+    {sector:"bv",name:"Breda",postcode:"4822NH",match:["breda","oosterhout"]},
+    {sector:"bv",name:"Delft",postcode:"2613RR",match:["delft"]},
+    {sector:"bv",name:"Den Haag Noord-Oost",postcode:"2521DB",match:["den haag noord-oost","den haag noordoost","noord-oost"]},
+    {sector:"bv",name:"Den Haag Zuid-West",postcode:"2552AE",match:["den haag zuid-west","den haag zuidwest","zuid-west"]},
+    {sector:"bv",name:"Dongen",postcode:"5102AE",match:["dongen"]},
+    {sector:"bv",name:"Ede",postcode:"6716AE",match:["ede","veluwe","gelderland"]},
+    {sector:"bv",name:"Eindhoven",postcode:"5612EK",match:["eindhoven","kempen"]},
+    {sector:"bv",name:"Gouda",postcode:"2803PB",match:["gouda","midden holland","midden-holland"]},
+    {sector:"bv",name:"Helmond",postcode:"5701MJ",match:["helmond"]},
+    {sector:"bv",name:"Leiden",postcode:"2312TH",match:["leiden","holland rijnland"]},
+    {sector:"bv",name:"Naaldwijk",postcode:"2671ZP",match:["naaldwijk","westland"]},
+    {sector:"bv",name:"Nieuwegein",postcode:"3432ET",match:["nieuwegein","utrecht"]},
+    {sector:"bv",name:"Oss",postcode:"5344AT",match:["oss","nob","noordoost-brabant"]},
+    {sector:"bv",name:"Rijswijk",postcode:"2285VL",match:["rijswijk"]},
+    {sector:"bv",name:"Rotterdam",postcode:"3083CW",match:["rotterdam"]},
+    {sector:"bv",name:"'s-Hertogenbosch",postcode:"5232BC",match:["hertogenbosch","den bosch","meierij"]},
+    {sector:"bv",name:"Tilburg",postcode:"5026RM",match:["tilburg"]},
+    {sector:"bv",name:"Waalwijk",postcode:"5141PA",match:["waalwijk"]},
+    {sector:"bv",name:"Zoetermeer",postcode:"2713JA",match:["zoetermeer"]}
+  ],
   surveys: [
     { name:'JG Outcome', questions:[
       { question:'Jeugdige vanaf 12 jaar - Ik heb voldoende aan de hulp gehad om na de hulp zelf verder te gaan?', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:12 },
@@ -1109,7 +1152,16 @@ const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', surveyRequired:'Verplichte-vragencontrole', surveyAudit:'Achtergrondaudit vragenlijsten', reportGuidelineLink:'Link Richtlijn rapporteren',
   doorplannenToggle:"Doorplannen-knop ('Afspraak doorplannen?')",
-  routeLink:'Route huisbezoeken (Google Maps-link in het zijpaneel)'
+  leaveRequest:'Zijpaneel: Verlof aanvragen',
+  weekRatio:'Zijpaneel: Verhouding per uursoort',
+  production:'Zijpaneel: Productieverloop (bij Cliënttijd)',
+  openRegistrations:'Zijpaneel: Open registraties',
+  quickRegister:'Zijpaneel: Snel registreren',
+  planner:'Zijpaneel: Planhulp',
+  plannerCopies:'Planhulp: afspraak op meerdere momenten (kopieën)',
+  plannerDistance:'Planhulp: Huisbezoek / afstand (PDOK-postcodes)',
+  routeLink:'Zijpaneel: Route huisbezoeken (Google Maps)',
+  preload:'Zijpaneel: gegevens vooraf laden'
 };
 let saved = clone(DEFAULTS);   // huidige configuratie in het scherm
 let committed = clone(DEFAULTS); // laatst opgeslagen configuratie; basis voor pagina-annulering
@@ -2543,6 +2595,49 @@ function renderFeatures(value) {
     label.append(input,document.createTextNode(FEATURE_META[key])); box.appendChild(label);
   });
 }
+// ===== Kantoren (planhulp) =====
+function addOffice(o) {
+  o = o || { sector:'bv', name:'', postcode:'', match:[] };
+  const tr = document.createElement('tr');
+  const sel = document.createElement('select');
+  [['bv','BG (Begeleiding)'],['jg','J&G (Jeugd en Gezin)']].forEach(([v,t]) => { const op=document.createElement('option'); op.value=v; op.textContent=t; if((o.sector||'bv')===v) op.selected=true; sel.appendChild(op); });
+  sel.addEventListener('change', markDirty);
+  const naam = txtInput(o.name), pc = txtInput(o.postcode), woorden = txtInput((o.match || []).join(', '));
+  pc.maxLength = 7; pc.style.width = '7em';
+  tr.append(cell(sel), cell(naam), cell(pc), cell(woorden), cell(delBtn(() => { tr.remove(); markDirty(); }), 'center'));
+  $('#tblOffices tbody').appendChild(tr);
+}
+function renderOffices(list) {
+  $('#tblOffices tbody').innerHTML = '';
+  (Array.isArray(list) && list.length ? list : DEFAULTS.offices).forEach(addOffice);
+}
+function readOffices() {
+  const out = [];
+  [...$('#tblOffices tbody').children].forEach((tr) => {
+    const [sel, naam, pc, woorden] = tr.querySelectorAll('select, input');
+    const postcode = String(pc.value || '').replace(/\s+/g, '').toUpperCase();
+    if (!naam.value.trim() || !/^[1-9]\d{3}[A-Z]{2}$/.test(postcode)) return;
+    out.push({ sector: sel.value, name: naam.value.trim(), postcode, match: String(woorden.value || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean) });
+  });
+  return out;
+}
+// Zelfde regels als de extensie (src/content/domain/offices.js).
+function officeForLocationAdmin(naam, lijst) {
+  naam = String(naam || '').trim();
+  const sector = /^bg(\s|$)/i.test(naam) ? 'bv' : (/^j\s*&\s*g(\s|$)/i.test(naam) ? 'jg' : '');
+  if (!sector) return null;
+  const rest = naam.replace(/^(bg|j\s*&\s*g)\s*/i, '').replace(/\([^)]*\)/g, ' ');
+  const woordIn = (w) => new RegExp('(^|[^a-zà-ÿ])' + String(w).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-zà-ÿ])', 'i').test(rest);
+  let best = null;
+  lijst.forEach((o) => { if ((o.sector || 'bv') !== sector) return; (o.match && o.match.length ? o.match : [o.name]).forEach((w) => { if (w && woordIn(w) && (!best || String(w).length > best.len)) best = { o, len: String(w).length }; }); });
+  return best ? best.o : null;
+}
+function testOfficeName() {
+  const naam = prompt('ONS-locatienaam (bijv. J&G Oosterhout):', 'J&G Oosterhout'); if (naam == null) return;
+  const r = officeForLocationAdmin(naam, readOffices()), box = $('#officeTest');
+  box.hidden = false;
+  box.textContent = r ? `'${naam}' telt als kantoor ${r.name} (${r.postcode}).` : `'${naam}' telt niet als kantoor (begint niet met BG/J&G, of geen herkenningswoord gevonden).`;
+}
 function readFeatures() {
   const out={}; document.querySelectorAll('#featureFlags [data-feature]').forEach((el)=>{out[el.dataset.feature]=el.checked;}); return out;
 }
@@ -2752,7 +2847,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2775,7 +2870,7 @@ function renderAll(cfg) {
   const secs = cfg.profileSectors || {};
   Object.keys(cfg.zoneProfiles || {}).forEach((k) => addProfile(k, cfg.zoneProfiles[k], secs[k]));
   renderTexts(cfg.texts || DEFAULTS.texts);
-  renderCompatibility(cfg.compatibility); renderFeatures(cfg.features); renderTeams(cfg);
+  renderCompatibility(cfg.compatibility); renderFeatures(cfg.features); renderOffices(cfg.offices); renderTeams(cfg);
   saved = clone(cfg);
   $('#json').value = JSON.stringify(saved, null, 2);
   markClean();
@@ -2793,7 +2888,7 @@ function save() {
 }
 const PAGE_CANCEL_KEYS = {
   afspraaktypes:['choices','nonClientCategories'], registratievormen:['registrationForms'], vragenlijsten:['surveys'], algemeen:['generalSettings'],
-  palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'], tekstbeheer:['texts'], compatibiliteit:['compatibility'], functies:['features'],
+  palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'], tekstbeheer:['texts'], compatibiliteit:['compatibility'], functies:['features','offices'],
   sectorinstellingen:['zoneProfiles','profileSectors']
 };
 function cancelPageChanges() {
@@ -3351,7 +3446,7 @@ function troubleValidateConfigWiring(contentJs, configInfo, results) {
     'Registratievormen': ['registrationForms','vorm','startVerdeling','uursoort','eindtijdBeginPlusMin','rapportagePrefix','vraagDirecteTijd','vraagIndirecteTijd','vraagReistijd','labels','relevantForTeams','volgorde'],
     'Kleurzones': ['palette','profileSectors','zoneProfiles','start','end','zone','color','fill','legend'],
     'Beheerbare teksten': ['texts','text','html','bold','italic','sizePx'],
-    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','routeLink','compatibility','schemaVersion','minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','routeLink','preload','offices','compatibility','schemaVersion','minimumExtensionVersion'],
     'Teams': ['profileSectors']
   };
   Object.keys(groups).forEach((group) => {
@@ -3841,7 +3936,7 @@ function toggleThema() {
 const SECTION_CONFIG_KEYS = {
   afspraaktypes:['choices'], registratievormen:['registrationForms'],
   vragenlijsten:['surveys'], algemeen:['generalSettings'], palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'],
-  tekstbeheer:['texts'], functies:['features'], compatibiliteit:['compatibility'], sectorinstellingen:['profileSectors']
+  tekstbeheer:['texts'], functies:['features','offices'], compatibiliteit:['compatibility'], sectorinstellingen:['profileSectors']
 };
 function sectionCodeJson(id) {
   let cfg; try { cfg = buildConfigFromDOM(); } catch (e) { return '// kon config niet lezen: ' + e.message; }

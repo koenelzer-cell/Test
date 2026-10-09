@@ -699,6 +699,28 @@ test('zijpaneel: geen melding "Gekleurde dagindeling staat aan", wel als hij uit
   assert.match(uit.document.body.textContent, /Gekleurde dagindeling staat uit/);
 });
 
+test('zijpaneel: functies die beheer uitzet verdwijnen uit het zijpaneel', async () => {
+  const features = { weekRatio: false, openRegistrations: false, quickRegister: true, planner: false, plannerCopies: true, plannerDistance: true, production: false, routeLink: false };
+  const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features });
+  await tick();
+  for (const uit of ['Verhouding per uursoort', 'Open registraties', 'Planhulp', 'Route huisbezoeken']) assert.equal(navKnop(document, uit), undefined, uit);
+  assert.ok(navKnop(document, 'Snel registreren'), 'wat aan staat blijft');
+});
+
+test('zijpaneel: planhulp zonder kopieën en zonder afstand (beheer)', async () => {
+  const { document } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 }] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerCopies: false, plannerDistance: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.equal(document.querySelector('[data-huisbezoek]'), null, 'geen Huisbezoek-vinkje');
+  [...document.querySelectorAll('[role="button"]')].find((c) => c.title === 'Opties voor dit vrije blok').click();
+  document.querySelector('[data-start="10:30"]').click();
+  document.querySelector('[data-start="11:00"]').click();
+  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {

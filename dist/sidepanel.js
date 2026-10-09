@@ -1644,6 +1644,7 @@
     function wisselMoment(date, startMin) {
       var i = momentIndex(date, startMin);
       if (i >= 0) BEWAARD.momenten.splice(i, 1);
+      else if (!fAan("plannerCopies")) BEWAARD.momenten = [{ date, startMin }];
       else {
         var duur = plan.minutes;
         BEWAARD.momenten = BEWAARD.momenten.filter(function(m) {
@@ -1849,6 +1850,7 @@
       }
       planBox.appendChild(totRij);
       planBox.appendChild(kz.host);
+      if (!fAan("plannerDistance")) plan.huisbezoek = false;
       var hbLab = el("label", { display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", fontSize: "13px", fontWeight: "600", color: T.ink, cursor: "pointer", userSelect: "none" });
       var hb = document.createElement("input");
       hb.type = "checkbox";
@@ -1866,7 +1868,7 @@
       });
       hbLab.appendChild(hb);
       hbLab.appendChild(document.createTextNode("Huisbezoek"));
-      planBox.appendChild(hbLab);
+      if (fAan("plannerDistance")) planBox.appendChild(hbLab);
       if (plan.huisbezoek) {
         var pcVeld = inputEl("text", plan.pc, function(v) {
           plan.pc = v;
@@ -1968,23 +1970,26 @@
       }
       return planBox;
     }
+    function fAan(k) {
+      return !(state && state.features && state.features[k] === false);
+    }
     var navRouteAan = null;
     function renderNav() {
-      navRouteAan = !(state && state.routeEnabled === false);
+      navRouteAan = JSON.stringify(state && state.features || {}) + (state && state.routeEnabled === false);
       navBox.innerHTML = "";
-      navBox.appendChild(navCard(ICON_RATIO, "Verhouding per uursoort", "Direct, indirect en reistijd per cliëntgebonden uursoort", function() {
+      if (fAan("weekRatio")) navBox.appendChild(navCard(ICON_RATIO, "Verhouding per uursoort", "Direct, indirect en reistijd per cliëntgebonden uursoort", function() {
         naarPagina("verhouding");
       }));
-      navBox.appendChild(navCard(ICON_RANGE, "Open registraties", "Controleer een periode op afspraken die nog niet geregistreerd zijn", function() {
+      if (fAan("openRegistrations")) navBox.appendChild(navCard(ICON_RANGE, "Open registraties", "Controleer een periode op afspraken die nog niet geregistreerd zijn", function() {
         naarPagina("open");
       }));
-      navBox.appendChild(navCard(ICON_QUICK, "Snel registreren", "Registratieformulier openen met datum en tijd ingevuld", function() {
+      if (fAan("quickRegister")) navBox.appendChild(navCard(ICON_QUICK, "Snel registreren", "Registratieformulier openen met datum en tijd ingevuld", function() {
         naarPagina("snel");
       }));
-      navBox.appendChild(navCard(ICON_PLAN, "Planhulp", "Vrije tijd vinden voor een afspraak in de komende weken", function() {
+      if (fAan("planner")) navBox.appendChild(navCard(ICON_PLAN, "Planhulp", "Vrije tijd vinden voor een afspraak in de komende weken", function() {
         naarPagina("plan");
       }));
-      if (!(state && state.routeEnabled === false)) {
+      if (!(state && state.routeEnabled === false) && fAan("routeLink")) {
         navBox.appendChild(navCard(ICON_ROUTE, "Route huisbezoeken", "De huisbezoeken van een dag op volgorde in Google Maps", function() {
           naarPagina("route");
         }));
@@ -2042,7 +2047,7 @@
         ratio.offset = 0;
         laadRatio();
       }
-      if (p === "clienttijd" && !prod.result && !prod.busy && !prod.error) {
+      if (p === "clienttijd" && fAan("production") && !prod.result && !prod.busy && !prod.error) {
         vulStandaarden();
         startProduction();
       }
@@ -2149,6 +2154,7 @@
       box.appendChild(sectionHead("Opbouw " + weekNaam(), true));
       liveHost = el("div");
       box.appendChild(liveHost);
+      if (!fAan("production")) return box;
       box.appendChild(sectionHead("Productieverloop", false));
       box.appendChild(txt("help", "Directe, indirecte en reistijd per week in uren. Tot en met deze week uit je registraties, latere weken uit de planning (direct of indirect via het label). Hooguit 26 weken.", { margin: "0 0 10px" }));
       var rij = el("div", { display: "flex", gap: "8px" });
@@ -2809,7 +2815,7 @@
           return;
         }
         if (inv) BEWAARD.inviteeId = inv;
-        var routeAan = !(state && state.routeEnabled === false);
+        var routeAan = JSON.stringify(state && state.features || {}) + (state && state.routeEnabled === false);
         if (routeAan !== navRouteAan) renderNav();
         render();
         vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : "";

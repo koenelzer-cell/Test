@@ -11,6 +11,7 @@ import { currentInviteeId, currentInviteeIds, newEventUrl, spaNavigate } from '.
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { timeTextToMinutes } from '../../core/datetime.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
+import { APP_CONFIG } from '../../config/app-config.js';
 import { fetchOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { storePendingAppointment } from '../appointment/prefill.js';
@@ -35,7 +36,9 @@ export function openNewEvent(req) {
       return (t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || ''))) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
     }).filter(Boolean);
   };
-  storePendingDuplicates(lees(req.extra), lees(req.eigen));
+  // Kopieën uit (beheer): alleen dit ene formulier.
+  var kopieen = !(APP_CONFIG.features && APP_CONFIG.features.plannerCopies === false);
+  storePendingDuplicates(kopieen ? lees(req.extra) : [], kopieen ? lees(req.eigen) : []);
   spaNavigate(location.origin + newEventUrl(ids));
   return { ok: true };
 }

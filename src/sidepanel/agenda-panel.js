@@ -1176,6 +1176,7 @@ export function create(host, actions) {
   function wisselMoment(date, startMin) {
     var i = momentIndex(date, startMin);
     if (i >= 0) BEWAARD.momenten.splice(i, 1);
+    else if (!fAan('plannerCopies')) BEWAARD.momenten = [{ date: date, startMin: startMin }]; // kopieën uit: één moment
     else {
       // Twee keer dezelfde afspraak die elkaar overlapt kan niet: de oude eruit.
       var duur = plan.minutes;
@@ -1328,6 +1329,7 @@ export function create(host, actions) {
     planBox.appendChild(kz.host);
     // Huisbezoek: dan de postcode van de cliënt, en per blok hoeveel je omrijdt
     // ten opzichte van je huisbezoeken en kantoorafspraken die dag.
+    if (!fAan('plannerDistance')) plan.huisbezoek = false;
     var hbLab = el('label', { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '13px', fontWeight: '600', color: T.ink, cursor: 'pointer', userSelect: 'none' });
     var hb = document.createElement('input');
     hb.type = 'checkbox'; hb.checked = !!plan.huisbezoek;
@@ -1336,7 +1338,7 @@ export function create(host, actions) {
     hb.addEventListener('change', function () { plan.huisbezoek = hb.checked; plan.sorteer = 'afstand'; plan.result = null; plan.error = ''; plan.geo = ''; renderPagina(); });
     hbLab.appendChild(hb);
     hbLab.appendChild(document.createTextNode('Huisbezoek'));
-    planBox.appendChild(hbLab);
+    if (fAan('plannerDistance')) planBox.appendChild(hbLab);
     if (plan.huisbezoek) {
       var pcVeld = inputEl('text', plan.pc, function (v) { plan.pc = v; });
       pcVeld.placeholder = 'Bijv. 2611 EB';
@@ -1426,15 +1428,17 @@ export function create(host, actions) {
     return planBox;
   }
 
+  // Schakelaar uit het beheerscherm (state.features; ontbreekt = aan).
+  function fAan(k) { return !(state && state.features && state.features[k] === false); }
   var navRouteAan = null;
   function renderNav() {
-    navRouteAan = !(state && state.routeEnabled === false);
+    navRouteAan = JSON.stringify((state && state.features) || {}) + (state && state.routeEnabled === false);
     navBox.innerHTML = '';
-    navBox.appendChild(navCard(ICON_RATIO, 'Verhouding per uursoort', 'Direct, indirect en reistijd per cliëntgebonden uursoort', function () { naarPagina('verhouding'); }));
-    navBox.appendChild(navCard(ICON_RANGE, 'Open registraties', 'Controleer een periode op afspraken die nog niet geregistreerd zijn', function () { naarPagina('open'); }));
-    navBox.appendChild(navCard(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', function () { naarPagina('snel'); }));
-    navBox.appendChild(navCard(ICON_PLAN, 'Planhulp', 'Vrije tijd vinden voor een afspraak in de komende weken', function () { naarPagina('plan'); }));
-    if (!(state && state.routeEnabled === false)) {
+    if (fAan('weekRatio')) navBox.appendChild(navCard(ICON_RATIO, 'Verhouding per uursoort', 'Direct, indirect en reistijd per cliëntgebonden uursoort', function () { naarPagina('verhouding'); }));
+    if (fAan('openRegistrations')) navBox.appendChild(navCard(ICON_RANGE, 'Open registraties', 'Controleer een periode op afspraken die nog niet geregistreerd zijn', function () { naarPagina('open'); }));
+    if (fAan('quickRegister')) navBox.appendChild(navCard(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', function () { naarPagina('snel'); }));
+    if (fAan('planner')) navBox.appendChild(navCard(ICON_PLAN, 'Planhulp', 'Vrije tijd vinden voor een afspraak in de komende weken', function () { naarPagina('plan'); }));
+    if (!(state && state.routeEnabled === false) && fAan('routeLink')) {
       navBox.appendChild(navCard(ICON_ROUTE, 'Route huisbezoeken', 'De huisbezoeken van een dag op volgorde in Google Maps', function () { naarPagina('route'); }));
     }
   }
@@ -1489,7 +1493,7 @@ export function create(host, actions) {
     mainCol.scrollTop = 0;
     if (p === 'verhouding') { ratio.offset = 0; laadRatio(); }
     // Meteen tonen wat er (vooraf geladen) klaarstaat: geen knop nodig.
-    if (p === 'clienttijd' && !prod.result && !prod.busy && !prod.error) { vulStandaarden(); startProduction(); }
+    if (p === 'clienttijd' && fAan('production') && !prod.result && !prod.busy && !prod.error) { vulStandaarden(); startProduction(); }
     if (p === 'open' && !range.result && !range.busy && !range.error) { vulStandaarden(); startRangeCheck(); }
     if (p === 'plan' && !plan.result && !plan.busy && !plan.error) startPlan(false);
     if (p === 'route') startRoute();
@@ -1579,6 +1583,7 @@ export function create(host, actions) {
     box.appendChild(sectionHead('Opbouw ' + weekNaam(), true));
     liveHost = el('div');
     box.appendChild(liveHost);
+    if (!fAan('production')) return box; // productieverloop uit (beheer)
 
     box.appendChild(sectionHead('Productieverloop', false));
     box.appendChild(txt('help', 'Directe, indirecte en reistijd per week in uren. Tot en met deze week uit je registraties, latere weken uit de planning (direct of indirect via het label). Hooguit 26 weken.', { margin: '0 0 10px' }));
@@ -2146,7 +2151,7 @@ export function create(host, actions) {
       }
       if (inv) BEWAARD.inviteeId = inv;
       // Knoppen opnieuw als de beheerschakelaar voor de route verandert.
-      var routeAan = !(state && state.routeEnabled === false);
+      var routeAan = JSON.stringify((state && state.features) || {}) + (state && state.routeEnabled === false);
       if (routeAan !== navRouteAan) renderNav();
       render();
       // Alleen bijwerken als er echt iets in de agenda veranderde.

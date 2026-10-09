@@ -10,24 +10,28 @@ function woordIn(naam, woord) {
 }
 
 // 'J&G Oosterhout' -> { name: 'Breda', postcode: '4822NH' } of null.
-// Locatienamen met J&G/Jeugd zoeken eerst bij Jeugd en Gezin, de rest eerst
-// bij Begeleiding; langere zoekwoorden gaan voor ('den haag zuid' vóór 'den haag').
+// Alleen locaties die beginnen met 'BG' (Begeleiding) of 'J&G' (Jeugd en
+// Gezin) zijn kantoren; de rest (bijv. 'GGZ volwassenen', 'Jeugd en Gezin')
+// is een organisatie-eenheid en telt niet. Langere zoekwoorden gaan voor
+// ('den haag zuid-west' vóór 'zuid-west').
+export function officeSector(locationName) {
+  var naam = String(locationName || '').trim();
+  if (/^bg(\s|$)/i.test(naam)) return 'bv';
+  if (/^j\s*&\s*g(\s|$)/i.test(naam)) return 'jg';
+  return '';
+}
 export function officeForLocation(locationName, offices) {
   var naam = String(locationName || '').trim();
-  if (!naam) return null;
+  var sector = officeSector(naam);
+  if (!sector) return null;
+  var rest = naam.replace(/^(bg|j\s*&\s*g)\s*/i, '').replace(/\([^)]*\)/g, ' ');
   var lijst = Array.isArray(offices) ? offices : (APP_CONFIG.offices || []);
-  var jg = /(^|[^a-z])(j&g|j\s*&\s*g|jg|jeugd)([^a-z]|$)/i.test(naam);
-  var volgorde = jg ? ['jg', 'bv'] : ['bv', 'jg'];
-  for (var s = 0; s < volgorde.length; s++) {
-    var kandidaten = [];
-    lijst.forEach(function (o) {
-      if (!o || (o.sector || 'bv') !== volgorde[s]) return;
-      (o.match || [o.name]).forEach(function (w) { if (w && woordIn(naam, w)) kandidaten.push({ o: o, len: String(w).length }); });
-    });
-    if (kandidaten.length) {
-      kandidaten.sort(function (a, b) { return b.len - a.len; });
-      return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || '').replace(/\s+/g, '').toUpperCase() };
-    }
-  }
-  return null;
+  var kandidaten = [];
+  lijst.forEach(function (o) {
+    if (!o || (o.sector || 'bv') !== sector) return;
+    (o.match && o.match.length ? o.match : [o.name]).forEach(function (w) { if (w && woordIn(rest, w)) kandidaten.push({ o: o, len: String(w).length }); });
+  });
+  if (!kandidaten.length) return null;
+  kandidaten.sort(function (a, b) { return b.len - a.len; });
+  return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || '').replace(/\s+/g, '').toUpperCase() };
 }

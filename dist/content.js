@@ -538,47 +538,49 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, preload: true },
     nonClientCategories: [],
     // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
     // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
     // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en
     // Gezin, locatienamen met J&G/Jeugd) of 'bv' (Begeleiding).
     offices: [
-      { sector: "jg", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom", "west brabant west"] },
-      { sector: "jg", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout", "geertruidenberg", "altena", "west brabant oost"] },
-      { sector: "jg", name: "Loosduinen (Kracht)", postcode: "2552AE", match: ["loosduinen", "kracht", "den haag"] },
-      { sector: "jg", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
+      // Jeugd en Gezin (ONS-locaties 'J&G …')
+      { sector: "jg", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout", "geertruidenberg", "altena", "west brabant oost", "west-brabant oost", "west-brabant west", "west brabant west"] },
+      { sector: "jg", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom"] },
+      { sector: "jg", name: "Loosduinen (Kracht)", postcode: "2552AE", match: ["kracht", "loosduinen", "den haag"] },
       { sector: "jg", name: "Tilburg", postcode: "5026RM", match: ["tilburg", "hart van brabant"] },
+      { sector: "jg", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
       { sector: "jg", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "zuidoost brabant", "zuidoost-brabant"] },
       { sector: "jg", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
       { sector: "jg", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden-holland", "midden holland"] },
       { sector: "jg", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "lekstroom", "utrecht"] },
-      { sector: "jg", name: "Oss", postcode: "5344AT", match: ["oss", "noordoost"] },
+      { sector: "jg", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant", "noordoost brabant"] },
       { sector: "jg", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk", "delft"] },
       { sector: "jg", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk", "loon op zand"] },
       { sector: "jg", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
-      { sector: "bv", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom"] },
-      { sector: "bv", name: "Breda", postcode: "4822NH", match: ["breda"] },
+      // Begeleiding (ONS-locaties 'BG …'). Niet gekoppeld (onbekend):
+      // BG DH2, BG HWDN, BG ADGG, BG De6, BG Overig.
+      { sector: "bv", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom", "brabantse wal"] },
+      { sector: "bv", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout"] },
       { sector: "bv", name: "Delft", postcode: "2613RR", match: ["delft"] },
-      { sector: "bv", name: "Den Haag Noord-Oost", postcode: "2521DB", match: ["den haag noord", "noord-oost", "noordoost"] },
-      { sector: "bv", name: "Den Haag Zuid-West", postcode: "2552AE", match: ["den haag zuid", "zuid-west", "zuidwest", "loosduinen"] },
+      { sector: "bv", name: "Den Haag Noord-Oost", postcode: "2521DB", match: ["den haag noord-oost", "den haag noordoost", "noord-oost"] },
+      { sector: "bv", name: "Den Haag Zuid-West", postcode: "2552AE", match: ["den haag zuid-west", "den haag zuidwest", "zuid-west"] },
       { sector: "bv", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
-      { sector: "bv", name: "Ede", postcode: "6716AE", match: ["ede"] },
-      { sector: "bv", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven"] },
-      { sector: "bv", name: "Gouda", postcode: "2803PB", match: ["gouda"] },
+      { sector: "bv", name: "Ede", postcode: "6716AE", match: ["ede", "veluwe", "gelderland"] },
+      { sector: "bv", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "kempen"] },
+      { sector: "bv", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden holland", "midden-holland"] },
       { sector: "bv", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
-      { sector: "bv", name: "Leiden", postcode: "2312TH", match: ["leiden"] },
-      { sector: "bv", name: "Naaldwijk", postcode: "2671ZP", match: ["naaldwijk"] },
-      { sector: "bv", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein"] },
-      { sector: "bv", name: "Oss", postcode: "5344AT", match: ["oss"] },
+      { sector: "bv", name: "Leiden", postcode: "2312TH", match: ["leiden", "holland rijnland"] },
+      { sector: "bv", name: "Naaldwijk", postcode: "2671ZP", match: ["naaldwijk", "westland"] },
+      { sector: "bv", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "utrecht"] },
+      { sector: "bv", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant"] },
       { sector: "bv", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk"] },
       { sector: "bv", name: "Rotterdam", postcode: "3083CW", match: ["rotterdam"] },
-      { sector: "bv", name: "'s-Hertogenbosch", postcode: "5232BC", match: ["hertogenbosch", "den bosch"] },
+      { sector: "bv", name: "'s-Hertogenbosch", postcode: "5232BC", match: ["hertogenbosch", "den bosch", "meierij"] },
       { sector: "bv", name: "Tilburg", postcode: "5026RM", match: ["tilburg"] },
       { sector: "bv", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk"] },
-      { sector: "bv", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
-      { sector: "bv", name: "Den Haag", postcode: "2521DB", match: ["den haag"] }
+      { sector: "bv", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] }
     ],
     generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: "*", countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ["do_not_declare"], excludedCalendarTypes: ["unavailability", "presence"] },
     // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.
@@ -755,6 +757,7 @@
     if (hc.compatibility && typeof hc.compatibility === "object") APP_CONFIG.compatibility = hc.compatibility;
     if (hc.features && typeof hc.features === "object") APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
     if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
+    if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
     if (hc.generalSettings && typeof hc.generalSettings === "object") APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
     if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
     if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
@@ -10969,7 +10972,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.229";
+      return "1.6.230";
     }
   }();
 
@@ -13263,28 +13266,30 @@
     var w = String(woord).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp("(^|[^a-zà-ÿ])" + w + "($|[^a-zà-ÿ])", "i").test(naam);
   }
+  function officeSector(locationName) {
+    var naam = String(locationName || "").trim();
+    if (/^bg(\s|$)/i.test(naam)) return "bv";
+    if (/^j\s*&\s*g(\s|$)/i.test(naam)) return "jg";
+    return "";
+  }
   function officeForLocation(locationName, offices) {
     var naam = String(locationName || "").trim();
-    if (!naam) return null;
+    var sector = officeSector(naam);
+    if (!sector) return null;
+    var rest = naam.replace(/^(bg|j\s*&\s*g)\s*/i, "").replace(/\([^)]*\)/g, " ");
     var lijst = Array.isArray(offices) ? offices : APP_CONFIG.offices || [];
-    var jg = /(^|[^a-z])(j&g|j\s*&\s*g|jg|jeugd)([^a-z]|$)/i.test(naam);
-    var volgorde = jg ? ["jg", "bv"] : ["bv", "jg"];
-    for (var s = 0; s < volgorde.length; s++) {
-      var kandidaten = [];
-      lijst.forEach(function(o) {
-        if (!o || (o.sector || "bv") !== volgorde[s]) return;
-        (o.match || [o.name]).forEach(function(w) {
-          if (w && woordIn(naam, w)) kandidaten.push({ o, len: String(w).length });
-        });
+    var kandidaten = [];
+    lijst.forEach(function(o) {
+      if (!o || (o.sector || "bv") !== sector) return;
+      (o.match && o.match.length ? o.match : [o.name]).forEach(function(w) {
+        if (w && woordIn(rest, w)) kandidaten.push({ o, len: String(w).length });
       });
-      if (kandidaten.length) {
-        kandidaten.sort(function(a, b) {
-          return b.len - a.len;
-        });
-        return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || "").replace(/\s+/g, "").toUpperCase() };
-      }
-    }
-    return null;
+    });
+    if (!kandidaten.length) return null;
+    kandidaten.sort(function(a, b) {
+      return b.len - a.len;
+    });
+    return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || "").replace(/\s+/g, "").toUpperCase() };
   }
 
   // src/content/features/agenda/free-slots.js
@@ -13459,6 +13464,9 @@
   }
 
   // src/content/features/agenda/preload.js
+  function aan(k) {
+    return !(APP_CONFIG.features && APP_CONFIG.features[k] === false);
+  }
   var TTL = { ratio: 5 * 6e4, plan: 5 * 6e4, open: 10 * 6e4, productie: 30 * 6e4 };
   var VOORAF_INTERVAL = 5 * 6e4;
   var _cache = /* @__PURE__ */ Object.create(null);
@@ -13535,6 +13543,7 @@
   var _bezig3 = false;
   function preloadPanelData(force) {
     if (_bezig3) return;
+    if (!aan("preload")) return;
     if (document.visibilityState !== "visible") return;
     const sleutel = idsSleutel() + "|" + currentAgendaDate();
     if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
@@ -13545,7 +13554,7 @@
     const vandaag = agendaYmd(/* @__PURE__ */ new Date());
     const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
     });
-    Promise.resolve().then(stap(() => cachedWeekRatio(currentAgendaDate()))).then(stap(() => cachedFreeSlots(60, 2))).then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
+    Promise.resolve().then(stap(() => aan("weekRatio") && cachedWeekRatio(currentAgendaDate()))).then(stap(() => aan("planner") && cachedFreeSlots(60, 2))).then(stap(() => aan("openRegistrations") && cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => aan("production") && cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
       _bezig3 = false;
     }, () => {
       _bezig3 = false;
@@ -13576,7 +13585,8 @@
         return t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
       }).filter(Boolean);
     };
-    storePendingDuplicates(lees(req.extra), lees(req.eigen));
+    var kopieen = !(APP_CONFIG.features && APP_CONFIG.features.plannerCopies === false);
+    storePendingDuplicates(kopieen ? lees(req.extra) : [], kopieen ? lees(req.eigen) : []);
     spaNavigate(location.origin + newEventUrl(ids));
     return { ok: true };
   }
@@ -13671,6 +13681,14 @@
   }
 
   // src/content/features/agenda/side-panel-bridge.js
+  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "routeLink"];
+  function panelFeatures() {
+    var f = APP_CONFIG.features || {}, uit = {};
+    PANEL_FEATURES.forEach(function(k) {
+      uit[k] = f[k] !== false;
+    });
+    return uit;
+  }
   var VERSION = SCRIPT_VERSION;
   function agPanelState() {
     var res = agendaPage._agLastEntries && agendaPage._agLastEntries.length ? computeTotalsApi() : computeTotals();
@@ -13720,6 +13738,8 @@
       // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
       nonClientMarker: _nonClientMarker(),
       routeEnabled: routeEnabled(),
+      // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
+      features: panelFeatures(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }

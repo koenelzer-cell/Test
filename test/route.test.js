@@ -55,14 +55,25 @@ test('postcode uit een adresregel', () => {
   assert.equal(postcodeFromAddress('Laan 5, Stad'), '');
 });
 
-test('kantoor bij een ONS-locatie', async () => {
+test('kantoor bij een ONS-locatie: alleen BG en J&G, met de echte locatienamen', async () => {
   const { officeForLocation } = await import('../src/content/domain/offices.js');
   const { DEFAULT_APP_CONFIG } = await import('../src/content/config/defaults.js');
   const o = DEFAULT_APP_CONFIG.offices;
-  assert.deepEqual(officeForLocation('J&G Oosterhout', o), { name: 'Breda', postcode: '4822NH' });
-  assert.deepEqual(officeForLocation('J&G Delft', o), { name: 'Rijswijk', postcode: '2285VL' }, 'Jeugd en Gezin Delft zit in Rijswijk');
-  assert.deepEqual(officeForLocation('Begeleiding Delft', o), { name: 'Delft', postcode: '2613RR' });
-  assert.deepEqual(officeForLocation('BV Den Haag Zuid-West', o), { name: 'Den Haag Zuid-West', postcode: '2552AE' });
+  const verwacht = {
+    'BG Rotterdam (73731810 / )': '3083CW', 'BG Breda (73731810 / )': '4822NH', 'BG Meierij': '5232BC', 'BG BOEV-Kempen': '5612EK',
+    'BG Den Haag Noord-Oost': '2521DB', 'BG Oosterhout': '4822NH', 'BG Brabantse Wal (73731810 / )': '4624DE', 'BG Veluwe-Gelderland': '6716AE',
+    'BG NOB': '5344AT', 'BG Midden Holland': '2803PB', 'BG Utrecht': '3432ET', 'BG Westland': '2671ZP', 'BG Holland Rijnland': '2312TH',
+    'BG Den Haag Zuid-West': '2552AE', 'BG Waalwijk': '5141PA', 'BG Rijswijk-Delft e.o.': '2285VL',
+    'J&G Kracht': '2552AE', 'J&G Kracht GKO': '2552AE', 'J&G Utrecht': '3432ET', 'J&G Oosterhout': '4822NH', 'J&G NOB': '5344AT',
+    'J&G Zoetermeer': '2713JA', 'J&G Rijswijk-Delft': '2285VL', 'J&G Midden-Holland': '2803PB', 'J&G Breda en West-Brabant West': '4822NH',
+    'J&G Zuidoost-Brabant': '5612EK', 'J&G Hart van Brabant': '5026RM',
+    // Onbekend of geen kantoor:
+    'BG DH2': null, 'BG HWDN (73731810 / )': null, 'BG ADGG': null, 'BG De6 (73731810 / )': null, 'BG Overig': null,
+    'GGZ volwassenen (73738332 / )': null, 'Jeugd en Gezin (73731810 / )': null, 'Breda': null,
+  };
+  for (const [naam, pc] of Object.entries(verwacht)) {
+    const r = officeForLocation(naam, o);
+    assert.equal(r ? r.postcode : null, pc, naam);
+  }
   assert.equal(officeForLocation('J&G Bosschenhoofd', o), null, 'geen halve woorden (oss)');
-  assert.equal(officeForLocation('', o), null);
 });
