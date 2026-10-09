@@ -62,6 +62,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
     met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
+  - **Meerdere afspraken plannen** (planhulp): de medewerker zoekt een
+    cliënt op naam via dezelfde ONS-zoekfunctie als het afspraakformulier
+    (`/search_panel/clients`, pas na een korte pauze in het typen). Naam en
+    postcode (uit het adres in ONS) gaan alleen naar het zijpaneel van deze
+    extensie en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
+    Buiten ONS gaan alleen postcodes (PDOK, en met een sleutel Google Routes).
   - **Afstand in de planhulp** (alleen als de medewerker een postcode
     'Huisbezoek' aanvinkt en een postcode invult): van de afspraken met een cliënt op de
     dagen met vrije tijd geeft de agendapagina alleen de postcode (6 tekens)

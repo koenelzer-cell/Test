@@ -130,7 +130,10 @@ let _bezig = false;
 function volgendeEigen(eigen, bodyText) {
   const volgende = eigen[0];
   storePendingDuplicates([], eigen.slice(1));
-  storePendingAppointment({ date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) });
+  var klaar = { date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) };
+  // Met een eigen duur (meerdere afspraken plannen) staat de eindtijd ook klaar.
+  if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
+  storePendingAppointment(klaar);
   let ids = [];
   try { const ev = JSON.parse(String(bodyText || '')).event; ids = (ev && ev.employee_ids || []).map(String); } catch (e) {}
   if (!ids.length) ids = currentInviteeIds();

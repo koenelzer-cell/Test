@@ -538,7 +538,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, preload: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerMulti: true, preload: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
@@ -1218,6 +1218,8 @@
     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_CLIENT_SEARCH: "ag-client-search",
+    // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -10795,7 +10797,9 @@
   function volgendeEigen(eigen, bodyText) {
     const volgende = eigen[0];
     storePendingDuplicates([], eigen.slice(1));
-    storePendingAppointment({ date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) });
+    var klaar = { date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) };
+    if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
+    storePendingAppointment(klaar);
     let ids = [];
     try {
       const ev = JSON.parse(String(bodyText || "")).event;
@@ -10980,7 +10984,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.234";
+      return "1.6.235";
     }
   }();
 
@@ -13264,6 +13268,30 @@
     var m = /\b([1-9]\d{3})\s?([A-Za-z]{2})\b/.exec(String(adres || ""));
     return m ? m[1] + m[2].toUpperCase() : "";
   }
+  function postcodeFromClient(obj) {
+    var gevonden = "", gezien = 0;
+    (function loop(v, k, d) {
+      if (gevonden || d > 6 || ++gezien > 2e3) return;
+      if (typeof v === "string" || typeof v === "number") {
+        if (/zip|postal|postcode/i.test(k || "")) {
+          var m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v));
+          if (m) gevonden = m[1] + m[2].toUpperCase();
+        }
+        return;
+      }
+      if (!v || typeof v !== "object") return;
+      if (Array.isArray(v)) {
+        v.forEach(function(x) {
+          loop(x, k, d + 1);
+        });
+        return;
+      }
+      Object.keys(v).forEach(function(kk) {
+        loop(v[kk], kk, d + 1);
+      });
+    })(obj, "", 0);
+    return gevonden || postcodeFromAddress(addressFromDetails(obj));
+  }
 
   // src/content/domain/offices.js
   function woordIn(naam, woord) {
@@ -13369,7 +13397,7 @@
       return uit;
     });
   }
-  function findFreeSlots(minutes, weeks, tot, metBezoeken) {
+  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
     var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
@@ -13436,7 +13464,7 @@
         stepMin: 15,
         windowStart: win.start,
         windowEnd: win.end,
-        maxResults: totDatum ? 40 : 12
+        maxResults: veel ? 400 : totDatum ? 40 : 12
       });
       gaps.forEach(function(g) {
         g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
@@ -13456,7 +13484,7 @@
       });
     });
     function onsNakijken(res) {
-      if (res.onsCheck !== "ready") return res;
+      if (res.onsCheck !== "ready" || veel) return res;
       var gaps = res.gaps;
       var nakijk = createLimiter(3);
       return Promise.all(gaps.map(function(g) {
@@ -13538,9 +13566,9 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks, tot, metBezoeken) {
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : ""), function() {
-      return findFreeSlots(minutes, weeks, tot, metBezoeken);
+  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : ""), function() {
+      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel);
     });
   }
   function defaultProductionTo() {
@@ -13592,11 +13620,17 @@
     var lees = function(lijst) {
       return (Array.isArray(lijst) ? lijst : []).map(function(m) {
         var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));
-        return t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+        if (!(t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")))) return null;
+        var uit = { date: String(m.date), startMin: +t[1] * 60 + +t[2] };
+        var mm = parseInt(m.minutes, 10);
+        if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
+        return uit;
       }).filter(Boolean);
     };
-    var kopieen = !(APP_CONFIG.features && APP_CONFIG.features.plannerCopies === false);
-    storePendingDuplicates(kopieen ? lees(req.extra) : [], kopieen ? lees(req.eigen) : []);
+    var f = APP_CONFIG.features || {};
+    var kopieen = f.plannerCopies !== false;
+    var eigenOk = req.multi ? f.plannerMulti !== false && f.plannerDistance !== false : kopieen;
+    storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
     spaNavigate(location.origin + newEventUrl(ids));
     return { ok: true };
   }
@@ -13634,6 +13668,23 @@
     return overlapCheck(ymd2, startMin, startMin + minutes).then(function(msg) {
       return msg ? { ok: false, overlap: msg } : go();
     });
+  }
+
+  // src/content/features/agenda/client-lookup.js
+  var MAX_TREFFERS = 8;
+  function clientsForPlan(json) {
+    var lijst = json && Array.isArray(json.clients) ? json.clients : Array.isArray(json) ? json : [];
+    return lijst.filter(function(c) {
+      return c && c.id != null;
+    }).slice(0, MAX_TREFFERS).map(function(c) {
+      var naam = c.display_name || c.name || c.full_name || c.sortable_name || "";
+      return { id: String(c.id), name: String(naam).replace(/\s+/g, " ").trim(), pc: postcodeFromClient(c) };
+    });
+  }
+  function searchClientsForPlan(term) {
+    var t = String(term || "").trim();
+    if (t.length < 2) return Promise.resolve([]);
+    return getJson(_apiUrl("searchClients", { term: t, outOfCare: "false" })).then(clientsForPlan);
   }
 
   // src/content/features/agenda/route.js
@@ -13691,7 +13742,7 @@
   }
 
   // src/content/features/agenda/side-panel-bridge.js
-  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "routeLink"];
+  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerMulti", "routeLink"];
   function routesProxyVoorPaneel() {
     var p = APP_CONFIG.routesProxy || {};
     var url = String(p.url || "").trim().replace(/\/+$/, "");
@@ -13886,8 +13937,21 @@
               }
             });
             return true;
+          case MSG.AGENDA_CLIENT_SEARCH:
+            searchClientsForPlan(msg.term).then(function(clients) {
+              try {
+                sendResponse({ ok: true, clients });
+              } catch (e) {
+              }
+            }, function() {
+              try {
+                sendResponse({ ok: false, error: "Zoeken in ONS mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {

@@ -914,3 +914,52 @@ test('randlipje: verdwijnt als het zijpaneel open is en komt terug met animatie'
   assert.equal(tab.style.display, 'flex');
   assert.ok(tab.classList.contains('onsah-in'));
 });
+
+test('zijpaneel: meerdere afspraken plannen - cliënt zoeken op naam (pas na typen), voorstel en eigen formulieren', async () => {
+  const PDOK = { '5015TA': 'POINT(5.0700 51.5600)', '5017AB': 'POINT(5.0750 51.5620)', '1058BB': 'POINT(4.8500 52.3600)' };
+  const { document, dom, verzonden } = zijpaneelMetTools({
+    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '24819', name: 'Test4 Cliënt', pc: '5015TA' }] }),
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
+      { date: '2026-10-12', startMin: 540, endMin: 1020, minutes: 480 }, { date: '2026-10-13', startMin: 540, endMin: 1020, minutes: 480 },
+    ], visits: { '2026-10-13': [{ startMin: 480, endMin: 540, pc: '1058BB', soort: 'client' }] } } }),
+    'ag-slot-check': (msg, cb) => cb({ ok: true, status: 'ready', overlap: false }),
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  });
+  dom.window.fetch = (url) => {
+    const pc = decodeURIComponent(String(url).split('&q=')[1] || '');
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: PDOK[pc] ? [{ centroide_ll: PDOK[pc] }] : [] } }) });
+  };
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-plan-modus="meer"]').click();
+  const zoek = document.querySelector('[data-client-zoek="1"]');
+  for (const t of ['T', 'Te', 'Tes', 'Test']) { zoek.value = t; zoek.dispatchEvent(new dom.window.Event('input')); }
+  await new Promise((r) => setTimeout(r, 450));
+  const zoekVragen = verzonden.filter((m) => m.type === 'ag-client-search');
+  assert.deepEqual(zoekVragen.map((m) => m.term), ['Test'], 'één zoekvraag na het typen, niet per letter');
+  document.querySelector('[data-client-id="24819"]').click();
+  assert.equal(document.querySelector('[data-multi-pc="1"]').value, '5015 TA', 'postcode uit ONS');
+  document.querySelector('[data-multi-plus]').click();
+  const pc2 = document.querySelector('[data-multi-pc="2"]');
+  pc2.value = '5017 AB'; pc2.dispatchEvent(new dom.window.Event('input'));
+  const duur2 = document.querySelector('[data-multi-duur="2"]');
+  duur2.value = '90'; duur2.dispatchEvent(new dom.window.Event('change'));
+  knop(document, 'Plan efficiënt').click();
+  await tick(); await tick();
+  const vrij = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  assert.equal(vrij.many, true);
+  assert.equal(vrij.minutes, 60, 'gezocht met de kortste duur');
+  assert.match(document.querySelector('[data-multi-totaal]').textContent, /^2 van 2 ingepland · ≈ \d+ km extra rijden$/);
+  const momenten = [...document.querySelectorAll('[data-multi-moment]')].map((n) => n.getAttribute('data-multi-moment'));
+  assert.equal(momenten.length, 2);
+  assert.ok(momenten.every((m) => m.startsWith('2026-10-12')), 'samen op de dag zonder verre afspraak: ' + momenten);
+  assert.match(document.body.textContent, /Test4 Cliënt/);
+  knop(document, '2 afspraken maken').click();
+  const nieuw = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
+  assert.equal(nieuw.multi, true);
+  assert.deepEqual(nieuw.extra, []);
+  assert.equal(nieuw.eigen.length, 1);
+  assert.ok(nieuw.eigen[0].minutes === 60 || nieuw.eigen[0].minutes === 90, 'eigen duur per afspraak');
+  assert.notEqual(nieuw.minutes, nieuw.eigen[0].minutes);
+});

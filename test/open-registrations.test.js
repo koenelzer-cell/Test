@@ -406,6 +406,26 @@ test('planhulp: na opslaan kopieën maken en het volgende moment met eigen inste
   assert.equal(melding.left, 2);
 });
 
+test('meerdere afspraken plannen: elk een eigen formulier met eigen duur (eindtijd klaar), geen kopieën', async (t) => {
+  const { api, window } = bootHelper({ url: MEER });
+  api.openNewEvent({ date: '2026-11-02', time: '09:00', minutes: 60, multi: true, extra: [{ date: '2026-11-02', time: '11:00' }], eigen: [{ date: '2026-11-02', time: '10:15', minutes: 90 }] });
+  const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingDuplicates'));
+  assert.deepEqual(klaar.moments, [], 'geen kopieën bij meerdere plannen');
+  assert.deepEqual(klaar.eigen, [{ date: '2026-11-02', startMin: 615, minutes: 90 }]);
+  // Na het opslaan: het volgende formulier krijgt zijn eigen duur.
+  const oudeTz = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
+  window.HTMLAnchorElement.prototype.click = function () {};
+  const body = JSON.stringify({ event: { valid_from: '2026-11-02', start_time: '2026-11-02T09:00:00+01:00', end_time: '2026-11-02T10:00:00+01:00', employee_ids: [42479], client_ids: [1] } });
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body, pending: JSON.stringify(klaar) }, origin: window.location.origin, source: window }));
+  await new Promise((r) => setTimeout(r, 50));
+  const volgende = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
+  assert.equal(volgende.date, '2026-11-02');
+  assert.equal(volgende.time, '10:15');
+  assert.equal(volgende.minutes, 90);
+});
+
 test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole), BG/J&G-locatie telt als kantoor', async () => {
   const { api, window } = bootHelper({ url: MEER });
   const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // volgende maandag

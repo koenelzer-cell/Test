@@ -16,11 +16,12 @@ import { defaultProductionFrom } from './production.js';
 import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, isCached } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
+import { searchClientsForPlan } from './client-lookup.js';
 import { checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
-export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'routeLink'];
+export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerMulti', 'routeLink'];
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
 // Routes-sleutel; anders niets (dan PDOK-schatting).
 function routesProxyVoorPaneel() {
@@ -192,8 +193,15 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, status: 'ready', overlap: null }); } catch (e2) {}
           });
           return true;
+        case MSG.AGENDA_CLIENT_SEARCH:
+          searchClientsForPlan(msg.term).then(function (clients) {
+            try { sendResponse({ ok: true, clients: clients }); } catch (e) {}
+          }, function () {
+            try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
+          });
+          return true;
         case MSG.AGENDA_FREE_SLOTS:
-          cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits).then(function (result) {
+          cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Zoeken mislukt.' }); } catch (e2) {}

@@ -59,6 +59,8 @@
     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_CLIENT_SEARCH: "ag-client-search",
+    // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -84,6 +86,254 @@
   var ONS_URL_RE = /^https:\/\/(impegno\.ons-dossier\.nl|impegno-staging-staging\.ons-dossier\.nl|[^/]+\.onsagenda\.nl)\//;
   function isOnsUrl(url) {
     return ONS_URL_RE.test(String(url || ""));
+  }
+
+  // src/sidepanel/multi-plan.js
+  var NIEUWE_DAG_KM = 15;
+  var KM_PER_UUR = 45;
+  var MAX_AFSPRAKEN = 10;
+  function reisMin(km2) {
+    return km2 == null ? 0 : Math.ceil(km2 * 60 / KM_PER_UUR);
+  }
+  function opVolgorde(stops) {
+    return stops.slice().sort(function(a, b) {
+      return a.startMin - b.startMin;
+    });
+  }
+  function dagKm(stops, afstand, thuisPc) {
+    var lijst = opVolgorde(stops).filter(function(s) {
+      return s.pc;
+    });
+    var tot = 0, vorige = thuisPc || "";
+    lijst.forEach(function(s) {
+      if (vorige) tot += afstand(vorige, s.pc) || 0;
+      vorige = s.pc;
+    });
+    if (thuisPc && lijst.length) tot += afstand(vorige, thuisPc) || 0;
+    return tot;
+  }
+  function kandidaten(gaps, duur, stap) {
+    stap = stap || 15;
+    var uit = [];
+    (gaps || []).forEach(function(g) {
+      for (var t = g.startMin; t + duur <= g.endMin; t += stap) uit.push({ date: g.date, startMin: t, gap: g });
+    });
+    return uit;
+  }
+  function planMany(verzoeken, gaps, visits, opts) {
+    opts = opts || {};
+    var afstand = opts.afstand || function() {
+      return null;
+    };
+    var thuis = opts.thuisPc || "";
+    var maxPerDag = opts.maxPerDag > 0 ? opts.maxPerDag : Infinity;
+    var stap = opts.stap || 15;
+    visits = visits || {};
+    var dagIndex = {};
+    (gaps || []).map(function(g) {
+      return g.date;
+    }).filter(function(d, i, a) {
+      return a.indexOf(d) === i;
+    }).sort().forEach(function(d, i) {
+      dagIndex[d] = i;
+    });
+    var plek2 = [];
+    var kand = verzoeken.map(function(v) {
+      return kandidaten(gaps, v.minutes, stap);
+    });
+    function nieuwOp(date, behalve) {
+      var uit = [];
+      plek2.forEach(function(p, i) {
+        if (p && p.date === date && i !== behalve) uit.push({ startMin: p.startMin, endMin: p.startMin + verzoeken[i].minutes, pc: verzoeken[i].pc, nieuw: true });
+      });
+      return uit;
+    }
+    function vast(date) {
+      return (visits[date] || []).map(function(b) {
+        return { startMin: b.startMin, endMin: b.endMin, pc: b.pc };
+      });
+    }
+    function past(i, date, t, andere) {
+      var duur = verzoeken[i].minutes, eind = t + duur;
+      if (andere.length >= maxPerDag) return false;
+      for (var k = 0; k < andere.length; k++) {
+        if (andere[k].startMin < eind && andere[k].endMin > t) return false;
+      }
+      var alle = opVolgorde(vast(date).concat(andere).concat([{ startMin: t, endMin: eind, pc: verzoeken[i].pc, nieuw: true, zelf: true }]));
+      for (var j = 1; j < alle.length; j++) {
+        var a = alle[j - 1], b = alle[j];
+        if (b.startMin < a.endMin) {
+          if (a.nieuw || b.nieuw) return false;
+          continue;
+        }
+        if (!(a.nieuw || b.nieuw) || !a.pc || !b.pc) continue;
+        if (b.startMin - a.endMin < reisMin(afstand(a.pc, b.pc))) return false;
+      }
+      return true;
+    }
+    function kosten(i, date, t, andere) {
+      var basis = vast(date).concat(andere);
+      var met = basis.concat([{ startMin: t, endMin: t + verzoeken[i].minutes, pc: verzoeken[i].pc }]);
+      var extra = dagKm(met, afstand, thuis) - dagKm(basis, afstand, thuis);
+      var leeg2 = !basis.some(function(s) {
+        return s.pc;
+      });
+      if (leeg2 && !thuis) extra += NIEUWE_DAG_KM;
+      return extra + (dagIndex[date] || 0) * 0.01 + t * 1e-5;
+    }
+    function beste(i) {
+      var best = null;
+      var perDag = {};
+      kand[i].forEach(function(c) {
+        var andere = perDag[c.date] || (perDag[c.date] = nieuwOp(c.date, i));
+        if (!past(i, c.date, c.startMin, andere)) return;
+        var k = kosten(i, c.date, c.startMin, andere);
+        if (!best || k < best.k) best = { date: c.date, startMin: c.startMin, k };
+      });
+      return best;
+    }
+    function totaal() {
+      var dagen2 = {};
+      plek2.forEach(function(p) {
+        if (p) dagen2[p.date] = true;
+      });
+      var som = 0;
+      Object.keys(dagen2).forEach(function(d) {
+        var nieuw = nieuwOp(d, -1);
+        var met = vast(d).concat(nieuw);
+        som += dagKm(met, afstand, thuis) - dagKm(vast(d), afstand, thuis);
+        if (!thuis && !vast(d).some(function(s) {
+          return s.pc;
+        })) som += NIEUWE_DAG_KM;
+        som += (dagIndex[d] || 0) * 0.01;
+        nieuw.forEach(function(n) {
+          som += n.startMin * 1e-5;
+        });
+      });
+      return som;
+    }
+    var volgorde = verzoeken.map(function(_, i) {
+      return i;
+    }).sort(function(a, b) {
+      return verzoeken[b].minutes - verzoeken[a].minutes || a - b;
+    });
+    verzoeken.forEach(function() {
+      plek2.push(null);
+    });
+    volgorde.forEach(function(i) {
+      var b = beste(i);
+      plek2[i] = b ? { date: b.date, startMin: b.startMin } : null;
+    });
+    for (var ronde = 0; ronde < 6; ronde++) {
+      var beter = false;
+      volgorde.forEach(function(i) {
+        var oud = plek2[i], voor = totaal();
+        plek2[i] = null;
+        var b = beste(i);
+        if (!b) {
+          plek2[i] = oud;
+          return;
+        }
+        plek2[i] = { date: b.date, startMin: b.startMin };
+        if (!oud || totaal() < voor - 1e-6) {
+          if (oud) beter = true;
+        } else plek2[i] = oud;
+      });
+      for (var x = 0; x < verzoeken.length; x++) {
+        for (var y = x + 1; y < verzoeken.length; y++) {
+          var px = plek2[x], py = plek2[y];
+          if (!px || !py || px.date === py.date && px.startMin === py.startMin) continue;
+          var voorRuil = totaal();
+          plek2[x] = null;
+          plek2[y] = null;
+          var ok = past(x, py.date, py.startMin, nieuwOp(py.date, x)) && kandOk(x, py);
+          if (ok) {
+            plek2[x] = { date: py.date, startMin: py.startMin };
+            ok = past(y, px.date, px.startMin, nieuwOp(px.date, y)) && kandOk(y, px);
+          }
+          if (ok) {
+            plek2[y] = { date: px.date, startMin: px.startMin };
+          }
+          if (ok && totaal() < voorRuil - 1e-6) {
+            beter = true;
+            continue;
+          }
+          plek2[x] = px;
+          plek2[y] = py;
+        }
+      }
+      if (!beter) break;
+    }
+    function kandOk(i, p) {
+      return kand[i].some(function(c) {
+        return c.date === p.date && c.startMin === p.startMin;
+      });
+    }
+    var placed = [], unplaced = [];
+    plek2.forEach(function(p, i) {
+      if (p) placed.push({ i, date: p.date, startMin: p.startMin, minutes: verzoeken[i].minutes, pc: verzoeken[i].pc });
+      else unplaced.push(i);
+    });
+    placed.sort(function(a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin;
+    });
+    var extraKm = 0;
+    var dagen = {};
+    placed.forEach(function(p) {
+      dagen[p.date] = true;
+    });
+    Object.keys(dagen).forEach(function(d) {
+      extraKm += dagKm(vast(d).concat(nieuwOp(d, -1)), afstand, thuis) - dagKm(vast(d), afstand, thuis);
+    });
+    return { placed, unplaced, extraKm: Math.max(0, extraKm) };
+  }
+  function buren(placed, visits, thuisPc) {
+    return placed.map(function(p) {
+      var stops = opVolgorde((visits[p.date] || []).concat(placed.filter(function(q) {
+        return q.date === p.date;
+      }).map(function(q) {
+        return { startMin: q.startMin, endMin: q.startMin + q.minutes, pc: q.pc };
+      }))).filter(function(s) {
+        return s.pc;
+      });
+      var idx = -1;
+      stops.forEach(function(s, k) {
+        if (s.startMin === p.startMin && s.pc === p.pc) idx = k;
+      });
+      return {
+        date: p.date,
+        startMin: p.startMin,
+        voor: idx > 0 ? stops[idx - 1].pc : thuisPc || "",
+        na: idx >= 0 && idx < stops.length - 1 ? stops[idx + 1].pc : thuisPc || ""
+      };
+    });
+  }
+  function extraVoor(b, pc, afstand) {
+    var p = b.voor, q = b.na;
+    if (!p && !q) return null;
+    if (p && q) {
+      var h = afstand(p, pc), t = afstand(pc, q), d = p === q ? 0 : afstand(p, q);
+      if (h == null || t == null || d == null) return null;
+      return Math.max(0, h + t - d);
+    }
+    var e = p ? afstand(p, pc) : afstand(pc, q);
+    return e == null ? null : e;
+  }
+  function voorstelParen(burenLijst, placed) {
+    var uit = [], gezien = {};
+    var voeg = function(a, b) {
+      if (a && b && a !== b && !gezien[a + "|" + b]) {
+        gezien[a + "|" + b] = 1;
+        uit.push([a, b]);
+      }
+    };
+    burenLijst.forEach(function(b, k) {
+      var pc = placed[k].pc;
+      voeg(b.voor, pc);
+      voeg(pc, b.na);
+      voeg(b.voor, b.na);
+    });
+    return uit;
   }
 
   // src/sidepanel/geo.js
@@ -1293,7 +1543,10 @@
     // tot: zoek tot en met die datum (gaat voor op weeks).
     // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
     // huisbezoek: aangevinkt = postcode invullen en sorteren op minst rijden.
-    plan: { minutes: 60, weeks: 2, tot: "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" },
+    plan: { modus: "een", minutes: 60, weeks: 2, tot: "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" },
+    // Meerdere afspraken plannen: rijen [{ name, clientId, pc, minutes }]
+    // (namen alleen in het geheugen van dit paneel), perDag: hooguit per dag (0 = geen max).
+    multi: { rijen: [], perDag: 2, busy: false, result: null, error: "", geo: "" },
     // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
     slot: null,
     // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
@@ -1309,7 +1562,8 @@
     BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
     BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
     BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
-    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" };
+    BEWAARD.plan = { modus: BEWAARD.plan ? BEWAARD.plan.modus : "een", minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" };
+    BEWAARD.multi = { rijen: [], perDag: 2, busy: false, result: null, error: "", geo: "" };
     BEWAARD.momenten = [];
     BEWAARD.kopie = null;
     BEWAARD.balkOpen = false;
@@ -1981,8 +2235,445 @@
       if (verder) return noteBox("Afspraak opgeslagen." + verder, "ok");
       return null;
     }
+    var multi = BEWAARD.multi;
+    function nieuweRij() {
+      return { zoek: "", clientId: "", name: "", pc: "", minutes: 60, treffers: null };
+    }
+    if (!multi.rijen.length) multi.rijen.push(nieuweRij());
+    var DUREN = [30, 45, 60, 75, 90, 120];
+    function clientZoeker(r, nr) {
+      var wrap = el("div", { position: "relative", flex: "1 1 auto", minWidth: "0" });
+      var inp = inputEl("text", r.name || r.zoek, function() {
+      });
+      inp.placeholder = "Naam cliënt";
+      inp.setAttribute("data-client-zoek", String(nr));
+      inp.setAttribute("autocomplete", "off");
+      inp.style.width = "100%";
+      var lijst = el("div", { position: "absolute", left: "0", right: "0", top: "100%", zIndex: "5", background: "#fff", border: "1px solid " + T.line, borderRadius: "8px", boxShadow: "0 10px 24px -14px rgba(32,20,15,.45)", marginTop: "2px", display: "none", maxHeight: "220px", overflowY: "auto" });
+      lijst.setAttribute("role", "listbox");
+      var timer = null, vraagNr = 0;
+      function toon2() {
+        lijst.innerHTML = "";
+        var t = r.treffers;
+        if (!t) {
+          lijst.style.display = "none";
+          return;
+        }
+        lijst.style.display = "";
+        if (t.zoekt) {
+          lijst.appendChild(el("div", { padding: "8px 10px", fontSize: "12.5px", color: T.inkSoft }, "Zoeken in ONS…"));
+          return;
+        }
+        if (t.fout) {
+          lijst.appendChild(el("div", { padding: "8px 10px", fontSize: "12.5px", color: T.bad }, t.fout));
+          return;
+        }
+        if (!t.lijst.length) {
+          lijst.appendChild(el("div", { padding: "8px 10px", fontSize: "12.5px", color: T.inkSoft }, "Geen cliënt gevonden."));
+          return;
+        }
+        t.lijst.forEach(function(c) {
+          var b = el("button", { display: "flex", width: "100%", justifyContent: "space-between", gap: "8px", border: "0", background: "#fff", padding: "7px 10px", cursor: "pointer", font: "400 13px " + FONT, color: T.ink, textAlign: "left" });
+          b.type = "button";
+          b.setAttribute("role", "option");
+          b.setAttribute("data-client-id", c.id);
+          b.appendChild(el("span", {}, c.name || "Cliënt " + c.id));
+          b.appendChild(el("span", { color: T.inkSoft, fontSize: "12px", fontVariantNumeric: "tabular-nums" }, c.pc ? c.pc.slice(0, 4) + " " + c.pc.slice(4) : ""));
+          b.addEventListener("mouseenter", function() {
+            b.style.background = T.brandWash;
+          });
+          b.addEventListener("mouseleave", function() {
+            b.style.background = "#fff";
+          });
+          b.addEventListener("mousedown", function(e) {
+            e.preventDefault();
+          });
+          b.addEventListener("click", function() {
+            r.clientId = c.id;
+            r.name = c.name;
+            r.zoek = "";
+            r.treffers = null;
+            r.pc = c.pc ? c.pc.slice(0, 4) + " " + c.pc.slice(4) : "";
+            r.pcUitOns = !!c.pc;
+            multi.result = null;
+            renderPagina();
+          });
+          lijst.appendChild(b);
+        });
+      }
+      inp.addEventListener("input", function() {
+        r.zoek = inp.value;
+        r.name = "";
+        r.clientId = "";
+        r.pcUitOns = false;
+        clearTimeout(timer);
+        var term = inp.value.trim();
+        if (term.length < 2 || !actions.onClientSearch) {
+          r.treffers = null;
+          toon2();
+          return;
+        }
+        timer = setTimeout(function() {
+          var mijn = ++vraagNr;
+          r.treffers = { zoekt: true, lijst: [] };
+          toon2();
+          actions.onClientSearch(term, function(res) {
+            if (mijn !== vraagNr) return;
+            r.treffers = res && res.ok ? { lijst: res.clients || [] } : { fout: res && res.error || "Zoeken mislukt.", lijst: [] };
+            toon2();
+          });
+        }, 350);
+      });
+      inp.addEventListener("blur", function() {
+        setTimeout(function() {
+          r.treffers = null;
+          toon2();
+        }, 150);
+      });
+      inp.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          r.treffers = null;
+          toon2();
+        }
+      });
+      wrap.appendChild(inp);
+      wrap.appendChild(lijst);
+      toon2();
+      return wrap;
+    }
+    function nummer(n) {
+      return el("span", { flex: "0 0 auto", width: "20px", height: "20px", borderRadius: "10px", background: T.brand, color: "#fff", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", justifyContent: "center" }, String(n));
+    }
+    function rijNaam(i) {
+      var r = multi.rijen[i];
+      return r && (r.name || r.pc) || "afspraak " + (i + 1);
+    }
+    function pageMulti(box) {
+      box.appendChild(txt("help", "Zoek per afspraak de cliënt op naam (de postcode komt uit ONS) en kies de duur. De hulp zet ze in je vrije tijd met zo weinig mogelijk rijden, rekening houdend met je andere afspraken en kantoor.", { margin: "0 0 10px" }));
+      var rijen = el("div", { display: "flex", flexDirection: "column", gap: "8px" });
+      multi.rijen.forEach(function(r, i) {
+        var kaart = el("div", { display: "flex", flexDirection: "column", gap: "6px", padding: "8px", border: "1px solid " + T.line, borderRadius: "10px", background: "#fff" });
+        kaart.setAttribute("data-multi-rij", String(i + 1));
+        var boven = el("div", { display: "flex", alignItems: "center", gap: "8px" });
+        boven.appendChild(nummer(i + 1));
+        boven.appendChild(clientZoeker(r, i + 1));
+        if (multi.rijen.length > 1) {
+          var weg = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 6px", borderRadius: "6px" }, "×");
+          weg.type = "button";
+          weg.setAttribute("aria-label", "Afspraak " + (i + 1) + " weghalen");
+          weg.addEventListener("click", function() {
+            multi.rijen.splice(i, 1);
+            multi.result = null;
+            renderPagina();
+          });
+          boven.appendChild(weg);
+        }
+        kaart.appendChild(boven);
+        var onder = el("div", { display: "flex", alignItems: "center", gap: "8px", paddingLeft: "28px" });
+        var pc = inputEl("text", r.pc, function(v) {
+          r.pc = v;
+          r.pcUitOns = false;
+          multi.result = null;
+        });
+        pc.placeholder = "Postcode";
+        pc.setAttribute("data-multi-pc", String(i + 1));
+        pc.style.width = "96px";
+        pc.style.flex = "0 0 96px";
+        pc.title = r.pcUitOns ? "Postcode uit ONS" : "Postcode van de cliënt";
+        onder.appendChild(pc);
+        var sel = document.createElement("select");
+        sel.setAttribute("data-multi-duur", String(i + 1));
+        sel.setAttribute("aria-label", "Duur afspraak " + (i + 1));
+        Object.assign(sel.style, { height: "34px", border: "1px solid " + T.line, borderRadius: "8px", padding: "0 8px", font: "400 13px " + FONT, color: T.ink, background: "#fff" });
+        DUREN.forEach(function(m) {
+          var o = document.createElement("option");
+          o.value = String(m);
+          o.textContent = fmtMin(m);
+          if (m === r.minutes) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener("change", function() {
+          r.minutes = parseInt(sel.value, 10);
+          multi.result = null;
+        });
+        onder.appendChild(sel);
+        if (r.name && !r.pcUitOns && !normPostcode(r.pc)) onder.appendChild(el("span", { fontSize: "11.5px", color: T.warn }, "postcode niet in ONS gevonden"));
+        kaart.appendChild(onder);
+        rijen.appendChild(kaart);
+      });
+      box.appendChild(rijen);
+      if (multi.rijen.length < MAX_AFSPRAKEN) {
+        var plus = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 13px " + FONT, padding: "8px 0 0", textAlign: "left" }, "+ Afspraak");
+        plus.type = "button";
+        plus.setAttribute("data-multi-plus", "");
+        plus.addEventListener("click", function() {
+          multi.rijen.push(nieuweRij());
+          multi.result = null;
+          renderPagina();
+        });
+        box.appendChild(plus);
+      }
+      var per = el("div", { display: "flex", gap: "4px" });
+      [[1, "1 week"], [2, "2 weken"], [4, "4 weken"]].forEach(function(w) {
+        var g = !plan.tot && plan.weeks === w[0];
+        per.appendChild(chipKnop(w[1], g, function() {
+          plan.weeks = w[0];
+          plan.tot = "";
+          multi.result = null;
+          renderPagina();
+        }, { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }));
+      });
+      var perLab = fieldLabel("Periode", per);
+      perLab.style.marginTop = "12px";
+      box.appendChild(perLab);
+      var max = el("div", { display: "flex", gap: "4px" });
+      [[1, "1"], [2, "2"], [3, "3"], [0, "geen max"]].forEach(function(o) {
+        var g = multi.perDag === o[0];
+        max.appendChild(chipKnop(o[1], g, function() {
+          multi.perDag = o[0];
+          multi.result = null;
+          renderPagina();
+        }, { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }));
+      });
+      var maxLab = fieldLabel("Hooguit per dag", max);
+      maxLab.style.marginTop = "10px";
+      box.appendChild(maxLab);
+      var vertrek = normPostcode((String(leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
+      box.appendChild(txt("help", (vertrek ? "Vertrekpunt: " + vertrek.slice(0, 4) + " " + vertrek.slice(4) + " (uit Route van de dag). " : "Tip: stel bij Route van de dag je vertrekpunt in; dan telt de rit van en naar huis mee. ") + "Alleen postcodes gaan naar PDOK" + (state && state.routesProxy ? " en Google Routes" : "") + ".", { margin: "8px 0 0", fontSize: "11.5px" }));
+      box.appendChild(primaryBtn(multi.busy ? "Bezig met plannen…" : "Plan efficiënt", function() {
+        startMulti(true);
+      }, multi.busy));
+      if (multi.busy) {
+        zorgVoorStijl();
+        var lb = laadBalk();
+        lb.style.marginTop = "10px";
+        box.appendChild(lb);
+      }
+      if (multi.error) box.appendChild(noteBox(multi.error, "bad"));
+      if (multi.geo) box.appendChild(noteBox(multi.geo, "warn"));
+      var uitslag = kopieUitslag();
+      if (uitslag) box.appendChild(uitslag);
+      if (multi.result && !multi.busy) box.appendChild(multiVoorstel(multi.result));
+      return box;
+    }
+    function rijTekst(x) {
+      if (!x) return "";
+      if (x.s != null) return "≈ " + Math.max(1, Math.round(x.s / 60)) + " min · " + (x.m < 1e3 ? "< 1" : Math.round(x.m / 1e3)) + " km rijden";
+      return "≈ " + (x.km < 1 ? "< 1" : Math.round(x.km)) + " km rijden";
+    }
+    function multiVoorstel(res) {
+      var box = el("div", { marginTop: "14px" });
+      box.setAttribute("data-multi-voorstel", "");
+      var n = res.placed.length, totaal = multi.rijen.length;
+      if (!n) {
+        box.appendChild(noteBox("Geen plek gevonden in deze periode. Kies een langere periode of minder afspraken per dag.", "warn"));
+        return box;
+      }
+      var som = n + " van " + totaal + " ingepland · " + (res.weg ? rijTekst(res.weg).replace(" rijden", " extra rijden") : "≈ " + Math.round(res.extraKm) + " km extra rijden");
+      var kop = noteBox(som, n === totaal ? "ok" : "warn");
+      kop.setAttribute("data-multi-totaal", "");
+      box.appendChild(kop);
+      var dagen = [];
+      res.placed.forEach(function(p) {
+        if (dagen.indexOf(p.date) < 0) dagen.push(p.date);
+      });
+      dagen.forEach(function(d) {
+        var kaart = el("div", { border: "1px solid " + T.line, borderRadius: "10px", padding: "8px 11px", marginTop: "8px", background: "#fff" });
+        kaart.appendChild(el("div", { fontSize: "13px", fontWeight: "700", color: T.ink, marginBottom: "4px" }, dayLabel(d)));
+        var regels = (res.visits[d] || []).map(function(v) {
+          return { startMin: v.startMin, vast: v };
+        }).concat(res.placed.filter(function(p) {
+          return p.date === d;
+        }).map(function(p) {
+          return { startMin: p.startMin, nieuw: p };
+        })).sort(function(a, b) {
+          return a.startMin - b.startMin;
+        });
+        regels.forEach(function(rg) {
+          var rij = el("div", { display: "flex", alignItems: "center", gap: "8px", minHeight: "28px", fontSize: "12.5px", borderTop: "1px solid " + T.lineSoft, padding: "3px 0" });
+          if (rg.vast) {
+            rij.style.color = T.inkSoft;
+            rij.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, hm(rg.vast.startMin) + "–" + hm(rg.vast.endMin)));
+            rij.appendChild(el("span", {}, rg.vast.soort === "kantoor" ? (rg.vast.kantoor || "kantoor") + " (kantoor)" : "bestaande afspraak"));
+          } else {
+            var p = rg.nieuw;
+            rij.setAttribute("data-multi-moment", p.date + " " + hm(p.startMin));
+            rij.appendChild(nummer(p.i + 1));
+            rij.appendChild(el("span", { flex: "0 0 auto", fontWeight: "700", color: T.ink, fontVariantNumeric: "tabular-nums" }, hm(p.startMin) + "–" + hm(p.startMin + p.minutes)));
+            var kol = el("span", { display: "flex", flexDirection: "column", minWidth: "0", flex: "1 1 auto" });
+            kol.appendChild(el("span", { color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, rijNaam(p.i)));
+            var extra = rijTekst(p.weg || (p.km != null ? { km: p.km } : null));
+            if (extra) kol.appendChild(el("span", { color: T.brand, fontWeight: "600", fontSize: "11.5px" }, extra));
+            rij.appendChild(kol);
+            if (p.ons === true) {
+              var w = el("span", Object.assign({}, TYPE.help, { color: T.warn, fontWeight: "600", flex: "0 0 auto" }), "ONS: overlap");
+              w.title = "ONS’ eigen overlapcontrole meldt overlap op dit tijdstip.";
+              rij.appendChild(w);
+            }
+          }
+          kaart.appendChild(rij);
+        });
+        box.appendChild(kaart);
+      });
+      if (res.unplaced.length) box.appendChild(noteBox("Geen plek gevonden voor: " + res.unplaced.map(function(i) {
+        return i + 1 + " (" + rijNaam(i) + ")";
+      }).join(", ") + ".", "warn"));
+      var foutHost = el("div");
+      var maak = primaryBtn(n === 1 ? "Afspraak maken" : n + " afspraken maken", function() {
+        var tijd = function(p) {
+          return { date: p.date, time: hm(p.startMin), minutes: p.minutes };
+        };
+        var eerste = res.placed[0];
+        actions.onNewEvent({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, multi: true, extra: [], eigen: res.placed.slice(1).map(tijd) }, function(r) {
+          if (!(r && r.ok)) {
+            foutHost.innerHTML = "";
+            foutHost.appendChild(noteBox(r && r.error || "Openen mislukt.", "bad"));
+          }
+        });
+      });
+      maak.setAttribute("data-multi-maak", "");
+      maak.title = "Opent het afspraakformulier voor de eerste; na het opslaan opent de hulp de volgende, met datum, begin- en eindtijd ingevuld. De cliënt kies je zelf in het formulier.";
+      box.appendChild(maak);
+      var opnieuw = secondaryBtn("Opnieuw plannen", function() {
+        startMulti(true);
+      });
+      opnieuw.style.marginTop = "8px";
+      box.appendChild(opnieuw);
+      box.appendChild(foutHost);
+      box.appendChild(txt("help", "Kies in elk formulier zelf de cliënt (" + res.placed.map(function(p) {
+        return p.i + 1 + ": " + rijNaam(p.i);
+      }).join(", ") + ").", { margin: "8px 0 0", fontSize: "11.5px" }));
+      return box;
+    }
+    function startMulti(gebaar) {
+      if (multi.busy || !actions.onFreeSlots) return;
+      var verzoeken = [], fout = "";
+      multi.rijen.forEach(function(r, i) {
+        var pc = normPostcode(r.pc);
+        if (!pc && !fout) fout = "Afspraak " + (i + 1) + ": kies een cliënt of vul een postcode in (bijv. 2611 EB).";
+        verzoeken.push({ pc, minutes: r.minutes || 60 });
+      });
+      multi.error = fout;
+      multi.geo = "";
+      multi.result = null;
+      if (fout) {
+        renderPagina();
+        return;
+      }
+      var direct = !!(state && state.routesProxy && state.routesProxy.key);
+      toestemmingAfstand(gebaar === true, direct, function(t) {
+        if (!t.pdok) {
+          multi.error = "Geen toestemming voor de postcodedienst (PDOK); zonder afstanden kan de hulp niet efficiënt plannen.";
+          renderPagina();
+          return;
+        }
+        var routesOk = !direct || t.routes;
+        multi.busy = true;
+        renderPagina();
+        var kortste = Math.min.apply(null, verzoeken.map(function(v) {
+          return v.minutes;
+        }));
+        var voor = multi;
+        actions.onFreeSlots(kortste, plan.weeks, function(res) {
+          if (BEWAARD.multi !== voor) return;
+          if (!(res && res.ok && res.result)) {
+            multi.busy = false;
+            multi.error = res && res.error || "Zoeken mislukt.";
+            renderPagina();
+            return;
+          }
+          rekenMulti(res.result, verzoeken, routesOk).then(function(r) {
+            multi.busy = false;
+            multi.result = r;
+            renderPagina();
+          }, function(e) {
+            multi.busy = false;
+            multi.error = e && e.message || "Plannen mislukt.";
+            renderPagina();
+          });
+        }, plan.tot, true, true);
+      });
+    }
+    function rekenMulti(result, verzoeken, routesOk) {
+      var visits = result.visits || {};
+      var thuisPc = normPostcode((String(leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
+      var pcs = verzoeken.map(function(v) {
+        return v.pc;
+      }).concat([thuisPc]);
+      Object.keys(visits).forEach(function(d) {
+        visits[d].forEach(function(b) {
+          pcs.push(b.pc);
+        });
+      });
+      return lookupPostcodes(pcs.filter(Boolean), haalJson).then(function(coord) {
+        var missend = verzoeken.filter(function(v) {
+          return !coord(v.pc);
+        }).map(function(v) {
+          return v.pc;
+        });
+        if (missend.length) multi.geo = "Postcode niet gevonden: " + missend.join(", ") + ". Die afspraak wordt zonder afstand ingepland.";
+        var afstand = function(a, b) {
+          return a === b ? 0 : km(coord(a), coord(b));
+        };
+        var plan2 = planMany(verzoeken, result.gaps, visits, { afstand, thuisPc, maxPerDag: multi.perDag });
+        var br = buren(plan2.placed, visits, thuisPc);
+        plan2.placed.forEach(function(p, k) {
+          p.km = extraVoor(br[k], p.pc, afstand);
+        });
+        plan2.visits = visits;
+        var proxy = state && state.routesProxy;
+        if (proxy && proxy.key && !routesOk) proxy = null;
+        var weg = proxy && plan2.placed.length ? roadPairs(proxy, voorstelParen(br, plan2.placed)).then(function(pair) {
+          var tot = { m: 0, s: 0 }, alles = true;
+          plan2.placed.forEach(function(p, k) {
+            var m = extraVoor(br[k], p.pc, function(a, b) {
+              var x = pair(a, b);
+              return x ? x.m : null;
+            });
+            var s = extraVoor(br[k], p.pc, function(a, b) {
+              var x = pair(a, b);
+              return x ? x.s : null;
+            });
+            if (m != null && s != null) {
+              p.weg = { m, s };
+              tot.m += m;
+              tot.s += s;
+            } else alles = false;
+          });
+          if (alles) plan2.weg = tot;
+        }, function() {
+          multi.geo = multi.geo || "Google Routes reageert niet; afstanden in rechte lijn geschat.";
+        }) : Promise.resolve();
+        var ons = Promise.all(plan2.placed.map(function(p) {
+          if (!actions.onSlotCheck) return null;
+          return new Promise(function(klaar) {
+            actions.onSlotCheck({ date: p.date, startMin: p.startMin, minutes: p.minutes }, function(r) {
+              p.ons = r && r.ok ? r.overlap : null;
+              klaar();
+            });
+          });
+        }));
+        return Promise.all([weg, ons]).then(function() {
+          return plan2;
+        });
+      });
+    }
     function pagePlan() {
       var planBox = el("div");
+      if (fAan("plannerMulti") && fAan("plannerDistance")) {
+        var tabs = el("div", { display: "flex", gap: "4px", marginBottom: "12px" });
+        [["een", "Eén afspraak"], ["meer", "Meerdere plannen"]].forEach(function(o) {
+          var g = (plan.modus || "een") === o[0];
+          var c = chipKnop(o[1], g, function() {
+            plan.modus = o[0];
+            renderPagina();
+          }, { padding: "0 12px", border: "1px solid " + (g ? T.brand : T.line) });
+          c.setAttribute("data-plan-modus", o[0]);
+          tabs.appendChild(c);
+        });
+        planBox.appendChild(tabs);
+        if (plan.modus === "meer") return pageMulti(planBox);
+      } else plan.modus = "een";
       var meer = state && state.inviteeCount > 1 ? state.inviteeCount : 0;
       if (meer) planBox.appendChild(noteBox("Er staan " + meer + " agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.", "ok"));
       if (meer) planBox.lastChild.style.margin = "0 0 10px";
@@ -3530,8 +4221,11 @@
     onSlotCheck: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb);
     },
-    onFreeSlots: function(minutes, weeks, cb, to, visits) {
-      vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits }, cb);
+    onFreeSlots: function(minutes, weeks, cb, to, visits, many) {
+      vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits, many: !!many }, cb);
+    },
+    onClientSearch: function(term, cb) {
+      vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term }, cb);
     },
     onWeekRatio: function(date, cb) {
       vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date }, cb);

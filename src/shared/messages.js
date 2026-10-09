@@ -45,6 +45,7 @@ export const MSG = {
   AGENDA_DUPLICATES_DONE: 'ag-duplicates-done', // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
   AGENDA_DAY_ROUTE: 'ag-day-route',     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
   AGENDA_SLOT_CHECK: 'ag-slot-check',   // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+  AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term } -> { ok, clients: [{ id, name, pc }] }  planhulp: meerdere afspraken
   AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
   AGENDA_WEEK_RATIO: 'ag-week-ratio',   // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
   AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week

@@ -105,3 +105,24 @@ export function postcodeFromAddress(adres) {
   var m = /\b([1-9]\d{3})\s?([A-Za-z]{2})\b/.exec(String(adres || ''));
   return m ? (m[1] + m[2].toUpperCase()) : '';
 }
+
+// Postcode van een cliënt uit een zoekresultaat (search_panel) of details:
+// eerst een veld als 'zipcode'/'postal_code', anders uit een adresregel.
+// -> '2611EB' of ''.
+export function postcodeFromClient(obj) {
+  var gevonden = '', gezien = 0;
+  (function loop(v, k, d) {
+    if (gevonden || d > 6 || ++gezien > 2000) return;
+    if (typeof v === 'string' || typeof v === 'number') {
+      if (/zip|postal|postcode/i.test(k || '')) {
+        var m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v));
+        if (m) gevonden = m[1] + m[2].toUpperCase();
+      }
+      return;
+    }
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) { v.forEach(function (x) { loop(x, k, d + 1); }); return; }
+    Object.keys(v).forEach(function (kk) { loop(v[kk], kk, d + 1); });
+  })(obj, '', 0);
+  return gevonden || postcodeFromAddress(addressFromDetails(obj));
+}

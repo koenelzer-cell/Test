@@ -33,12 +33,20 @@ export function openNewEvent(req) {
   var lees = function (lijst) {
     return (Array.isArray(lijst) ? lijst : []).map(function (m) {
       var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
-      return (t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || ''))) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+      if (!(t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || '')))) return null;
+      var uit = { date: String(m.date), startMin: +t[1] * 60 + +t[2] };
+      // Eigen duur (meerdere afspraken plannen): eindtijd vooraf ingevuld.
+      var mm = parseInt(m.minutes, 10);
+      if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
+      return uit;
     }).filter(Boolean);
   };
   // Kopieën uit (beheer): alleen dit ene formulier.
-  var kopieen = !(APP_CONFIG.features && APP_CONFIG.features.plannerCopies === false);
-  storePendingDuplicates(kopieen ? lees(req.extra) : [], kopieen ? lees(req.eigen) : []);
+  var f = APP_CONFIG.features || {};
+  var kopieen = f.plannerCopies !== false;
+  // Meerdere afspraken plannen: elk een eigen formulier (eigen schakelaar).
+  var eigenOk = req.multi ? (f.plannerMulti !== false && f.plannerDistance !== false) : kopieen;
+  storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
   spaNavigate(location.origin + newEventUrl(ids));
   return { ok: true };
 }

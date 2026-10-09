@@ -94,8 +94,9 @@ function huisbezoekenPerDag(alles, datums) {
 // ook de postcodes van de afspraken op die dagen meegeven (afstand).
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
-// bezet.
-export function findFreeSlots(minutes, weeks, tot, metBezoeken) {
+// bezet. veel: alle vrije blokken in de periode (meerdere afspraken plannen);
+// dan geen ONS-controle per blok (het zijpaneel controleert het voorstel).
+export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
@@ -142,7 +143,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken) {
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: Date.now(), days: dagen, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, maxResults: totDatum ? 40 : 12
+      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12)
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
     // die het begin van het blok raken.
@@ -155,7 +156,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken) {
     return bezoeken.then(function () { return onsNakijken(res); });
   });
   function onsNakijken(res) {
-    if (res.onsCheck !== 'ready') return res;
+    if (res.onsCheck !== 'ready' || veel) return res;
     var gaps = res.gaps;
     // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
     // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.

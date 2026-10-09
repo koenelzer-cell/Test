@@ -180,6 +180,19 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   of anders je vertrekpunt. De blokken staan meteen op 'Minst rijden'. Er is geen controle op een label: 'Huisbezoek' is alleen het vinkje voor de nieuwe afspraak. Hemelsbreed × 1,3: een schatting, geen
   rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
   de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
+- **Meerdere afspraken plannen** (Planhulp -> 'Meerdere plannen'): zoek per
+  afspraak de cliënt op naam (dezelfde zoekfunctie als ONS bij genodigden; pas
+  als je even stopt met typen) - de postcode komt uit het adres in ONS, of vul
+  hem zelf in - en kies de duur. 'Plan efficiënt' zet ze in je vrije tijd met
+  zo weinig mogelijk rijden: langste afspraak eerst op de goedkoopste plek,
+  daarna verplaatsen en ruilen zolang het korter wordt. Houdt rekening met je
+  andere afspraken en kantoor die dag, het vertrekpunt (Route van de dag),
+  'hooguit per dag' en de rit tussen afspraken (≈ 45 km/u). Rekent zonder
+  server op de PDOK-schatting; met een Routes-sleutel komen daarna alleen voor
+  het voorstel de echte rijtijden op (paar elementen). Elk voorgesteld moment
+  wordt ook bij ONS' overlapcontrole nagekeken. '4 afspraken maken' opent het
+  formulier voor de eerste; na het opslaan opent de hulp de volgende, met
+  datum, begin- en eindtijd ingevuld. De cliënt kies je zelf in het formulier.
 - **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
   - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
     met dagmaximum) toont de planhulp '≈ 12 min · 9 km rijden' en berekent
@@ -195,7 +208,7 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
     toont Route van de dag na 'Kaart tonen' de route op een kaart.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
-  (met apart: kopieën op meerdere momenten en Huisbezoek/rijafstand), Route
+  (met apart: kopieën op meerdere momenten, Huisbezoek/rijafstand en meerdere afspraken plannen), Route
   van de dag, Verlof aanvragen en het vooraf laden. Uit = de knop of het
   onderdeel verdwijnt uit het zijpaneel.
 - **Route van de dag**: je afspraken met een cliënt van een dag (niet op een
