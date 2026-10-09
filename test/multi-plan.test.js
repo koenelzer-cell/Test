@@ -67,3 +67,10 @@ test('cliënt zoeken: naam en postcode uit het search_panel-antwoord van ONS', (
   ]);
   assert.equal(postcodeFromClient({ address: { zipcode: '2611 eb', city: 'Delft' } }), '2611EB');
 });
+
+test('extra km van een eigen indeling (voor de vergelijking met het voorstel)', async () => {
+  const { extraKmVan } = await import('../src/sidepanel/multi-plan.js');
+  const visits = { '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2222CC' }] };
+  assert.equal(extraKmVan([{ date: '2026-10-12', startMin: 615, minutes: 60, pc: '2222DD' }], visits, afstand, ''), 1);
+  assert.equal(extraKmVan([{ date: '2026-10-12', startMin: 615, minutes: 60, pc: '1111AA' }], visits, afstand, ''), 20);
+});

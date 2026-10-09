@@ -540,7 +540,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerMulti: true, plannerDirect: true, preload: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
@@ -1226,7 +1226,7 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clientId, hourTypeId, labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
@@ -11026,7 +11026,8 @@
         startMin: e.startMin,
         minutes: e.minutes,
         employeeIds: ids,
-        clients: [{ id: e.clientId, hourTypeId: e.hourTypeId }],
+        // Eén of meer cliënten, elk met een eigen uursoort.
+        clients: Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }],
         labelId: e.labelId,
         name: e.name,
         travelBefore: e.travelBefore,
@@ -11191,7 +11192,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.239";
+      return "1.6.240";
     }
   }();
 
@@ -13843,7 +13844,7 @@
     };
     var f = APP_CONFIG.features || {};
     var kopieen = f.plannerCopies !== false;
-    var eigenOk = req.multi ? f.plannerMulti !== false && f.plannerDistance !== false : kopieen;
+    var eigenOk = kopieen;
     storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
     spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd2));
     return { ok: true };
@@ -13959,7 +13960,7 @@
   }
 
   // src/content/features/agenda/side-panel-bridge.js
-  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerMulti", "plannerDirect", "routeLink"];
+  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerDirect", "routeLink"];
   function routesProxyVoorPaneel() {
     var p = APP_CONFIG.routesProxy || {};
     var url = String(p.url || "").trim().replace(/\/+$/, "");

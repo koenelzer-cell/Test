@@ -48,8 +48,8 @@ export function openNewEvent(req) {
   // Kopieën uit (beheer): alleen dit ene formulier.
   var f = APP_CONFIG.features || {};
   var kopieen = f.plannerCopies !== false;
-  // Meerdere afspraken plannen: elk een eigen formulier (eigen schakelaar).
-  var eigenOk = req.multi ? (f.plannerMulti !== false && f.plannerDistance !== false) : kopieen;
+  // Los (elk een eigen formulier met eigen cliënt): geen kopieën.
+  var eigenOk = kopieen;
   storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
   spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd));
   return { ok: true };

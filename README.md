@@ -152,12 +152,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   haalt ze eruit); dat kan in meerdere blokken. De gekozen momenten staan in
   een vaste balk onderin met één knop 'Afspraak maken (op n momenten)'; klik
   op de teller om de lijst te zien en daar momenten weg te halen of alles te
-  wissen. Vink bij een gekozen tijd 'Apart afspraakformulier' (of 'Apart formulier'
-  in de lijst) aan als die afspraak anders moet: dat moment krijgt geen kopie, maar
-  na het opslaan opent een nieuw afspraakformulier waarin je de afspraakhulp
-  opnieuw doorloopt. Zo één voor één, tot alle momenten gedaan zijn. Je maakt de afspraak één
-  keer in ONS; na het opslaan maakt de hulp dezelfde afspraak (zelfde cliënt,
-  label, uursoort enz.) op de andere momenten. Niet voor herhalende afspraken.
+  wissen. 'Afspraak maken' gaat naar de pagina Afspraak maken (hieronder).
+  Staat 'afspraak meteen in ONS maken' uit in het beheer, dan opent het
+  ONS-formulier voor het eerste moment en maakt de hulp na het opslaan
+  dezelfde afspraak op de andere momenten; met 'Apart afspraakformulier' bij
+  een gekozen tijd krijgt dat moment een eigen formulier. Niet voor
+  herhalende afspraken.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
   Verslaglegging') tellen niet als bezet; valt een blok of begintijd erin, dan
   staat er 'Reservering' met het label, in plaats van een kale overlap. Alleen wat er echt in de agenda staat telt als bezet:
@@ -170,71 +170,59 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel); 'Naar deze dag'
   naast de datum van een blok opent die dag in de agenda.
-- **Afstand in de planhulp**: vink 'Huisbezoek' aan en vul de postcode van
-  de cliënt in. Elk vrij blok toont dan ongeveer hoeveel km extra je rijdt ten
-  opzichte van wat er die dag ervoor en erna staat: afspraken met een cliënt (postcode
-  van de cliënt) en afspraken op een kantoorlocatie (de ONS-locatie, bijv.
-  'J&G Oosterhout' -> kantoor Breda; alleen locaties die met 'BG' of 'J&G'
-  beginnen; lijst met postcodes en herkenningswoorden te bewerken in het
-  beheerscherm onder Functies -> Kantoren voor de planhulp),
-  of anders je vertrekpunt. De blokken staan meteen op 'Minst rijden'. Er is geen controle op een label: 'Huisbezoek' is alleen het vinkje voor de nieuwe afspraak. Hemelsbreed × 1,3: een schatting, geen
-  rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
-  de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
-- **Meerdere afspraken plannen** (Planhulp -> 'Meerdere plannen'): zoek per
-  afspraak de cliënt op naam (dezelfde zoekfunctie als ONS bij genodigden; pas
-  als je even stopt met typen) - de postcode komt uit het adres in ONS, of vul
-  hem zelf in; de keuzelijst toont ook cliëntnummer en geboortedatum, zoals
-  ONS) - en kies de duur. 'Plan efficiënt' zet ze in je vrije tijd met
-  zo weinig mogelijk rijden: langste afspraak eerst op de goedkoopste plek,
-  daarna verplaatsen en ruilen zolang het korter wordt. Houdt rekening met je
-  andere afspraken en kantoor die dag, het vertrekpunt (Route van de dag),
-  'hooguit per dag' en de rit tussen afspraken (≈ 45 km/u). Rekent zonder
-  server op de PDOK-schatting; met een Routes-sleutel komen daarna alleen voor
-  het voorstel de echte rijtijden op (paar elementen). Elk voorgesteld moment
-  wordt ook bij ONS' overlapcontrole nagekeken. '4 afspraken maken' opent het
-  formulier voor de eerste; na het opslaan opent de hulp de volgende, met
-  cliënt, datum, begin- en eindtijd ingevuld (de cliënt gaat mee in
-  `invitee_ids[]`, zoals ONS dat zelf doet).
-- **Afspraak meteen in ONS maken** (planhulp, met een gekozen cliënt): na
-  'Afspraak maken' kies je in het zijpaneel het afspraaktype (lijst van ONS)
-  en per cliënt de uursoort (dezelfde lijst als in het formulier: onlangs
-  gebruikt en toegestaan). Eén klik maakt de afspraak - of alle afspraken uit
-  'Meerdere plannen' - met hetzelfde verzoek als het formulier van ONS; naam
-  zoals 'Huisbezoek - Tamara'. Lukt er een niet, dan kun je die alsnog via het
-  formulier maken. Per afspraak pas je de titel aan (standaard 'Huisbezoek -
-  Tamara'; volgt het type tot je hem zelf wijzigt) en de reistijd heen en
-  terug (minuten); bij 'Meerdere plannen' staat die al ingevuld uit de
-  geplande rit (heen vanaf de stop ervoor, terug naar huis na de laatste).
-  Instellingen van het formulier (`meta`, alleen ja/nee en
-  getallen) neemt de hulp over van een afspraak die je zelf opslaat. Schakelaar
-  in het beheerscherm: 'Planhulp: afspraak meteen in ONS maken'.
-- **Cliënt bij één afspraak**: ook in de gewone planhulp kun je de cliënt op
-  naam zoeken. Die staat dan meteen in het afspraakformulier (ook bij een
-  apart formulier), en bij 'Huisbezoek' is de postcode al ingevuld.
+- **Afspraak maken** (na de planhulp, meteen in ONS): pas hier kies je de
+  cliënt(en), op naam zoals in ONS (pas als je even stopt met typen; de
+  keuzelijst toont ook cliëntnummer, geboortedatum en postcode). Bij meerdere
+  momenten een schakelaar:
+  - *Gedupliceerd*: dezelfde cliënt(en) in elke afspraak (met '+ Cliënt'
+    meerdere cliënten in één afspraak);
+  - *Los*: per afspraak een eigen cliënt.
+  Per cliënt kies je de uursoort (zelfde lijst als het formulier: onlangs
+  gebruikt en toegestaan), per afspraak het afspraaktype - wat je bij de
+  bovenste kiest, nemen de andere over tot je ze zelf wijzigt - plus titel
+  (standaard 'Huisbezoek - Tamara', of 'Tamara & Bram') en reistijd heen en
+  terug (minuten). Eén klik maakt alles met hetzelfde verzoek als het
+  formulier van ONS; mislukt er een, dan alsnog via het **ONS
+  Afspraakformulier** (gedupliceerd: één formulier + kopieën; los: een eigen
+  formulier per cliënt, cliënt al ingevuld via `invitee_ids[]`). Instellingen
+  van het formulier (`meta`, alleen ja/nee en getallen) neemt de hulp over van
+  een afspraak die je zelf opslaat. Schakelaar: 'Planhulp: afspraak meteen in
+  ONS maken'.
+- **Huisbezoek** (vinkje bij Afspraak maken): type Huisbezoek, en een knop
+  met padicoon **Efficiënter indelen**. Die kijkt naar je andere afspraken op
+  die dag(en) - afspraken met een cliënt (postcode uit ONS) en op een
+  kantoorlocatie ('BG …'/'J&G …', postcodes in het beheerscherm onder
+  Kantoren) - en je vertrekpunt (Route van de dag), en stelt een indeling met
+  minder rijden voor: langste afspraak eerst op de goedkoopste plek, daarna
+  verplaatsen en ruilen, met tijd voor de rit (≈ 45 km/u), niet meer
+  afspraken per dag dan je zelf koos. 'Voorstel overnemen' zet de nieuwe
+  tijden én de reistijd; is je indeling al efficiënt, dan vult hij alleen de
+  reistijd in. Rekent op de PDOK-schatting (hemelsbreed × 1,3); alleen
+  postcodes gaan naar PDOK. Schakelaar: 'Afspraak maken: Huisbezoek'.
 - **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
   - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
-    met dagmaximum) toont de planhulp '≈ 12 min · 9 km rijden' en berekent
-    Route van de dag de **kortste volgorde** (rondrit vanaf je vertrekpunt).
+    met dagmaximum) berekent Route van de dag de **kortste volgorde**
+    (rondrit vanaf je vertrekpunt).
     De extensie roept Google zelf aan (toestemming voor
     `routes.googleapis.com` bij het eerste gebruik); alleen postcodes.
     Wie de sleutel geheim wil houden gebruikt de eigen server
     (`server/routes-proxy`), die dan voorrang heeft. Zonder sleutel:
-    schatting in rechte lijn via PDOK. Kosten: de planhulp vraagt alleen de
-    afstanden op die nodig zijn (per vrij blok ervoor/nieuw/erna, max. 100
-    paren), geen volledige matrix; Google rekent per element.
+    geen kortste volgorde.
   - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
-    toont Route van de dag na 'Kaart tonen' de route op een kaart.
+    toont Route van de dag meteen de route op een kaart.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
-  (met apart: kopieën op meerdere momenten, Huisbezoek/rijafstand en meerdere afspraken plannen), Route
+  (met apart: kopieën op meerdere momenten, afspraak meteen maken en Huisbezoek/efficiënter indelen), Route
   van de dag, Verlof aanvragen en het vooraf laden. Uit = de knop of het
   onderdeel verdwijnt uit het zijpaneel.
 - **Route van de dag**: je afspraken met een cliënt van een dag (niet op een
   BG/J&G-kantoorlocatie; geen labelcontrole) op volgorde van begintijd, met het adres uit het
   detailvenster van ONS. 'Route openen' opent Google Maps met alle stops
   (10 per route; meer = meerdere aansluitende routes), optioneel vanaf een
-  vertrekpunt dat alleen op dit apparaat wordt bewaard. Adressen gaan pas
-  naar Google als je klikt. Uit te zetten in het beheerscherm (`routeLink`).
+  vertrekpunt dat alleen op dit apparaat wordt bewaard. Met een
+  Embed-sleutel staat de kaart er meteen bij; de adressen gaan dan naar
+  Google zodra je de pagina opent (zonder sleutel pas als je 'Route
+  openen' klikt). Uit te zetten in het beheerscherm (`routeLink`).
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 

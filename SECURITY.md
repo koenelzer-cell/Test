@@ -71,15 +71,16 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     `event.meta`, en bewaart daarvan alleen ja/nee- en getalwaarden
     (localStorage `onsHelper.eventMetaTemplate`). Uit te zetten met
     `features.plannerDirect`.
-  - **Meerdere afspraken plannen** (planhulp): de medewerker zoekt een
+  - **Cliënt kiezen bij Afspraak maken**: de medewerker zoekt een
     cliënt op naam via dezelfde ONS-zoekfunctie als het afspraakformulier
-    (`/search_panel/clients`, pas na een korte pauze in het typen). Naam en
-    postcode (uit het adres in ONS) gaan alleen naar het zijpaneel van deze
-    extensie en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
+    (`/search_panel/clients`, pas na een korte pauze in het typen). Naam,
+    cliëntnummer, geboortedatum en postcode (uit het adres in ONS) gaan alleen
+    naar het zijpaneel van deze extensie, alleen om de juiste cliënt te
+    kiezen, en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
     Buiten ONS gaan alleen postcodes (PDOK, en met een sleutel Google Routes).
-  - **Afstand in de planhulp** (alleen als de medewerker een postcode
-    'Huisbezoek' aanvinkt en een postcode invult): van de afspraken met een cliënt op de
-    dagen met vrije tijd geeft de agendapagina alleen de postcode (6 tekens)
+  - **Efficiënter indelen** (alleen als de medewerker bij Afspraak maken
+    'Huisbezoek' aanvinkt en op de knop klikt): van de afspraken met een cliënt op de
+    gekozen dagen geeft de agendapagina alleen de postcode (6 tekens)
     door aan het zijpaneel; van afspraken op een kantoorlocatie de postcode
     van dat kantoor (uit de configuratie). Het
     zijpaneel vraagt bij de PDOK Locatieserver (Kadaster, `api.pdok.nl`) per
@@ -97,8 +98,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     (`server/routes-proxy`), die ze met de Google Routes API doorrekent. De
     Google-sleutel staat alleen op die server; de proxy accepteert alleen
     deze extensie (Origin), het token en geldige postcodes.
-  - **Kaart** (optioneel, `routesProxy.embedKey`, pas na 'Kaart tonen'): laadt
-    een Google Maps Embed-kaart met de adressen van de route. Die sleutel
+  - **Kaart** (optioneel, `routesProxy.embedKey`): laadt in Route van de dag
+    meteen een Google Maps Embed-kaart met de adressen van de route (de
+    medewerker opent die pagina zelf). Die sleutel
     staat in de extensie en moet in Google Cloud beperkt zijn tot alleen de
     Maps Embed API (kosteloos); nooit de Routes-sleutel gebruiken.
   - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS

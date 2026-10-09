@@ -229,3 +229,18 @@ export function voorstelParen(burenLijst, placed) {
   });
   return uit;
 }
+
+// Extra km van een gegeven indeling (zoals het voorstel, maar voor wat de
+// medewerker zelf koos): per dag de rit langs alle stops min die zonder de
+// nieuwe afspraken. placed: [{ date, startMin, minutes, pc }]
+export function extraKmVan(placed, visits, afstand, thuisPc) {
+  visits = visits || {};
+  var dagen = {};
+  (placed || []).forEach(function (p) { (dagen[p.date] = dagen[p.date] || []).push({ startMin: p.startMin, endMin: p.startMin + p.minutes, pc: p.pc }); });
+  var som = 0;
+  Object.keys(dagen).forEach(function (d) {
+    var vast = (visits[d] || []).map(function (b) { return { startMin: b.startMin, endMin: b.endMin, pc: b.pc }; });
+    som += dagKm(vast.concat(dagen[d]), afstand, thuisPc) - dagKm(vast, afstand, thuisPc);
+  });
+  return Math.max(0, som);
+}
