@@ -50,3 +50,18 @@ test('postcodes opzoeken: één verzoek per postcode, alleen de postcode in de U
   assert.match(gevraagd[0], /^https:\/\/api\.pdok\.nl\/bzk\/locatieserver\/search\/v3_1\/free\?fq=type:postcode&rows=1&fl=postcode,centroide_ll&q=2611EB$/);
   assert.deepEqual(coord('2611EB'), { lon: 4.3, lat: 52 });
 });
+
+test('alleen de nodige paren, geen volledige matrix (kosten per element)', async () => {
+  const { neededPairs, roadPairs } = await import('../src/sidepanel/geo.js');
+  const visits = { '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2611EB' }, { startMin: 780, endMin: 840, pc: '2613RR' }] };
+  const gaps = [{ date: '2026-10-12', startMin: 600 }, { date: '2026-10-12', startMin: 660 }, { date: '2026-10-13', startMin: 600 }];
+  const paren = neededPairs(visits, gaps, 60, '2611AB', '4822NH');
+  assert.deepEqual(paren, [['2611EB', '2611AB'], ['2611AB', '2613RR'], ['2611EB', '2613RR'], ['4822NH', '2611AB'], ['2611AB', '4822NH']]);
+  const aanvragen = [];
+  const pair = await roadPairs({ key: 'k' }, paren, (url, init) => {
+    const b = JSON.parse(init.body); aanvragen.push([b.origins.length, b.destinations.length]);
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(b.destinations.map((_, i) => ({ originIndex: 0, destinationIndex: i, distanceMeters: 1000, duration: '60s', condition: 'ROUTE_EXISTS' }))) });
+  });
+  assert.equal(aanvragen.reduce((t, [o, d]) => t + o * d, 0), 5, '5 elementen in plaats van 4 x 4 = 16');
+  assert.deepEqual(pair('2611EB', '2613RR'), { m: 1000, s: 60 });
+});

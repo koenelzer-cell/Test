@@ -171,33 +171,63 @@
   function plek(pc) {
     return { waypoint: { address: pc + ", Nederland" } };
   }
-  function roadMatrix(proxy, pcs, fetchFn) {
-    var lijst = pcs.filter(function(p, i) {
-      return p && pcs.indexOf(p) === i && PC6.test(p);
-    }).slice(0, 25);
-    if (!proxy || lijst.length < 2) return Promise.resolve(function() {
-      return null;
-    });
-    var vraag = proxy.key ? postGoogle(
-      proxy.key,
-      "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
-      "originIndex,destinationIndex,distanceMeters,duration,condition",
-      { origins: lijst.map(plek), destinations: lijst.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
-      fetchFn
-    ).then(function(rijen) {
-      var pairs = {};
-      (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
-        if (e.condition !== "ROUTE_EXISTS" || e.originIndex == null || e.destinationIndex == null) return;
-        var a = lijst[e.originIndex], b = lijst[e.destinationIndex];
-        if (a && b && a !== b) pairs[a + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
+  var MAX_PAREN = 100;
+  function neededPairs(visits, gaps, duur, pcNieuw, thuisPc) {
+    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
+    var voeg = function(a, b) {
+      if (a && b && a !== b && !gezien[a + "|" + b]) {
+        gezien[a + "|" + b] = 1;
+        uit.push([a, b]);
+      }
+    };
+    (gaps || []).forEach(function(g) {
+      var voor = null, na = null;
+      ((visits || {})[g.date] || []).forEach(function(b) {
+        if (b.endMin <= g.startMin) voor = b;
+        else if (!na && b.startMin >= g.startMin + duur) na = b;
       });
-      return { pairs };
-    }) : postProxy(proxy, "/matrix", { pcs: lijst }, fetchFn);
-    return vraag.then(function(j) {
-      var pairs = j && j.pairs || {};
+      var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
+      voeg(p, pcNieuw);
+      voeg(pcNieuw, q);
+      voeg(p, q);
+    });
+    return uit.slice(0, MAX_PAREN);
+  }
+  function roadPairs(proxy, paren, fetchFn) {
+    var geldig = (paren || []).filter(function(x) {
+      return PC6.test(x[0]) && PC6.test(x[1]) && x[0] !== x[1];
+    }).slice(0, MAX_PAREN);
+    var maak = function(pairs2) {
       return function(a, b) {
-        return a === b ? { m: 0, s: 0 } : pairs[a + "|" + b] || null;
+        return a === b ? { m: 0, s: 0 } : pairs2[a + "|" + b] || null;
       };
+    };
+    if (!proxy || !geldig.length) return Promise.resolve(maak({}));
+    if (!proxy.key) return postProxy(proxy, "/pairs", { pairs: geldig }, fetchFn).then(function(j) {
+      return maak(j && j.pairs || {});
+    });
+    var perHerkomst = {};
+    geldig.forEach(function(x) {
+      (perHerkomst[x[0]] = perHerkomst[x[0]] || []).push(x[1]);
+    });
+    var pairs = {};
+    return Promise.all(Object.keys(perHerkomst).map(function(o) {
+      var ds = perHerkomst[o];
+      return postGoogle(
+        proxy.key,
+        "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
+        "originIndex,destinationIndex,distanceMeters,duration,condition",
+        { origins: [plek(o)], destinations: ds.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
+        fetchFn
+      ).then(function(rijen) {
+        (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
+          if (e.condition !== "ROUTE_EXISTS" || e.destinationIndex == null) return;
+          var b = ds[e.destinationIndex];
+          if (b) pairs[o + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
+        });
+      });
+    })).then(function() {
+      return maak(pairs);
     });
   }
   function detourRoad(bezoeken, start, duur, pcNieuw, pair, thuisPc) {
@@ -1757,7 +1787,7 @@
       });
       var proxy = state && state.routesProxy;
       if (proxy && proxy.key && plan.routesOk === false) proxy = null;
-      var weg = proxy ? roadMatrix(proxy, uniek).catch(function() {
+      var weg = proxy ? roadPairs(proxy, neededPairs(visits, result.gaps, result.minutes, pc, thuisPc)).catch(function() {
         plan.geo = "Google Routes reageert niet; afstand in rechte lijn geschat.";
         return null;
       }) : Promise.resolve(null);

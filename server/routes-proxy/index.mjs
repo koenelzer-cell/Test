@@ -11,7 +11,8 @@
 //   PORT              standaard 8080
 //
 // Eindpunten (POST, JSON):
-//   /matrix    { pcs: ['2611EB', …] }            -> { pairs: { '2611EB|2613RR': { m, s } } }
+//   /pairs     { pairs: [['2611EB','2613RR'], …] } -> { pairs: { '2611EB|2613RR': { m, s } } }  (max. 100; alleen wat nodig is)
+//   /matrix    { pcs: ['2611EB', …] }            -> { pairs: … }  (volledige matrix; duurder, n x n elementen)
 //   /optimize  { origin: '4822NH', stops: [pc…] } -> { order: [i…], m, s }   (rondrit vanaf origin)
 // Geen afhankelijkheden; Node 18+ (ingebouwde fetch).
 
@@ -67,6 +68,31 @@ export async function matrix(pcs, fetchFn = fetch) {
   return { pairs };
 }
 
+// Alleen gevraagde paren, per herkomst één aanvraag (Google rekent per element).
+export async function pairsVoor(paren, fetchFn = fetch) {
+  const pairs = {}, perHerkomst = {};
+  for (const [a, b] of paren) {
+    const c = uitCache(a + '|' + b);
+    if (c) pairs[a + '|' + b] = c; else (perHerkomst[a] = perHerkomst[a] || []).push(b);
+  }
+  await Promise.all(Object.entries(perHerkomst).map(async ([o, ds]) => {
+    const r = await fetchFn('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': KEY, 'X-Goog-FieldMask': 'originIndex,destinationIndex,distanceMeters,duration,condition' },
+      body: JSON.stringify({ origins: [plek(o)], destinations: ds.map(plek), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }),
+    });
+    if (!r.ok) throw new Error('Google ' + r.status);
+    const rijen = await r.json();
+    (Array.isArray(rijen) ? rijen : []).forEach((e) => {
+      if (e.condition !== 'ROUTE_EXISTS' || e.destinationIndex == null) return;
+      const b = ds[e.destinationIndex]; if (!b) return;
+      const v = { m: e.distanceMeters || 0, s: sec(e.duration) };
+      pairs[o + '|' + b] = v; inCache(o + '|' + b, v);
+    });
+  }));
+  return { pairs };
+}
+
 export async function optimize(origin, stops, fetchFn = fetch) {
   const r = await fetchFn('https://routes.googleapis.com/directions/v2:computeRoutes', {
     method: 'POST',
@@ -106,7 +132,7 @@ export function handler(fetchFn = fetch) {
       res.writeHead(ORIGINS.includes(origin) ? 204 : 403, Object.assign({ 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type, X-Agendahulp-Token', 'Access-Control-Max-Age': '600' }, cors));
       return res.end();
     }
-    if (req.method !== 'POST' || !['/matrix', '/optimize'].includes(req.url)) return stuur(404, { error: 'onbekend' });
+    if (req.method !== 'POST' || !['/matrix', '/pairs', '/optimize'].includes(req.url)) return stuur(404, { error: 'onbekend' });
     if (!ORIGINS.includes(origin)) return stuur(403, { error: 'origin' });
     if (!zelfdeToken(req.headers['x-agendahulp-token'])) return stuur(401, { error: 'token' });
     if (teVeel(req.socket.remoteAddress || '')) return stuur(429, { error: 'te veel verzoeken' });
@@ -114,6 +140,13 @@ export function handler(fetchFn = fetch) {
     for await (const deel of req) { tekst += deel; if (tekst.length > 5000) return stuur(413, { error: 'te groot' }); }
     let body; try { body = JSON.parse(tekst || '{}'); } catch (e) { return stuur(400, { error: 'json' }); }
     try {
+      if (req.url === '/pairs') {
+        const lijst = Array.isArray(body.pairs) ? body.pairs : null;
+        if (!lijst || !lijst.length || lijst.length > 100) return stuur(400, { error: 'pairs' });
+        const paren = [];
+        for (const x of lijst) { const p = normPcs(Array.isArray(x) ? x : []); if (!p || p.length !== 2) return stuur(400, { error: 'pairs' }); paren.push(p); }
+        return stuur(200, await pairsVoor(paren, fetchFn));
+      }
       if (req.url === '/matrix') {
         const pcs = normPcs(body.pcs);
         if (!pcs || pcs.length < 2 || pcs.length > MAX_PCS) return stuur(400, { error: 'pcs' });

@@ -188,7 +188,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
     `routes.googleapis.com` bij het eerste gebruik); alleen postcodes.
     Wie de sleutel geheim wil houden gebruikt de eigen server
     (`server/routes-proxy`), die dan voorrang heeft. Zonder sleutel:
-    schatting in rechte lijn via PDOK.
+    schatting in rechte lijn via PDOK. Kosten: de planhulp vraagt alleen de
+    afstanden op die nodig zijn (per vrij blok ervoor/nieuw/erna, max. 100
+    paren), geen volledige matrix; Google rekent per element.
   - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
     toont Route van de dag na 'Kaart tonen' de route op een kaart.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per

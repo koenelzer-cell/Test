@@ -760,7 +760,7 @@ test('zijpaneel: planhulp met rijtijden-server - minuten en km over de weg', asy
     ], visits: { '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2611EB', soort: 'client' }] } } }),
   }, { ...AGENDA_STATE_TOOLS, routesProxy: { url: 'https://proxy.example', token: 'geheim' } });
   dom.window.fetch = (url) => {
-    if (/proxy\.example\/matrix/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ pairs: { '2611EB|2611AB': { m: 1500, s: 300 }, '2611AB|2611EB': { m: 1500, s: 300 } } }) });
+    if (/proxy\.example\/pairs/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ pairs: { '2611EB|2611AB': { m: 1500, s: 300 }, '2611AB|2611EB': { m: 1500, s: 300 } } }) });
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: 'POINT(4.3571 52.0116)' }] } }) });
   };
   await tick();
@@ -787,8 +787,7 @@ test('zijpaneel: zonder server - planhulp en kortste volgorde rechtstreeks via G
     if (/routes\.googleapis\.com/.test(url)) {
       google.push({ url, key: init.headers['X-Goog-Api-Key'], body: JSON.parse(init.body) });
       if (/computeRouteMatrix/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve([
-        { originIndex: 0, destinationIndex: 1, distanceMeters: 1500, duration: '300s', condition: 'ROUTE_EXISTS' },
-        { originIndex: 1, destinationIndex: 0, distanceMeters: 1500, duration: '300s', condition: 'ROUTE_EXISTS' }]) });
+        { originIndex: 0, destinationIndex: 0, distanceMeters: 1500, duration: '300s', condition: 'ROUTE_EXISTS' }]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ routes: [{ optimizedIntermediateWaypointIndex: [1, 0], distanceMeters: 24000, duration: '1800s' }] }) });
     }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: 'POINT(4.3571 52.0116)' }] } }) });
@@ -804,7 +803,9 @@ test('zijpaneel: zonder server - planhulp en kortste volgorde rechtstreeks via G
   await tick();
   assert.match(document.body.textContent, /≈ 5 min · 2 km rijden/);
   assert.equal(google[0].key, 'ROUTESSLEUTEL_alleen_routes_1');
-  assert.deepEqual(google[0].body.origins.map((o) => o.waypoint.address), ['2611AB, Nederland', '2611EB, Nederland'], 'alleen postcodes');
+  const matrix = google.filter((g) => /computeRouteMatrix/.test(g.url));
+  assert.deepEqual(matrix.map((g) => [g.body.origins.map((o) => o.waypoint.address), g.body.destinations.map((o) => o.waypoint.address)]),
+    [[['2611EB, Nederland'], ['2611AB, Nederland']]], 'alleen het nodige paar (1 element), alleen postcodes');
   knop(document, 'Terug').click();
   navKnop(document, 'Route van de dag').click();
   await tick();

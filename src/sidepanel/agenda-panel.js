@@ -1,4 +1,4 @@
-import { detour, detourRoad, embedUrl, lookupPostcodes, mapsUrls, normPostcode, optimizeRoute, roadMatrix, toestemmingAfstand, vraagRoutes } from './geo.js';
+import { detour, detourRoad, embedUrl, lookupPostcodes, mapsUrls, neededPairs, normPostcode, optimizeRoute, roadPairs, toestemmingAfstand, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
 
@@ -1157,7 +1157,8 @@ export function create(host, actions) {
     // hemelsbrede schatting via PDOK.
     var proxy = state && state.routesProxy;
     if (proxy && proxy.key && plan.routesOk === false) proxy = null;
-    var weg = proxy ? roadMatrix(proxy, uniek).catch(function () { plan.geo = 'Google Routes reageert niet; afstand in rechte lijn geschat.'; return null; }) : Promise.resolve(null);
+    // Alleen de paren die nodig zijn (kosten: Google rekent per element).
+    var weg = proxy ? roadPairs(proxy, neededPairs(visits, result.gaps, result.minutes, pc, thuisPc)).catch(function () { plan.geo = 'Google Routes reageert niet; afstand in rechte lijn geschat.'; return null; }) : Promise.resolve(null);
     var pdok = lookupPostcodes(uniek, haalJson).catch(function () { return null; });
     return Promise.all([weg, pdok]).then(function (r) {
       var pair = r[0], coord = r[1];

@@ -131,6 +131,49 @@ export function roadMatrix(proxy, pcs, fetchFn) {
   });
 }
 
+// Welke afstanden zijn echt nodig? Per vrij blok: ervoor -> nieuw, nieuw ->
+// erna en ervoor -> erna. Google rekent per element (herkomst x bestemming), dus
+// geen volledige matrix van alle postcodes. -> [[a, b], …] (uniek, a !== b)
+export const MAX_PAREN = 100;
+export function neededPairs(visits, gaps, duur, pcNieuw, thuisPc) {
+  var uit = [], gezien = Object.create(null);
+  var voeg = function (a, b) { if (a && b && a !== b && !gezien[a + '|' + b]) { gezien[a + '|' + b] = 1; uit.push([a, b]); } };
+  (gaps || []).forEach(function (g) {
+    var voor = null, na = null;
+    ((visits || {})[g.date] || []).forEach(function (b) {
+      if (b.endMin <= g.startMin) voor = b;
+      else if (!na && b.startMin >= g.startMin + duur) na = b;
+    });
+    var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
+    voeg(p, pcNieuw); voeg(pcNieuw, q); voeg(p, q);
+  });
+  return uit.slice(0, MAX_PAREN);
+}
+
+// Alleen de gevraagde paren, gegroepeerd per herkomst (één aanvraag per
+// herkomst; elementen = aantal paren). -> pair(a, b) -> { m, s } | null
+export function roadPairs(proxy, paren, fetchFn) {
+  var geldig = (paren || []).filter(function (x) { return PC6.test(x[0]) && PC6.test(x[1]) && x[0] !== x[1]; }).slice(0, MAX_PAREN);
+  var maak = function (pairs) { return function (a, b) { return a === b ? { m: 0, s: 0 } : (pairs[a + '|' + b] || null); }; };
+  if (!proxy || !geldig.length) return Promise.resolve(maak({}));
+  if (!proxy.key) return postProxy(proxy, '/pairs', { pairs: geldig }, fetchFn).then(function (j) { return maak((j && j.pairs) || {}); });
+  var perHerkomst = {};
+  geldig.forEach(function (x) { (perHerkomst[x[0]] = perHerkomst[x[0]] || []).push(x[1]); });
+  var pairs = {};
+  return Promise.all(Object.keys(perHerkomst).map(function (o) {
+    var ds = perHerkomst[o];
+    return postGoogle(proxy.key, 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', 'originIndex,destinationIndex,distanceMeters,duration,condition',
+      { origins: [plek(o)], destinations: ds.map(plek), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }, fetchFn)
+      .then(function (rijen) {
+        (Array.isArray(rijen) ? rijen : []).forEach(function (e) {
+          if (e.condition !== 'ROUTE_EXISTS' || e.destinationIndex == null) return;
+          var b = ds[e.destinationIndex];
+          if (b) pairs[o + '|' + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
+        });
+      });
+  })).then(function () { return maak(pairs); });
+}
+
 // Zelfde als detour(), maar over de weg: extra meters en seconden.
 export function detourRoad(bezoeken, start, duur, pcNieuw, pair, thuisPc) {
   if (!pcNieuw) return null;

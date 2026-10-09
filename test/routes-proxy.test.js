@@ -48,3 +48,12 @@ test('weigert zonder token, verkeerde origin of met een adres', async () => {
   assert.equal((await vraag('/matrix', { pcs: ['2611EB', '2613RR'] }, { Origin: 'https://evil.example' })).status, 403);
   assert.equal((await vraag('/matrix', { pcs: ['Koornmarkt 35', '2613RR'] })).status, 400);
 });
+
+test('pairs: alleen de gevraagde paren, per herkomst één aanvraag', async () => {
+  const voor = naarGoogle.length;
+  const r = await vraag('/pairs', { pairs: [['2611EB', '2613RR'], ['2611EB', '4822NH'], ['4822NH', '2611EB']] });
+  assert.equal(r.status, 200);
+  const nieuw = naarGoogle.slice(voor).filter((g) => /computeRouteMatrix/.test(g.url));
+  assert.ok(nieuw.every((g) => g.body.origins.length === 1));
+  assert.equal(nieuw.reduce((t, g) => t + g.body.destinations.length, 0) <= 3, true, 'hooguit 3 elementen (cache telt mee)');
+});
