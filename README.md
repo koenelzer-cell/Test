@@ -170,10 +170,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel); 'Naar deze dag'
   naast de datum van een blok opent die dag in de agenda.
-- **Afstand in de planhulp**: vul de postcode van de cliënt in, dan toont
-  elk vrij blok ongeveer hoeveel km je omrijdt ten opzichte van je
-  huisbezoeken ervoor en erna die dag (of je vertrekpunt), en kun je
-  sorteren op 'Minst omrijden'. Hemelsbreed × 1,3: een schatting, geen
+- **Afstand in de planhulp**: vink 'Huisbezoek' aan en vul de postcode van
+  de cliënt in. Elk vrij blok toont dan ongeveer hoeveel km je omrijdt ten
+  opzichte van wat er die dag ervoor en erna staat: huisbezoeken (postcode
+  van de cliënt) en afspraken op een kantoorlocatie (de ONS-locatie, bijv.
+  'J&G Oosterhout' -> kantoor Breda; lijst in `offices` in de configuratie),
+  of anders je vertrekpunt. De blokken staan meteen op 'Minst omrijden'. Hemelsbreed × 1,3: een schatting, geen
   rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
   de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
 - **Route huisbezoeken**: de huisbezoeken (label of uursoort met

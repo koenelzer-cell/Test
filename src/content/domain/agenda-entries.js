@@ -44,6 +44,8 @@ export function mapAgendaEntry(e) {
     teams: Array.isArray(e.teams) ? e.teams : [],
     groups: Array.isArray(e.groups) ? e.groups : [],
     labels: Array.isArray(e.labels) ? e.labels : [], // afspraaklabels (voor type/vorm), geen cliëntdata
+    // ONS-locatie (kantoor, bijv. 'J&G Oosterhout'): geen persoonsgegeven.
+    locationName: (loc && loc.name != null) ? String(loc.name) : '',
     detailsUrl: (e.meta && e.meta.detailsUrl) || null,
     // "Cliëntafspraak" = er is een cliënt GEKOPPELD (clients niet leeg), bewust NIET
     // het 'cliënten aanwezig'-vinkje uit de API.

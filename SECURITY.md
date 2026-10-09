@@ -63,8 +63,10 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
   - **Afstand in de planhulp** (alleen als de medewerker een postcode
-    invult): van de huisbezoeken op de dagen met vrije tijd geeft de
-    agendapagina alleen de postcode (6 tekens) door aan het zijpaneel. Het
+    'Huisbezoek' aanvinkt en een postcode invult): van de huisbezoeken op de
+    dagen met vrije tijd geeft de agendapagina alleen de postcode (6 tekens)
+    door aan het zijpaneel; van afspraken op een kantoorlocatie de postcode
+    van dat kantoor (uit de configuratie). Het
     zijpaneel vraagt bij de PDOK Locatieserver (Kadaster, `api.pdok.nl`) per
     postcode het middelpunt op — geen huisnummer, geen naam — en houdt de
     coördinaten alleen in het geheugen. Toegang tot `api.pdok.nl` is een

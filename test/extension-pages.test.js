@@ -654,7 +654,7 @@ test('zijpaneel: route huisbezoeken staat uit als beheer hem uitzet', async () =
   assert.equal(navKnop(document, 'Route huisbezoeken'), undefined);
 });
 
-test('zijpaneel: planhulp met postcode - omrijden per blok en sorteren op minst omrijden', async () => {
+test('zijpaneel: planhulp - Huisbezoek aanvinken: postcode, minst omrijden, kantoor telt mee', async () => {
   const pdok = [];
   const { document, verzonden, dom } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
@@ -662,30 +662,32 @@ test('zijpaneel: planhulp met postcode - omrijden per blok en sorteren op minst 
       { date: '2026-10-13', startMin: 600, endMin: 720, minutes: 120 },
       { date: '2026-10-14', startMin: 600, endMin: 720, minutes: 120 },
     ], visits: msg.visits ? {
-      '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2511AA' }, { startMin: 780, endMin: 840, pc: '2511AA' }],
-      '2026-10-13': [{ startMin: 540, endMin: 600, pc: '2611EB' }, { startMin: 780, endMin: 840, pc: '2611EB' }],
+      '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2511AA', soort: 'huis' }, { startMin: 780, endMin: 840, pc: '2511AA', soort: 'huis' }],
+      '2026-10-13': [{ startMin: 540, endMin: 600, pc: '2611EB', soort: 'huis' }, { startMin: 780, endMin: 840, pc: '2613RR', soort: 'kantoor', kantoor: 'Delft' }],
     } : undefined } }),
   });
-  const PUNTEN = { '2611EB': 'POINT(4.3571 52.0116)', '2611AB': 'POINT(4.3580 52.0120)', '2511AA': 'POINT(4.3007 52.0705)' };
+  const PUNTEN = { '2611EB': 'POINT(4.3571 52.0116)', '2611AB': 'POINT(4.3580 52.0120)', '2613RR': 'POINT(4.3650 52.0080)', '2511AA': 'POINT(4.3007 52.0705)' };
   dom.window.fetch = (url) => { pdok.push(url); const pc = /q=(\w+)$/.exec(url)[1]; return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: PUNTEN[pc] }] } }) }); };
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
+  assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').at(-1).visits, false, 'zonder Huisbezoek: geen afstand');
+  assert.equal(document.querySelector('[data-postcode]'), null, 'postcodeveld pas na aanvinken');
+  assert.equal(document.querySelector('[data-omrij]'), null);
+  const hb = document.querySelector('[data-huisbezoek]');
+  hb.checked = true; hb.dispatchEvent(new dom.window.Event('change'));
   const pc = document.querySelector('[data-postcode]');
   pc.value = '2611 ab'; pc.dispatchEvent(new dom.window.Event('input'));
   knop(document, 'Vrije tijd zoeken').click();
   await tick();
-  assert.equal(verzonden.at(-1).visits, true, 'met postcode: huisbezoeken meevragen');
+  assert.equal(verzonden.at(-1).visits, true, 'met Huisbezoek: posities meevragen');
   assert.ok(pdok.every((u) => /q=\d{4}[A-Z]{2}$/.test(u)), 'alleen postcodes naar PDOK');
-  const km = [...document.querySelectorAll('[data-omrij]')].map((e) => e.getAttribute('data-omrij'));
-  assert.equal(km.length, 3);
-  assert.equal(km[1], '0', 'dag met bezoeken vlakbij: niet om');
-  assert.ok(+km[0] > 10, 'dag met bezoeken in Den Haag: flink om');
-  assert.equal(km[2], '', 'dag zonder huisbezoek');
+  const dagen = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok').map((c) => c.textContent.slice(0, 9));
+  assert.deepEqual(dagen(), ['di 13 okt', 'ma 12 okt', 'wo 14 okt'], 'meteen op minst omrijden');
+  assert.match(document.body.textContent, /≈ < 1 km omrijden · kantoor Delft/, 'terug naar kantoor telt mee');
   assert.match(document.body.textContent, /geen huisbezoek die dag/);
-  knop(document, 'Minst omrijden').click();
-  const dagen = [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok').map((c) => c.textContent.slice(0, 9));
-  assert.deepEqual(dagen, ['di 13 okt', 'ma 12 okt', 'wo 14 okt']);
+  knop(document, 'Op tijd').click();
+  assert.deepEqual(dagen(), ['ma 12 okt', 'di 13 okt', 'wo 14 okt']);
 });
 
 test('zijpaneel: geen melding "Gekleurde dagindeling staat aan", wel als hij uit staat', async () => {

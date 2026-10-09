@@ -10,6 +10,7 @@ import { agendaYmd } from '../../core/datetime.js';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
 import { addressFromDetails, isHomeVisit, postcodeFromAddress } from '../../domain/route.js';
+import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
@@ -48,25 +49,34 @@ export function checkSlotWithOns(req) {
 // Zoeken tot en met een datum: hooguit een half jaar vooruit.
 export const MAX_ZOEK_DAGEN = 182;
 
-// Huisbezoeken op de dagen met vrije tijd, met ALLEEN de postcode (geen
-// adres, geen naam): het zijpaneel rekent daarmee uit hoeveel je zou omrijden.
-// -> { 'YYYY-MM-DD': [{ startMin, endMin, pc }] }
+// Waar ben je op de dagen met vrije tijd? Huisbezoeken (postcode van de
+// cliënt, uit de details) en afspraken op een kantoorlocatie (postcode van het
+// kantoor, uit de ONS-locatie; zie domain/offices.js). Zo telt een tussendoor
+// terug naar kantoor mee. ALLEEN postcodes: geen adres, geen naam.
+// -> { 'YYYY-MM-DD': [{ startMin, endMin, pc, soort: 'huis'|'kantoor', kantoor? }] }
 function huisbezoekenPerDag(alles, datums) {
-  var bezoeken = alles.filter(function (e) {
-    return e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null && isHomeVisit(e);
+  var opDag = alles.filter(function (e) {
+    return e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null;
   });
   var limiet = createLimiter(3), uit = {};
-  return Promise.all(bezoeken.map(function (e) {
+  var zet = function (e, extra) {
+    var dag = new Date(e.startMs); dag.setHours(0, 0, 0, 0);
+    (uit[e.date] = uit[e.date] || []).push(Object.assign({
+      startMin: Math.round((e.startMs - dag.getTime()) / 60000),
+      endMin: Math.round((e.endMs - dag.getTime()) / 60000)
+    }, extra));
+  };
+  return Promise.all(opDag.map(function (e) {
+    if (!isHomeVisit(e)) {
+      var k = officeForLocation(e.locationName);
+      if (k && k.postcode) zet(e, { pc: k.postcode, soort: 'kantoor', kantoor: k.name });
+      return null;
+    }
     var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
     if (!url) return null;
     return limiet(function () { return getJson(url); }).then(function (d) {
       var pc = postcodeFromAddress(addressFromDetails(d));
-      if (!pc) return;
-      var dag = new Date(e.startMs); dag.setHours(0, 0, 0, 0);
-      (uit[e.date] = uit[e.date] || []).push({
-        startMin: Math.round((e.startMs - dag.getTime()) / 60000),
-        endMin: Math.round((e.endMs - dag.getTime()) / 60000), pc: pc
-      });
+      if (pc) zet(e, { pc: pc, soort: 'huis' });
     }, function () {});
   })).then(function () {
     Object.keys(uit).forEach(function (d) { uit[d].sort(function (a, b) { return a.startMin - b.startMin; }); });

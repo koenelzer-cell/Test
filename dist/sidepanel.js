@@ -117,7 +117,14 @@
     var extra;
     if (p && q) extra = km(p, nieuw) + km(nieuw, q) - km(p, q);
     else extra = km(p || q, nieuw);
-    return { km: Math.max(0, extra), voor: voor ? voor.pc : "", na: na ? na.pc : "" };
+    return {
+      km: Math.max(0, extra),
+      voor: voor ? voor.pc : "",
+      na: na ? na.pc : "",
+      // Kantoor ervoor of erna (afspraak op een kantoorlocatie): naam voor de uitleg.
+      voorKantoor: voor && voor.soort === "kantoor" ? voor.kantoor || "kantoor" : "",
+      naKantoor: na && na.soort === "kantoor" ? na.kantoor || "kantoor" : ""
+    };
   }
   var cache = /* @__PURE__ */ Object.create(null);
   function lookupPostcodes(pcs, fetchJson) {
@@ -1112,7 +1119,8 @@
     // Planhulp: vrije tijd zoeken.
     // tot: zoek tot en met die datum (gaat voor op weeks).
     // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-    plan: { minutes: 60, weeks: 2, tot: "", pc: "", sorteer: "tijd", busy: false, result: null, error: "", geo: "" },
+    // huisbezoek: aangevinkt = postcode invullen en sorteren op minst omrijden.
+    plan: { minutes: 60, weeks: 2, tot: "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" },
     // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
     slot: null,
     // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
@@ -1128,7 +1136,7 @@
     BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
     BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
     BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
-    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", pc: "", sorteer: "tijd", busy: false, result: null, error: "", geo: "" };
+    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" };
     BEWAARD.momenten = [];
     BEWAARD.kopie = null;
     BEWAARD.balkOpen = false;
@@ -1537,7 +1545,12 @@
     }
     function startPlan(gebaar) {
       if (plan.busy || !actions.onFreeSlots) return;
-      var pc = normPostcode(plan.pc);
+      var pc = plan.huisbezoek ? normPostcode(plan.pc) : "";
+      if (plan.huisbezoek && !pc) {
+        plan.error = "Vul de postcode van de cliënt in (bijv. 2611 EB).";
+        if (pagina === "plan") renderPagina();
+        return;
+      }
       var zoek = function(metAfstand) {
         plan.busy = true;
         plan.error = "";
@@ -1836,15 +1849,35 @@
       }
       planBox.appendChild(totRij);
       planBox.appendChild(kz.host);
-      var pcVeld = inputEl("text", plan.pc, function(v) {
-        plan.pc = v;
+      var hbLab = el("label", { display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", fontSize: "13px", fontWeight: "600", color: T.ink, cursor: "pointer", userSelect: "none" });
+      var hb = document.createElement("input");
+      hb.type = "checkbox";
+      hb.checked = !!plan.huisbezoek;
+      hb.setAttribute("data-huisbezoek", "");
+      hb.style.accentColor = T.brand;
+      hb.style.margin = "0";
+      hb.addEventListener("change", function() {
+        plan.huisbezoek = hb.checked;
+        plan.sorteer = "afstand";
+        plan.result = null;
+        plan.error = "";
+        plan.geo = "";
+        renderPagina();
       });
-      pcVeld.placeholder = "Bijv. 2611 EB (optioneel)";
-      pcVeld.setAttribute("data-postcode", "");
-      var pcLab = fieldLabel("Postcode cliënt", pcVeld);
-      pcLab.style.marginTop = "10px";
-      planBox.appendChild(pcLab);
-      planBox.appendChild(txt("help", "Voor de afstand tot je andere huisbezoeken die dag. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).", { margin: "4px 0 0", fontSize: "11.5px" }));
+      hbLab.appendChild(hb);
+      hbLab.appendChild(document.createTextNode("Huisbezoek"));
+      planBox.appendChild(hbLab);
+      if (plan.huisbezoek) {
+        var pcVeld = inputEl("text", plan.pc, function(v) {
+          plan.pc = v;
+        });
+        pcVeld.placeholder = "Bijv. 2611 EB";
+        pcVeld.setAttribute("data-postcode", "");
+        var pcLab = fieldLabel("Postcode cliënt", pcVeld);
+        pcLab.style.marginTop = "8px";
+        planBox.appendChild(pcLab);
+        planBox.appendChild(txt("help", "De blokken staan dan op minst omrijden, gezien je huisbezoeken en afspraken op kantoor die dag. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).", { margin: "4px 0 0", fontSize: "11.5px" }));
+      }
       planBox.appendChild(primaryBtn(plan.busy ? "Bezig met zoeken…" : "Vrije tijd zoeken", function() {
         startPlan(true);
       }, plan.busy));
@@ -1890,7 +1923,8 @@
             var tijdKol = el("span", { flex: "1 1 auto", display: "flex", flexDirection: "column", minWidth: "0" });
             tijdKol.appendChild(el("span", { fontSize: "13px", color: T.ink, fontVariantNumeric: "tabular-nums" }, hm(g.startMin) + " – " + hm(g.endMin)));
             if (res.afstand) {
-              var kmTekst = g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km omrijden" : "geen huisbezoek die dag";
+              var kantoor = g.omrij ? g.omrij.voorKantoor || g.omrij.naKantoor : "";
+              var kmTekst = g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km omrijden" + (kantoor ? " · kantoor " + kantoor : "") : "geen huisbezoek die dag";
               var kmEl = el("span", { fontSize: "11.5px", color: g.omrij ? T.brand : T.inkSoft, fontWeight: g.omrij ? "600" : "400" }, kmTekst);
               kmEl.setAttribute("data-omrij", g.omrij ? String(Math.round(g.omrij.km)) : "");
               tijdKol.appendChild(kmEl);

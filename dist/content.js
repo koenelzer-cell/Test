@@ -540,6 +540,46 @@
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
     features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true },
     nonClientCategories: [],
+    // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
+    // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
+    // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en
+    // Gezin, locatienamen met J&G/Jeugd) of 'bv' (Begeleiding).
+    offices: [
+      { sector: "jg", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom", "west brabant west"] },
+      { sector: "jg", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout", "geertruidenberg", "altena", "west brabant oost"] },
+      { sector: "jg", name: "Loosduinen (Kracht)", postcode: "2552AE", match: ["loosduinen", "kracht", "den haag"] },
+      { sector: "jg", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
+      { sector: "jg", name: "Tilburg", postcode: "5026RM", match: ["tilburg", "hart van brabant"] },
+      { sector: "jg", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "zuidoost brabant", "zuidoost-brabant"] },
+      { sector: "jg", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
+      { sector: "jg", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden-holland", "midden holland"] },
+      { sector: "jg", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "lekstroom", "utrecht"] },
+      { sector: "jg", name: "Oss", postcode: "5344AT", match: ["oss", "noordoost"] },
+      { sector: "jg", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk", "delft"] },
+      { sector: "jg", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk", "loon op zand"] },
+      { sector: "jg", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
+      { sector: "bv", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom"] },
+      { sector: "bv", name: "Breda", postcode: "4822NH", match: ["breda"] },
+      { sector: "bv", name: "Delft", postcode: "2613RR", match: ["delft"] },
+      { sector: "bv", name: "Den Haag Noord-Oost", postcode: "2521DB", match: ["den haag noord", "noord-oost", "noordoost"] },
+      { sector: "bv", name: "Den Haag Zuid-West", postcode: "2552AE", match: ["den haag zuid", "zuid-west", "zuidwest", "loosduinen"] },
+      { sector: "bv", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
+      { sector: "bv", name: "Ede", postcode: "6716AE", match: ["ede"] },
+      { sector: "bv", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven"] },
+      { sector: "bv", name: "Gouda", postcode: "2803PB", match: ["gouda"] },
+      { sector: "bv", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
+      { sector: "bv", name: "Leiden", postcode: "2312TH", match: ["leiden"] },
+      { sector: "bv", name: "Naaldwijk", postcode: "2671ZP", match: ["naaldwijk"] },
+      { sector: "bv", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein"] },
+      { sector: "bv", name: "Oss", postcode: "5344AT", match: ["oss"] },
+      { sector: "bv", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk"] },
+      { sector: "bv", name: "Rotterdam", postcode: "3083CW", match: ["rotterdam"] },
+      { sector: "bv", name: "'s-Hertogenbosch", postcode: "5232BC", match: ["hertogenbosch", "den bosch"] },
+      { sector: "bv", name: "Tilburg", postcode: "5026RM", match: ["tilburg"] },
+      { sector: "bv", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk"] },
+      { sector: "bv", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
+      { sector: "bv", name: "Den Haag", postcode: "2521DB", match: ["den haag"] }
+    ],
     generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: "*", countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ["do_not_declare"], excludedCalendarTypes: ["unavailability", "presence"] },
     // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.
     apiEndpoints: {},
@@ -883,6 +923,8 @@
       groups: Array.isArray(e.groups) ? e.groups : [],
       labels: Array.isArray(e.labels) ? e.labels : [],
       // afspraaklabels (voor type/vorm), geen cliëntdata
+      // ONS-locatie (kantoor, bijv. 'J&G Oosterhout'): geen persoonsgegeven.
+      locationName: loc && loc.name != null ? String(loc.name) : "",
       detailsUrl: e.meta && e.meta.detailsUrl || null,
       // "Cliëntafspraak" = er is een cliënt GEKOPPELD (clients niet leeg), bewust NIET
       // het 'cliënten aanwezig'-vinkje uit de API.
@@ -10927,7 +10969,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.228";
+      return "1.6.229";
     }
   }();
 
@@ -13216,6 +13258,35 @@
     return m ? m[1] + m[2].toUpperCase() : "";
   }
 
+  // src/content/domain/offices.js
+  function woordIn(naam, woord) {
+    var w = String(woord).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^a-zà-ÿ])" + w + "($|[^a-zà-ÿ])", "i").test(naam);
+  }
+  function officeForLocation(locationName, offices) {
+    var naam = String(locationName || "").trim();
+    if (!naam) return null;
+    var lijst = Array.isArray(offices) ? offices : APP_CONFIG.offices || [];
+    var jg = /(^|[^a-z])(j&g|j\s*&\s*g|jg|jeugd)([^a-z]|$)/i.test(naam);
+    var volgorde = jg ? ["jg", "bv"] : ["bv", "jg"];
+    for (var s = 0; s < volgorde.length; s++) {
+      var kandidaten = [];
+      lijst.forEach(function(o) {
+        if (!o || (o.sector || "bv") !== volgorde[s]) return;
+        (o.match || [o.name]).forEach(function(w) {
+          if (w && woordIn(naam, w)) kandidaten.push({ o, len: String(w).length });
+        });
+      });
+      if (kandidaten.length) {
+        kandidaten.sort(function(a, b) {
+          return b.len - a.len;
+        });
+        return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || "").replace(/\s+/g, "").toUpperCase() };
+      }
+    }
+    return null;
+  }
+
   // src/content/features/agenda/free-slots.js
   function workWindow() {
     var z = activeZones() || [];
@@ -13247,25 +13318,31 @@
   }
   var MAX_ZOEK_DAGEN = 182;
   function huisbezoekenPerDag(alles, datums) {
-    var bezoeken = alles.filter(function(e) {
-      return e.layer === "events" && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null && isHomeVisit(e);
+    var opDag = alles.filter(function(e) {
+      return e.layer === "events" && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null;
     });
     var limiet = createLimiter(3), uit = {};
-    return Promise.all(bezoeken.map(function(e) {
+    var zet = function(e, extra) {
+      var dag = new Date(e.startMs);
+      dag.setHours(0, 0, 0, 0);
+      (uit[e.date] = uit[e.date] || []).push(Object.assign({
+        startMin: Math.round((e.startMs - dag.getTime()) / 6e4),
+        endMin: Math.round((e.endMs - dag.getTime()) / 6e4)
+      }, extra));
+    };
+    return Promise.all(opDag.map(function(e) {
+      if (!isHomeVisit(e)) {
+        var k = officeForLocation(e.locationName);
+        if (k && k.postcode) zet(e, { pc: k.postcode, soort: "kantoor", kantoor: k.name });
+        return null;
+      }
       var url = e.detailsUrl || (e.occurrenceId ? _apiUrl("eventDetails", { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
       if (!url) return null;
       return limiet(function() {
         return getJson(url);
       }).then(function(d) {
         var pc = postcodeFromAddress(addressFromDetails(d));
-        if (!pc) return;
-        var dag = new Date(e.startMs);
-        dag.setHours(0, 0, 0, 0);
-        (uit[e.date] = uit[e.date] || []).push({
-          startMin: Math.round((e.startMs - dag.getTime()) / 6e4),
-          endMin: Math.round((e.endMs - dag.getTime()) / 6e4),
-          pc
-        });
+        if (pc) zet(e, { pc, soort: "huis" });
       }, function() {
       });
     })).then(function() {

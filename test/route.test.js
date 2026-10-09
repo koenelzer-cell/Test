@@ -54,3 +54,15 @@ test('postcode uit een adresregel', () => {
   assert.equal(postcodeFromAddress('Laan 5, 1111 aa, Stad'), '1111AA');
   assert.equal(postcodeFromAddress('Laan 5, Stad'), '');
 });
+
+test('kantoor bij een ONS-locatie', async () => {
+  const { officeForLocation } = await import('../src/content/domain/offices.js');
+  const { DEFAULT_APP_CONFIG } = await import('../src/content/config/defaults.js');
+  const o = DEFAULT_APP_CONFIG.offices;
+  assert.deepEqual(officeForLocation('J&G Oosterhout', o), { name: 'Breda', postcode: '4822NH' });
+  assert.deepEqual(officeForLocation('J&G Delft', o), { name: 'Rijswijk', postcode: '2285VL' }, 'Jeugd en Gezin Delft zit in Rijswijk');
+  assert.deepEqual(officeForLocation('Begeleiding Delft', o), { name: 'Delft', postcode: '2613RR' });
+  assert.deepEqual(officeForLocation('BV Den Haag Zuid-West', o), { name: 'Den Haag Zuid-West', postcode: '2552AE' });
+  assert.equal(officeForLocation('J&G Bosschenhoofd', o), null, 'geen halve woorden (oss)');
+  assert.equal(officeForLocation('', o), null);
+});

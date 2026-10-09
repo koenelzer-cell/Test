@@ -49,7 +49,12 @@ export function detour(bezoeken, start, duur, nieuw, coord, thuis) {
   var extra;
   if (p && q) extra = km(p, nieuw) + km(nieuw, q) - km(p, q);
   else extra = km(p || q, nieuw);
-  return { km: Math.max(0, extra), voor: voor ? voor.pc : '', na: na ? na.pc : '' };
+  return {
+    km: Math.max(0, extra), voor: voor ? voor.pc : '', na: na ? na.pc : '',
+    // Kantoor ervoor of erna (afspraak op een kantoorlocatie): naam voor de uitleg.
+    voorKantoor: voor && voor.soort === 'kantoor' ? (voor.kantoor || 'kantoor') : '',
+    naKantoor: na && na.soort === 'kantoor' ? (na.kantoor || 'kantoor') : ''
+  };
 }
 
 // Postcodes opzoeken (met geheugen). fetchJson: (url) -> Promise<json>.
