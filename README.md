@@ -142,17 +142,19 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.
-- **Planhulp**: kies een duur en hoe ver vooruit, en zie de vrije blokken
-  binnen je werktijden. Heeft de hulp ONS' eigen overlapcontrole voor
-  afspraken geleerd (dat gebeurt vanzelf zodra je één keer een afspraak opent
-  in ONS), dan kijkt hij elk blok en de gekozen begintijd daar ook na: een
-  vinkje is akkoord, 'ONS: overlap' niet. Zoeken kan 1, 2 of 4 weken vooruit,
-  of tot en met een zelfgekozen datum (hooguit een half jaar).
-  Open een vrij blok en tik op begintijden om ze te kiezen (nog eens tikken
-  haalt ze eruit); dat kan in meerdere blokken. De gekozen momenten staan in
-  een vaste balk onderin met één knop 'Afspraak maken (op n momenten)'; klik
-  op de teller om de lijst te zien en daar momenten weg te halen of alles te
-  wissen. 'Afspraak maken' gaat naar de pagina Afspraak maken (hieronder).
+- **Planhulp**: bovenaan **Lijst** of **Weekraster**, en de instellingen in
+  één regel ('1 u · komende 2 weken'; *Wijzigen* klapt duur, 1/2/4 weken of
+  een einddatum open en zoekt meteen opnieuw). *Lijst*: per dag de vrije
+  tijd met de begintijden er direct onder (eerste 8, '+ n tijden' voor de
+  rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
+  tikken = loslaten, ook over meerdere dagen. *Weekraster*: een mini-agenda
+  ma-vr per week (bladeren met ‹ ›): grijs bezet, groen vrij, oranje
+  reservering, roze gekozen; tik in het groen op de begintijd. Elke gekozen
+  tijd wordt bij ONS' overlapcontrole nagekeken (melding als ONS overlap
+  ziet). De gekozen momenten staan in een vaste balk onderin met één knop
+  'Afspraak maken (op n momenten)'; klik op de teller om de lijst te zien en
+  daar momenten weg te halen of alles te wissen. 'Afspraak maken' gaat naar
+  de pagina Afspraak maken (hieronder).
   Staat 'afspraak meteen in ONS maken' uit in het beheer, dan opent het
   ONS-formulier voor het eerste moment en maakt de hulp na het opslaan
   dezelfde afspraak op de andere momenten; met 'Apart afspraakformulier' bij
@@ -160,7 +162,7 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   herhalende afspraken.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
   Verslaglegging') tellen niet als bezet; valt een blok of begintijd erin, dan
-  staat er 'Reservering' met het label, in plaats van een kale overlap. Alleen wat er echt in de agenda staat telt als bezet:
+  staat er een R bij de begintijd (met het label als uitleg). Alleen wat er echt in de agenda staat telt als bezet:
   ONS-afspraken (met reistijd), onbeschikbaarheid, geplande bezoeken en
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open
@@ -168,26 +170,24 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   opent 'Afspraak maken' het formulier met alle personen erin. De hulp vult in het
   ONS-formulier de datum, begintijd en eindtijd (begintijd + gekozen duur) van
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
-  (bij een apart afspraakformulier wel); 'Naar deze dag'
-  naast de datum van een blok opent die dag in de agenda.
-- **Afspraak maken** (na de planhulp, meteen in ONS): pas hier kies je de
-  cliënt(en), op naam zoals in ONS (pas als je even stopt met typen; de
-  keuzelijst toont ook cliëntnummer, geboortedatum en postcode). Bij meerdere
-  momenten een schakelaar:
-  - *Gedupliceerd*: dezelfde cliënt(en) in elke afspraak (met '+ Cliënt'
-    meerdere cliënten in één afspraak);
-  - *Los*: per afspraak een eigen cliënt (ook daar met '+ Cliënt' meerdere).
-  Per cliënt kies je de uursoort (zelfde lijst als het formulier: onlangs
-  gebruikt en toegestaan), per afspraak het afspraaktype - wat je bij de
-  bovenste kiest, nemen de andere over tot je ze zelf wijzigt - plus titel
-  (standaard 'Huisbezoek - Tamara', of 'Tamara & Bram') en reistijd heen en
-  terug (minuten). Eén klik maakt alles met hetzelfde verzoek als het
-  formulier van ONS; mislukt er een, dan alsnog via het **ONS
-  Afspraakformulier** (gedupliceerd: één formulier + kopieën; los: een eigen
-  formulier per cliënt, cliënt al ingevuld via `invitee_ids[]`). Instellingen
-  van het formulier (`meta`, alleen ja/nee en getallen) neemt de hulp over van
-  een afspraak die je zelf opslaat. Schakelaar: 'Planhulp: afspraak meteen in
-  ONS maken'.
+  (bij een apart afspraakformulier wel).
+- **Afspraak maken** (na de planhulp, meteen in ONS): bovenaan (bij meer
+  momenten) *Zelfde cliënt(en)* of *Per afspraak anders*. Daaronder de kaart
+  **Voor alle afspraken**: de cliënt(en) - zoeken op naam zoals in ONS (pas
+  als je even stopt met typen; de keuzelijst toont ook cliëntnummer,
+  geboortedatum en postcode), daarna een compacte regel met initialen, naam,
+  nummer en postcode en rechts de uursoort - plus het afspraaktype voor alle
+  afspraken. Dan **Afspraken**: per afspraak één regel met tijd en titel
+  ('Huisbezoek - Tamara & Bram'); tik om type (alleen deze afspraak; dan het
+  label 'eigen type'), titel en (bij Geavanceerd) reistijd te wijzigen. Bij
+  *Per afspraak anders* staan de cliënten (ook meerdere, '+ Cliënt') per
+  afspraak in de regel. Onderin: 'n afspraken maken in ONS' (pas als elke
+  cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als
+  terugval (zelfde cliënten: één formulier + kopieën; per afspraak anders:
+  een eigen formulier per afspraak, cliënten al ingevuld via
+  `invitee_ids[]`). Instellingen van het formulier (`meta`, alleen ja/nee en
+  getallen) neemt de hulp over van een afspraak die je zelf opslaat.
+  Schakelaar: 'Planhulp: afspraak meteen in ONS maken'.
 - **Geavanceerd** (vinkje bij Afspraak maken): reistijd heen en terug per
   afspraak, en een knop met padicoon **Efficiënter indelen**. Die kijkt naar
   je andere afspraken op die dag(en) - afspraken met een cliënt (postcode uit

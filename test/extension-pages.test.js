@@ -525,9 +525,9 @@ test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', asy
   assert.match(document.body.textContent, /Week 42ophalen…/, 'weeknummer klopt meteen, ook tijdens het laden');
 });
 
-test('zijpaneel: planhulp zoekt vrije tijd; begintijd tikken = kiezen, één knop in de balk', async () => {
+test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden kiezen, ONS-controle, weekraster', async () => {
   const { document, verzonden } = zijpaneelMetTools({
-    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
     ] } }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
@@ -535,43 +535,47 @@ test('zijpaneel: planhulp zoekt vrije tijd; begintijd tikken = kiezen, één kno
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
   navKnop(document, 'Planhulp').click();
+  await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
-  knop(document, '1 u').click();
+  assert.match(document.body.textContent, /1 u · komende 2 weken/, 'instellingen in één regel');
+  assert.equal(knop(document, '4 weken'), undefined, 'ingeklapt');
+  document.querySelector('[data-plan-wijzig]').click();
   knop(document, '4 weken').click();
-  knop(document, 'Vrije tijd zoeken').click();
-  assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 });
-  assert.match(document.body.textContent, /do 8 okt10:30 – 12:001 u 30 m vrij/);
-  [...document.querySelectorAll('[role="button"]')].find((c) => c.title === 'Opties voor dit vrije blok').click();
-  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Vrij blok');
-  const starts = [...document.querySelectorAll('[data-start]')].map((b) => b.getAttribute('data-start'));
-  assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past');
+  await tick();
+  assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
+  document.querySelector('[data-plan-wijzig]').click();
+  assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
+  const starts = [...document.querySelectorAll('[data-dag="2026-10-08"][data-start]')].map((b) => b.getAttribute('data-start'));
+  assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past, zonder tussenpagina');
   assert.equal(document.querySelector('[data-selectie]'), null, 'nog niets gekozen: geen balk');
-  for (const weg of ['Moment toevoegen aan selectie', 'Afspraak maken op dit tijdstip', 'Naar deze dag in de agenda', 'Wissen']) assert.equal(knop(document, weg), undefined, weg + ' is weg');
   document.querySelector('[data-start="10:45"]').click();
   assert.equal(document.querySelector('[data-start="10:45"]').getAttribute('aria-pressed'), 'true');
-  assert.match(document.querySelector('[data-start="10:45"]').textContent, /✓ 10:45/);
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
   await tick();
-  assert.match(document.body.textContent, /ONS meldt overlap met een andere afspraak/);
+  assert.match(document.body.textContent, /ONS meldt overlap op 10:45/);
+  assert.ok(document.querySelector('[data-start="10:45"][data-ons-overlap]'));
   assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
-  // Nog eens tikken: eruit.
   document.querySelector('[data-start="10:45"]').click();
-  assert.equal(document.querySelector('[data-selectie]'), null);
-  // 11:00 kiezen: één moment -> 'Afspraak maken'.
+  assert.equal(document.querySelector('[data-selectie]'), null, 'nog eens tikken: eruit');
   document.querySelector('[data-start="11:00"]').click();
   await tick();
-  assert.doesNotMatch(document.body.textContent, /ONS meldt|ONS kijkt/, 'geen overlap: geen melding');
-  knop(document, 'Afspraak maken').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [], eigen: [] });
-  knop(document, 'Naar deze dag').click();
+  assert.doesNotMatch(document.body.textContent, /ONS meldt/, 'geen overlap: geen melding');
+  knop(document, 'Naar dag').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
-  knop(document, 'Terug').click();
-  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'terug naar de lijst vrije blokken');
-  assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
-  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'de balk loopt mee naar de lijst');
+  // Weekraster: zelfde keuzes, tik in het groen.
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  assert.ok(document.querySelector('[data-raster]'));
+  assert.match(document.querySelector('[data-week-titel]').textContent, /^week 41 · 5 – 9 okt$/);
+  assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), 'gekozen moment roze in het raster');
+  assert.ok(document.querySelector('[data-raster-vrij="10:30-12:00"]'));
+  document.querySelector('[data-raster] [data-dag="2026-10-08"][data-start="10:30"]').click();
+  assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 10:30"]'), 'overlappend moment vervangen');
+  assert.equal(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), null);
+  knop(document, 'Afspraak maken').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [], eigen: [] });
 });
 
-test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, één afspraak met kopieën', async () => {
+test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de balk, kopieën (zonder direct maken)', async () => {
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
       { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
@@ -581,46 +585,29 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
   navKnop(document, 'Planhulp').click();
-  knop(document, '1 u').click();
-  knop(document, 'Vrije tijd zoeken').click();
-  assert.equal(verzonden.at(-1).to, '', 'zonder einddatum zoekt hij per aantal weken');
-  assert.match(document.body.textContent, /Of zoek tot en met/);
-  const blokken = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok');
-  const lijstReservering = document.querySelector('[data-reservering]');
-  assert.equal(lijstReservering.textContent, 'Reservering', 'blok dat begint in een reservering');
-  assert.match(lijstReservering.title, /JG Verslaglegging \(08:00–09:00\)/);
-  blokken()[0].click();
-  document.querySelector('[data-start="10:45"]').click();
-  document.querySelector('[data-start="11:00"]').click();
-  assert.deepEqual([...document.querySelectorAll('[data-start][aria-pressed="true"]')].map((b) => b.getAttribute('data-start')), ['11:00'], 'overlappende momenten op dezelfde dag vervangen elkaar');
-  document.querySelector('[data-start="10:30"]').click();
-  knop(document, 'Terug').click();
-  blokken()[1].click();
-  const r = document.querySelector('[data-start="08:00"]');
+  await tick();
+  const r = document.querySelector('[data-dag="2026-10-13"][data-start="08:00"]');
   assert.equal(r.getAttribute('data-reservering'), 'JG Verslaglegging', 'begintijd in een reservering krijgt R');
   assert.match(r.textContent, /08:00R/);
-  assert.equal(document.querySelector('[data-start="09:00"]').getAttribute('data-reservering'), null, '09:00 valt erbuiten');
-  assert.match(document.body.textContent, /R = valt in reservering JG Verslaglegging \(08:00–09:00\)/);
-  document.querySelector('[data-start="09:00"]').click();
+  assert.equal(document.querySelector('[data-dag="2026-10-13"][data-start="09:00"]').getAttribute('data-reservering'), null, '09:00 valt erbuiten');
+  assert.match(document.body.textContent, /R = valt in een reservering/);
+  const kies = (d, t) => document.querySelector('[data-dag="' + d + '"][data-start="' + t + '"]').click();
+  kies('2026-10-08', '10:45'); kies('2026-10-08', '11:00');
+  assert.deepEqual([...document.querySelectorAll('[data-dag="2026-10-08"][aria-pressed="true"]')].map((b) => b.getAttribute('data-start')), ['11:00'], 'overlappende momenten op dezelfde dag vervangen elkaar');
+  kies('2026-10-08', '10:30');
+  kies('2026-10-13', '09:00');
   const balk = document.querySelector('[data-selectie]');
   assert.equal(balk.getAttribute('data-selectie'), '2');
-  assert.equal(balk.parentElement.lastElementChild, balk, 'balk onderaan');
   assert.equal(knop(document, 'Alles wissen'), undefined, 'wissen pas na openklappen');
   document.querySelector('[data-teller]').click();
   assert.match(document.querySelector('[data-selectie]').textContent, /do 8 okt10:30 – 11:30.*di 13 okt09:00 – 10:00/s);
   assert.ok(knop(document, 'Alles wissen'));
-  knop(document, 'Afspraak maken op 2 momenten').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [{ date: '2026-10-13', time: '09:00' }], eigen: [] });
-  // Vinkje 'Apart afspraakformulier': niet bij het eerste moment (dat is het
-  // formulier zelf), wel bij de rest. Aangevinkt: geen kopie maar een eigen formulier.
+  // Zonder direct maken: in de balk 'Apart formulier' (niet bij het eerste moment).
   assert.equal(document.querySelector('[data-eigen="2026-10-08 10:30"]'), null, 'eerste moment: geen vinkje');
-  assert.match(document.body.textContent, /Apart afspraakformulier/, 'vinkje bij de gekozen tijd in dit blok');
   const vink = document.querySelector('[data-eigen="2026-10-13 09:00"]');
   vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
   knop(document, 'Afspraak maken op 2 momenten').click();
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [], eigen: [{ date: '2026-10-13', time: '09:00' }] });
-  // Na het opslaan in ONS meldt het content-script de kopieën.
-  knop(document, 'Terug').click();
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));
   assert.match(document.body.textContent, /Afspraak ook gemaakt op di 13 okt 09:00/);
   assert.equal(document.querySelector('[data-selectie]'), null, 'selectie leeg na gelukte kopieën');
@@ -671,15 +658,13 @@ test('zijpaneel: functies die beheer uitzet verdwijnen uit het zijpaneel', async
   assert.ok(navKnop(document, 'Snel registreren'), 'wat aan staat blijft');
 });
 
-test('zijpaneel: planhulp zonder kopieën en zonder afstand (beheer)', async () => {
+test('zijpaneel: planhulp zonder kopieën (beheer): één moment tegelijk', async () => {
   const { document } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 }] } }),
   }, { ...AGENDA_STATE_TOOLS, features: { plannerCopies: false, plannerDistance: false } });
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
-  assert.equal(document.querySelector('[data-huisbezoek]'), null, 'geen Huisbezoek-vinkje');
-  [...document.querySelectorAll('[role="button"]')].find((c) => c.title === 'Opties voor dit vrije blok').click();
   document.querySelector('[data-start="10:30"]').click();
   document.querySelector('[data-start="11:00"]').click();
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
@@ -877,10 +862,8 @@ async function tweeMomenten(document) {
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
-  const blokken = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok');
-  blokken()[0].click(); document.querySelector('[data-start="10:00"]').click();
-  knop(document, 'Terug').click();
-  blokken()[1].click(); document.querySelector('[data-start="10:00"]').click();
+  document.querySelector('[data-dag="2026-10-12"][data-start="10:00"]').click();
+  document.querySelector('[data-dag="2026-10-13"][data-start="10:00"]').click();
   knop(document, 'Afspraak maken op 2 momenten').click();
   await tick();
 }
@@ -902,24 +885,30 @@ test('zijpaneel: planhulp is één scherm zonder cliënt en huisbezoek', async (
   assert.equal(document.querySelector('[data-huisbezoek]'), null, 'geen huisbezoek');
 });
 
-test('zijpaneel: afspraak maken gedupliceerd - meerdere cliënten in elke afspraak, afspraaktype van de bovenste overgenomen', async () => {
+test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort, type), compacte regels met eigen type', async () => {
   const { document, dom, verzonden } = maakPaneel();
   await tweeMomenten(document);
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Afspraak maken');
-  assert.equal(document.querySelector('[data-maak-modus="dup"]').getAttribute('aria-pressed') === 'false', false);
+  assert.equal(document.querySelector('[data-maak-modus="dup"]').getAttribute('aria-pressed'), 'true');
+  assert.match(document.querySelector('[data-maak-modus="dup"]').textContent, /Zelfde cliënt\(en\)/);
+  assert.match(document.body.textContent, /Voor alle 2 afspraken/);
   await kiesClient(document, dom, 'dup0', 'Tamara');
-  assert.equal(document.querySelector('[data-maak-zoek="dup0"]').value, 'Tamara Test');
+  assert.match(document.querySelector('[data-maak-client="dup0"]').textContent, /TTTamara Testnr\. 106839 · 2611 EB/, 'compacte regel met initialen, nummer en postcode');
+  assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst uursoort kiezen');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
   document.querySelector('[data-maak-plus]').click();
   await kiesClient(document, dom, 'dup1', 'Bram');
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
-  assert.equal(document.querySelector('[data-maak-type="0"]').value, '47', 'standaard Face to face');
-  kies(document, dom, '[data-maak-type="0"]', '46');
-  assert.equal(document.querySelector('[data-maak-type="1"]').value, '46', 'bovenste overgenomen');
+  assert.equal(document.querySelector('[data-maak-type-alle]').value, '47', 'standaard Face to face');
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  assert.match(document.querySelector('[data-maak-regel="1"]').textContent, /Huisbezoek - Tamara & Bram/, 'type voor alle afspraken');
+  document.querySelector('[data-maak-regel="1"]').click();
   kies(document, dom, '[data-maak-type="1"]', '48');
-  kies(document, dom, '[data-maak-type="0"]', '47');
+  assert.ok(document.querySelector('[data-eigen-type="1"]'), 'afwijking als label');
+  kies(document, dom, '[data-maak-type-alle]', '47');
   assert.equal(document.querySelector('[data-maak-type="1"]').value, '48', 'eigen keuze blijft staan');
-  assert.equal(document.querySelector('[data-maak-titel="0"]').value, 'Face to face - Tamara & Bram');
+  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /Face to face - Tamara & Bram/);
+  assert.ok(document.querySelector('[data-maak-ons]'), 'ONS Afspraakformulier onderin');
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
@@ -929,19 +918,21 @@ test('zijpaneel: afspraak maken gedupliceerd - meerdere cliënten in elke afspra
   ]);
   assert.equal(ev[1].name, 'Beeldbellen - Tamara & Bram');
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
+  assert.ok(knop(document, 'Agenda verversen'));
 });
 
-test('zijpaneel: afspraak maken los + geavanceerd - efficiënter indelen op rijtijd (Google Routes), overnemen, reistijd ingevuld; ONS Afspraakformulier per cliënt', async () => {
+test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiënter indelen (Google Routes), overnemen, reistijd; ONS Afspraakformulier per cliënt', async () => {
   const { document, dom, verzonden, google } = maakPaneel();
   await tweeMomenten(document);
   document.querySelector('[data-maak-modus="los"]').click();
   await kiesClient(document, dom, 'los0-0', 'Tamara');   // ma 12 okt, maar die dag zit je in Tilburg
   await kiesClient(document, dom, 'los1-0', 'Bram');     // di 13 okt, die dag zit je in Delft
+  document.querySelector('[data-maak-regel="0"]').click();
   assert.equal(document.querySelector('[data-maak-heen="0"]'), null, 'reistijd pas bij Geavanceerd');
   const adv = document.querySelector('[data-maak-geavanceerd]');
-  assert.equal(adv.parentElement.textContent, 'Geavanceerd');
+  assert.match(adv.parentElement.textContent, /^Geavanceerd/);
   adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
-  kies(document, dom, '[data-maak-type="0"]', '46');
+  kies(document, dom, '[data-maak-type-alle]', '46');
   const knopEff = document.querySelector('[data-maak-efficient]');
   assert.match(knopEff.textContent, /Efficiënter indelen/);
   assert.ok(knopEff.querySelector('svg'), 'met padicoon');
@@ -956,29 +947,28 @@ test('zijpaneel: afspraak maken los + geavanceerd - efficiënter indelen op rijt
   assert.match(document.body.textContent, /Tamara Test: ma 12 okt 10:00 → di 13 okt/);
   document.querySelector('[data-eff-overnemen]').click();
   // Nu: ma 12 okt Bram (bij Tilburg), di 13 okt Tamara (bij Delft).
-  assert.equal(document.querySelector('[data-maak-zoek="los0-0"]').value, 'Bram Proef');
-  assert.equal(document.querySelector('[data-maak-zoek="los1-0"]').value, 'Tamara Test');
+  assert.match(document.querySelector('[data-maak-client="los0-0"]').textContent, /Bram Proef/);
+  assert.match(document.querySelector('[data-maak-client="los1-0"]').textContent, /Tamara Test/);
+  assert.equal(document.querySelector('[data-maak-regel="0"]').getAttribute('aria-expanded'), 'true', 'staat nog open');
   assert.ok(+document.querySelector('[data-maak-heen="0"]').value > 0, 'reistijd heen ingevuld');
-  // Los: ook meerdere cliënten in één afspraak (Bram erbij bij Tamara).
+  assert.match(document.querySelector('[data-maak-afspraak="1"]').textContent, /reistijd \d+ \/ \d+ min/, 'ingeklapt: reistijd in de regel');
+  // Ook meerdere cliënten in één afspraak (Bram erbij bij Tamara).
   document.querySelector('[data-maak-plus="los1-"]').click();
   await kiesClient(document, dom, 'los1-1', 'Bram');
-  // Toch via ONS: elk een eigen formulier met de eigen cliënt(en).
   knop(document, 'ONS Afspraakformulier').click();
   const form = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
   assert.equal(form.multi, true);
   assert.deepEqual(form.clientIds, ['222']);
   assert.deepEqual(form.eigen.map((e) => e.clientIds), [['11142', '222']]);
-  // Of meteen in ONS.
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
   assert.deepEqual(ev.map((e) => [e.date, e.clients, e.labelId, e.name]), [
-    [ev[0].date, [{ id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Bram'],
-    [ev[1].date, [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Tamara & Bram'],
+    ['2026-10-12', [{ id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Bram'],
+    ['2026-10-13', [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Tamara & Bram'],
   ]);
-  assert.deepEqual([ev[0].date, ev[1].date], ['2026-10-12', '2026-10-13']);
   assert.ok(ev[0].travelBefore > 0);
 });
 
@@ -989,6 +979,7 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
   assert.equal(document.querySelector('[data-maak-efficient]'), null);
   assert.match(document.body.textContent, /vul in het beheerscherm \(Functies → Google Maps\) een Routes-sleutel in/);
+  document.querySelector('[data-maak-regel="0"]').click();
   assert.ok(document.querySelector('[data-maak-heen="0"]'), 'reistijd wel zelf in te vullen');
   assert.equal(google.length, 0);
 });
