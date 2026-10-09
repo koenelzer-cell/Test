@@ -171,22 +171,22 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   (bij een apart afspraakformulier wel); 'Naar deze dag'
   naast de datum van een blok opent die dag in de agenda.
 - **Afstand in de planhulp**: vink 'Huisbezoek' aan en vul de postcode van
-  de cliënt in. Elk vrij blok toont dan ongeveer hoeveel km je omrijdt ten
-  opzichte van wat er die dag ervoor en erna staat: huisbezoeken (postcode
+  de cliënt in. Elk vrij blok toont dan ongeveer hoeveel km extra je rijdt ten
+  opzichte van wat er die dag ervoor en erna staat: afspraken met een cliënt (postcode
   van de cliënt) en afspraken op een kantoorlocatie (de ONS-locatie, bijv.
   'J&G Oosterhout' -> kantoor Breda; alleen locaties die met 'BG' of 'J&G'
   beginnen; lijst met postcodes en herkenningswoorden te bewerken in het
   beheerscherm onder Functies -> Kantoren voor de planhulp),
-  of anders je vertrekpunt. De blokken staan meteen op 'Minst omrijden'. Hemelsbreed × 1,3: een schatting, geen
+  of anders je vertrekpunt. De blokken staan meteen op 'Minst rijden'. Er is geen controle op een label: 'Huisbezoek' is alleen het vinkje voor de nieuwe afspraak. Hemelsbreed × 1,3: een schatting, geen
   rijtijd. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster);
   de toestemming daarvoor vraagt Chrome bij het eerste gebruik.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
-  (met apart: kopieën op meerdere momenten en Huisbezoek/afstand), Route
-  huisbezoeken, Verlof aanvragen en het vooraf laden. Uit = de knop of het
+  (met apart: kopieën op meerdere momenten en Huisbezoek/rijafstand), Route
+  van de dag, Verlof aanvragen en het vooraf laden. Uit = de knop of het
   onderdeel verdwijnt uit het zijpaneel.
-- **Route huisbezoeken**: de huisbezoeken (label of uursoort met
-  'huisbezoek') van een dag op volgorde van begintijd, met het adres uit het
+- **Route van de dag**: je afspraken met een cliënt van een dag (niet op een
+  BG/J&G-kantoorlocatie; geen labelcontrole) op volgorde van begintijd, met het adres uit het
   detailvenster van ONS. 'Route openen' opent Google Maps met alle stops
   (10 per route; meer = meerdere aansluitende routes), optioneel vanaf een
   vertrekpunt dat alleen op dit apparaat wordt bewaard. Adressen gaan pas

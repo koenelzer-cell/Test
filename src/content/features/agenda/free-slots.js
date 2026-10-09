@@ -9,7 +9,7 @@ import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
-import { addressFromDetails, isHomeVisit, postcodeFromAddress } from '../../domain/route.js';
+import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domain/route.js';
 import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
@@ -49,14 +49,21 @@ export function checkSlotWithOns(req) {
 // Zoeken tot en met een datum: hooguit een half jaar vooruit.
 export const MAX_ZOEK_DAGEN = 182;
 
-// Waar ben je op de dagen met vrije tijd? Huisbezoeken (postcode van de
-// cliënt, uit de details) en afspraken op een kantoorlocatie (postcode van het
-// kantoor, uit de ONS-locatie; zie domain/offices.js). Zo telt een tussendoor
+// Waar ben je op de dagen met vrije tijd? Afspraken op een kantoorlocatie
+// (postcode van het kantoor, uit de ONS-locatie; zie domain/offices.js) en
+// andere afspraken met een cliënt (postcode van de cliënt, uit de details).
+// Geen labelcontrole. Zo telt een tussendoor
 // terug naar kantoor mee. ALLEEN postcodes: geen adres, geen naam.
-// -> { 'YYYY-MM-DD': [{ startMin, endMin, pc, soort: 'huis'|'kantoor', kantoor? }] }
+// -> { 'YYYY-MM-DD': [{ startMin, endMin, pc, soort: 'client'|'kantoor', kantoor? }] }
 function huisbezoekenPerDag(alles, datums) {
+  var gezien = Object.create(null);
   var opDag = alles.filter(function (e) {
-    return e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null;
+    if (!(e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null)) return false;
+    // Dezelfde afspraak bij meerdere medewerkers (of twee keer opgehaald): één keer.
+    var k = (e.id != null ? e.id : '') + '|' + e.date + '|' + e.startMs;
+    if (gezien[k]) return false;
+    gezien[k] = true;
+    return true;
   });
   var limiet = createLimiter(3), uit = {};
   var zet = function (e, extra) {
@@ -67,16 +74,14 @@ function huisbezoekenPerDag(alles, datums) {
     }, extra));
   };
   return Promise.all(opDag.map(function (e) {
-    if (!isHomeVisit(e)) {
-      var k = officeForLocation(e.locationName);
-      if (k && k.postcode) zet(e, { pc: k.postcode, soort: 'kantoor', kantoor: k.name });
-      return null;
-    }
+    var k = officeForLocation(e.locationName);
+    if (k && k.postcode) { zet(e, { pc: k.postcode, soort: 'kantoor', kantoor: k.name }); return null; }
+    if (!isAtClient(e, false)) return null;
     var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
     if (!url) return null;
     return limiet(function () { return getJson(url); }).then(function (d) {
       var pc = postcodeFromAddress(addressFromDetails(d));
-      if (pc) zet(e, { pc: pc, soort: 'huis' });
+      if (pc) zet(e, { pc: pc, soort: 'client' });
     }, function () {});
   })).then(function () {
     Object.keys(uit).forEach(function (d) { uit[d].sort(function (a, b) { return a.startMin - b.startMin; }); });
@@ -86,7 +91,7 @@ function huisbezoekenPerDag(alles, datums) {
 
 // minutes: gewenste duur; weeks: hoe ver vooruit (1-8); tot: 'YYYY-MM-DD'
 // (optioneel) zoekt tot en met die datum en gaat voor op weeks. metBezoeken:
-// ook de postcodes van de huisbezoeken op die dagen meegeven (afstand).
+// ook de postcodes van de afspraken op die dagen meegeven (afstand).
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
 // bezet.

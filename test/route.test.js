@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const { JSDOM } = await import('jsdom');
 const _dom = new JSDOM('<!doctype html><body></body>', { url: 'https://impegno.onsagenda.nl/' });
 for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'localStorage', 'sessionStorage']) { if (!(k in globalThis)) globalThis[k] = _dom.window[k]; }
-const { addressFromDetails, addressFromMapsUrl, isHomeVisit, postcodeFromAddress, routeUrls } = await import('../src/content/domain/route.js');
+const { addressFromDetails, addressFromMapsUrl, isAtClient, postcodeFromAddress, routeUrls } = await import('../src/content/domain/route.js');
 
 // Vorm zoals ONS de details van een afspraak geeft (nepgegevens).
 const DETAILS = { event: {
@@ -28,10 +28,10 @@ test('adres uit de details: zonder link valt hij terug op asText of losse velden
   assert.equal(addressFromDetails({ event: { name: 'Huisbezoek Dorpstraat 3', clients: [] } }), '', 'een titel is geen adres');
 });
 
-test('huisbezoek herkennen aan label of uursoort', () => {
-  assert.equal(isHomeVisit({ labels: [{ name: 'JG Huisbezoek' }] }), true);
-  assert.equal(isHomeVisit({ labels: [{ name: 'Face to face' }], hourType: '' }), false);
-  assert.equal(isHomeVisit({ labels: [], hourType: 'Huisbezoek ambulant' }), true);
+test('bij de cliënt: geen labelcontrole, wel niet op kantoor', () => {
+  assert.equal(isAtClient({ clientPresent: true, labels: [{ name: 'Face to face' }] }, false), true, 'label maakt niet uit');
+  assert.equal(isAtClient({ clientPresent: true }, true), false, 'op een kantoorlocatie');
+  assert.equal(isAtClient({ clientPresent: false }, false), false, 'zonder cliënt');
 });
 
 test('routes: per 10 stops, aansluitend, met vertrekpunt', () => {

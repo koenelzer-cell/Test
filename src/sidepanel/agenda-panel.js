@@ -768,7 +768,7 @@ var BEWAARD = {
   // Planhulp: vrije tijd zoeken.
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-  // huisbezoek: aangevinkt = postcode invullen en sorteren op minst omrijden.
+  // huisbezoek: aangevinkt = postcode invullen en sorteren op minst rijden.
   plan: { minutes: 60, weeks: 2, tot: '', huisbezoek: false, pc: '', sorteer: 'afstand', busy: false, result: null, error: '', geo: '' },
   // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
   slot: null,
@@ -777,7 +777,7 @@ var BEWAARD = {
   momenten: [],
   kopie: null,
   balkOpen: false,
-  // Route langs de huisbezoeken van een dag (geen cache van adressen buiten dit paneel).
+  // Route van de dag (geen cache van adressen buiten dit paneel).
   route: { date: '', busy: false, result: null, error: '' },
   inviteeId: null
 };
@@ -861,7 +861,7 @@ function telOpen(result, afgewerkt) {
 
 var PAGINA_TITEL = {
   hoofd: 'Agendahulp', clienttijd: 'Cliënttijd', verhouding: 'Verhouding per uursoort',
-  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok', plan: 'Planhulp', route: 'Route huisbezoeken'
+  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', vrijblok: 'Vrij blok', plan: 'Planhulp', route: 'Route van de dag'
 };
 
 export function create(host, actions) {
@@ -1141,7 +1141,7 @@ export function create(host, actions) {
       zoek(true);
     });
   }
-  // Per vrij blok het omrijden schatten (zie geo.js). Alleen postcodes gaan
+  // Per vrij blok het extra rijden schatten (zie geo.js). Alleen postcodes gaan
   // naar PDOK; zonder antwoord blijft het blok zonder afstand.
   function haalJson(url) { return fetch(url, { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }); }
   function rekenAfstand(result, pc) {
@@ -1328,7 +1328,7 @@ export function create(host, actions) {
     planBox.appendChild(totRij);
     planBox.appendChild(kz.host);
     // Huisbezoek: dan de postcode van de cliënt, en per blok hoeveel je omrijdt
-    // ten opzichte van je huisbezoeken en kantoorafspraken die dag.
+    // ten opzichte van je andere afspraken die dag (cliënt of kantoor).
     if (!fAan('plannerDistance')) plan.huisbezoek = false;
     var hbLab = el('label', { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '13px', fontWeight: '600', color: T.ink, cursor: 'pointer', userSelect: 'none' });
     var hb = document.createElement('input');
@@ -1346,7 +1346,7 @@ export function create(host, actions) {
       var pcLab = fieldLabel('Postcode cliënt', pcVeld);
       pcLab.style.marginTop = '8px';
       planBox.appendChild(pcLab);
-      planBox.appendChild(txt('help', 'De blokken staan dan op minst omrijden, gezien je huisbezoeken en afspraken op kantoor die dag. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).', { margin: '4px 0 0', fontSize: '11.5px' }));
+      planBox.appendChild(txt('help', 'De blokken staan dan op minst rijden, gezien je andere afspraken die dag: bij een cliënt (adres uit ONS) of op kantoor (BG/J&G-locatie). Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).', { margin: '4px 0 0', fontSize: '11.5px' }));
     }
     planBox.appendChild(primaryBtn(plan.busy ? 'Bezig met zoeken…' : 'Vrije tijd zoeken', function () { startPlan(true); }, plan.busy));
     if (plan.geo) planBox.appendChild(noteBox(plan.geo, 'warn'));
@@ -1363,9 +1363,9 @@ export function create(host, actions) {
         var lijst = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' });
         var gaps = res.gaps.slice();
         if (res.afstand) {
-          // Sorteren: op tijd of op omrijden (blokken zonder schatting achteraan).
+          // Sorteren: op tijd of op minst rijden (blokken zonder schatting achteraan).
           var srt = el('div', { display: 'flex', gap: '4px', marginTop: '12px' });
-          [['tijd', 'Op tijd'], ['afstand', 'Minst omrijden']].forEach(function (o) {
+          [['tijd', 'Op tijd'], ['afstand', 'Minst rijden']].forEach(function (o) {
             var g2 = plan.sorteer === o[0];
             srt.appendChild(chipKnop(o[1], g2, function () { plan.sorteer = o[0]; renderPagina(); }, { padding: '0 10px', border: '1px solid ' + (g2 ? T.brand : T.line) }));
           });
@@ -1383,7 +1383,7 @@ export function create(host, actions) {
           tijdKol.appendChild(el('span', { fontSize: '13px', color: T.ink, fontVariantNumeric: 'tabular-nums' }, hm(g.startMin) + ' – ' + hm(g.endMin)));
           if (res.afstand) {
             var kantoor = g.omrij ? (g.omrij.voorKantoor || g.omrij.naKantoor) : '';
-            var kmTekst = g.omrij ? '\u2248 ' + (g.omrij.km < 1 ? '< 1' : Math.round(g.omrij.km)) + ' km omrijden' + (kantoor ? ' \u00b7 kantoor ' + kantoor : '') : 'geen huisbezoek die dag';
+            var kmTekst = g.omrij ? '\u2248 ' + (g.omrij.km < 1 ? '< 1' : Math.round(g.omrij.km)) + ' km rijden' + (kantoor ? ' \u00b7 kantoor ' + kantoor : '') : 'geen afspraak met adres die dag';
             var kmEl = el('span', { fontSize: '11.5px', color: g.omrij ? T.brand : T.inkSoft, fontWeight: g.omrij ? '600' : '400' }, kmTekst);
             kmEl.setAttribute('data-omrij', g.omrij ? String(Math.round(g.omrij.km)) : '');
             tijdKol.appendChild(kmEl);
@@ -1439,7 +1439,7 @@ export function create(host, actions) {
     if (fAan('quickRegister')) navBox.appendChild(navCard(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', function () { naarPagina('snel'); }));
     if (fAan('planner')) navBox.appendChild(navCard(ICON_PLAN, 'Planhulp', 'Vrije tijd vinden voor een afspraak in de komende weken', function () { naarPagina('plan'); }));
     if (!(state && state.routeEnabled === false) && fAan('routeLink')) {
-      navBox.appendChild(navCard(ICON_ROUTE, 'Route huisbezoeken', 'De huisbezoeken van een dag op volgorde in Google Maps', function () { naarPagina('route'); }));
+      navBox.appendChild(navCard(ICON_ROUTE, 'Route van de dag', 'Je afspraken bij cliënten van een dag op volgorde in Google Maps', function () { naarPagina('route'); }));
     }
   }
 
@@ -1925,7 +1925,7 @@ export function create(host, actions) {
     return box;
   }
 
-  /* ── Route huisbezoeken ── */
+  /* ── Route van de dag ── */
   // Vertrekpunt alleen op dit apparaat (localStorage van het zijpaneel).
   var VERTREK_KEY = 'onsah.routeVertrekpunt';
   var vertrekGeheugen = null;   // als localStorage niet beschikbaar is
@@ -1955,7 +1955,7 @@ export function create(host, actions) {
   function pageRoute() {
     var box = el('div');
     var rt = BEWAARD.route;
-    box.appendChild(txt('help', 'De huisbezoeken van een dag op volgorde van begintijd. \u2018Route openen\u2019 opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.', { margin: '0 0 10px' }));
+    box.appendChild(txt('help', 'Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. \u2018Route openen\u2019 opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.', { margin: '0 0 10px' }));
     var k = maakKiezers();
     box.appendChild(fieldLabel('Dag', k.datum(rt.date, function (v) { rt.date = v; rt.result = null; rt.busy = false; startRoute(); })));
     box.appendChild(k.host);
@@ -1974,7 +1974,7 @@ export function create(host, actions) {
         var blok = el('div', { marginTop: '14px', paddingTop: i ? '12px' : '0', borderTop: i ? '1px solid ' + T.line : '0' });
         blok.setAttribute('data-route-persoon', p.id || '');
         if (p.name) blok.appendChild(txt('section', p.name));
-        if (!p.stops.length) { blok.appendChild(txt('help', 'Geen huisbezoeken op ' + dayLabel(r.date) + '.')); box.appendChild(blok); return; }
+        if (!p.stops.length) { blok.appendChild(txt('help', 'Geen afspraken bij cliënten op ' + dayLabel(r.date) + '.')); box.appendChild(blok); return; }
         var lijst = el('div', { display: 'flex', flexDirection: 'column', gap: '4px', margin: '6px 0 0' });
         p.stops.forEach(function (st, j) {
           var rij = el('div', { display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '13px', color: T.ink, padding: '6px 0', borderBottom: '1px solid ' + T.lineSoft });
@@ -1984,7 +1984,7 @@ export function create(host, actions) {
           lijst.appendChild(rij);
         });
         blok.appendChild(lijst);
-        if (p.missing) blok.appendChild(txt('help', p.missing + (p.missing === 1 ? ' huisbezoek zonder adres staat' : ' huisbezoeken zonder adres staan') + ' niet in de route.', { margin: '6px 0 0' }));
+        if (p.missing) blok.appendChild(txt('help', p.missing + (p.missing === 1 ? ' afspraak zonder adres staat' : ' afspraken zonder adres staan') + ' niet in de route.', { margin: '6px 0 0' }));
         (p.urls || []).forEach(function (u, n) {
           var label = p.urls.length > 1 ? 'Route ' + (n + 1) + ' van ' + p.urls.length + ' openen' : 'Route openen in Google Maps';
           var b = n === 0 ? primaryBtn(label, function () { window.open(u, '_blank', 'noopener'); }) : secondaryBtn(label, function () { window.open(u, '_blank', 'noopener'); });

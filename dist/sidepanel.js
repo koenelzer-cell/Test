@@ -56,7 +56,7 @@
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_DAY_ROUTE: "ag-day-route",
-    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route huisbezoeken
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -1119,7 +1119,7 @@
     // Planhulp: vrije tijd zoeken.
     // tot: zoek tot en met die datum (gaat voor op weeks).
     // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-    // huisbezoek: aangevinkt = postcode invullen en sorteren op minst omrijden.
+    // huisbezoek: aangevinkt = postcode invullen en sorteren op minst rijden.
     plan: { minutes: 60, weeks: 2, tot: "", huisbezoek: false, pc: "", sorteer: "afstand", busy: false, result: null, error: "", geo: "" },
     // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
     slot: null,
@@ -1128,7 +1128,7 @@
     momenten: [],
     kopie: null,
     balkOpen: false,
-    // Route langs de huisbezoeken van een dag (geen cache van adressen buiten dit paneel).
+    // Route van de dag (geen cache van adressen buiten dit paneel).
     route: { date: "", busy: false, result: null, error: "" },
     inviteeId: null
   };
@@ -1222,7 +1222,7 @@
     info: "Over de Agendahulp",
     vrijblok: "Vrij blok",
     plan: "Planhulp",
-    route: "Route huisbezoeken"
+    route: "Route van de dag"
   };
   function create(host2, actions) {
     actions = actions || {};
@@ -1878,7 +1878,7 @@
         var pcLab = fieldLabel("Postcode cliënt", pcVeld);
         pcLab.style.marginTop = "8px";
         planBox.appendChild(pcLab);
-        planBox.appendChild(txt("help", "De blokken staan dan op minst omrijden, gezien je huisbezoeken en afspraken op kantoor die dag. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).", { margin: "4px 0 0", fontSize: "11.5px" }));
+        planBox.appendChild(txt("help", "De blokken staan dan op minst rijden, gezien je andere afspraken die dag: bij een cliënt (adres uit ONS) of op kantoor (BG/J&G-locatie). Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).", { margin: "4px 0 0", fontSize: "11.5px" }));
       }
       planBox.appendChild(primaryBtn(plan.busy ? "Bezig met zoeken…" : "Vrije tijd zoeken", function() {
         startPlan(true);
@@ -1902,7 +1902,7 @@
           var gaps = res.gaps.slice();
           if (res.afstand) {
             var srt = el("div", { display: "flex", gap: "4px", marginTop: "12px" });
-            [["tijd", "Op tijd"], ["afstand", "Minst omrijden"]].forEach(function(o) {
+            [["tijd", "Op tijd"], ["afstand", "Minst rijden"]].forEach(function(o) {
               var g2 = plan.sorteer === o[0];
               srt.appendChild(chipKnop(o[1], g2, function() {
                 plan.sorteer = o[0];
@@ -1926,7 +1926,7 @@
             tijdKol.appendChild(el("span", { fontSize: "13px", color: T.ink, fontVariantNumeric: "tabular-nums" }, hm(g.startMin) + " – " + hm(g.endMin)));
             if (res.afstand) {
               var kantoor = g.omrij ? g.omrij.voorKantoor || g.omrij.naKantoor : "";
-              var kmTekst = g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km omrijden" + (kantoor ? " · kantoor " + kantoor : "") : "geen huisbezoek die dag";
+              var kmTekst = g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km rijden" + (kantoor ? " · kantoor " + kantoor : "") : "geen afspraak met adres die dag";
               var kmEl = el("span", { fontSize: "11.5px", color: g.omrij ? T.brand : T.inkSoft, fontWeight: g.omrij ? "600" : "400" }, kmTekst);
               kmEl.setAttribute("data-omrij", g.omrij ? String(Math.round(g.omrij.km)) : "");
               tijdKol.appendChild(kmEl);
@@ -1990,7 +1990,7 @@
         naarPagina("plan");
       }));
       if (!(state && state.routeEnabled === false) && fAan("routeLink")) {
-        navBox.appendChild(navCard(ICON_ROUTE, "Route huisbezoeken", "De huisbezoeken van een dag op volgorde in Google Maps", function() {
+        navBox.appendChild(navCard(ICON_ROUTE, "Route van de dag", "Je afspraken bij cliënten van een dag op volgorde in Google Maps", function() {
           naarPagina("route");
         }));
       }
@@ -2602,7 +2602,7 @@
     function pageRoute() {
       var box = el("div");
       var rt = BEWAARD.route;
-      box.appendChild(txt("help", "De huisbezoeken van een dag op volgorde van begintijd. ‘Route openen’ opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.", { margin: "0 0 10px" }));
+      box.appendChild(txt("help", "Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. ‘Route openen’ opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.", { margin: "0 0 10px" }));
       var k = maakKiezers();
       box.appendChild(fieldLabel("Dag", k.datum(rt.date, function(v) {
         rt.date = v;
@@ -2637,7 +2637,7 @@
           blok.setAttribute("data-route-persoon", p.id || "");
           if (p.name) blok.appendChild(txt("section", p.name));
           if (!p.stops.length) {
-            blok.appendChild(txt("help", "Geen huisbezoeken op " + dayLabel(r.date) + "."));
+            blok.appendChild(txt("help", "Geen afspraken bij cliënten op " + dayLabel(r.date) + "."));
             box.appendChild(blok);
             return;
           }
@@ -2650,7 +2650,7 @@
             lijst.appendChild(rij);
           });
           blok.appendChild(lijst);
-          if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " huisbezoek zonder adres staat" : " huisbezoeken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
+          if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " afspraak zonder adres staat" : " afspraken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
           (p.urls || []).forEach(function(u, n) {
             var label = p.urls.length > 1 ? "Route " + (n + 1) + " van " + p.urls.length + " openen" : "Route openen in Google Maps";
             var b = n === 0 ? primaryBtn(label, function() {

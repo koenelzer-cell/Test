@@ -1,5 +1,5 @@
-// Route langs de huisbezoeken van een dag: per medewerker de huisbezoeken op
-// volgorde van begintijd, met het adres uit het detailvenster van ONS
+// Route van de dag: per medewerker de afspraken bij cliënten (niet op een
+// kantoorlocatie) op volgorde van begintijd, met het adres uit het detailvenster van ONS
 // (domain/route.js). De Google Maps-links maakt het zijpaneel pas als de
 // medewerker op 'Route openen' klikt.
 //
@@ -8,7 +8,8 @@
 import { inviteeName, viewedInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
-import { addressFromDetails, isHomeVisit, routeUrls } from '../../domain/route.js';
+import { addressFromDetails, isAtClient, routeUrls } from '../../domain/route.js';
+import { officeForLocation } from '../../domain/offices.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
@@ -34,7 +35,7 @@ export function dayRoute(date, origin) {
   return Promise.all(ids.map(function (id) {
     return getJson(_apiUrl('weekEvents', { inviteeId: id, date: date })).then(function (json) {
       var bezoeken = mapAgendaWeekResponse(json).filter(function (e) {
-        return e && e.date === date && !e.allDay && e.startMs != null && isHomeVisit(e);
+        return e && e.date === date && !e.allDay && e.startMs != null && isAtClient(e, !!officeForLocation(e.locationName));
       }).sort(function (a, b) { return a.startMs - b.startMs; });
       return Promise.all(bezoeken.map(function (e) {
         var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: id, occurrenceId: e.occurrenceId }) : null);

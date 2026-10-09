@@ -1,5 +1,5 @@
 // Afstand voor de planhulp: postcode -> coördinaat via de PDOK Locatieserver
-// (Kadaster, gratis, geen sleutel), en een schatting van het omrijden.
+// (Kadaster, gratis, geen sleutel), en een schatting van het extra rijden.
 //
 // PRIVACY: naar PDOK gaat ALLEEN een postcode (6 tekens): geen huisnummer,
 // geen naam. Coördinaten blijven in het geheugen van het zijpaneel.
@@ -33,7 +33,7 @@ export function km(a, b) {
 }
 
 // Hoeveel extra km kost een afspraak op [start, start+duur) op die dag, gezien
-// de huisbezoeken ervoor en erna? bezoeken: [{ startMin, endMin, pc }] (gesorteerd).
+// de afspraken ervoor en erna (cliënt of kantoor)? bezoeken: [{ startMin, endMin, pc }] (gesorteerd).
 // thuis: coördinaat van het vertrekpunt (optioneel; geldt als begin en eind van
 // de dag). coord(pc) -> { lat, lon } | null.
 //   -> { km, voor, na } of null als er niets om mee te vergelijken is.

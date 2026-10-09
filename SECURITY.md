@@ -55,15 +55,15 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   geboortedatum, adres en vrije titels uit die responses worden niet
   overgenomen. Uitzonderingen, alleen in het geheugen en alleen op verzoek van
   de medewerker:
-  - **Route huisbezoeken** (zijpaneel, uit te zetten met `features.routeLink`):
-    leest per huisbezoek van de gekozen dag het adres uit de details van ONS
+  - **Route van de dag** (zijpaneel, uit te zetten met `features.routeLink`):
+    leest per afspraak met een cliënt (niet op een kantoorlocatie) van de gekozen dag het adres uit de details van ONS
     (de Google Maps-link `clients[].address.mapUrl`). Geen naam of andere
     gegevens. Het adres wordt niet opgeslagen en gaat pas naar Google als de
     medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
     met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
   - **Afstand in de planhulp** (alleen als de medewerker een postcode
-    'Huisbezoek' aanvinkt en een postcode invult): van de huisbezoeken op de
+    'Huisbezoek' aanvinkt en een postcode invult): van de afspraken met een cliënt op de
     dagen met vrije tijd geeft de agendapagina alleen de postcode (6 tekens)
     door aan het zijpaneel; van afspraken op een kantoorlocatie de postcode
     van dat kantoor (uit de configuratie). Het

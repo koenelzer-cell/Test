@@ -626,7 +626,7 @@ test('zijpaneel: planhulp - meerdere momenten kiezen, wissen alleen in de balk, 
   assert.equal(document.querySelector('[data-selectie]'), null, 'selectie leeg na gelukte kopieën');
 });
 
-test('zijpaneel: route huisbezoeken - lijst op volgorde, adres onbekend gemeld, route openen', async () => {
+test('zijpaneel: route van de dag - lijst op volgorde, adres onbekend gemeld, route openen', async () => {
   const geopend = [];
   const { document, verzonden, dom } = zijpaneelMetTools({
     'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 1,
@@ -635,11 +635,11 @@ test('zijpaneel: route huisbezoeken - lijst op volgorde, adres onbekend gemeld, 
   }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12' });
   dom.window.open = (u) => { geopend.push(u); };
   await tick();
-  navKnop(document, 'Route huisbezoeken').click();
+  navKnop(document, 'Route van de dag').click();
   await tick();
   assert.deepEqual({ type: verzonden.at(-1).type, date: verzonden.at(-1).date }, { type: 'ag-day-route', date: '2026-10-12' }, 'start meteen voor de bekeken dag');
   assert.match(document.body.textContent, /09:00Teststraat 1, Stad.*11:00Adres onbekend.*13:30Laan 5, Stad/s);
-  assert.match(document.body.textContent, /1 huisbezoek zonder adres staat niet in de route/);
+  assert.match(document.body.textContent, /1 afspraak zonder adres staat niet in de route/);
   knop(document, 'Route openen in Google Maps').click();
   assert.match(geopend[0], /^https:\/\/www\.google\.com\/maps\/dir\//);
   const v = document.querySelector('[data-vertrekpunt]');
@@ -648,10 +648,10 @@ test('zijpaneel: route huisbezoeken - lijst op volgorde, adres onbekend gemeld, 
   assert.equal(verzonden.at(-1).origin, 'Kantoor 1, Stad', 'vertrekpunt gaat mee en wordt onthouden');
 });
 
-test('zijpaneel: route huisbezoeken staat uit als beheer hem uitzet', async () => {
+test('zijpaneel: route van de dag staat uit als beheer hem uitzet', async () => {
   const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, routeEnabled: false });
   await tick();
-  assert.equal(navKnop(document, 'Route huisbezoeken'), undefined);
+  assert.equal(navKnop(document, 'Route van de dag'), undefined);
 });
 
 test('zijpaneel: planhulp - Huisbezoek aanvinken: postcode, minst omrijden, kantoor telt mee', async () => {
@@ -684,8 +684,8 @@ test('zijpaneel: planhulp - Huisbezoek aanvinken: postcode, minst omrijden, kant
   assert.ok(pdok.every((u) => /q=\d{4}[A-Z]{2}$/.test(u)), 'alleen postcodes naar PDOK');
   const dagen = () => [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok').map((c) => c.textContent.slice(0, 9));
   assert.deepEqual(dagen(), ['di 13 okt', 'ma 12 okt', 'wo 14 okt'], 'meteen op minst omrijden');
-  assert.match(document.body.textContent, /≈ < 1 km omrijden · kantoor Delft/, 'terug naar kantoor telt mee');
-  assert.match(document.body.textContent, /geen huisbezoek die dag/);
+  assert.match(document.body.textContent, /≈ < 1 km rijden · kantoor Delft/, 'terug naar kantoor telt mee');
+  assert.match(document.body.textContent, /geen afspraak met adres die dag/);
   knop(document, 'Op tijd').click();
   assert.deepEqual(dagen(), ['ma 12 okt', 'di 13 okt', 'wo 14 okt']);
 });
@@ -703,7 +703,7 @@ test('zijpaneel: functies die beheer uitzet verdwijnen uit het zijpaneel', async
   const features = { weekRatio: false, openRegistrations: false, quickRegister: true, planner: false, plannerCopies: true, plannerDistance: true, production: false, routeLink: false };
   const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features });
   await tick();
-  for (const uit of ['Verhouding per uursoort', 'Open registraties', 'Planhulp', 'Route huisbezoeken']) assert.equal(navKnop(document, uit), undefined, uit);
+  for (const uit of ['Verhouding per uursoort', 'Open registraties', 'Planhulp', 'Route van de dag']) assert.equal(navKnop(document, uit), undefined, uit);
   assert.ok(navKnop(document, 'Snel registreren'), 'wat aan staat blijft');
 });
 

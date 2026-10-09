@@ -405,3 +405,24 @@ test('planhulp: na opslaan kopieën maken en het volgende moment met eigen inste
   assert.deepEqual(JSON.parse(JSON.stringify(melding.next)), { date: '2026-11-03', startMin: 600 });
   assert.equal(melding.left, 2);
 });
+
+test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole), BG/J&G-locatie telt als kantoor', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // volgende maandag
+  const ymd = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  const t = (u) => ymd + 'T' + u + ':00';
+  const afs = (id, van, tot, extra) => ({ id, date: ymd, type: 'event', start_time: t(van), end_time: t(tot), time_slot: {}, labels: [{ name: 'Face to face' }], clients: [], meta: { detailsUrl: '/details/' + id }, ...extra });
+  window.fetch = (url) => {
+    if (/^\/details\/a/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ event: { clients: [{ address: { mapUrl: 'https://www.google.nl/maps/place/Teststraat+1,+2611EB,+Delft' } }] } }) });
+    const laag = /layer=(\w+)/.exec(url)[1];
+    const data = laag !== 'events' || !/13970/.test(url) ? [] : [
+      afs('a', '09:00', '10:00', { clients: [{ id: 1 }] }),
+      afs('b', '13:00', '14:00', { clients: [{ id: 2 }], location: { id: 1, name: 'J&G Oosterhout' } }),
+      afs('c', '15:00', '15:30', {}),
+    ];
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ data }) });
+  };
+  const r = await api.findFreeSlots(60, 2, '', true);
+  const dag = (r.visits || {})[ymd] || [];
+  assert.deepEqual(JSON.parse(JSON.stringify(dag.map((v) => [v.pc, v.soort]))), [['2611EB', 'client'], ['4822NH', 'kantoor']]);
+});

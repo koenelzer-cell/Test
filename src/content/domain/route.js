@@ -1,22 +1,21 @@
-// Route langs de huisbezoeken van een dag (Google Maps).
+// Route langs de afspraken bij cliënten van een dag (Google Maps).
 //
 // ONS zet in het detailvenster van een afspraak al een link naar Google Maps
 // (https://www.google.nl/maps/place/Koornmarkt+35-a,+2611EB,+Delft). Klik je
 // daarop, dan gaat het adres naar Google. De route-knop doet hetzelfde voor
-// alle huisbezoeken van een dag tegelijk, en ook alleen als de medewerker
+// alle afspraken bij cliënten van een dag tegelijk, en ook alleen als de medewerker
 // zelf klikt.
 //
 // PRIVACY: we lezen alleen het adres (geen naam, geen andere cliëntgegevens)
 // en bewaren het nergens. Het gaat pas naar Google als de medewerker op de
 // knop klikt.
 
-import { _agEntryLabels } from './agenda-entries.js';
-
-// Huisbezoek: label of uursoort met 'huisbezoek' erin.
-export function isHomeVisit(entry) {
-  if (!entry) return false;
-  var teksten = _agEntryLabels(entry).concat([entry.hourType || '']);
-  return teksten.some(function (t) { return /huisbezoek/i.test(String(t || '')); });
+// Is deze afspraak bij de cliënt? Geen labelcontrole: een afspraak met een
+// cliënt telt als bij de cliënt, tenzij hij op een kantoorlocatie staat
+// (ONS-locatie 'BG …' / 'J&G …', zie domain/offices.js). Welke afspraken
+// 'huisbezoek' zijn bepaalt de medewerker zelf (vinkje in de planhulp).
+export function isAtClient(entry, opKantoor) {
+  return !!(entry && entry.clientPresent && !opKantoor);
 }
 
 // '…/maps/place/Koornmarkt+35-a,+2611EB,+Delft' -> 'Koornmarkt 35-a, 2611EB, Delft'
@@ -79,7 +78,7 @@ export function addressFromDetails(json) {
 }
 
 // Google Maps-routes. Eén route heeft hooguit 10 stops (bestemming + 9
-// tussenstops); meer huisbezoeken -> meerdere routes, die op elkaar aansluiten.
+// tussenstops); meer stops -> meerdere routes, die op elkaar aansluiten.
 // origin: vertrekpunt (optioneel; zonder vertrekpunt start Maps bij je locatie).
 export var STOPS_PER_ROUTE = 10;
 export function routeUrls(addresses, origin) {

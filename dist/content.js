@@ -1207,7 +1207,7 @@
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_DAY_ROUTE: "ag-day-route",
-    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route huisbezoeken
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_FREE_SLOTS: "ag-free-slots",
@@ -10972,7 +10972,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.230";
+      return "1.6.231";
     }
   }();
 
@@ -13165,12 +13165,8 @@
   }
 
   // src/content/domain/route.js
-  function isHomeVisit(entry) {
-    if (!entry) return false;
-    var teksten = _agEntryLabels(entry).concat([entry.hourType || ""]);
-    return teksten.some(function(t) {
-      return /huisbezoek/i.test(String(t || ""));
-    });
+  function isAtClient(entry, opKantoor) {
+    return !!(entry && entry.clientPresent && !opKantoor);
   }
   function addressFromMapsUrl(url) {
     var m = /\/maps\/place\/([^/?#"'<>\s]+)/.exec(String(url || ""));
@@ -13323,8 +13319,13 @@
   }
   var MAX_ZOEK_DAGEN = 182;
   function huisbezoekenPerDag(alles, datums) {
+    var gezien = /* @__PURE__ */ Object.create(null);
     var opDag = alles.filter(function(e) {
-      return e.layer === "events" && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null;
+      if (!(e.layer === "events" && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null)) return false;
+      var k = (e.id != null ? e.id : "") + "|" + e.date + "|" + e.startMs;
+      if (gezien[k]) return false;
+      gezien[k] = true;
+      return true;
     });
     var limiet = createLimiter(3), uit = {};
     var zet = function(e, extra) {
@@ -13336,18 +13337,19 @@
       }, extra));
     };
     return Promise.all(opDag.map(function(e) {
-      if (!isHomeVisit(e)) {
-        var k = officeForLocation(e.locationName);
-        if (k && k.postcode) zet(e, { pc: k.postcode, soort: "kantoor", kantoor: k.name });
+      var k = officeForLocation(e.locationName);
+      if (k && k.postcode) {
+        zet(e, { pc: k.postcode, soort: "kantoor", kantoor: k.name });
         return null;
       }
+      if (!isAtClient(e, false)) return null;
       var url = e.detailsUrl || (e.occurrenceId ? _apiUrl("eventDetails", { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
       if (!url) return null;
       return limiet(function() {
         return getJson(url);
       }).then(function(d) {
         var pc = postcodeFromAddress(addressFromDetails(d));
-        if (pc) zet(e, { pc, soort: "huis" });
+        if (pc) zet(e, { pc, soort: "client" });
       }, function() {
       });
     })).then(function() {
@@ -13643,7 +13645,7 @@
     return Promise.all(ids.map(function(id) {
       return getJson(_apiUrl("weekEvents", { inviteeId: id, date })).then(function(json) {
         var bezoeken = mapAgendaWeekResponse(json).filter(function(e) {
-          return e && e.date === date && !e.allDay && e.startMs != null && isHomeVisit(e);
+          return e && e.date === date && !e.allDay && e.startMs != null && isAtClient(e, !!officeForLocation(e.locationName));
         }).sort(function(a, b) {
           return a.startMs - b.startMs;
         });
