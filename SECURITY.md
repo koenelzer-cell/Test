@@ -62,6 +62,13 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
     met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
+  - **Afstand in de planhulp** (alleen als de medewerker een postcode
+    invult): van de huisbezoeken op de dagen met vrije tijd geeft de
+    agendapagina alleen de postcode (6 tekens) door aan het zijpaneel. Het
+    zijpaneel vraagt bij de PDOK Locatieserver (Kadaster, `api.pdok.nl`) per
+    postcode het middelpunt op — geen huisnummer, geen naam — en houdt de
+    coördinaten alleen in het geheugen. Toegang tot `api.pdok.nl` is een
+    optionele toestemming die pas bij het eerste gebruik wordt gevraagd.
   - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS
     (met cliëntgegevens zoals ONS ze zelf verstuurt) wordt in het geheugen
     gehouden om dezelfde afspraak op de gekozen momenten aan te maken, en

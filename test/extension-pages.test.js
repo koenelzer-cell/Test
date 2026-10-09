@@ -654,6 +654,49 @@ test('zijpaneel: route huisbezoeken staat uit als beheer hem uitzet', async () =
   assert.equal(navKnop(document, 'Route huisbezoeken'), undefined);
 });
 
+test('zijpaneel: planhulp met postcode - omrijden per blok en sorteren op minst omrijden', async () => {
+  const pdok = [];
+  const { document, verzonden, dom } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: '', gaps: [
+      { date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 },
+      { date: '2026-10-13', startMin: 600, endMin: 720, minutes: 120 },
+      { date: '2026-10-14', startMin: 600, endMin: 720, minutes: 120 },
+    ], visits: msg.visits ? {
+      '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2511AA' }, { startMin: 780, endMin: 840, pc: '2511AA' }],
+      '2026-10-13': [{ startMin: 540, endMin: 600, pc: '2611EB' }, { startMin: 780, endMin: 840, pc: '2611EB' }],
+    } : undefined } }),
+  });
+  const PUNTEN = { '2611EB': 'POINT(4.3571 52.0116)', '2611AB': 'POINT(4.3580 52.0120)', '2511AA': 'POINT(4.3007 52.0705)' };
+  dom.window.fetch = (url) => { pdok.push(url); const pc = /q=(\w+)$/.exec(url)[1]; return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: PUNTEN[pc] }] } }) }); };
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const pc = document.querySelector('[data-postcode]');
+  pc.value = '2611 ab'; pc.dispatchEvent(new dom.window.Event('input'));
+  knop(document, 'Vrije tijd zoeken').click();
+  await tick();
+  assert.equal(verzonden.at(-1).visits, true, 'met postcode: huisbezoeken meevragen');
+  assert.ok(pdok.every((u) => /q=\d{4}[A-Z]{2}$/.test(u)), 'alleen postcodes naar PDOK');
+  const km = [...document.querySelectorAll('[data-omrij]')].map((e) => e.getAttribute('data-omrij'));
+  assert.equal(km.length, 3);
+  assert.equal(km[1], '0', 'dag met bezoeken vlakbij: niet om');
+  assert.ok(+km[0] > 10, 'dag met bezoeken in Den Haag: flink om');
+  assert.equal(km[2], '', 'dag zonder huisbezoek');
+  assert.match(document.body.textContent, /geen huisbezoek die dag/);
+  knop(document, 'Minst omrijden').click();
+  const dagen = [...document.querySelectorAll('[role="button"]')].filter((c) => c.title === 'Opties voor dit vrije blok').map((c) => c.textContent.slice(0, 9));
+  assert.deepEqual(dagen, ['di 13 okt', 'ma 12 okt', 'wo 14 okt']);
+});
+
+test('zijpaneel: geen melding "Gekleurde dagindeling staat aan", wel als hij uit staat', async () => {
+  const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, enabled: true, profileLabel: 'JGGZ' });
+  await tick();
+  assert.doesNotMatch(document.body.textContent, /Gekleurde dagindeling staat aan/);
+  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, enabled: false, profileLabel: 'JGGZ' });
+  await tick();
+  assert.match(uit.document.body.textContent, /Gekleurde dagindeling staat uit/);
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {

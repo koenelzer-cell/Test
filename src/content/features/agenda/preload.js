@@ -64,8 +64,8 @@ export function cachedProduction(from, to, onProgress) {
 export function cachedWeekRatio(date) {
   return onthouden('ratio', String(date), function () { return fetchWeekRatio(date); });
 }
-export function cachedFreeSlots(minutes, weeks, tot) {
-  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || ''), function () { return findFreeSlots(minutes, weeks, tot); });
+export function cachedFreeSlots(minutes, weeks, tot, metBezoeken) {
+  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken); });
 }
 
 // Standaardperiodes: gelijk aan wat het zijpaneel als standaard invult, zodat

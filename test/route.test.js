@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const { JSDOM } = await import('jsdom');
 const _dom = new JSDOM('<!doctype html><body></body>', { url: 'https://impegno.onsagenda.nl/' });
 for (const k of ['window', 'document', 'location', 'navigator', 'HTMLElement', 'Node', 'localStorage', 'sessionStorage']) { if (!(k in globalThis)) globalThis[k] = _dom.window[k]; }
-const { addressFromDetails, addressFromMapsUrl, isHomeVisit, routeUrls } = await import('../src/content/domain/route.js');
+const { addressFromDetails, addressFromMapsUrl, isHomeVisit, postcodeFromAddress, routeUrls } = await import('../src/content/domain/route.js');
 
 // Vorm zoals ONS de details van een afspraak geeft (nepgegevens).
 const DETAILS = { event: {
@@ -47,4 +47,10 @@ test('routes: per 10 stops, aansluitend, met vertrekpunt', () => {
   assert.match(urls[0], /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&/);
   assert.equal(new URLSearchParams(routeUrls(['A 1, B'])[0].split('?')[1]).get('origin'), null, 'zonder vertrekpunt: start bij je locatie');
   assert.deepEqual(routeUrls([]), []);
+});
+
+test('postcode uit een adresregel', () => {
+  assert.equal(postcodeFromAddress('Koornmarkt 35-a, 2611EB, Delft'), '2611EB');
+  assert.equal(postcodeFromAddress('Laan 5, 1111 aa, Stad'), '1111AA');
+  assert.equal(postcodeFromAddress('Laan 5, Stad'), '');
 });

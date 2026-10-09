@@ -9,6 +9,7 @@ import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
+import { addressFromDetails, isHomeVisit, postcodeFromAddress } from '../../domain/route.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
@@ -47,12 +48,39 @@ export function checkSlotWithOns(req) {
 // Zoeken tot en met een datum: hooguit een half jaar vooruit.
 export const MAX_ZOEK_DAGEN = 182;
 
+// Huisbezoeken op de dagen met vrije tijd, met ALLEEN de postcode (geen
+// adres, geen naam): het zijpaneel rekent daarmee uit hoeveel je zou omrijden.
+// -> { 'YYYY-MM-DD': [{ startMin, endMin, pc }] }
+function huisbezoekenPerDag(alles, datums) {
+  var bezoeken = alles.filter(function (e) {
+    return e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null && isHomeVisit(e);
+  });
+  var limiet = createLimiter(3), uit = {};
+  return Promise.all(bezoeken.map(function (e) {
+    var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
+    if (!url) return null;
+    return limiet(function () { return getJson(url); }).then(function (d) {
+      var pc = postcodeFromAddress(addressFromDetails(d));
+      if (!pc) return;
+      var dag = new Date(e.startMs); dag.setHours(0, 0, 0, 0);
+      (uit[e.date] = uit[e.date] || []).push({
+        startMin: Math.round((e.startMs - dag.getTime()) / 60000),
+        endMin: Math.round((e.endMs - dag.getTime()) / 60000), pc: pc
+      });
+    }, function () {});
+  })).then(function () {
+    Object.keys(uit).forEach(function (d) { uit[d].sort(function (a, b) { return a.startMin - b.startMin; }); });
+    return uit;
+  });
+}
+
 // minutes: gewenste duur; weeks: hoe ver vooruit (1-8); tot: 'YYYY-MM-DD'
-// (optioneel) zoekt tot en met die datum en gaat voor op weeks.
+// (optioneel) zoekt tot en met die datum en gaat voor op weeks. metBezoeken:
+// ook de postcodes van de huisbezoeken op die dagen meegeven (afstand).
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
 // bezet.
-export function findFreeSlots(minutes, weeks, tot) {
+export function findFreeSlots(minutes, weeks, tot, metBezoeken) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
@@ -74,7 +102,7 @@ export function findFreeSlots(minutes, weeks, tot) {
   var limiet = createLimiter(4);
   var haal = function (sjabloon, laag, start, id) {
     return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
-      .then(function (j) { return mapAgendaWeekResponse(j).map(function (e) { e.layer = laag; return e; }); });
+      .then(function (j) { return mapAgendaWeekResponse(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
   };
   var zonder = function () { return []; };
   var taken = [];
@@ -107,7 +135,13 @@ export function findFreeSlots(minutes, weeks, tot) {
       g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
     });
     var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+    var datums = {}; gaps.forEach(function (g) { datums[g.date] = true; });
+    var bezoeken = metBezoeken ? huisbezoekenPerDag(alles, datums).then(function (v) { res.visits = v; }, function () { res.visits = {}; }) : Promise.resolve();
+    return bezoeken.then(function () { return onsNakijken(res); });
+  });
+  function onsNakijken(res) {
     if (res.onsCheck !== 'ready') return res;
+    var gaps = res.gaps;
     // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
     // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.
     var nakijk = createLimiter(3);
@@ -116,5 +150,5 @@ export function findFreeSlots(minutes, weeks, tot) {
         return fetchEventOverlap({ ids: ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
       }).then(function (o) { g.ons = o; }, function () { g.ons = null; });
     })).then(function () { return res; });
-  });
+  }
 }

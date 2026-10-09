@@ -10927,7 +10927,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.227";
+      return "1.6.228";
     }
   }();
 
@@ -13119,282 +13119,6 @@
     });
   }
 
-  // src/content/features/agenda/free-slots.js
-  function workWindow() {
-    var z = activeZones() || [];
-    if (!z.length) return { start: 8 * 60, end: 17 * 60 };
-    var start = Math.round(Math.min.apply(null, z.map(function(x) {
-      return x.from;
-    })) * 60);
-    var end = Math.round(Math.max.apply(null, z.map(function(x) {
-      return x.to;
-    })) * 60);
-    return { start, end };
-  }
-  function agendaIds() {
-    var ids = currentInviteeIds();
-    if (!ids.length) {
-      var een = currentInviteeId(null) || resolveInviteeId();
-      if (een != null) ids = [String(een)];
-    }
-    return ids;
-  }
-  function checkSlotWithOns(req) {
-    req = req || {};
-    var status = overlapCheckStatus();
-    var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
-    if (status !== "ready" || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status, overlap: null });
-    return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin, endMin: startMin + minutes }).then(function(o) {
-      return { status, overlap: o };
-    });
-  }
-  var MAX_ZOEK_DAGEN = 182;
-  function findFreeSlots(minutes, weeks, tot) {
-    var ids = agendaIds();
-    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
-    minutes = parseInt(minutes, 10);
-    if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
-    weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
-    var vandaag = /* @__PURE__ */ new Date();
-    var dagen = weeks * 7;
-    var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || "")) ? String(tot) : "";
-    if (totDatum) {
-      var p = totDatum.split("-");
-      var eind = new Date(+p[0], +p[1] - 1, +p[2]);
-      var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
-      dagen = Math.round((eind - begin) / 864e5) + 1;
-      if (dagen < 1) return Promise.reject(new Error("Kies een datum vanaf vandaag."));
-      if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error("Kies een datum binnen een half jaar."));
-    }
-    var laatste = new Date(vandaag);
-    laatste.setDate(laatste.getDate() + dagen - 1);
-    var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
-    var limiet = createLimiter(4);
-    var haal = function(sjabloon, laag, start, id) {
-      return limiet(function() {
-        return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start }));
-      }).then(function(j) {
-        return mapAgendaWeekResponse(j).map(function(e) {
-          e.layer = laag;
-          return e;
-        });
-      });
-    };
-    var zonder = function() {
-      return [];
-    };
-    var taken = [];
-    ids.forEach(function(id) {
-      weken.forEach(function(start) {
-        taken.push(Promise.all([
-          haal("weekEvents", "events", start, id),
-          // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
-          haal("weekUnavailabilities", "unavailabilities", start, id).catch(zonder),
-          haal("weekOutlook", "outlook_appointments", start, id).catch(zonder),
-          haal("weekPlannedVisits", "planned_visits", start, id).catch(zonder),
-          haal("weekReservations", "reservations", start, id).catch(zonder)
-        ]));
-      });
-    });
-    return Promise.all(taken).then(function(perWeek) {
-      var alles = [].concat.apply([], perWeek.map(function(w) {
-        return [].concat.apply([], w);
-      }));
-      var isRes = function(e) {
-        return e.layer === "reservations" || e.type === "reservation";
-      };
-      var reserveringen = reservationBlocks(alles.filter(isRes));
-      alles = alles.filter(function(e) {
-        return !isRes(e);
-      });
-      var win = workWindow();
-      var gaps = findFreeGaps(alles, {
-        now: Date.now(),
-        days: dagen,
-        minMinutes: minutes,
-        stepMin: 15,
-        windowStart: win.start,
-        windowEnd: win.end,
-        maxResults: totDatum ? 40 : 12
-      });
-      gaps.forEach(function(g) {
-        g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
-      });
-      var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
-      if (res.onsCheck !== "ready") return res;
-      var nakijk = createLimiter(3);
-      return Promise.all(gaps.map(function(g) {
-        return nakijk(function() {
-          return fetchEventOverlap({ ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
-        }).then(function(o) {
-          g.ons = o;
-        }, function() {
-          g.ons = null;
-        });
-      })).then(function() {
-        return res;
-      });
-    });
-  }
-
-  // src/content/features/agenda/preload.js
-  var TTL = { ratio: 5 * 6e4, plan: 5 * 6e4, open: 10 * 6e4, productie: 30 * 6e4 };
-  var VOORAF_INTERVAL = 5 * 6e4;
-  var _cache = /* @__PURE__ */ Object.create(null);
-  function idsSleutel() {
-    return viewedInviteeIds(resolveInviteeId()).join(",");
-  }
-  function isCached(soort, sleutel) {
-    const c = _cache[soort + "|" + idsSleutel() + "|" + sleutel];
-    return !!(c && !c.bezig && Date.now() - c.ts < TTL[soort]);
-  }
-  function onthouden(soort, sleutel, werk, onProgress, vers) {
-    const k = soort + "|" + idsSleutel() + "|" + sleutel;
-    const c = _cache[k];
-    const geldig = c && (c.bezig || Date.now() - c.ts < TTL[soort]);
-    if (geldig && !vers) {
-      if (onProgress) {
-        if (c.bezig) {
-          c.luisteraars.push(onProgress);
-          if (c.laatst) onProgress(c.laatst[0], c.laatst[1]);
-        }
-      }
-      return c.promise;
-    }
-    const nieuw = { ts: Date.now(), bezig: true, luisteraars: onProgress ? [onProgress] : [], laatst: null, promise: null };
-    nieuw.promise = werk(function(d, t) {
-      nieuw.laatst = [d, t];
-      nieuw.luisteraars.forEach(function(fn) {
-        try {
-          fn(d, t);
-        } catch (e) {
-        }
-      });
-    }).then(
-      function(r) {
-        nieuw.bezig = false;
-        nieuw.ts = Date.now();
-        return r;
-      },
-      function(e) {
-        delete _cache[k];
-        throw e;
-      }
-    );
-    _cache[k] = nieuw;
-    return nieuw.promise;
-  }
-  function cachedOpenRange(from, to, onProgress, vers) {
-    return onthouden("open", from + "|" + to, function(p) {
-      return checkOpenRange(from, to, p);
-    }, onProgress, vers);
-  }
-  function cachedProduction(from, to, onProgress) {
-    return onthouden("productie", from + "|" + to, function(p) {
-      return computeProduction(from, to, p);
-    }, onProgress);
-  }
-  function cachedWeekRatio(date) {
-    return onthouden("ratio", String(date), function() {
-      return fetchWeekRatio(date);
-    });
-  }
-  function cachedFreeSlots(minutes, weeks, tot) {
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || ""), function() {
-      return findFreeSlots(minutes, weeks, tot);
-    });
-  }
-  function defaultProductionTo() {
-    const d = /* @__PURE__ */ new Date();
-    d.setDate(d.getDate() + 28);
-    return agendaYmd(d);
-  }
-  var _laatstVooraf = 0;
-  var _voorafSleutel = "";
-  var _bezig3 = false;
-  function preloadPanelData(force) {
-    if (_bezig3) return;
-    if (document.visibilityState !== "visible") return;
-    const sleutel = idsSleutel() + "|" + currentAgendaDate();
-    if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
-    if (!idsSleutel()) return;
-    _bezig3 = true;
-    _voorafSleutel = sleutel;
-    _laatstVooraf = Date.now();
-    const vandaag = agendaYmd(/* @__PURE__ */ new Date());
-    const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
-    });
-    Promise.resolve().then(stap(() => cachedWeekRatio(currentAgendaDate()))).then(stap(() => cachedFreeSlots(60, 2))).then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
-      _bezig3 = false;
-    }, () => {
-      _bezig3 = false;
-    });
-  }
-  function _clearPreloadCache() {
-    Object.keys(_cache).forEach((k) => delete _cache[k]);
-    _laatstVooraf = 0;
-    _voorafSleutel = "";
-    _bezig3 = false;
-  }
-
-  // src/content/features/agenda/quick-register.js
-  function openNewEvent(req) {
-    req = req || {};
-    var ymd2 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
-    var ids = currentInviteeIds();
-    if (!ids.length) {
-      var id = currentInviteeId(ymd2) || resolveInviteeId();
-      if (id != null) ids = [String(id)];
-    }
-    if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
-    storePendingAppointment({ date: ymd2, time: hhmm, minutes });
-    var lees = function(lijst) {
-      return (Array.isArray(lijst) ? lijst : []).map(function(m) {
-        var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));
-        return t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
-      }).filter(Boolean);
-    };
-    storePendingDuplicates(lees(req.extra), lees(req.eigen));
-    spaNavigate(location.origin + newEventUrl(ids));
-    return { ok: true };
-  }
-  function quickRegisterUrl(inviteeId, ymd2, hhmm, minutes) {
-    return _apiUrl("newRegistration", { inviteeId, date: ymd2, startTime: hhmm, durationSec: minutes * 60 });
-  }
-  function overlapCheck(ymd2, startMin, endMin) {
-    return fetchOnsOverlap(ymd2, startMin, endMin, "").then(function(ons) {
-      return fetchWeekTijdvakken("registraties", ymd2).then(function() {
-        var hit = overlappendTijdvak("registraties", ymd2, startMin, endMin, null);
-        if (hit) return overlapMelding(hit, "een registratie");
-        if (ons === true) return "Let op: ONS meldt dat dit tijdvak overlapt met een bestaande registratie.";
-        return null;
-      });
-    });
-  }
-  function quickRegister(req) {
-    req = req || {};
-    var ymd2 = String(req.date || "");
-    var hhmm = String(req.time || "").trim();
-    var minutes = parseInt(req.minutes, 10);
-    var startMin = timeTextToMinutes(hhmm);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2)) return Promise.resolve({ ok: false, error: "Kies een datum." });
-    if (startMin == null || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hhmm)) return Promise.resolve({ ok: false, error: "Vul een begintijd in (uu:mm)." });
-    if (!(minutes > 0) || minutes > 24 * 60) return Promise.resolve({ ok: false, error: "Vul een duur in minuten in." });
-    if (startMin + minutes > 24 * 60) return Promise.resolve({ ok: false, error: "De registratie loopt over middernacht." });
-    var id = currentInviteeId(ymd2) || resolveInviteeId();
-    if (id == null) return Promise.resolve({ ok: false, error: "Open eerst je agenda in ONS." });
-    hhmm = ("0" + Math.floor(startMin / 60)).slice(-2) + ":" + ("0" + startMin % 60).slice(-2);
-    var go = function() {
-      spaNavigate(location.origin + quickRegisterUrl(id, ymd2, hhmm, minutes));
-      return { ok: true };
-    };
-    if (req.force) return Promise.resolve(go());
-    return overlapCheck(ymd2, startMin, startMin + minutes).then(function(msg) {
-      return msg ? { ok: false, overlap: msg } : go();
-    });
-  }
-
   // src/content/domain/route.js
   function isHomeVisit(entry) {
     if (!entry) return false;
@@ -13486,6 +13210,333 @@
       start = bestemming;
     }
     return uit;
+  }
+  function postcodeFromAddress(adres) {
+    var m = /\b([1-9]\d{3})\s?([A-Za-z]{2})\b/.exec(String(adres || ""));
+    return m ? m[1] + m[2].toUpperCase() : "";
+  }
+
+  // src/content/features/agenda/free-slots.js
+  function workWindow() {
+    var z = activeZones() || [];
+    if (!z.length) return { start: 8 * 60, end: 17 * 60 };
+    var start = Math.round(Math.min.apply(null, z.map(function(x) {
+      return x.from;
+    })) * 60);
+    var end = Math.round(Math.max.apply(null, z.map(function(x) {
+      return x.to;
+    })) * 60);
+    return { start, end };
+  }
+  function agendaIds() {
+    var ids = currentInviteeIds();
+    if (!ids.length) {
+      var een = currentInviteeId(null) || resolveInviteeId();
+      if (een != null) ids = [String(een)];
+    }
+    return ids;
+  }
+  function checkSlotWithOns(req) {
+    req = req || {};
+    var status = overlapCheckStatus();
+    var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
+    if (status !== "ready" || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status, overlap: null });
+    return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin, endMin: startMin + minutes }).then(function(o) {
+      return { status, overlap: o };
+    });
+  }
+  var MAX_ZOEK_DAGEN = 182;
+  function huisbezoekenPerDag(alles, datums) {
+    var bezoeken = alles.filter(function(e) {
+      return e.layer === "events" && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null && isHomeVisit(e);
+    });
+    var limiet = createLimiter(3), uit = {};
+    return Promise.all(bezoeken.map(function(e) {
+      var url = e.detailsUrl || (e.occurrenceId ? _apiUrl("eventDetails", { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
+      if (!url) return null;
+      return limiet(function() {
+        return getJson(url);
+      }).then(function(d) {
+        var pc = postcodeFromAddress(addressFromDetails(d));
+        if (!pc) return;
+        var dag = new Date(e.startMs);
+        dag.setHours(0, 0, 0, 0);
+        (uit[e.date] = uit[e.date] || []).push({
+          startMin: Math.round((e.startMs - dag.getTime()) / 6e4),
+          endMin: Math.round((e.endMs - dag.getTime()) / 6e4),
+          pc
+        });
+      }, function() {
+      });
+    })).then(function() {
+      Object.keys(uit).forEach(function(d) {
+        uit[d].sort(function(a, b) {
+          return a.startMin - b.startMin;
+        });
+      });
+      return uit;
+    });
+  }
+  function findFreeSlots(minutes, weeks, tot, metBezoeken) {
+    var ids = agendaIds();
+    if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
+    minutes = parseInt(minutes, 10);
+    if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
+    weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
+    var vandaag = /* @__PURE__ */ new Date();
+    var dagen = weeks * 7;
+    var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || "")) ? String(tot) : "";
+    if (totDatum) {
+      var p = totDatum.split("-");
+      var eind = new Date(+p[0], +p[1] - 1, +p[2]);
+      var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+      dagen = Math.round((eind - begin) / 864e5) + 1;
+      if (dagen < 1) return Promise.reject(new Error("Kies een datum vanaf vandaag."));
+      if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error("Kies een datum binnen een half jaar."));
+    }
+    var laatste = new Date(vandaag);
+    laatste.setDate(laatste.getDate() + dagen - 1);
+    var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
+    var limiet = createLimiter(4);
+    var haal = function(sjabloon, laag, start, id) {
+      return limiet(function() {
+        return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start }));
+      }).then(function(j) {
+        return mapAgendaWeekResponse(j).map(function(e) {
+          e.layer = laag;
+          e.inviteeId = id;
+          return e;
+        });
+      });
+    };
+    var zonder = function() {
+      return [];
+    };
+    var taken = [];
+    ids.forEach(function(id) {
+      weken.forEach(function(start) {
+        taken.push(Promise.all([
+          haal("weekEvents", "events", start, id),
+          // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
+          haal("weekUnavailabilities", "unavailabilities", start, id).catch(zonder),
+          haal("weekOutlook", "outlook_appointments", start, id).catch(zonder),
+          haal("weekPlannedVisits", "planned_visits", start, id).catch(zonder),
+          haal("weekReservations", "reservations", start, id).catch(zonder)
+        ]));
+      });
+    });
+    return Promise.all(taken).then(function(perWeek) {
+      var alles = [].concat.apply([], perWeek.map(function(w) {
+        return [].concat.apply([], w);
+      }));
+      var isRes = function(e) {
+        return e.layer === "reservations" || e.type === "reservation";
+      };
+      var reserveringen = reservationBlocks(alles.filter(isRes));
+      alles = alles.filter(function(e) {
+        return !isRes(e);
+      });
+      var win = workWindow();
+      var gaps = findFreeGaps(alles, {
+        now: Date.now(),
+        days: dagen,
+        minMinutes: minutes,
+        stepMin: 15,
+        windowStart: win.start,
+        windowEnd: win.end,
+        maxResults: totDatum ? 40 : 12
+      });
+      gaps.forEach(function(g) {
+        g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
+      });
+      var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+      var datums = {};
+      gaps.forEach(function(g) {
+        datums[g.date] = true;
+      });
+      var bezoeken = metBezoeken ? huisbezoekenPerDag(alles, datums).then(function(v) {
+        res.visits = v;
+      }, function() {
+        res.visits = {};
+      }) : Promise.resolve();
+      return bezoeken.then(function() {
+        return onsNakijken(res);
+      });
+    });
+    function onsNakijken(res) {
+      if (res.onsCheck !== "ready") return res;
+      var gaps = res.gaps;
+      var nakijk = createLimiter(3);
+      return Promise.all(gaps.map(function(g) {
+        return nakijk(function() {
+          return fetchEventOverlap({ ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
+        }).then(function(o) {
+          g.ons = o;
+        }, function() {
+          g.ons = null;
+        });
+      })).then(function() {
+        return res;
+      });
+    }
+  }
+
+  // src/content/features/agenda/preload.js
+  var TTL = { ratio: 5 * 6e4, plan: 5 * 6e4, open: 10 * 6e4, productie: 30 * 6e4 };
+  var VOORAF_INTERVAL = 5 * 6e4;
+  var _cache = /* @__PURE__ */ Object.create(null);
+  function idsSleutel() {
+    return viewedInviteeIds(resolveInviteeId()).join(",");
+  }
+  function isCached(soort, sleutel) {
+    const c = _cache[soort + "|" + idsSleutel() + "|" + sleutel];
+    return !!(c && !c.bezig && Date.now() - c.ts < TTL[soort]);
+  }
+  function onthouden(soort, sleutel, werk, onProgress, vers) {
+    const k = soort + "|" + idsSleutel() + "|" + sleutel;
+    const c = _cache[k];
+    const geldig = c && (c.bezig || Date.now() - c.ts < TTL[soort]);
+    if (geldig && !vers) {
+      if (onProgress) {
+        if (c.bezig) {
+          c.luisteraars.push(onProgress);
+          if (c.laatst) onProgress(c.laatst[0], c.laatst[1]);
+        }
+      }
+      return c.promise;
+    }
+    const nieuw = { ts: Date.now(), bezig: true, luisteraars: onProgress ? [onProgress] : [], laatst: null, promise: null };
+    nieuw.promise = werk(function(d, t) {
+      nieuw.laatst = [d, t];
+      nieuw.luisteraars.forEach(function(fn) {
+        try {
+          fn(d, t);
+        } catch (e) {
+        }
+      });
+    }).then(
+      function(r) {
+        nieuw.bezig = false;
+        nieuw.ts = Date.now();
+        return r;
+      },
+      function(e) {
+        delete _cache[k];
+        throw e;
+      }
+    );
+    _cache[k] = nieuw;
+    return nieuw.promise;
+  }
+  function cachedOpenRange(from, to, onProgress, vers) {
+    return onthouden("open", from + "|" + to, function(p) {
+      return checkOpenRange(from, to, p);
+    }, onProgress, vers);
+  }
+  function cachedProduction(from, to, onProgress) {
+    return onthouden("productie", from + "|" + to, function(p) {
+      return computeProduction(from, to, p);
+    }, onProgress);
+  }
+  function cachedWeekRatio(date) {
+    return onthouden("ratio", String(date), function() {
+      return fetchWeekRatio(date);
+    });
+  }
+  function cachedFreeSlots(minutes, weeks, tot, metBezoeken) {
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : ""), function() {
+      return findFreeSlots(minutes, weeks, tot, metBezoeken);
+    });
+  }
+  function defaultProductionTo() {
+    const d = /* @__PURE__ */ new Date();
+    d.setDate(d.getDate() + 28);
+    return agendaYmd(d);
+  }
+  var _laatstVooraf = 0;
+  var _voorafSleutel = "";
+  var _bezig3 = false;
+  function preloadPanelData(force) {
+    if (_bezig3) return;
+    if (document.visibilityState !== "visible") return;
+    const sleutel = idsSleutel() + "|" + currentAgendaDate();
+    if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
+    if (!idsSleutel()) return;
+    _bezig3 = true;
+    _voorafSleutel = sleutel;
+    _laatstVooraf = Date.now();
+    const vandaag = agendaYmd(/* @__PURE__ */ new Date());
+    const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
+    });
+    Promise.resolve().then(stap(() => cachedWeekRatio(currentAgendaDate()))).then(stap(() => cachedFreeSlots(60, 2))).then(stap(() => cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
+      _bezig3 = false;
+    }, () => {
+      _bezig3 = false;
+    });
+  }
+  function _clearPreloadCache() {
+    Object.keys(_cache).forEach((k) => delete _cache[k]);
+    _laatstVooraf = 0;
+    _voorafSleutel = "";
+    _bezig3 = false;
+  }
+
+  // src/content/features/agenda/quick-register.js
+  function openNewEvent(req) {
+    req = req || {};
+    var ymd2 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
+    var ids = currentInviteeIds();
+    if (!ids.length) {
+      var id = currentInviteeId(ymd2) || resolveInviteeId();
+      if (id != null) ids = [String(id)];
+    }
+    if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
+    storePendingAppointment({ date: ymd2, time: hhmm, minutes });
+    var lees = function(lijst) {
+      return (Array.isArray(lijst) ? lijst : []).map(function(m) {
+        var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));
+        return t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || "")) ? { date: String(m.date), startMin: +t[1] * 60 + +t[2] } : null;
+      }).filter(Boolean);
+    };
+    storePendingDuplicates(lees(req.extra), lees(req.eigen));
+    spaNavigate(location.origin + newEventUrl(ids));
+    return { ok: true };
+  }
+  function quickRegisterUrl(inviteeId, ymd2, hhmm, minutes) {
+    return _apiUrl("newRegistration", { inviteeId, date: ymd2, startTime: hhmm, durationSec: minutes * 60 });
+  }
+  function overlapCheck(ymd2, startMin, endMin) {
+    return fetchOnsOverlap(ymd2, startMin, endMin, "").then(function(ons) {
+      return fetchWeekTijdvakken("registraties", ymd2).then(function() {
+        var hit = overlappendTijdvak("registraties", ymd2, startMin, endMin, null);
+        if (hit) return overlapMelding(hit, "een registratie");
+        if (ons === true) return "Let op: ONS meldt dat dit tijdvak overlapt met een bestaande registratie.";
+        return null;
+      });
+    });
+  }
+  function quickRegister(req) {
+    req = req || {};
+    var ymd2 = String(req.date || "");
+    var hhmm = String(req.time || "").trim();
+    var minutes = parseInt(req.minutes, 10);
+    var startMin = timeTextToMinutes(hhmm);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd2)) return Promise.resolve({ ok: false, error: "Kies een datum." });
+    if (startMin == null || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hhmm)) return Promise.resolve({ ok: false, error: "Vul een begintijd in (uu:mm)." });
+    if (!(minutes > 0) || minutes > 24 * 60) return Promise.resolve({ ok: false, error: "Vul een duur in minuten in." });
+    if (startMin + minutes > 24 * 60) return Promise.resolve({ ok: false, error: "De registratie loopt over middernacht." });
+    var id = currentInviteeId(ymd2) || resolveInviteeId();
+    if (id == null) return Promise.resolve({ ok: false, error: "Open eerst je agenda in ONS." });
+    hhmm = ("0" + Math.floor(startMin / 60)).slice(-2) + ":" + ("0" + startMin % 60).slice(-2);
+    var go = function() {
+      spaNavigate(location.origin + quickRegisterUrl(id, ymd2, hhmm, minutes));
+      return { ok: true };
+    };
+    if (req.force) return Promise.resolve(go());
+    return overlapCheck(ymd2, startMin, startMin + minutes).then(function(msg) {
+      return msg ? { ok: false, overlap: msg } : go();
+    });
   }
 
   // src/content/features/agenda/route.js
@@ -13718,7 +13769,7 @@
             });
             return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks, msg.to).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {

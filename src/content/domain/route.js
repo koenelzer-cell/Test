@@ -100,3 +100,9 @@ export function routeUrls(addresses, origin) {
   }
   return uit;
 }
+
+// Postcode (6 tekens, zonder spatie) uit een adresregel, of ''.
+export function postcodeFromAddress(adres) {
+  var m = /\b([1-9]\d{3})\s?([A-Za-z]{2})\b/.exec(String(adres || ''));
+  return m ? (m[1] + m[2].toUpperCase()) : '';
+}

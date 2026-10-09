@@ -70,7 +70,7 @@ const agendaActies = {
   onNewEvent: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb); },
   onDayRoute: function (date, origin, cb) { vraagAanTab({ type: MSG.AGENDA_DAY_ROUTE, date: date, origin: origin || '' }, cb); },
   onSlotCheck: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb); },
-  onFreeSlots: function (minutes, weeks, cb, to) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '' }, cb); },
+  onFreeSlots: function (minutes, weeks, cb, to, visits) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '', visits: !!visits }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },

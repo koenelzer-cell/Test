@@ -1,3 +1,4 @@
+import { detour, heeftPdok, lookupPostcodes, normPostcode, vraagPdok } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
 
@@ -766,7 +767,8 @@ var BEWAARD = {
   ratio: { offset: 0, busy: false, result: null, error: '', voor: '' },
   // Planhulp: vrije tijd zoeken.
   // tot: zoek tot en met die datum (gaat voor op weeks).
-  plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '' },
+  // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
+  plan: { minutes: 60, weeks: 2, tot: '', pc: '', sorteer: 'tijd', busy: false, result: null, error: '', geo: '' },
   // Gekozen vrij blok uit de planhulp: { gap, start (minuten), error }.
   slot: null,
   // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
@@ -782,7 +784,7 @@ function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', busy: false, result: null, error: '' };
+  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', pc: '', sorteer: 'tijd', busy: false, result: null, error: '', geo: '' };
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
@@ -1015,7 +1017,9 @@ export function create(host, actions) {
     var tekst, toon;
     if (!state || !state.enabled) { tekst = 'Gekleurde dagindeling staat uit.'; toon = 'off'; }
     else if (!state.profileLabel) { tekst = 'Kies eerst een indeling via het extensie-icoontje in de browser.'; toon = 'warn'; }
-    else { tekst = 'Gekleurde dagindeling staat aan (' + state.profileLabel + ').'; toon = 'ok'; }
+    // Staat alles goed aan, dan geen melding (alleen uit of nog te kiezen).
+    else { statusBox.style.display = 'none'; return; }
+    statusBox.style.display = '';
     var bg = toon === 'ok' ? T.okWash : (toon === 'warn' ? T.warnWash : T.lineSoft);
     var fg = toon === 'ok' ? T.ok : (toon === 'warn' ? T.warn : T.inkSoft);
     var card = el('div', {
@@ -1110,16 +1114,47 @@ export function create(host, actions) {
   }
 
   function hm(min) { return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
-  function startPlan() {
+  // gebaar: aangeroepen vanuit een klik (dan mag de toestemming voor PDOK
+  // gevraagd worden; zonder klik kijken we alleen of die er al is).
+  function startPlan(gebaar) {
     if (plan.busy || !actions.onFreeSlots) return;
-    plan.busy = true; plan.error = ''; plan.result = null;
-    if (pagina === 'plan') renderPagina();
-    actions.onFreeSlots(plan.minutes, plan.weeks, function (res) {
-      plan.busy = false;
-      if (res && res.ok && res.result) plan.result = res.result;
-      else plan.error = (res && res.error) || 'Zoeken mislukt.';
+    var pc = normPostcode(plan.pc);
+    var zoek = function (metAfstand) {
+      plan.busy = true; plan.error = ''; plan.result = null; plan.geo = '';
       if (pagina === 'plan') renderPagina();
-    }, plan.tot);
+      var voor = plan;
+      actions.onFreeSlots(plan.minutes, plan.weeks, function (res) {
+        if (BEWAARD.plan !== voor) return;
+        if (!(res && res.ok && res.result)) { plan.busy = false; plan.error = (res && res.error) || 'Zoeken mislukt.'; if (pagina === 'plan') renderPagina(); return; }
+        if (!metAfstand) { plan.busy = false; plan.result = res.result; if (pagina === 'plan') renderPagina(); return; }
+        rekenAfstand(res.result, pc).then(function () {
+          plan.busy = false; plan.result = res.result;
+          if (pagina === 'plan') renderPagina();
+        });
+      }, plan.tot, metAfstand);
+    };
+    if (!pc) { zoek(false); return; }
+    (gebaar === true ? vraagPdok : heeftPdok)(function (ok) {
+      if (!ok) { zoek(false); plan.geo = 'Afstand niet berekend: geen toestemming voor de PDOK-postcodedienst.'; return; }
+      zoek(true);
+    });
+  }
+  // Per vrij blok het omrijden schatten (zie geo.js). Alleen postcodes gaan
+  // naar PDOK; zonder antwoord blijft het blok zonder afstand.
+  function haalJson(url) { return fetch(url, { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }); }
+  function rekenAfstand(result, pc) {
+    var visits = result.visits || {};
+    var thuisPc = (String(leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [''])[0];
+    thuisPc = normPostcode(thuisPc);
+    var pcs = [pc, thuisPc];
+    Object.keys(visits).forEach(function (d) { visits[d].forEach(function (b) { pcs.push(b.pc); }); });
+    return lookupPostcodes(pcs.filter(Boolean).filter(function (x, i, a) { return a.indexOf(x) === i; }), haalJson).then(function (coord) {
+      var nieuw = coord(pc);
+      if (!nieuw) { plan.geo = 'Postcode ' + pc + ' niet gevonden bij PDOK.'; return; }
+      var thuis = thuisPc ? coord(thuisPc) : null;
+      result.gaps.forEach(function (g) { g.omrij = detour(visits[g.date], g.startMin, result.minutes, nieuw, coord, thuis); });
+      result.afstand = { pc: pc, coord: coord, nieuw: nieuw, thuis: thuis };
+    }, function () { plan.geo = 'De PDOK-postcodedienst gaf geen antwoord; afstand niet berekend.'; });
   }
   /* ── Meerdere momenten: één afspraak, daarna kopieën ── */
   // Reserveringen (uit het vrije blok) die [start, start+duur) raken.
@@ -1289,7 +1324,16 @@ export function create(host, actions) {
     }
     planBox.appendChild(totRij);
     planBox.appendChild(kz.host);
-    planBox.appendChild(primaryBtn(plan.busy ? 'Bezig met zoeken…' : 'Vrije tijd zoeken', startPlan, plan.busy));
+    // Postcode van de cliënt: dan per blok een schatting van het omrijden.
+    var pcVeld = inputEl('text', plan.pc, function (v) { plan.pc = v; });
+    pcVeld.placeholder = 'Bijv. 2611 EB (optioneel)';
+    pcVeld.setAttribute('data-postcode', '');
+    var pcLab = fieldLabel('Postcode cliënt', pcVeld);
+    pcLab.style.marginTop = '10px';
+    planBox.appendChild(pcLab);
+    planBox.appendChild(txt('help', 'Voor de afstand tot je andere huisbezoeken die dag. Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).', { margin: '4px 0 0', fontSize: '11.5px' }));
+    planBox.appendChild(primaryBtn(plan.busy ? 'Bezig met zoeken…' : 'Vrije tijd zoeken', function () { startPlan(true); }, plan.busy));
+    if (plan.geo) planBox.appendChild(noteBox(plan.geo, 'warn'));
     if (plan.busy) { zorgVoorStijl(); var lb = laadBalk(); lb.style.marginTop = '10px'; planBox.appendChild(lb); }
     if (plan.error) planBox.appendChild(noteBox(plan.error, 'bad'));
     var uitslag = kopieUitslag();
@@ -1301,11 +1345,33 @@ export function create(host, actions) {
           (res.to ? 't/m ' + dayLabel(res.to) : 'in de komende ' + (res.weeks === 1 ? 'week' : res.weeks + ' weken')) + '.', 'warn'));
       } else {
         var lijst = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' });
-        res.gaps.forEach(function (g) {
+        var gaps = res.gaps.slice();
+        if (res.afstand) {
+          // Sorteren: op tijd of op omrijden (blokken zonder schatting achteraan).
+          var srt = el('div', { display: 'flex', gap: '4px', marginTop: '12px' });
+          [['tijd', 'Op tijd'], ['afstand', 'Minst omrijden']].forEach(function (o) {
+            var g2 = plan.sorteer === o[0];
+            srt.appendChild(chipKnop(o[1], g2, function () { plan.sorteer = o[0]; renderPagina(); }, { padding: '0 10px', border: '1px solid ' + (g2 ? T.brand : T.line) }));
+          });
+          planBox.appendChild(srt);
+          if (plan.sorteer === 'afstand') gaps.sort(function (a, b) {
+            var x = a.omrij ? a.omrij.km : Infinity, y = b.omrij ? b.omrij.km : Infinity;
+            return x - y || (a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin);
+          });
+        }
+        gaps.forEach(function (g) {
           var kaart = clickCard(function () { BEWAARD.slot = { gap: g, minutes: res.minutes, start: null, error: '' }; naarPagina('vrijblok'); }, 'Opties voor dit vrije blok');
           Object.assign(kaart.style, { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 11px' });
           kaart.appendChild(el('span', { fontSize: '13px', fontWeight: '600', color: T.ink, flex: '0 0 74px' }, dayLabel(g.date)));
-          kaart.appendChild(el('span', { fontSize: '13px', color: T.ink, flex: '1 1 auto', fontVariantNumeric: 'tabular-nums' }, hm(g.startMin) + ' – ' + hm(g.endMin)));
+          var tijdKol = el('span', { flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: '0' });
+          tijdKol.appendChild(el('span', { fontSize: '13px', color: T.ink, fontVariantNumeric: 'tabular-nums' }, hm(g.startMin) + ' – ' + hm(g.endMin)));
+          if (res.afstand) {
+            var kmTekst = g.omrij ? '\u2248 ' + (g.omrij.km < 1 ? '< 1' : Math.round(g.omrij.km)) + ' km omrijden' : 'geen huisbezoek die dag';
+            var kmEl = el('span', { fontSize: '11.5px', color: g.omrij ? T.brand : T.inkSoft, fontWeight: g.omrij ? '600' : '400' }, kmTekst);
+            kmEl.setAttribute('data-omrij', g.omrij ? String(Math.round(g.omrij.km)) : '');
+            tijdKol.appendChild(kmEl);
+          }
+          kaart.appendChild(tijdKol);
           // ons: wat ONS' eigen overlapcontrole zegt over het begin van dit blok.
           // Overlap met een reservering: dan 'Reservering' (met het label als uitleg).
           var resIn = reserveringenIn(g, g.startMin, res.minutes);
@@ -1410,7 +1476,7 @@ export function create(host, actions) {
     // Meteen tonen wat er (vooraf geladen) klaarstaat: geen knop nodig.
     if (p === 'clienttijd' && !prod.result && !prod.busy && !prod.error) { vulStandaarden(); startProduction(); }
     if (p === 'open' && !range.result && !range.busy && !range.error) { vulStandaarden(); startRangeCheck(); }
-    if (p === 'plan' && !plan.result && !plan.busy && !plan.error) startPlan();
+    if (p === 'plan' && !plan.result && !plan.busy && !plan.error) startPlan(false);
     if (p === 'route') startRoute();
   }
 
