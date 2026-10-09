@@ -21,6 +21,11 @@ import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'routeLink'];
+function routesProxyVoorPaneel() {
+  var p = APP_CONFIG.routesProxy || {};
+  var url = String(p.url || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^/]+/.test(url) && p.token ? { url: url, token: String(p.token) } : null;
+}
 function panelFeatures() {
   var f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
@@ -92,6 +97,10 @@ function agPanelState() {
     routeEnabled: routeEnabled(),
     // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
     features: panelFeatures(),
+    // Rijtijden-server (alleen https); leeg = niet ingesteld.
+    routesProxy: routesProxyVoorPaneel(),
+    // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
+    mapsEmbedKey: String((APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey) || '').trim(),
     today: agendaYmd(new Date())
   };
 }

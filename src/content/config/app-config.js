@@ -64,6 +64,7 @@ export function applyHelperConfig(hc) {
   if (hc.features && typeof hc.features === 'object') APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
   if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
   if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
+  if (hc.routesProxy && typeof hc.routesProxy === 'object') APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
   if (hc.generalSettings && typeof hc.generalSettings === 'object') APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
   if (hc.apiEndpoints && typeof hc.apiEndpoints === 'object') APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
   if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;

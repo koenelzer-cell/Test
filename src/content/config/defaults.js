@@ -91,6 +91,10 @@ export const DEFAULT_APP_CONFIG = {
   compatibility: { schemaVersion: 7, minimumExtensionVersion: '1.6.114' },
   features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, preload: true },
   nonClientCategories: [],
+  // Eigen server voor rijtijden over de weg (Google Routes API; zie
+  // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
+  // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
+  routesProxy: { url: '', token: '', embedKey: '' },
   // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
   // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
   // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en

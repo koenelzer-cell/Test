@@ -81,3 +81,86 @@ export function vraagPdok(cb) {
     chrome.permissions.request({ origins: [PDOK_ORIGIN] }, function (ok) { void chrome.runtime.lastError; cb(!!ok); });
   } catch (e) { cb(false); }
 }
+
+/* ── Rijtijden over de weg via de eigen routes-proxy (server/routes-proxy) ──
+   Alleen postcodes gaan naar de server (en van daar naar Google). Werkt via
+   CORS: de server staat precies deze extensie toe; geen extra toestemming. */
+
+function postProxy(proxy, pad, body, fetchFn) {
+  return (fetchFn || fetch)(proxy.url + pad, {
+    method: 'POST', credentials: 'omit',
+    headers: { 'Content-Type': 'application/json', 'X-Agendahulp-Token': proxy.token },
+    body: JSON.stringify(body)
+  }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); });
+}
+
+// pcs (uniek, max. 25) -> pair(a, b) -> { m, s } | null
+export function roadMatrix(proxy, pcs, fetchFn) {
+  var lijst = pcs.filter(function (p, i) { return p && pcs.indexOf(p) === i; }).slice(0, 25);
+  if (!proxy || lijst.length < 2) return Promise.resolve(function () { return null; });
+  return postProxy(proxy, '/matrix', { pcs: lijst }, fetchFn).then(function (j) {
+    var pairs = (j && j.pairs) || {};
+    return function (a, b) { return a === b ? { m: 0, s: 0 } : (pairs[a + '|' + b] || null); };
+  });
+}
+
+// Zelfde als detour(), maar over de weg: extra meters en seconden.
+export function detourRoad(bezoeken, start, duur, pcNieuw, pair, thuisPc) {
+  if (!pcNieuw) return null;
+  var voor = null, na = null;
+  (bezoeken || []).forEach(function (b) {
+    if (b.endMin <= start) voor = b;
+    else if (!na && b.startMin >= start + duur) na = b;
+  });
+  var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
+  if (!p && !q) return null;
+  var som = function (x, y) { return x && y ? { m: x.m + y.m, s: x.s + y.s } : null; };
+  var extra;
+  if (p && q) {
+    var heen = pair(p, pcNieuw), terug = pair(pcNieuw, q), direct = pair(p, q);
+    var via = som(heen, terug);
+    if (!via || !direct) return null;
+    extra = { m: via.m - direct.m, s: via.s - direct.s };
+  } else {
+    extra = p ? pair(p, pcNieuw) : pair(pcNieuw, q);
+    if (!extra) return null;
+  }
+  return { m: Math.max(0, extra.m), s: Math.max(0, extra.s) };
+}
+
+// Kortste rondrit vanaf het vertrekpunt langs de stops -> { order, m, s }.
+export function optimizeRoute(proxy, origin, stops, fetchFn) {
+  return postProxy(proxy, '/optimize', { origin: origin, stops: stops }, fetchFn);
+}
+
+// Google Maps-link(s) voor een volgorde van adressen (zoals domain/route.js).
+export function mapsUrls(adressen, origin, terug) {
+  var stops = (adressen || []).filter(Boolean);
+  if (terug && origin) stops = stops.concat([origin]);
+  var uit = [], start = origin || '';
+  for (var i = 0; i < stops.length; i += 10) {
+    var deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
+    var q = ['api=1'];
+    if (start) q.push('origin=' + encodeURIComponent(start));
+    q.push('destination=' + encodeURIComponent(dest));
+    if (tussen.length) q.push('waypoints=' + tussen.map(encodeURIComponent).join('%7C'));
+    q.push('travelmode=driving');
+    uit.push('https://www.google.com/maps/dir/?' + q.join('&'));
+    start = dest;
+  }
+  return uit;
+}
+
+// Kaart (Google Maps Embed API, directions): origin, stops (adressen), sleutel.
+// Zonder vertrekpunt begint de kaart bij de eerste stop. Max. 20 tussenstops.
+export function embedUrl(key, adressen, origin) {
+  var stops = (adressen || []).filter(Boolean);
+  if (!key || !stops.length) return '';
+  var start = origin || stops[0];
+  var rest = origin ? stops : stops.slice(1);
+  if (!rest.length) return 'https://www.google.com/maps/embed/v1/place?key=' + encodeURIComponent(key) + '&q=' + encodeURIComponent(start);
+  var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+  return 'https://www.google.com/maps/embed/v1/directions?key=' + encodeURIComponent(key) +
+    '&origin=' + encodeURIComponent(start) + '&destination=' + encodeURIComponent(dest) +
+    (tussen.length ? '&waypoints=' + tussen.map(encodeURIComponent).join('%7C') : '') + '&mode=driving';
+}

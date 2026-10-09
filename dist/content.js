@@ -540,6 +540,10 @@
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
     features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, preload: true },
     nonClientCategories: [],
+    // Eigen server voor rijtijden over de weg (Google Routes API; zie
+    // server/routes-proxy). Leeg = hemelsbrede schatting via PDOK.
+    // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
+    routesProxy: { url: "", token: "", embedKey: "" },
     // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
     // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
     // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en
@@ -758,6 +762,7 @@
     if (hc.features && typeof hc.features === "object") APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
     if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
     if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
+    if (hc.routesProxy && typeof hc.routesProxy === "object") APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
     if (hc.generalSettings && typeof hc.generalSettings === "object") APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
     if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
     if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
@@ -10972,7 +10977,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.231";
+      return "1.6.232";
     }
   }();
 
@@ -13684,6 +13689,11 @@
 
   // src/content/features/agenda/side-panel-bridge.js
   var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "routeLink"];
+  function routesProxyVoorPaneel() {
+    var p = APP_CONFIG.routesProxy || {};
+    var url = String(p.url || "").trim().replace(/\/+$/, "");
+    return /^https:\/\/[^/]+/.test(url) && p.token ? { url, token: String(p.token) } : null;
+  }
   function panelFeatures() {
     var f = APP_CONFIG.features || {}, uit = {};
     PANEL_FEATURES.forEach(function(k) {
@@ -13742,6 +13752,10 @@
       routeEnabled: routeEnabled(),
       // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
       features: panelFeatures(),
+      // Rijtijden-server (alleen https); leeg = niet ingesteld.
+      routesProxy: routesProxyVoorPaneel(),
+      // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
+      mapsEmbedKey: String(APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey || "").trim(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }

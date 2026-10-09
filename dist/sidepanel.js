@@ -171,6 +171,82 @@
       cb(false);
     }
   }
+  function postProxy(proxy, pad, body, fetchFn) {
+    return (fetchFn || fetch)(proxy.url + pad, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json", "X-Agendahulp-Token": proxy.token },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    });
+  }
+  function roadMatrix(proxy, pcs, fetchFn) {
+    var lijst = pcs.filter(function(p, i) {
+      return p && pcs.indexOf(p) === i;
+    }).slice(0, 25);
+    if (!proxy || lijst.length < 2) return Promise.resolve(function() {
+      return null;
+    });
+    return postProxy(proxy, "/matrix", { pcs: lijst }, fetchFn).then(function(j) {
+      var pairs = j && j.pairs || {};
+      return function(a, b) {
+        return a === b ? { m: 0, s: 0 } : pairs[a + "|" + b] || null;
+      };
+    });
+  }
+  function detourRoad(bezoeken, start, duur, pcNieuw, pair, thuisPc) {
+    if (!pcNieuw) return null;
+    var voor = null, na = null;
+    (bezoeken || []).forEach(function(b) {
+      if (b.endMin <= start) voor = b;
+      else if (!na && b.startMin >= start + duur) na = b;
+    });
+    var p = voor ? voor.pc : thuisPc, q = na ? na.pc : thuisPc;
+    if (!p && !q) return null;
+    var som = function(x, y) {
+      return x && y ? { m: x.m + y.m, s: x.s + y.s } : null;
+    };
+    var extra;
+    if (p && q) {
+      var heen = pair(p, pcNieuw), terug = pair(pcNieuw, q), direct = pair(p, q);
+      var via = som(heen, terug);
+      if (!via || !direct) return null;
+      extra = { m: via.m - direct.m, s: via.s - direct.s };
+    } else {
+      extra = p ? pair(p, pcNieuw) : pair(pcNieuw, q);
+      if (!extra) return null;
+    }
+    return { m: Math.max(0, extra.m), s: Math.max(0, extra.s) };
+  }
+  function optimizeRoute(proxy, origin, stops, fetchFn) {
+    return postProxy(proxy, "/optimize", { origin, stops }, fetchFn);
+  }
+  function mapsUrls(adressen, origin, terug) {
+    var stops = (adressen || []).filter(Boolean);
+    if (terug && origin) stops = stops.concat([origin]);
+    var uit = [], start = origin || "";
+    for (var i = 0; i < stops.length; i += 10) {
+      var deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
+      var q = ["api=1"];
+      if (start) q.push("origin=" + encodeURIComponent(start));
+      q.push("destination=" + encodeURIComponent(dest));
+      if (tussen.length) q.push("waypoints=" + tussen.map(encodeURIComponent).join("%7C"));
+      q.push("travelmode=driving");
+      uit.push("https://www.google.com/maps/dir/?" + q.join("&"));
+      start = dest;
+    }
+    return uit;
+  }
+  function embedUrl(key, adressen, origin) {
+    var stops = (adressen || []).filter(Boolean);
+    if (!key || !stops.length) return "";
+    var start = origin || stops[0];
+    var rest = origin ? stops : stops.slice(1);
+    if (!rest.length) return "https://www.google.com/maps/embed/v1/place?key=" + encodeURIComponent(key) + "&q=" + encodeURIComponent(start);
+    var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+    return "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(key) + "&origin=" + encodeURIComponent(start) + "&destination=" + encodeURIComponent(dest) + (tussen.length ? "&waypoints=" + tussen.map(encodeURIComponent).join("%7C") : "") + "&mode=driving";
+  }
 
   // src/sidepanel/agenda-panel.js
   var T = {
@@ -1607,21 +1683,31 @@
           pcs.push(b.pc);
         });
       });
-      return lookupPostcodes(pcs.filter(Boolean).filter(function(x, i, a) {
+      var uniek = pcs.filter(Boolean).filter(function(x, i, a) {
         return a.indexOf(x) === i;
-      }), haalJson).then(function(coord) {
-        var nieuw = coord(pc);
-        if (!nieuw) {
-          plan.geo = "Postcode " + pc + " niet gevonden bij PDOK.";
+      });
+      var proxy = state && state.routesProxy;
+      var weg = proxy ? roadMatrix(proxy, uniek).catch(function() {
+        plan.geo = "De rijtijden-server reageert niet; afstand in rechte lijn geschat.";
+        return null;
+      }) : Promise.resolve(null);
+      var pdok = lookupPostcodes(uniek, haalJson).catch(function() {
+        return null;
+      });
+      return Promise.all([weg, pdok]).then(function(r) {
+        var pair = r[0], coord = r[1];
+        var nieuw = coord ? coord(pc) : null;
+        if (!pair && !nieuw) {
+          plan.geo = plan.geo || "Postcode " + pc + " niet gevonden; afstand niet berekend.";
           return;
         }
-        var thuis = thuisPc ? coord(thuisPc) : null;
+        var thuis = thuisPc && coord ? coord(thuisPc) : null;
         result.gaps.forEach(function(g) {
-          g.omrij = detour(visits[g.date], g.startMin, result.minutes, nieuw, coord, thuis);
+          g.omrij = nieuw ? detour(visits[g.date], g.startMin, result.minutes, nieuw, coord, thuis) : null;
+          g.rij = pair ? detourRoad(visits[g.date], g.startMin, result.minutes, pc, pair, thuisPc) : null;
+          if (!g.omrij && g.rij) g.omrij = { km: g.rij.m / 1e3, voorKantoor: "", naKantoor: "" };
         });
-        result.afstand = { pc, coord, nieuw, thuis };
-      }, function() {
-        plan.geo = "De PDOK-postcodedienst gaf geen antwoord; afstand niet berekend.";
+        result.afstand = { pc, weg: !!pair };
       });
     }
     function reserveringenIn(g, start, duur) {
@@ -1911,7 +1997,7 @@
             });
             planBox.appendChild(srt);
             if (plan.sorteer === "afstand") gaps.sort(function(a, b) {
-              var x = a.omrij ? a.omrij.km : Infinity, y = b.omrij ? b.omrij.km : Infinity;
+              var x = a.rij ? a.rij.s : a.omrij ? a.omrij.km * 60 : Infinity, y = b.rij ? b.rij.s : b.omrij ? b.omrij.km * 60 : Infinity;
               return x - y || (a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin);
             });
           }
@@ -1926,9 +2012,14 @@
             tijdKol.appendChild(el("span", { fontSize: "13px", color: T.ink, fontVariantNumeric: "tabular-nums" }, hm(g.startMin) + " – " + hm(g.endMin)));
             if (res.afstand) {
               var kantoor = g.omrij ? g.omrij.voorKantoor || g.omrij.naKantoor : "";
-              var kmTekst = g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km rijden" + (kantoor ? " · kantoor " + kantoor : "") : "geen afspraak met adres die dag";
-              var kmEl = el("span", { fontSize: "11.5px", color: g.omrij ? T.brand : T.inkSoft, fontWeight: g.omrij ? "600" : "400" }, kmTekst);
+              var kmDeel = g.rij ? "≈ " + Math.max(1, Math.round(g.rij.s / 60)) + " min · " + (g.rij.m < 1e3 ? "< 1" : Math.round(g.rij.m / 1e3)) + " km rijden" : g.omrij ? "≈ " + (g.omrij.km < 1 ? "< 1" : Math.round(g.omrij.km)) + " km rijden" : "";
+              var kmTekst = kmDeel ? kmDeel + (kantoor ? " · kantoor " + kantoor : "") : "geen afspraak met adres die dag";
+              var kmEl = el("span", { fontSize: "11.5px", color: kmDeel ? T.brand : T.inkSoft, fontWeight: kmDeel ? "600" : "400" }, kmTekst);
               kmEl.setAttribute("data-omrij", g.omrij ? String(Math.round(g.omrij.km)) : "");
+              if (g.rij) {
+                kmEl.setAttribute("data-rij-min", String(Math.round(g.rij.s / 60)));
+                kmEl.title = "Over de weg (Google Routes), extra t.o.v. je afspraken ervoor en erna";
+              } else if (g.omrij) kmEl.title = "Schatting: hemelsbreed × 1,3";
               tijdKol.appendChild(kmEl);
             }
             kaart.appendChild(tijdKol);
@@ -2651,6 +2742,86 @@
           });
           blok.appendChild(lijst);
           if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " afspraak zonder adres staat" : " afspraken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
+          var vertrekAdres = leesVertrek();
+          var kaartKey = state && state.mapsEmbedKey;
+          var kaartStops = (p.kort && p.kort.order ? p.kort.order.map(function(i2) {
+            return p.stops.filter(function(st) {
+              return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
+            })[i2];
+          }) : p.stops.filter(function(st) {
+            return st.address;
+          })).map(function(st) {
+            return st.address;
+          });
+          if (kaartKey && kaartStops.length) {
+            if (BEWAARD.route.kaart) {
+              var ifr = document.createElement("iframe");
+              ifr.src = embedUrl(kaartKey, kaartStops, vertrekAdres);
+              ifr.title = "Kaart van de route";
+              ifr.setAttribute("loading", "lazy");
+              ifr.setAttribute("referrerpolicy", "no-referrer-when-downgrade");
+              ifr.setAttribute("data-kaart", "");
+              Object.assign(ifr.style, { width: "100%", height: "300px", border: "1px solid " + T.line, borderRadius: "12px", marginTop: "10px", display: "block" });
+              blok.appendChild(ifr);
+            } else {
+              var kaartKnop = secondaryBtn("Kaart tonen", function() {
+                BEWAARD.route.kaart = true;
+                renderPagina();
+              });
+              kaartKnop.title = "Toont de route op een kaart van Google; de adressen gaan dan naar Google.";
+              kaartKnop.style.marginTop = "8px";
+              blok.appendChild(kaartKnop);
+            }
+          }
+          var vertrekPc = normPostcode((String(vertrekAdres).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
+          var metPc = p.stops.filter(function(st) {
+            return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
+          });
+          if (state && state.routesProxy && metPc.length >= 2) {
+            if (!vertrekPc) blok.appendChild(txt("help", "Vul een vertrekpunt met postcode in voor de kortste volgorde.", { margin: "6px 0 0" }));
+            else {
+              var kort = p.kort;
+              if (kort && kort.fout) blok.appendChild(noteBox(kort.fout, "warn"));
+              if (kort && kort.order) {
+                var volg = kort.order.map(function(i2) {
+                  return metPc[i2];
+                });
+                var regel = volg.map(function(st) {
+                  return st.start;
+                }).join(" → ");
+                var nb = noteBox("Kortste rondrit: ≈ " + Math.round(kort.m / 1e3) + " km · " + Math.round(kort.s / 60) + " min (" + regel + "). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.", "ok");
+                nb.setAttribute("data-kortste", regel);
+                blok.appendChild(nb);
+                mapsUrls(volg.map(function(st) {
+                  return st.address;
+                }), vertrekAdres, true).forEach(function(u, n, all) {
+                  var b2 = secondaryBtn(all.length > 1 ? "Kortste volgorde " + (n + 1) + " van " + all.length + " openen" : "Kortste volgorde openen in Google Maps", function() {
+                    window.open(u, "_blank", "noopener");
+                  });
+                  b2.style.marginTop = "6px";
+                  blok.appendChild(b2);
+                });
+              } else {
+                var kb = secondaryBtn(kort && kort.busy ? "Kortste volgorde berekenen…" : "Kortste volgorde berekenen", function() {
+                  if (p.kort && p.kort.busy) return;
+                  p.kort = { busy: true };
+                  renderPagina();
+                  var pcs = metPc.map(function(st) {
+                    return normPostcode(st.address.match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/)[0]);
+                  });
+                  optimizeRoute(state.routesProxy, vertrekPc, pcs).then(function(r2) {
+                    p.kort = r2 && Array.isArray(r2.order) && r2.order.length === pcs.length ? r2 : { fout: "Geen kortste volgorde gevonden." };
+                  }, function() {
+                    p.kort = { fout: "De rijtijden-server reageert niet." };
+                  }).then(function() {
+                    if (pagina === "route") renderPagina();
+                  });
+                });
+                kb.style.marginTop = "8px";
+                blok.appendChild(kb);
+              }
+            }
+          }
           (p.urls || []).forEach(function(u, n) {
             var label = p.urls.length > 1 ? "Route " + (n + 1) + " van " + p.urls.length + " openen" : "Route openen in Google Maps";
             var b = n === 0 ? primaryBtn(label, function() {

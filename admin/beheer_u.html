@@ -616,6 +616,14 @@
     <h2>Functies aan- en uitzetten <span class="badge actief">gefaseerde uitrol</span></h2>
     <p class="uitleg">Schakel onderdelen centraal uit zonder de overige hulp te verwijderen.</p>
     <div id="featureFlags" class="feature-grid"></div>
+    <h3 style="margin:18px 0 4px">Rijtijden via eigen server (Google Routes)</h3>
+    <p class="uitleg">Met een eigen routes-proxy (map <code>server/routes-proxy</code> in de broncode) toont de planhulp rijtijd en km over de weg, en kan Route van de dag de kortste volgorde berekenen. De Google-sleutel staat alleen op die server, nooit hier of in de extensie. Naar de server (en Google) gaan alleen postcodes. Leeg laten = schatting in rechte lijn via PDOK.</p>
+    <div class="beheer-grid">
+      <label class="beheer-veld"><span>Server-URL (https)</span><input id="routesProxyUrl" type="text" placeholder="https://agendahulp-routes-….run.app" oninput="markDirty(event)"></label>
+      <label class="beheer-veld"><span>Token (PROXY_TOKEN van de server)</span><input id="routesProxyToken" type="password" autocomplete="off" oninput="markDirty(event)"></label>
+      <label class="beheer-veld"><span>Kaartsleutel (alleen Maps Embed API)</span><input id="mapsEmbedKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
+    </div>
+    <p class="uitleg">De kaartsleutel staat wél in de extensie. Gebruik daarom een <b>aparte</b> sleutel die in Google Cloud is beperkt tot <b>alleen de Maps Embed API</b> (kaarten tonen is daar gratis). Nooit de sleutel van de Routes API hier invullen.</p>
     <h3 style="margin:18px 0 4px">Kantoren voor de planhulp</h3>
     <p class="uitleg">Een afspraak met een ONS-locatie die begint met <b>BG</b> (Begeleiding) of <b>J&amp;G</b> (Jeugd en Gezin) telt in de planhulp als 'op kantoor'. De locatienaam wordt herkend aan een van de herkenningswoorden (hele woorden, na 'BG'/'J&amp;G'; het langste woord wint). Postcode zonder spatie, bijv. 4822NH.</p>
     <table id="tblOffices"><thead><tr>
@@ -1057,6 +1065,8 @@ const DEFAULTS = {
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
   features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, routeLink:true, preload:true },
+  // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
+  routesProxy: { url:'', token:'', embedKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
   offices: [
     {sector:"jg",name:"Breda",postcode:"4822NH",match:["breda","oosterhout","geertruidenberg","altena","west brabant oost","west-brabant oost","west-brabant west","west brabant west"]},
@@ -1437,7 +1447,7 @@ function mergeWithDefaults(value, defaults) {
 }
 function normalizeConfig(value) {
   const source=value&&value.helperConfig?value.helperConfig:value,out=mergeWithDefaults(source,DEFAULTS);
-  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
+  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout','routesProxy'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
   out.compatibility=Object.assign({},out.compatibility||{});
   out.compatibility.schemaVersion=Math.max(DEFAULTS.compatibility.schemaVersion,parseInt(out.compatibility.schemaVersion,10)||0);
   if(compareSemver(out.compatibility.minimumExtensionVersion,DEFAULTS.compatibility.minimumExtensionVersion)!==1)out.compatibility.minimumExtensionVersion=DEFAULTS.compatibility.minimumExtensionVersion;
@@ -2595,6 +2605,13 @@ function renderFeatures(value) {
     label.append(input,document.createTextNode(FEATURE_META[key])); box.appendChild(label);
   });
 }
+// ===== Rijtijden-server =====
+function renderRoutesProxy(v) { v = v || {}; $('#routesProxyUrl').value = v.url || ''; $('#routesProxyToken').value = v.token || ''; $('#mapsEmbedKey').value = v.embedKey || ''; }
+function readRoutesProxy() {
+  const url = $('#routesProxyUrl').value.trim().replace(/\/+$/, ''), token = $('#routesProxyToken').value.trim();
+  const embedKey = $('#mapsEmbedKey').value.trim();
+  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: /^[A-Za-z0-9_-]{20,60}$/.test(embedKey) ? embedKey : '' };
+}
 // ===== Kantoren (planhulp) =====
 function addOffice(o) {
   o = o || { sector:'bv', name:'', postcode:'', match:[] };
@@ -2847,7 +2864,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), routesProxy:readRoutesProxy(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2870,7 +2887,7 @@ function renderAll(cfg) {
   const secs = cfg.profileSectors || {};
   Object.keys(cfg.zoneProfiles || {}).forEach((k) => addProfile(k, cfg.zoneProfiles[k], secs[k]));
   renderTexts(cfg.texts || DEFAULTS.texts);
-  renderCompatibility(cfg.compatibility); renderFeatures(cfg.features); renderOffices(cfg.offices); renderTeams(cfg);
+  renderCompatibility(cfg.compatibility); renderFeatures(cfg.features); renderOffices(cfg.offices); renderRoutesProxy(cfg.routesProxy); renderTeams(cfg);
   saved = clone(cfg);
   $('#json').value = JSON.stringify(saved, null, 2);
   markClean();
@@ -2888,7 +2905,7 @@ function save() {
 }
 const PAGE_CANCEL_KEYS = {
   afspraaktypes:['choices','nonClientCategories'], registratievormen:['registrationForms'], vragenlijsten:['surveys'], algemeen:['generalSettings'],
-  palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'], tekstbeheer:['texts'], compatibiliteit:['compatibility'], functies:['features','offices'],
+  palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'], tekstbeheer:['texts'], compatibiliteit:['compatibility'], functies:['features','offices','routesProxy'],
   sectorinstellingen:['zoneProfiles','profileSectors']
 };
 function cancelPageChanges() {
@@ -3446,7 +3463,7 @@ function troubleValidateConfigWiring(contentJs, configInfo, results) {
     'Registratievormen': ['registrationForms','vorm','startVerdeling','uursoort','eindtijdBeginPlusMin','rapportagePrefix','vraagDirecteTijd','vraagIndirecteTijd','vraagReistijd','labels','relevantForTeams','volgorde'],
     'Kleurzones': ['palette','profileSectors','zoneProfiles','start','end','zone','color','fill','legend'],
     'Beheerbare teksten': ['texts','text','html','bold','italic','sizePx'],
-    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','routeLink','preload','offices','compatibility','schemaVersion','minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','routeLink','preload','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
     'Teams': ['profileSectors']
   };
   Object.keys(groups).forEach((group) => {
@@ -3936,7 +3953,7 @@ function toggleThema() {
 const SECTION_CONFIG_KEYS = {
   afspraaktypes:['choices'], registratievormen:['registrationForms'],
   vragenlijsten:['surveys'], algemeen:['generalSettings'], palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'],
-  tekstbeheer:['texts'], functies:['features','offices'], compatibiliteit:['compatibility'], sectorinstellingen:['profileSectors']
+  tekstbeheer:['texts'], functies:['features','offices','routesProxy'], compatibiliteit:['compatibility'], sectorinstellingen:['profileSectors']
 };
 function sectionCodeJson(id) {
   let cfg; try { cfg = buildConfigFromDOM(); } catch (e) { return '// kon config niet lezen: ' + e.message; }

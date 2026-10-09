@@ -721,6 +721,60 @@ test('zijpaneel: planhulp zonder kopieën en zonder afstand (beheer)', async () 
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
 });
 
+test('zijpaneel: route van de dag - kaart pas na klik, kortste volgorde via de eigen server', async () => {
+  const geopend = [], proxy = [];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
+      stops: [{ start: '09:00', address: 'Teststraat 1, 2611EB, Delft' }, { start: '11:00', address: 'Laan 5, 2613RR, Delft' }],
+      urls: ['https://www.google.com/maps/dir/?api=1&destination=x'] }] } }),
+  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12', mapsEmbedKey: 'EMBEDSLEUTEL_alleen_embed_123', routesProxy: { url: 'https://proxy.example', token: 'geheim' } });
+  dom.window.open = (u) => { geopend.push(u); };
+  dom.window.fetch = (url, init) => { proxy.push({ url, init }); return Promise.resolve({ ok: true, json: () => Promise.resolve({ order: [1, 0], m: 24000, s: 1800 }) }); };
+  await tick();
+  navKnop(document, 'Route van de dag').click();
+  await tick();
+  assert.equal(document.querySelector('[data-kaart]'), null, 'geen kaart zonder klik');
+  knop(document, 'Kaart tonen').click();
+  const kaart = document.querySelector('[data-kaart]');
+  assert.match(kaart.src, /^https:\/\/www\.google\.com\/maps\/embed\/v1\/directions\?key=EMBEDSLEUTEL_alleen_embed_123&origin=Teststraat/);
+  assert.match(document.body.textContent, /Vul een vertrekpunt met postcode in voor de kortste volgorde/);
+  const v = document.querySelector('[data-vertrekpunt]');
+  v.value = 'Hoge Mosten 58, 4822 NH Breda'; v.dispatchEvent(new dom.window.Event('change'));
+  await tick();
+  knop(document, 'Kortste volgorde berekenen').click();
+  await tick();
+  assert.equal(proxy[0].url, 'https://proxy.example/optimize');
+  assert.equal(proxy[0].init.headers['X-Agendahulp-Token'], 'geheim');
+  assert.deepEqual(JSON.parse(proxy[0].init.body), { origin: '4822NH', stops: ['2611EB', '2613RR'] }, 'alleen postcodes naar de server');
+  assert.equal(document.querySelector('[data-kortste]').getAttribute('data-kortste'), '11:00 → 09:00');
+  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km · 30 min/);
+  assert.match(document.querySelector('[data-kaart]').src, /origin=Hoge%20Mosten.*destination=Teststraat/, 'kaart volgt de kortste volgorde');
+  knop(document, 'Kortste volgorde openen in Google Maps').click();
+  assert.match(geopend.at(-1), /origin=Hoge%20Mosten.*destination=Hoge%20Mosten.*waypoints=Laan/, 'rondrit, kortste volgorde');
+});
+
+test('zijpaneel: planhulp met rijtijden-server - minuten en km over de weg', async () => {
+  const { document, dom } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [
+      { date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 },
+    ], visits: { '2026-10-12': [{ startMin: 540, endMin: 600, pc: '2611EB', soort: 'client' }] } } }),
+  }, { ...AGENDA_STATE_TOOLS, routesProxy: { url: 'https://proxy.example', token: 'geheim' } });
+  dom.window.fetch = (url) => {
+    if (/proxy\.example\/matrix/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ pairs: { '2611EB|2611AB': { m: 1500, s: 300 }, '2611AB|2611EB': { m: 1500, s: 300 } } }) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: 'POINT(4.3571 52.0116)' }] } }) });
+  };
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const hb = document.querySelector('[data-huisbezoek]');
+  hb.checked = true; hb.dispatchEvent(new dom.window.Event('change'));
+  const pc = document.querySelector('[data-postcode]');
+  pc.value = '2611AB'; pc.dispatchEvent(new dom.window.Event('input'));
+  knop(document, 'Vrije tijd zoeken').click();
+  await tick();
+  assert.match(document.body.textContent, /≈ 5 min · 2 km rijden/);
+});
+
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
   const sum = (c) => ({ clientMinutes: c, nonClientMinutes: 10, totalMinutes: c + 10, directMinutes: c - 60, indirectMinutes: 60, travelMinutes: 0, unknownMinutes: 10, byType: [] });
   const state = { ...AGENDA_STATE_TOOLS, inviteeCount: 2, week: {
