@@ -2110,10 +2110,20 @@
     if (!id) return;
     spaNavigate(calendarUrl("workweek", date, id));
   }
-  function newEventUrl(inviteeId) {
-    var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
+  function newEventUrl(inviteeId, clientIds, date) {
+    var ids = (Array.isArray(inviteeId) ? inviteeId : [inviteeId]).map(String);
+    (clientIds || []).forEach(function(c) {
+      c = String(c);
+      if (/^\d+$/.test(c) && ids.indexOf(c) < 0) ids.push(c);
+    });
     var url = _apiUrl("newEvent", { inviteeId: ids[0] });
-    for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, "$1&invitee_ids%5B%5D=" + encodeURIComponent(ids[i]));
+    var rest = ids.slice(1).map(function(id) {
+      return "&invitee_ids%5B%5D=" + encodeURIComponent(id);
+    }).join("");
+    url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, function(m) {
+      return m + rest;
+    });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) url += "&event%5Bstart_date%5D=" + date;
     return url;
   }
 
@@ -10809,7 +10819,7 @@
     if (!ids.length) ids = currentInviteeIds();
     if (!ids.length) return false;
     setTimeout(function() {
-      spaNavigate(location.origin + newEventUrl(ids));
+      spaNavigate(location.origin + newEventUrl(ids, volgende.clientIds, volgende.date));
     }, 1200);
     return true;
   }
@@ -10984,7 +10994,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.235";
+      return "1.6.236";
     }
   }();
 
@@ -13617,6 +13627,11 @@
     }
     if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
     storePendingAppointment({ date: ymd2, time: hhmm, minutes });
+    var clientLijst = function(l) {
+      return (Array.isArray(l) ? l : []).map(String).filter(function(c) {
+        return /^\d+$/.test(c);
+      }).slice(0, 10);
+    };
     var lees = function(lijst) {
       return (Array.isArray(lijst) ? lijst : []).map(function(m) {
         var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(m && m.time || ""));
@@ -13624,6 +13639,8 @@
         var uit = { date: String(m.date), startMin: +t[1] * 60 + +t[2] };
         var mm = parseInt(m.minutes, 10);
         if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
+        var cl = clientLijst(m.clientIds);
+        if (cl.length) uit.clientIds = cl;
         return uit;
       }).filter(Boolean);
     };
@@ -13631,7 +13648,7 @@
     var kopieen = f.plannerCopies !== false;
     var eigenOk = req.multi ? f.plannerMulti !== false && f.plannerDistance !== false : kopieen;
     storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
-    spaNavigate(location.origin + newEventUrl(ids));
+    spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd2));
     return { ok: true };
   }
   function quickRegisterUrl(inviteeId, ymd2, hhmm, minutes) {

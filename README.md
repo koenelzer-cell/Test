@@ -192,7 +192,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   het voorstel de echte rijtijden op (paar elementen). Elk voorgesteld moment
   wordt ook bij ONS' overlapcontrole nagekeken. '4 afspraken maken' opent het
   formulier voor de eerste; na het opslaan opent de hulp de volgende, met
-  datum, begin- en eindtijd ingevuld. De cliënt kies je zelf in het formulier.
+  cliënt, datum, begin- en eindtijd ingevuld (de cliënt gaat mee in
+  `invitee_ids[]`, zoals ONS dat zelf doet).
+- **Cliënt bij één afspraak**: ook in de gewone planhulp kun je de cliënt op
+  naam zoeken. Die staat dan meteen in het afspraakformulier (ook bij een
+  apart formulier), en bij 'Huisbezoek' is de postcode al ingevuld.
 - **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
   - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
     met dagmaximum) toont de planhulp '≈ 12 min · 9 km rijden' en berekent

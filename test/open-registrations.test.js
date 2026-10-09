@@ -208,7 +208,7 @@ test('planhulp: opent het afspraakformulier zoals ONS het zelf doet en zet datum
   window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
   const r = api.openNewEvent({ date: '2026-10-08', time: '10:30', minutes: 60 });
   assert.equal(r.ok, true);
-  assert.match(geklikt[0], /\/events\/new\?invitee_ids%5B%5D=123&redirect_to_calendar=true$/);
+  assert.match(geklikt[0], /\/events\/new\?invitee_ids%5B%5D=123&redirect_to_calendar=true&event%5Bstart_date%5D=2026-10-08$/);
   const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
   assert.deepEqual({ date: klaar.date, time: klaar.time }, { date: '2026-10-08', time: '10:30' });
   assert.equal(api.onsDateText('2026-10-08'), '08-10-2026', 'zoals het datumveld van ONS hem toont');
@@ -258,6 +258,9 @@ test('meerdere invitees: alle agenda\'s uit de URL, ook bij springen en afspraak
   api.jumpToDayVoorTest('2026-11-02', true);
   assert.match(geklikt.at(-1), /\/invitees\/13970,45267\/calendar\/day\?date=2026-11-02$/, 'beide agenda\'s blijven in beeld');
   assert.equal(api.newEventUrl(['13970', '45267']), '/events/new?invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267&redirect_to_calendar=true');
+  // Cliënten staan ook in invitee_ids[] (zoals ONS zelf), plus de datum.
+  assert.equal(api.newEventUrl(['42479'], ['11142', '9', 'x'], '2026-10-09'),
+    '/events/new?invitee_ids%5B%5D=42479&invitee_ids%5B%5D=11142&invitee_ids%5B%5D=9&redirect_to_calendar=true&event%5Bstart_date%5D=2026-10-09');
   api.openNewEvent({ date: '2026-11-02', time: '10:00', minutes: 60 });
   assert.match(geklikt.at(-1), /invitee_ids%5B%5D=13970&invitee_ids%5B%5D=45267/);
   const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
@@ -400,7 +403,7 @@ test('planhulp: na opslaan kopieën maken en het volgende moment met eigen inste
   const rest = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingDuplicates'));
   assert.deepEqual(rest.moments, []);
   assert.deepEqual(rest.eigen, [{ date: '2026-11-05', startMin: 600 }], 'de volgende met eigen instellingen staat klaar');
-  assert.match(geklikt.at(-1) || '', /\/events\/new\?invitee_ids%5B%5D=42479&redirect_to_calendar=true$/, 'nieuw formulier voor dezelfde medewerker');
+  assert.match(geklikt.at(-1) || '', /\/events\/new\?invitee_ids%5B%5D=42479&redirect_to_calendar=true&event%5Bstart_date%5D=2026-11-03$/, 'nieuw formulier voor dezelfde medewerker');
   const melding = sent.find((m) => m && m.type === 'ag-duplicates-done');
   assert.deepEqual(JSON.parse(JSON.stringify(melding.next)), { date: '2026-11-03', startMin: 600 });
   assert.equal(melding.left, 2);
@@ -408,15 +411,16 @@ test('planhulp: na opslaan kopieën maken en het volgende moment met eigen inste
 
 test('meerdere afspraken plannen: elk een eigen formulier met eigen duur (eindtijd klaar), geen kopieën', async (t) => {
   const { api, window } = bootHelper({ url: MEER });
-  api.openNewEvent({ date: '2026-11-02', time: '09:00', minutes: 60, multi: true, extra: [{ date: '2026-11-02', time: '11:00' }], eigen: [{ date: '2026-11-02', time: '10:15', minutes: 90 }] });
+  api.openNewEvent({ date: '2026-11-02', time: '09:00', minutes: 60, multi: true, extra: [{ date: '2026-11-02', time: '11:00' }], eigen: [{ date: '2026-11-02', time: '10:15', minutes: 90, clientIds: ['51486'] }], clientIds: ['24819'] });
   const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingDuplicates'));
   assert.deepEqual(klaar.moments, [], 'geen kopieën bij meerdere plannen');
-  assert.deepEqual(klaar.eigen, [{ date: '2026-11-02', startMin: 615, minutes: 90 }]);
+  assert.deepEqual(klaar.eigen, [{ date: '2026-11-02', startMin: 615, minutes: 90, clientIds: ['51486'] }]);
   // Na het opslaan: het volgende formulier krijgt zijn eigen duur.
   const oudeTz = process.env.TZ;
   process.env.TZ = 'Europe/Amsterdam';
   t.after(() => { if (oudeTz === undefined) delete process.env.TZ; else process.env.TZ = oudeTz; });
-  window.HTMLAnchorElement.prototype.click = function () {};
+  const geklikt = [];
+  window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
   const body = JSON.stringify({ event: { valid_from: '2026-11-02', start_time: '2026-11-02T09:00:00+01:00', end_time: '2026-11-02T10:00:00+01:00', employee_ids: [42479], client_ids: [1] } });
   window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body, pending: JSON.stringify(klaar) }, origin: window.location.origin, source: window }));
   await new Promise((r) => setTimeout(r, 50));
@@ -424,6 +428,8 @@ test('meerdere afspraken plannen: elk een eigen formulier met eigen duur (eindti
   assert.equal(volgende.date, '2026-11-02');
   assert.equal(volgende.time, '10:15');
   assert.equal(volgende.minutes, 90);
+  await new Promise((r) => setTimeout(r, 1300));
+  assert.match(geklikt.at(-1) || '', /invitee_ids%5B%5D=42479&invitee_ids%5B%5D=51486&redirect_to_calendar=true&event%5Bstart_date%5D=2026-11-02$/, 'volgende formulier met de eigen cliënt');
 });
 
 test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole), BG/J&G-locatie telt als kantoor', async () => {

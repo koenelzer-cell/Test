@@ -139,7 +139,8 @@ function volgendeEigen(eigen, bodyText) {
   if (!ids.length) ids = currentInviteeIds();
   if (!ids.length) return false;
   // Even wachten: ONS schakelt na het opslaan eerst zelf door naar de agenda.
-  setTimeout(function () { spaNavigate(location.origin + newEventUrl(ids)); }, 1200);
+  // Cliënt van dit moment (meerdere afspraken plannen) meteen in het formulier.
+  setTimeout(function () { spaNavigate(location.origin + newEventUrl(ids, volgende.clientIds, volgende.date)); }, 1200);
   return true;
 }
 

@@ -958,8 +958,39 @@ test('zijpaneel: meerdere afspraken plannen - cliënt zoeken op naam (pas na typ
   knop(document, '2 afspraken maken').click();
   const nieuw = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
   assert.equal(nieuw.multi, true);
+  assert.deepEqual([nieuw.clientIds, nieuw.eigen[0].clientIds].sort((a, b) => a.length - b.length), [[], ['24819']], 'cliënt uit de zoekfunctie mee naar het formulier');
   assert.deepEqual(nieuw.extra, []);
   assert.equal(nieuw.eigen.length, 1);
   assert.ok(nieuw.eigen[0].minutes === 60 || nieuw.eigen[0].minutes === 90, 'eigen duur per afspraak');
   assert.notEqual(nieuw.minutes, nieuw.eigen[0].minutes);
+});
+
+test('zijpaneel: planhulp één afspraak - cliënt zoeken, postcode voor Huisbezoek en cliënt mee naar het formulier', async () => {
+  const { document, dom, verzonden } = zijpaneelMetTools({
+    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB' }] }),
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-12', startMin: 600, endMin: 720, minutes: 120 }] } }),
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  });
+  dom.window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ response: { docs: [{ centroide_ll: 'POINT(4.3571 52.0116)' }] } }) });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const zoek = document.querySelector('[data-plan-client]');
+  zoek.value = 'Tamara'; zoek.dispatchEvent(new dom.window.Event('input'));
+  await new Promise((r) => setTimeout(r, 450));
+  document.querySelector('[data-client-id="11142"]').click();
+  assert.equal(document.querySelector('[data-plan-client]').value, 'Tamara Test');
+  const hb = document.querySelector('[data-huisbezoek]');
+  hb.checked = true; hb.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelector('[data-postcode]').value, '2611 EB', 'postcode uit ONS');
+  knop(document, 'Vrije tijd zoeken').click();
+  await tick(); await tick();
+  const kaart = [...document.querySelectorAll('[role="button"], button')].find((b) => /12:00/.test(b.textContent) && /10:00/.test(b.textContent));
+  kaart.click();
+  await tick();
+  document.querySelector('[data-start]').click();
+  await tick();
+  [...document.querySelectorAll('button')].find((b) => b.textContent === 'Afspraak maken').click();
+  const nieuw = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
+  assert.deepEqual(nieuw.clientIds, ['11142']);
 });

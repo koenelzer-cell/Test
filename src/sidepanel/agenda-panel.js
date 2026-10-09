@@ -770,7 +770,7 @@ var BEWAARD = {
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
   // huisbezoek: aangevinkt = postcode invullen en sorteren op minst rijden.
-  plan: { modus: 'een', minutes: 60, weeks: 2, tot: '', huisbezoek: false, pc: '', sorteer: 'afstand', busy: false, result: null, error: '', geo: '' },
+  plan: { modus: 'een', minutes: 60, weeks: 2, tot: '', huisbezoek: false, pc: '', zoek: '', name: '', clientId: '', pcUitOns: false, treffers: null, sorteer: 'afstand', busy: false, result: null, error: '', geo: '' },
   // Meerdere afspraken plannen: rijen [{ name, clientId, pc, minutes }]
   // (namen alleen in het geheugen van dit paneel), perDag: hooguit per dag (0 = geen max).
   multi: { rijen: [], perDag: 2, busy: false, result: null, error: '', geo: '' },
@@ -789,7 +789,7 @@ function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { modus: BEWAARD.plan ? BEWAARD.plan.modus : 'een', minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', huisbezoek: false, pc: '', sorteer: 'afstand', busy: false, result: null, error: '', geo: '' };
+  BEWAARD.plan = { modus: BEWAARD.plan ? BEWAARD.plan.modus : 'een', minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', huisbezoek: false, pc: '', zoek: '', name: '', clientId: '', pcUitOns: false, treffers: null, sorteer: 'afstand', busy: false, result: null, error: '', geo: '' };
   BEWAARD.multi = { rijen: [], perDag: 2, busy: false, result: null, error: '', geo: '' };
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
@@ -1237,11 +1237,13 @@ export function create(host, actions) {
     var eerste = ms[0];
     var zelfde = ms.slice(1).filter(function (m) { return !m.eigen; });
     var eigen = ms.slice(1).filter(function (m) { return m.eigen; });
-    var tijd = function (m) { return { date: m.date, time: hm(m.startMin) }; };
-    actions.onNewEvent({
+    // Gekozen cliënt: staat meteen in het formulier (ook bij een apart formulier).
+    var metClient = function (o) { if (plan.clientId) o.clientIds = [plan.clientId]; return o; };
+    var tijd = function (m) { return metClient({ date: m.date, time: hm(m.startMin) }); };
+    actions.onNewEvent(metClient({
       date: eerste.date, time: hm(eerste.startMin), minutes: plan.minutes,
-      extra: zelfde.map(tijd), eigen: eigen.map(tijd)
-    }, function (res) {
+      extra: zelfde.map(function (m) { return { date: m.date, time: hm(m.startMin) }; }), eigen: eigen.map(tijd)
+    }), function (res) {
       if (!(res && res.ok)) { fout((res && res.error) || 'Openen mislukt.'); }
     });
   }
@@ -1321,7 +1323,8 @@ export function create(host, actions) {
   var DUREN = [30, 45, 60, 75, 90, 120];
   // Cliënt zoeken: pas als je even stopt met typen (ONS zelf zoekt bij elke
   // letter); een later antwoord op een oude zoekterm telt niet meer.
-  function clientZoeker(r, nr) {
+  // r: { zoek, name, clientId, pc, pcUitOns, treffers }; naKiezen: na een keuze.
+  function clientZoeker(r, nr, naKiezen) {
     var wrap = el('div', { position: 'relative', flex: '1 1 auto', minWidth: '0' });
     var inp = inputEl('text', r.name || r.zoek, function () {});
     inp.placeholder = 'Naam cliënt';
@@ -1353,7 +1356,7 @@ export function create(host, actions) {
           r.clientId = c.id; r.name = c.name; r.zoek = ''; r.treffers = null;
           r.pc = c.pc ? c.pc.slice(0, 4) + ' ' + c.pc.slice(4) : '';
           r.pcUitOns = !!c.pc;
-          multi.result = null;
+          if (naKiezen) naKiezen();
           renderPagina();
         });
         lijst.appendChild(b);
@@ -1393,7 +1396,7 @@ export function create(host, actions) {
       kaart.setAttribute('data-multi-rij', String(i + 1));
       var boven = el('div', { display: 'flex', alignItems: 'center', gap: '8px' });
       boven.appendChild(nummer(i + 1));
-      boven.appendChild(clientZoeker(r, i + 1));
+      boven.appendChild(clientZoeker(r, i + 1, function () { multi.result = null; }));
       if (multi.rijen.length > 1) {
         var weg = el('button', { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '16px', lineHeight: '1', padding: '2px 6px', borderRadius: '6px' }, '×');
         weg.type = 'button';
@@ -1506,22 +1509,26 @@ export function create(host, actions) {
     if (res.unplaced.length) box.appendChild(noteBox('Geen plek gevonden voor: ' + res.unplaced.map(function (i) { return (i + 1) + ' (' + rijNaam(i) + ')'; }).join(', ') + '.', 'warn'));
     var foutHost = el('div');
     var maak = primaryBtn(n === 1 ? 'Afspraak maken' : n + ' afspraken maken', function () {
-      var tijd = function (p) { return { date: p.date, time: hm(p.startMin), minutes: p.minutes }; };
+      var cl = function (p) { var id = multi.rijen[p.i] && multi.rijen[p.i].clientId; return id ? [id] : []; };
+      var tijd = function (p) { return { date: p.date, time: hm(p.startMin), minutes: p.minutes, clientIds: cl(p) }; };
       // Volgorde in de tijd: het eerste formulier opent nu, de rest daarna
       // één voor één (elk met eigen cliënt, datum, begin- en eindtijd).
       var eerste = res.placed[0];
-      actions.onNewEvent({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, multi: true, extra: [], eigen: res.placed.slice(1).map(tijd) }, function (r) {
+      actions.onNewEvent({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: cl(eerste), multi: true, extra: [], eigen: res.placed.slice(1).map(tijd) }, function (r) {
         if (!(r && r.ok)) { foutHost.innerHTML = ''; foutHost.appendChild(noteBox((r && r.error) || 'Openen mislukt.', 'bad')); }
       });
     });
     maak.setAttribute('data-multi-maak', '');
-    maak.title = 'Opent het afspraakformulier voor de eerste; na het opslaan opent de hulp de volgende, met datum, begin- en eindtijd ingevuld. De cliënt kies je zelf in het formulier.';
+    maak.title = 'Opent het afspraakformulier voor de eerste; na het opslaan opent de hulp de volgende, met cliënt, datum, begin- en eindtijd ingevuld.';
     box.appendChild(maak);
     var opnieuw = secondaryBtn('Opnieuw plannen', function () { startMulti(true); });
     opnieuw.style.marginTop = '8px';
     box.appendChild(opnieuw);
     box.appendChild(foutHost);
-    box.appendChild(txt('help', 'Kies in elk formulier zelf de cliënt (' + res.placed.map(function (p) { return (p.i + 1) + ': ' + rijNaam(p.i); }).join(', ') + ').', { margin: '8px 0 0', fontSize: '11.5px' }));
+    var zonder = res.placed.filter(function (p) { return !(multi.rijen[p.i] && multi.rijen[p.i].clientId); });
+    box.appendChild(txt('help', zonder.length
+      ? 'De gekozen cliënten staan al in het formulier; kies zelf de cliënt bij ' + zonder.map(function (p) { return (p.i + 1) + ' (' + rijNaam(p.i) + ')'; }).join(', ') + '.'
+      : 'Elke cliënt staat al in zijn eigen formulier.', { margin: '8px 0 0', fontSize: '11.5px' }));
     return box;
   }
   function startMulti(gebaar) {
@@ -1635,6 +1642,16 @@ export function create(host, actions) {
     }
     planBox.appendChild(totRij);
     planBox.appendChild(kz.host);
+    // Cliënt (optioneel): zoeken op naam zoals in ONS. Staat daarna meteen in
+    // het afspraakformulier, en geeft de postcode voor Huisbezoek.
+    var clZoek = clientZoeker(plan, 0, function () { if (plan.huisbezoek) { plan.result = null; plan.error = ''; } });
+    clZoek.firstChild.setAttribute('data-plan-client', '');
+    clZoek.firstChild.placeholder = 'Naam cliënt (optioneel)';
+    // Geen <label>: de keuzelijst bevat knoppen.
+    var clLab = el('div', Object.assign({}, TYPE.label, { display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '10px' }));
+    clLab.appendChild(document.createTextNode('Cliënt'));
+    clLab.appendChild(clZoek);
+    planBox.appendChild(clLab);
     // Huisbezoek: dan de postcode van de cliënt, en per blok hoeveel je omrijdt
     // ten opzichte van je andere afspraken die dag (cliënt of kantoor).
     if (!fAan('plannerDistance')) plan.huisbezoek = false;
@@ -1648,10 +1665,10 @@ export function create(host, actions) {
     hbLab.appendChild(document.createTextNode('Huisbezoek'));
     if (fAan('plannerDistance')) planBox.appendChild(hbLab);
     if (plan.huisbezoek) {
-      var pcVeld = inputEl('text', plan.pc, function (v) { plan.pc = v; });
+      var pcVeld = inputEl('text', plan.pc, function (v) { plan.pc = v; plan.pcUitOns = false; });
       pcVeld.placeholder = 'Bijv. 2611 EB';
       pcVeld.setAttribute('data-postcode', '');
-      var pcLab = fieldLabel('Postcode cliënt', pcVeld);
+      var pcLab = fieldLabel(plan.pcUitOns ? 'Postcode cliënt (uit ONS)' : 'Postcode cliënt', pcVeld);
       pcLab.style.marginTop = '8px';
       planBox.appendChild(pcLab);
       planBox.appendChild(txt('help', 'De blokken staan dan op minst rijden, gezien je andere afspraken die dag: bij een cliënt (adres uit ONS) of op kantoor (BG/J&G-locatie). Alleen postcodes gaan naar de PDOK-postcodedienst (Kadaster).', { margin: '4px 0 0', fontSize: '11.5px' }));

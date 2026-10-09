@@ -30,6 +30,8 @@ export function openNewEvent(req) {
   storePendingAppointment({ date: ymd, time: hhmm, minutes: minutes });
   // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
   // Momenten met eigen instellingen krijgen daarna elk een nieuw formulier.
+  // Cliënt(en) uit de planhulp (interne id's): komen meteen in het formulier.
+  var clientLijst = function (l) { return (Array.isArray(l) ? l : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10); };
   var lees = function (lijst) {
     return (Array.isArray(lijst) ? lijst : []).map(function (m) {
       var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
@@ -38,6 +40,8 @@ export function openNewEvent(req) {
       // Eigen duur (meerdere afspraken plannen): eindtijd vooraf ingevuld.
       var mm = parseInt(m.minutes, 10);
       if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
+      var cl = clientLijst(m.clientIds);
+      if (cl.length) uit.clientIds = cl;
       return uit;
     }).filter(Boolean);
   };
@@ -47,7 +51,7 @@ export function openNewEvent(req) {
   // Meerdere afspraken plannen: elk een eigen formulier (eigen schakelaar).
   var eigenOk = req.multi ? (f.plannerMulti !== false && f.plannerDistance !== false) : kopieen;
   storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
-  spaNavigate(location.origin + newEventUrl(ids));
+  spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd));
   return { ok: true };
 }
 export function quickRegisterUrl(inviteeId, ymd, hhmm, minutes) {

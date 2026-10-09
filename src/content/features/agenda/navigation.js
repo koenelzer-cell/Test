@@ -80,10 +80,16 @@ export function jumpToWeek() {
 }
 
 // Eén of meer invitees: bij meerdere komt invitee_ids[] er voor elk in, zodat
-// de afspraak voor iedereen in de agenda staat.
-export function newEventUrl(inviteeId) {
-  var ids = Array.isArray(inviteeId) ? inviteeId : [inviteeId];
+// de afspraak voor iedereen in de agenda staat. Cliënten staan er net zo in
+// (ONS: /events/new?invitee_ids[]=42479&invitee_ids[]=11142&…), dus
+// clientIds komen achter de medewerkers. date: 'YYYY-MM-DD' (optioneel) ->
+// event[start_date], zoals ONS zelf doet.
+export function newEventUrl(inviteeId, clientIds, date) {
+  var ids = (Array.isArray(inviteeId) ? inviteeId : [inviteeId]).map(String);
+  (clientIds || []).forEach(function (c) { c = String(c); if (/^\d+$/.test(c) && ids.indexOf(c) < 0) ids.push(c); });
   var url = _apiUrl('newEvent', { inviteeId: ids[0] });
-  for (var i = 1; i < ids.length; i++) url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, '$1&invitee_ids%5B%5D=' + encodeURIComponent(ids[i]));
+  var rest = ids.slice(1).map(function (id) { return '&invitee_ids%5B%5D=' + encodeURIComponent(id); }).join('');
+  url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, function (m) { return m + rest; });
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) url += '&event%5Bstart_date%5D=' + date;
   return url;
 }
