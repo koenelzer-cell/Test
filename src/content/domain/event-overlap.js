@@ -8,7 +8,9 @@
 // tijdvak laten controleren.
 //
 // PRIVACY: parameters die naar een cliënt, titel, omschrijving of naam lijken,
-// gaan er direct uit. Het sjabloon bewaart geen medewerker-id's en geen
+// gaan er direct uit. Van een cliënt-parameter met id's onthouden we alleen
+// de NAAM van de parameter (rol 'client'), nooit de id's: zo kan de planhulp
+// later de gekozen cliënt(en) meesturen. Het sjabloon bewaart geen medewerker-id's en geen
 // tijden, alleen de rol per parameter en korte vaste waarden (zoals een type).
 //
 // Herkennen we iets niet zeker, dan geen sjabloon (null): liever geen
@@ -66,6 +68,11 @@ export function learnOverlapTemplate(url) {
   var tijden = { start: null, end: null }, duurIdx = -1, kapot = false;
   paren(q < 0 ? '' : s.slice(q + 1)).forEach(function (kv) {
     var k = kv[0], v = kv[1], lk = k.toLowerCase();
+    if (/client|cli%c3%abnt|cliënt|patient/.test(lk) && /^\d+(,\d+)*$/.test(v) && !EIGEN_AFSPRAAK.test(lk)) {
+      if (gezien[k]) { gezien[k].herhaald = true; return; }
+      var c = { key: k, role: 'client', sep: v.indexOf(',') >= 0 ? ',' : '' };
+      gezien[k] = c; params.push(c); return;
+    }
     if (WEG.test(lk) || EIGEN_AFSPRAAK.test(lk)) return;
     if (/invitee|employee|medewerker|participant|user_id/.test(lk) && /^\d+(,\d+)*$/.test(v)) {
       if (gezien[k]) { gezien[k].herhaald = true; return; }
@@ -122,10 +129,15 @@ function isoIn(ymd, min, vorm) {
 }
 
 // Sjabloon + tijdvak -> relatieve URL, of null als het niet kan.
-//   req: { ids: ['42479', …], date: 'YYYY-MM-DD', startMin, endMin }
+//   req: { ids: ['42479', …], clientIds?: ['11142', …], date: 'YYYY-MM-DD', startMin, endMin }
+// Cliënten: in de cliënt-parameter als ONS die gebruikt; anders als extra
+// genodigden (zoals ONS cliënten ook in invitee_ids[] van het formulier zet).
 export function buildOverlapUrl(tpl, req) {
   if (!tpl || !Array.isArray(tpl.params) || !req) return null;
   var ids = (req.ids || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
+  var cl = (req.clientIds || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
+  var metClientRol = tpl.params.some(function (p) { return p.role === 'client'; });
+  var genodigden = metClientRol ? ids : ids.concat(cl.filter(function (c) { return ids.indexOf(c) < 0; }));
   var ymd = String(req.date || ''), s = req.startMin, e = req.endMin;
   if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
   var delen = [], fout = false;
@@ -133,9 +145,15 @@ export function buildOverlapUrl(tpl, req) {
   tpl.params.forEach(function (p) {
     switch (p.role) {
       case 'invitee':
-        if (p.sep) zet(p.key, ids.join(p.sep));
-        else if (p.repeat) ids.forEach(function (id) { zet(p.key, id); });
-        else zet(p.key, ids[0]);
+        if (p.sep) zet(p.key, genodigden.join(p.sep));
+        else if (p.repeat) genodigden.forEach(function (id) { zet(p.key, id); });
+        else zet(p.key, genodigden[0]);
+        break;
+      case 'client':
+        if (!cl.length) break;   // geen cliënt gekozen: parameter weglaten
+        if (p.sep) zet(p.key, cl.join(p.sep));
+        else if (p.repeat) cl.forEach(function (id) { zet(p.key, id); });
+        else zet(p.key, cl[0]);
         break;
       case 'literal': zet(p.key, p.value == null ? '' : p.value); break;
       case 'startIso': case 'endIso': {

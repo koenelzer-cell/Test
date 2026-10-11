@@ -13,7 +13,7 @@ import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
 import { defaultRangeFrom } from './open-range.js';
 import { defaultProductionFrom } from './production.js';
-import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, isCached } from './preload.js';
+import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { searchClientsForPlan } from './client-lookup.js';
@@ -203,6 +203,8 @@ export function listenForSidePanelMessages() {
           return true;
         case MSG.AGENDA_CREATE_EVENTS:
           createEvents(msg.events).then(function (results) {
+            // De gemaakte afspraken bezetten nu tijd: vrije tijd opnieuw zoeken.
+            if (results.some(function (r) { return r && r.ok; })) forgetFreeSlots();
             try { sendResponse({ ok: true, results: results }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Maken mislukt.' }); } catch (e2) {}

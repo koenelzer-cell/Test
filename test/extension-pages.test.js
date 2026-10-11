@@ -1012,3 +1012,34 @@ test('zijpaneel: route van de dag - op telefoon openen met een QR-code (in de ex
   knop(document, 'QR-code verbergen').click();
   assert.equal(document.querySelector('[data-route-qr]'), null);
 });
+
+test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd die niet past, daarna opnieuw zoeken', async () => {
+  const { document, dom, verzonden } = maakPaneel({
+    'ag-slot-check': (msg, cb) => cb({ ok: true, status: 'ready', overlap: (msg.clientIds || []).includes('222') }),
+  });
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Bram');
+  await tick();
+  const check = verzonden.filter((m) => m.type === 'ag-slot-check' && m.clientIds).at(-1);
+  assert.deepEqual(JSON.parse(JSON.stringify(check)), { type: 'ag-slot-check', date: '2026-10-13', startMin: 600, minutes: 60, clientIds: ['222'] }, 'controle met de cliënt');
+  assert.ok(document.querySelector('[data-maak-ons-overlap="0"]'), 'label ONS: overlap in de regel');
+  assert.match(document.body.textContent, /ONS meldt overlap: de cliënt\(en\) hebben op dit tijdstip al een afspraak/);
+  // Reistijd: het vrije blok begint om 9:00, de afspraak om 10:00.
+  const adv = document.querySelector('[data-maak-geavanceerd]');
+  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  document.querySelector('[data-maak-regel="0"]').click();
+  const heen = document.querySelector('[data-maak-heen="0"]');
+  heen.value = '90'; heen.dispatchEvent(new dom.window.Event('input')); heen.dispatchEvent(new dom.window.Event('change'));
+  assert.match(document.querySelector('[data-maak-reis-conflict="0"]').textContent, /Reistijd heen \(90 min\) past niet: er is 60 min vrij voor 10:00\./);
+  const heen2 = document.querySelector('[data-maak-heen="0"]');
+  heen2.value = '45'; heen2.dispatchEvent(new dom.window.Event('input')); heen2.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelector('[data-maak-reis-conflict="0"]'), null, '45 min past wel');
+  // Maken; daarna zoekt de planhulp de vrije tijd opnieuw.
+  kies(document, dom, '[data-maak-uursoort="222"]', '5');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const voor = verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  knop(document, 'Terug').click();
+  await tick();
+  assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').length, voor + 1, 'na het maken opnieuw zoeken');
+});

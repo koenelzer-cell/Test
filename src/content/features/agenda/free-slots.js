@@ -35,14 +35,16 @@ function agendaIds() {
 }
 
 // Eén tijdvak bij ONS zelf nakijken (overlap_detection).
-//   { date, startMin, minutes } -> Promise<{ status, overlap }>
+//   { date, startMin, minutes, clientIds? } -> Promise<{ status, overlap }>
+//   clientIds: ook de gekozen cliënt(en) meenemen (Afspraak maken).
 //   status: 'ready' (overlap true/false/null) | 'unreadable' | 'unknown'
 export function checkSlotWithOns(req) {
   req = req || {};
   var status = overlapCheckStatus();
   var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
   if (status !== 'ready' || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status: status, overlap: null });
-  return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin: startMin, endMin: startMin + minutes })
+  var cl = (Array.isArray(req.clientIds) ? req.clientIds : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10);
+  return fetchEventOverlap({ ids: agendaIds(), clientIds: cl, date: req.date, startMin: startMin, endMin: startMin + minutes })
     .then(function (o) { return { status: status, overlap: o }; });
 }
 

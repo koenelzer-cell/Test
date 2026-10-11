@@ -1764,6 +1764,16 @@
     var tijden = { start: null, end: null }, duurIdx = -1, kapot = false;
     paren(q < 0 ? "" : s.slice(q + 1)).forEach(function(kv) {
       var k = kv[0], v = kv[1], lk = k.toLowerCase();
+      if (/client|cli%c3%abnt|cliënt|patient/.test(lk) && /^\d+(,\d+)*$/.test(v) && !EIGEN_AFSPRAAK.test(lk)) {
+        if (gezien[k]) {
+          gezien[k].herhaald = true;
+          return;
+        }
+        var c = { key: k, role: "client", sep: v.indexOf(",") >= 0 ? "," : "" };
+        gezien[k] = c;
+        params.push(c);
+        return;
+      }
       if (WEG.test(lk) || EIGEN_AFSPRAAK.test(lk)) return;
       if (/invitee|employee|medewerker|participant|user_id/.test(lk) && /^\d+(,\d+)*$/.test(v)) {
         if (gezien[k]) {
@@ -1848,6 +1858,15 @@
     var ids = (req.ids || []).map(String).filter(function(x) {
       return /^\d+$/.test(x);
     });
+    var cl = (req.clientIds || []).map(String).filter(function(x) {
+      return /^\d+$/.test(x);
+    });
+    var metClientRol = tpl.params.some(function(p) {
+      return p.role === "client";
+    });
+    var genodigden = metClientRol ? ids : ids.concat(cl.filter(function(c) {
+      return ids.indexOf(c) < 0;
+    }));
     var ymd2 = String(req.date || ""), s = req.startMin, e = req.endMin;
     if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd2) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
     var delen = [], fout = false;
@@ -1857,11 +1876,19 @@
     tpl.params.forEach(function(p) {
       switch (p.role) {
         case "invitee":
-          if (p.sep) zet(p.key, ids.join(p.sep));
-          else if (p.repeat) ids.forEach(function(id) {
+          if (p.sep) zet(p.key, genodigden.join(p.sep));
+          else if (p.repeat) genodigden.forEach(function(id) {
             zet(p.key, id);
           });
-          else zet(p.key, ids[0]);
+          else zet(p.key, genodigden[0]);
+          break;
+        case "client":
+          if (!cl.length) break;
+          if (p.sep) zet(p.key, cl.join(p.sep));
+          else if (p.repeat) cl.forEach(function(id) {
+            zet(p.key, id);
+          });
+          else zet(p.key, cl[0]);
           break;
         case "literal":
           zet(p.key, p.value == null ? "" : p.value);
@@ -11192,7 +11219,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.245";
+      return "1.6.246";
     }
   }();
 
@@ -13557,7 +13584,10 @@
     var status = overlapCheckStatus();
     var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
     if (status !== "ready" || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status, overlap: null });
-    return fetchEventOverlap({ ids: agendaIds(), date: req.date, startMin, endMin: startMin + minutes }).then(function(o) {
+    var cl = (Array.isArray(req.clientIds) ? req.clientIds : []).map(String).filter(function(c) {
+      return /^\d+$/.test(c);
+    }).slice(0, 10);
+    return fetchEventOverlap({ ids: agendaIds(), clientIds: cl, date: req.date, startMin, endMin: startMin + minutes }).then(function(o) {
       return { status, overlap: o };
     });
   }
@@ -13804,6 +13834,11 @@
       _bezig3 = false;
     }, () => {
       _bezig3 = false;
+    });
+  }
+  function forgetFreeSlots() {
+    Object.keys(_cache).forEach((k) => {
+      if (k.indexOf("plan|") === 0) delete _cache[k];
     });
   }
   function _clearPreloadCache() {
@@ -14170,6 +14205,9 @@
             return true;
           case MSG.AGENDA_CREATE_EVENTS:
             createEvents(msg.events).then(function(results) {
+              if (results.some(function(r) {
+                return r && r.ok;
+              })) forgetFreeSlots();
               try {
                 sendResponse({ ok: true, results });
               } catch (e) {
@@ -15783,6 +15821,8 @@
       mergeOpenRangePerPersoon,
       cachedOpenRange,
       isCached,
+      cachedFreeSlots,
+      forgetFreeSlots,
       _clearPreloadCache,
       currentInviteeIds,
       jumpToDayVoorTest: jumpToDay,

@@ -463,6 +463,17 @@ test('afspraak maken zonder formulier: keuzes ophalen, meta leren van een opgesl
     [[42479], [11142], { 11142: { hour_type_id: 5, care_order_external_id: null, activity_ids: [] } }, [47], '2026-10-27T17:20:00+01:00', '2026-10-27T18:20:00+01:00', { extended_workflow: true, time_distribution_enabled: true }]);
 });
 
+test('na het maken van afspraken vergeet de planhulp de vrije tijd (opnieuw zoeken)', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  await api.cachedFreeSlots(60, 2);
+  assert.equal(api.isCached('plan', '60|2||'), true);
+  await api.cachedOpenRange('2026-10-01', '2026-10-02');
+  api.forgetFreeSlots();
+  assert.equal(api.isCached('plan', '60|2||'), false, 'vrije tijd weg');
+  assert.equal(api.isCached('open', '2026-10-01|2026-10-02'), true, 'de rest blijft');
+});
+
 test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole), BG/J&G-locatie telt als kantoor', async () => {
   const { api, window } = bootHelper({ url: MEER });
   const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); // volgende maandag

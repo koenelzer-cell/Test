@@ -100,4 +100,6 @@ export function preloadPanelData(force) {
 }
 
 // Alleen voor de tests.
+// Na het maken van afspraken: de vrije tijd klopt niet meer, dus opnieuw ophalen.
+export function forgetFreeSlots() { Object.keys(_cache).forEach((k) => { if (k.indexOf('plan|') === 0) delete _cache[k]; }); }
 export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; }

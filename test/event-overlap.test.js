@@ -83,3 +83,18 @@ test('main-world geeft ONS’ eigen aanroep door, en alleen die', async () => {
   assert.ok(learnOverlapTemplate(gezien[0].url));
   assert.equal(parseEventOverlap(JSON.parse(gezien[0].body)), false);
 });
+
+test('cliënt meenemen: van ONS leren we alleen de naam van de cliënt-parameter, nooit de id', () => {
+  const t = learnOverlapTemplate(P + '?invitee_ids[]=1&client_ids[]=555&start=2026-10-09T08:00&end=2026-10-09T09:00');
+  assert.doesNotMatch(JSON.stringify(t), /555/, 'geen cliënt-id in het sjabloon');
+  const met = buildOverlapUrl(t, { ids: ['1'], clientIds: ['11142', '222'], date: '2026-10-09', startMin: 600, endMin: 660 });
+  assert.match(met, /client_ids%5B%5D=11142&client_ids%5B%5D=222/);
+  const zonder = buildOverlapUrl(t, { ids: ['1'], date: '2026-10-09', startMin: 600, endMin: 660 });
+  assert.doesNotMatch(zonder, /client/, 'zonder gekozen cliënt geen cliënt-parameter');
+});
+
+test('cliënt meenemen zonder cliënt-parameter: als extra genodigde (zoals het ONS-formulier)', () => {
+  const t = learnOverlapTemplate(P + '?invitee_ids[]=42479&start=2026-10-09T08:00&end=2026-10-09T09:00');
+  const url = buildOverlapUrl(t, { ids: ['42479'], clientIds: ['11142'], date: '2026-10-09', startMin: 600, endMin: 660 });
+  assert.match(url, /invitee_ids%5B%5D=42479&invitee_ids%5B%5D=11142/);
+});

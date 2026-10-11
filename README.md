@@ -190,6 +190,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   een eigen formulier per afspraak, cliënten al ingevuld via
   `invitee_ids[]`). Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat.
+  Zodra de cliënt(en) gekozen zijn, kijkt de hulp elke afspraak opnieuw na
+  met ONS' overlapcontrole, nu met de cliënt(en) erbij ('ONS: overlap' als de
+  cliënt dan al een afspraak heeft). Bij Geavanceerd controleert hij of de
+  reistijd heen en terug in de vrije tijd past ('Reistijd heen (20 min) past
+  niet: er is 10 min vrij voor 9:00'). Na het maken zoekt de planhulp de
+  vrije tijd opnieuw.
   Schakelaar: 'Planhulp: afspraak meteen in ONS maken'.
 - **Geavanceerd** (vinkje bij Afspraak maken): reistijd heen en terug per
   afspraak, en een knop met padicoon **Efficiënter indelen**. Die kijkt naar

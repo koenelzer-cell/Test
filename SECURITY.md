@@ -97,6 +97,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     (`server/routes-proxy`), die ze met de Google Routes API doorrekent. De
     Google-sleutel staat alleen op die server; de proxy accepteert alleen
     deze extensie (Origin), het token en geldige postcodes.
+  - **Overlapcontrole met cliënt** (Afspraak maken): van ONS' eigen
+    overlapcontrole onthoudt de hulp alleen de naam van de cliënt-parameter,
+    nooit cliënt-id's. Bij het nakijken gaan de id's van de gekozen
+    cliënt(en) mee naar dezelfde ONS-omgeving, zoals het ONS-formulier dat
+    zelf doet.
   - **Op telefoon openen** (Route van de dag): de QR-code met de Google
     Maps-link wordt in het zijpaneel zelf gemaakt (meegeleverde bibliotheek
     `qrcode-generator`, MIT). Geen QR-dienst, geen sms of mail: de adressen

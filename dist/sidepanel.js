@@ -3792,7 +3792,7 @@
           actions.onClientSearch(term, function(res) {
             if (mijn !== vraagNr) return;
             r.treffers = res && res.ok ? { lijst: res.clients || [] } : { fout: res && res.error || "Zoeken mislukt.", lijst: [] };
-            toon2();
+            (r._toon || toon2)();
           });
         }, 350);
       });
@@ -3810,6 +3810,7 @@
       });
       wrap.appendChild(inp);
       wrap.appendChild(lijst);
+      r._toon = toon2;
       toon2();
       return wrap;
     }
@@ -4043,6 +4044,7 @@
         box.appendChild(noteBox(mk.error, "bad"));
         return box;
       }
+      if (!klaar) onsMetClienten(mk);
       if (klaar) {
         var goed = mk.uitslag.filter(function(r) {
           return r && r.ok;
@@ -4120,6 +4122,11 @@
           if (!u.ok && u.error) st.title = u.error;
           st.setAttribute("data-maak-uitslag", u.ok ? "ok" : "fout");
           kop.appendChild(st);
+        } else if (it.onsCl && it.onsCl.overlap === true) {
+          var ob = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: "#fdf3e2", color: T.warn }, "ONS: overlap");
+          ob.setAttribute("data-maak-ons-overlap", String(k));
+          ob.title = "ONS meldt overlap met de gekozen cliënt(en) op dit tijdstip.";
+          kop.appendChild(ob);
         } else if (it.typeAangepast && it.labelId !== mk.typeAlle) {
           var tg = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: T.brandWash, color: T.brand }, "Eigen type");
           tg.setAttribute("data-eigen-type", String(k));
@@ -4135,6 +4142,17 @@
           clientsLijst(mk, it.clients, "los" + k + "-", cl);
           blok.appendChild(cl);
         }
+        if (!klaar && it.onsCl && it.onsCl.overlap === true) {
+          var on = noteBox("ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak.", "warn");
+          on.style.margin = "0 0 6px";
+          blok.appendChild(on);
+        }
+        if (!klaar) reisProblemen(mk, it).forEach(function(t) {
+          var rn = noteBox(t, "warn");
+          rn.style.margin = "0 0 6px";
+          rn.setAttribute("data-maak-reis-conflict", String(k));
+          blok.appendChild(rn);
+        });
         if (!klaar && mk.open[k]) {
           var det = el("div", { display: "flex", flexDirection: "column", gap: "6px", padding: "2px 0 8px" });
           var tSel = selectEl(["data-maak-type", String(k)], mk.labels, it.labelId, function(v) {
@@ -4160,6 +4178,9 @@
               inp.step = "5";
               inp.placeholder = "0";
               inp.setAttribute("data-maak-" + rv[2], String(k));
+              inp.addEventListener("change", function() {
+                renderPagina();
+              });
               reisRij.appendChild(fieldLabel(rv[1], inp));
             });
             det.appendChild(reisRij);
@@ -4198,6 +4219,48 @@
         if (mk.error) box.appendChild(noteBox(mk.error, "bad"));
       }
       return box;
+    }
+    function onsMetClienten(mk) {
+      if (!actions.onSlotCheck) return;
+      mk.items.forEach(function(it) {
+        var ids = clientsVan(mk, it).map(function(c) {
+          return c.clientId;
+        }).sort();
+        if (!ids.length) {
+          it.onsCl = null;
+          return;
+        }
+        var sleutel = it.date + "|" + it.startMin + "|" + it.minutes + "|" + ids.join(",");
+        if (it.onsCl && it.onsCl.key === sleutel) return;
+        it.onsCl = { key: sleutel, busy: true };
+        actions.onSlotCheck({ date: it.date, startMin: it.startMin, minutes: it.minutes, clientIds: ids }, function(r) {
+          if (!it.onsCl || it.onsCl.key !== sleutel) return;
+          it.onsCl = { key: sleutel, busy: false, overlap: r && r.status === "ready" ? r.overlap : null };
+          if (it.onsCl.overlap === true) setTimeout(function() {
+            if (pagina === "maken" && BEWAARD.maak === mk) renderPagina();
+          }, 0);
+        });
+      });
+    }
+    function reisProblemen(mk, it) {
+      if (!(it.reisHeen > 0 || it.reisTerug > 0)) return [];
+      var gaps = (mk.gaps || []).concat(plan.result && plan.result.gaps || []);
+      var eind = it.startMin + it.minutes;
+      var g = gaps.filter(function(x) {
+        return x.date === it.date && x.startMin <= it.startMin && eind <= x.endMin;
+      })[0];
+      if (!g) return [];
+      var vanaf = g.startMin, tot = g.endMin;
+      mk.items.forEach(function(o) {
+        if (o === it || o.date !== it.date) return;
+        var oStart = o.startMin - (o.reisHeen || 0), oEind = o.startMin + o.minutes + (o.reisTerug || 0);
+        if (oEind <= it.startMin) vanaf = Math.max(vanaf, oEind);
+        if (oStart >= eind) tot = Math.min(tot, oStart);
+      });
+      var uit = [];
+      if (it.reisHeen > it.startMin - vanaf) uit.push("Reistijd heen (" + it.reisHeen + " min) past niet: er is " + (it.startMin - vanaf) + " min vrij voor " + hm(it.startMin) + ".");
+      if (it.reisTerug > tot - eind) uit.push("Reistijd terug (" + it.reisTerug + " min) past niet: er is " + (tot - eind) + " min vrij na " + hm(eind) + ".");
+      return uit;
     }
     function maakBalk() {
       var mk = BEWAARD.maak;
@@ -4287,6 +4350,7 @@
         })) {
           BEWAARD.momenten = [];
           BEWAARD.balkOpen = false;
+          plan.result = null;
         }
         renderPagina();
       });
@@ -4447,6 +4511,7 @@
             dagen[it.date] = true;
             perDag[it.date] = (perDag[it.date] || 0) + 1;
           });
+          mk.gaps = res.result.gaps;
           var gaps = res.result.gaps.filter(function(g) {
             return dagen[g.date];
           });
