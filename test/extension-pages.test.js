@@ -991,3 +991,24 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   assert.ok(document.querySelector('[data-maak-heen="0"]'), 'reistijd wel zelf in te vullen');
   assert.equal(google.length, 0);
 });
+
+test('zijpaneel: route van de dag - op telefoon openen met een QR-code (in de extensie gemaakt)', async () => {
+  const gevraagd = [];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
+      stops: [{ start: '09:00', address: 'Teststraat 1, 2611EB, Delft' }, { start: '11:00', address: 'Laan 5, 2613RR, Delft' }],
+      urls: ['https://www.google.com/maps/dir/?api=1&destination=Laan%205&travelmode=driving', 'https://www.google.com/maps/dir/?api=1&origin=Laan%205&destination=Teststraat%201&travelmode=driving'] }] } }),
+  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12' });
+  dom.window.fetch = (url) => { gevraagd.push(url); return Promise.reject(new Error('geen netwerk')); };
+  await tick();
+  navKnop(document, 'Route van de dag').click();
+  await tick();
+  assert.equal(document.querySelector('[data-route-qr]'), null, 'pas na klikken');
+  knop(document, 'Op telefoon openen').click();
+  const box = document.querySelector('[data-route-qr]');
+  assert.equal(box.querySelectorAll('svg').length, 2, 'per deel van de route een QR-code');
+  assert.match(box.textContent, /Deel 1 van 2.*Deel 2 van 2.*Scan met de camera van je telefoon/s);
+  assert.deepEqual(gevraagd, [], 'geen QR-dienst of ander netwerkverzoek');
+  knop(document, 'QR-code verbergen').click();
+  assert.equal(document.querySelector('[data-route-qr]'), null);
+});

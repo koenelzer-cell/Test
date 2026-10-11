@@ -1,4 +1,5 @@
 import { buren, extraKmVan, planMany } from './multi-plan.js';
+import { qrSvg } from './qr.js';
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
@@ -2575,6 +2576,27 @@ export function create(host, actions) {
           b.setAttribute('data-route-url', u);
           blok.appendChild(b);
         });
+        // Op telefoon openen: QR-code van dezelfde link(s), scannen met de camera.
+        if ((p.urls || []).length) {
+          rt.qr = rt.qr || {};
+          var qrAan = !!rt.qr[p.id || 'p' + i];
+          var qrKnop = secondaryBtn(qrAan ? 'QR-code verbergen' : 'Op telefoon openen', function () { rt.qr[p.id || 'p' + i] = !qrAan; renderPagina(); });
+          qrKnop.style.marginTop = '6px';
+          qrKnop.setAttribute('data-route-qr-knop', p.id || '');
+          blok.appendChild(qrKnop);
+          if (qrAan) {
+            var qrBox = el('div', { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginTop: '10px', padding: '12px', border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff' });
+            qrBox.setAttribute('data-route-qr', p.id || '');
+            p.urls.forEach(function (u, n) {
+              if (p.urls.length > 1) qrBox.appendChild(el('div', { fontSize: '12px', fontWeight: '700', color: T.ink, marginTop: n ? '8px' : '0' }, 'Deel ' + (n + 1) + ' van ' + p.urls.length));
+              var svg = qrSvg(document, u, 240);
+              if (svg) { svg.setAttribute('aria-label', 'QR-code van de route' + (p.urls.length > 1 ? ', deel ' + (n + 1) : '')); qrBox.appendChild(svg); }
+              else qrBox.appendChild(noteBox('Deze route is te lang voor een QR-code.', 'warn'));
+            });
+            qrBox.appendChild(txt('help', 'Scan met de camera van je telefoon; Google Maps opent met de route. De code wordt op deze computer gemaakt.', { margin: '4px 0 0', fontSize: '11.5px', textAlign: 'center' }));
+            blok.appendChild(qrBox);
+          }
+        }
         box.appendChild(blok);
       });
     }

@@ -97,6 +97,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     (`server/routes-proxy`), die ze met de Google Routes API doorrekent. De
     Google-sleutel staat alleen op die server; de proxy accepteert alleen
     deze extensie (Origin), het token en geldige postcodes.
+  - **Op telefoon openen** (Route van de dag): de QR-code met de Google
+    Maps-link wordt in het zijpaneel zelf gemaakt (meegeleverde bibliotheek
+    `qrcode-generator`, MIT). Geen QR-dienst, geen sms of mail: de adressen
+    gaan pas naar Google als de medewerker de code met de eigen telefoon
+    scant en de link opent.
   - **Kaart** (optioneel, `routesProxy.embedKey`): laadt in Route van de dag
     meteen een Google Maps Embed-kaart met de adressen van de route (de
     medewerker opent die pagina zelf). Die sleutel

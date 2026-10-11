@@ -1376,7 +1376,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.244";
+      return "1.6.245";
     }
   }();
 

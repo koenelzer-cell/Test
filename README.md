@@ -227,7 +227,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   vertrekpunt dat alleen op dit apparaat wordt bewaard. Met een
   Embed-sleutel staat de kaart er meteen bij; de adressen gaan dan naar
   Google zodra je de pagina opent (zonder sleutel pas als je 'Route
-  openen' klikt). Uit te zetten in het beheerscherm (`routeLink`).
+  openen' klikt). **Op telefoon openen** toont een QR-code van de route
+  (per deel bij meer dan 10 stops): scan met de camera van je telefoon en
+  Google Maps opent met de route. De code wordt in de extensie zelf gemaakt
+  (`qrcode-generator`, MIT); er gaat niets naar een QR-dienst. Uit te zetten
+  in het beheerscherm (`routeLink`).
 - **Snel registreren**: datum, begintijd en duur invullen opent het
   registratieformulier van ONS met die tijden ingevuld, na een overlapcontrole.
 
