@@ -50,11 +50,11 @@ export function learnEventMeta(meta) {
   return n ? uit : null;
 }
 
-// 'Face to face' + 'Tamara Test' -> 'Face to face - Tamara'
+// 'Face to face' + 'Tamara Test' -> 'Face to face Tamara'
 export function defaultEventName(labelName, clientName) {
   var voornaam = String(clientName || '').trim().split(/\s+/)[0] || '';
   var l = String(labelName || '').trim();
-  return l && voornaam ? l + ' - ' + voornaam : (l || voornaam || 'Afspraak');
+  return l && voornaam ? l + ' ' + voornaam : (l || voornaam || 'Afspraak');
 }
 
 function reistijd(v) { var n = Math.round(Number(v)); return n > 0 ? Math.min(n, 240) : 0; }

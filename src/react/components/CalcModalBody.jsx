@@ -20,7 +20,7 @@ function Part({ label, minutes, total, color, fmtMin, T }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
         <span style={{ color: T.ink }}>{label}</span>
         <span style={{ color: T.ink, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-          {fmtMin(minutes)} <span style={{ color: T.inkSoft, fontWeight: 400 }}>· {pct}%</span>
+          {fmtMin(minutes)} <span style={{ color: T.inkSoft, fontWeight: 400 }}>({pct}%)</span>
         </span>
       </div>
       <div style={{ height: 4, borderRadius: 2, background: T.lineSoft, overflow: 'hidden', marginTop: 3 }}>

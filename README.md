@@ -142,10 +142,10 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.
-- **Planhulp**: bovenaan **Lijst** of **Weekraster**, en de instellingen in
-  één regel ('1 u · komende 2 weken'; *Wijzigen* klapt duur, 1/2/4 weken of
-  een einddatum open en zoekt meteen opnieuw). *Lijst*: per dag de vrije
-  tijd met de begintijden er direct onder (eerste 8, '+ n tijden' voor de
+- **Planhulp**: bovenaan **Lijst** of **Weekraster**, daaronder Duur en
+  Vooruit als rijen keuzes (1, 2 of 4 weken of 'Tot datum'); een wijziging
+  zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
+  10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
   tikken = loslaten, ook over meerdere dagen. *Weekraster*: een mini-agenda
   ma-vr per week (bladeren met ‹ ›): grijs bezet, groen vrij, oranje
@@ -176,10 +176,13 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   **Voor alle afspraken**: de cliënt(en) - zoeken op naam zoals in ONS (pas
   als je even stopt met typen; de keuzelijst toont ook cliëntnummer,
   geboortedatum en postcode), daarna een compacte regel met initialen, naam,
-  nummer en postcode en rechts de uursoort - plus het afspraaktype voor alle
-  afspraken. Dan **Afspraken**: per afspraak één regel met tijd en titel
-  ('Huisbezoek - Tamara & Bram'); tik om type (alleen deze afspraak; dan het
-  label 'eigen type'), titel en (bij Geavanceerd) reistijd te wijzigen. Bij
+  de labels 'Cl 106839' en de postcode, en rechts de uursoort (een rood !
+  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken. Dan
+  **Afspraken**: per afspraak één regel met dag en tijd ('Do 8 oktober',
+  '10:45 tot 11:45'), het type en de cliënten eronder ('Tamara en Bram'); tik
+  om type (alleen deze afspraak; dan het label 'Eigen type'), titel en (bij
+  Geavanceerd) reistijd te wijzigen. De titel in ONS wordt bijvoorbeeld
+  'Huisbezoek Tamara en Bram'. Bij
   *Per afspraak anders* staan de cliënten (ook meerdere, '+ Cliënt') per
   afspraak in de regel. Onderin: 'n afspraken maken in ONS' (pas als elke
   cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als

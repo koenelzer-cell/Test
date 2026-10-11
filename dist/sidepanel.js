@@ -491,6 +491,20 @@
     var h = Math.floor(min / 60), m = min % 60;
     return h ? h + " u" + (m ? " " + m + " m" : "") : m + " m";
   }
+  var WD_LANG = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"];
+  var MON_LANG = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
+  function dagLang(date, kort) {
+    var d = /* @__PURE__ */ new Date(date + "T00:00:00");
+    if (isNaN(d.getTime())) return date;
+    var w = WD_LANG[d.getDay()];
+    return (kort ? w.slice(0, 2) : w) + " " + d.getDate() + " " + MON_LANG[d.getMonth()];
+  }
+  function vanTot(a, b) {
+    var f = function(m) {
+      return Math.floor(m / 60) + ":" + ("0" + m % 60).slice(-2);
+    };
+    return "van " + f(a) + " tot " + f(b);
+  }
   function dayLabel(date) {
     var d = /* @__PURE__ */ new Date(date + "T00:00:00");
     if (isNaN(d.getTime())) return date;
@@ -1346,7 +1360,7 @@
       cross.setAttribute("x2", x(i));
       cross.setAttribute("opacity", "0.5");
       tip.innerHTML = "";
-      tip.appendChild(el("div", { fontWeight: "700", marginBottom: "3px" }, "Week " + (w.week || "") + " · " + dayLabel(w.weekStart) + (w.planned ? " · gepland" : "")));
+      tip.appendChild(el("div", { fontWeight: "700", marginBottom: "3px" }, "Week " + (w.week || "") + ", vanaf " + dayLabel(w.weekStart) + (w.planned ? " (gepland)" : "")));
       reeksen.forEach(function(r) {
         var rij = el("div", { display: "flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums" });
         rij.appendChild(el("span", { width: "10px", height: "2px", background: r.kleur, display: "inline-block" }));
@@ -1855,7 +1869,7 @@
     }
     function reserveringTekst(rs) {
       return rs.map(function(r) {
-        return (r.label || "Reservering") + " (" + hm(r.startMin) + "–" + hm(r.endMin) + ")";
+        return (r.label || "Reservering") + " (" + hm(r.startMin) + " tot " + hm(r.endMin) + ")";
       }).join(", ");
     }
     function momentIndex(date, startMin) {
@@ -1939,7 +1953,7 @@
         BEWAARD.momenten.forEach(function(m, i) {
           var rij = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: T.ink, minHeight: "30px", borderBottom: "1px solid " + T.lineSoft });
           rij.appendChild(el("span", { flex: "0 0 74px", fontWeight: "600" }, dayLabel(m.date)));
-          rij.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, hm(m.startMin) + " – " + hm(m.startMin + plan.minutes)));
+          rij.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, hm(m.startMin) + " tot " + hm(m.startMin + plan.minutes)));
           var vink = i === 0 || kanDirect() ? el("span", { flex: "1 1 auto" }) : eigenVinkje(m, "Apart formulier");
           if (i > 0) {
             vink.style.flex = "1 1 auto";
@@ -2059,12 +2073,7 @@
           b.setAttribute("role", "option");
           b.setAttribute("data-client-id", c.id);
           b.appendChild(el("span", { fontWeight: "600" }, c.name || "Cliënt " + c.id));
-          var extra = [c.number ? "nr. " + c.number : "", c.birth ? "geb. " + c.birth : "", c.pc ? c.pc.slice(0, 4) + " " + c.pc.slice(4) : ""].filter(Boolean).join(" · ");
-          if (extra) {
-            var ex = el("span", { color: T.inkSoft, fontSize: "11.5px", fontVariantNumeric: "tabular-nums" }, extra);
-            ex.setAttribute("data-client-extra", "");
-            b.appendChild(ex);
-          }
+          if (c.number || c.birth || c.pc) b.appendChild(labels([c.number ? "Cl " + c.number : "", c.birth ? "Geb " + c.birth : "", pcTekst(c.pc)], "data-client-extra"));
           b.addEventListener("mouseenter", function() {
             b.style.background = T.brandWash;
           });
@@ -2189,11 +2198,15 @@
     }
     function titelVan(mk, it) {
       if (it.titelAangepast) return it.titel;
-      var namen = clientsVan(mk, it).map(function(c) {
-        return String(c.name || "").trim().split(/\s+/)[0];
-      }).filter(Boolean).join(" & ");
+      var namen = namenVan(mk, it);
       var t = typeNaamVan(mk, it.labelId);
-      return t && namen ? t + " - " + namen : t || namen || "Afspraak";
+      return t && namen ? t + " " + namen : t || namen || "Afspraak";
+    }
+    function namenVan(mk, it) {
+      var n = clientsVan(mk, it).map(function(c) {
+        return String(c.name || "").trim().split(/\s+/)[0];
+      }).filter(Boolean);
+      return n.length > 1 ? n.slice(0, -1).join(", ") + " en " + n[n.length - 1] : n[0] || "";
     }
     function haalUursoorten(mk, cid) {
       if (!cid || mk.hourTypes[cid]) return;
@@ -2254,8 +2267,7 @@
       rij.appendChild(el("span", { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "13px", background: T.brandWash, color: T.brand, fontWeight: "800", fontSize: "11px", display: "inline-flex", alignItems: "center", justifyContent: "center" }, ini));
       var nm = el("span", { flex: "1 1 auto", minWidth: "0" });
       nm.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px", color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, c.name));
-      var sub = [c.number ? "nr. " + c.number : "", c.pc ? normPostcode(c.pc).replace(/^(\d{4})/, "$1 ") : ""].filter(Boolean).join(" · ");
-      if (sub) nm.appendChild(el("span", { display: "block", fontSize: "11px", color: T.inkSoft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, sub));
+      if (c.number || c.pc) nm.appendChild(labels([c.number ? "Cl " + c.number : "", pcTekst(c.pc)]));
       rij.appendChild(nm);
       var types = mk.hourTypes[c.clientId];
       if (types === "laden" || types == null) rij.appendChild(el("span", { fontSize: "11.5px", color: T.inkSoft }, "uursoorten…"));
@@ -2292,6 +2304,18 @@
         }
       }, "Cliënt " + c.name + " weghalen"));
       return rij;
+    }
+    function labels(teksten, attr) {
+      var rij = el("span", { display: "flex", flexWrap: "nowrap", overflow: "hidden", gap: "4px", marginTop: "2px" });
+      if (attr) rij.setAttribute(attr, "");
+      teksten.filter(Boolean).forEach(function(t) {
+        rij.appendChild(el("span", { fontSize: "10.5px", color: T.inkSoft, background: T.lineSoft, borderRadius: "5px", padding: "1px 5px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontWeight: "400" }, t));
+      });
+      return rij;
+    }
+    function pcTekst(pc) {
+      pc = normPostcode(pc);
+      return pc ? pc.slice(0, 4) + " " + pc.slice(4) : "";
     }
     function wegKnop(fn, label) {
       var x = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 4px", borderRadius: "6px", flex: "0 0 auto" }, "×");
@@ -2406,10 +2430,14 @@
         kop.type = "button";
         kop.setAttribute("data-maak-regel", String(k));
         kop.setAttribute("aria-expanded", mk.open[k] ? "true" : "false");
-        var wn = el("span", { flex: "0 0 92px", fontWeight: "700", fontSize: "12.5px" }, dayLabel(it.date));
-        wn.appendChild(el("span", { display: "block", fontWeight: "400", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, hm(it.startMin) + " – " + hm(it.startMin + it.minutes)));
+        var wn = el("span", { flex: "0 0 100px", fontWeight: "700", fontSize: "12.5px" }, dagLang(it.date, true));
+        wn.appendChild(el("span", { display: "block", fontWeight: "400", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, hm(it.startMin) + " tot " + hm(it.startMin + it.minutes)));
         kop.appendChild(wn);
-        kop.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, titelVan(mk, it)));
+        var wat = el("span", { flex: "1 1 auto", minWidth: "0", fontSize: "12.5px" });
+        wat.appendChild(el("span", { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, it.titelAangepast ? it.titel : typeNaamVan(mk, it.labelId) || "Afspraak"));
+        var namen = namenVan(mk, it);
+        if (namen) wat.appendChild(el("span", { display: "block", fontSize: "11px", color: T.inkSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, namen));
+        kop.appendChild(wat);
         var u = mk.uitslag && mk.uitslag[k];
         if (u) {
           var st = el("span", { flex: "0 0 auto", fontWeight: "700", fontSize: "12px", color: u.ok ? T.ok : T.bad }, u.ok ? "✓ gemaakt" : "mislukt");
@@ -2417,7 +2445,7 @@
           st.setAttribute("data-maak-uitslag", u.ok ? "ok" : "fout");
           kop.appendChild(st);
         } else if (it.typeAangepast && it.labelId !== mk.typeAlle) {
-          var tg = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: T.brandWash, color: T.brand }, "eigen type");
+          var tg = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: T.brandWash, color: T.brand }, "Eigen type");
           tg.setAttribute("data-eigen-type", String(k));
           kop.appendChild(tg);
         } else kop.appendChild(el("span", { flex: "0 0 auto", color: T.inkSoft }, mk.open[k] ? "▾" : "›"));
@@ -2469,7 +2497,10 @@
       box.appendChild(lijst);
       if (!klaar) {
         var adv = el("label", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "12px", padding: "9px 12px", border: "1px dashed " + T.line, borderRadius: "12px", color: T.inkSoft, fontWeight: "600", fontSize: "12.5px", cursor: "pointer", userSelect: "none" });
-        adv.appendChild(el("span", {}, "Geavanceerd · reistijd en efficiënter indelen"));
+        var advT = el("span");
+        advT.appendChild(el("span", { display: "block", color: T.ink, fontWeight: "700" }, "Geavanceerd"));
+        advT.appendChild(el("span", { display: "block", fontSize: "11px", fontWeight: "400" }, "Reistijd en efficiënter indelen"));
+        adv.appendChild(advT);
         var cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!mk.geavanceerd;
@@ -2826,11 +2857,6 @@
       });
       else reken();
     }
-    var MAANDEN_KORT = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-    function periodeTekst() {
-      if (plan.tot) return "t/m " + dayLabel(plan.tot);
-      return plan.weeks === 1 ? "komende week" : "komende " + plan.weeks + " weken";
-    }
     function pagePlan() {
       var planBox = el("div");
       var meer = state && state.inviteeCount > 1 ? state.inviteeCount : 0;
@@ -2862,64 +2888,64 @@
         seg.appendChild(b);
       });
       planBox.appendChild(seg);
-      var samen = el("div", { display: "flex", alignItems: "center", gap: "8px", border: "1px solid " + T.line, borderRadius: "10px", padding: "8px 10px", background: T.lineSoft });
-      samen.appendChild(el("span", { flex: "1 1 auto", fontWeight: "700", fontSize: "13px", color: T.ink }, fmtMin(plan.minutes) + " · " + periodeTekst()));
-      var wijzig = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12.5px " + FONT, padding: "0" }, plan.instOpen !== false ? "Inklappen" : "Wijzigen");
-      wijzig.type = "button";
-      wijzig.setAttribute("data-plan-wijzig", "");
-      wijzig.addEventListener("click", function() {
-        plan.instOpen = plan.instOpen === false;
-        renderPagina();
+      var opnieuw = function() {
+        plan.result = null;
+        startPlan();
+      };
+      var inst = el("div", { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 12px", alignItems: "center", border: "1px solid " + T.line, borderRadius: "12px", padding: "10px 12px" });
+      inst.setAttribute("data-plan-instellingen", "");
+      var rijLabel = function(t) {
+        return el("span", { fontSize: "12px", fontWeight: "600", color: T.inkSoft }, t);
+      };
+      var keuze = function(tekst, aan, fn, attr) {
+        var c = chipKnop(tekst, aan, fn, { padding: "0 9px", height: "28px", border: "1px solid " + (aan ? T.brand : T.line) });
+        if (attr) c.setAttribute(attr[0], attr[1]);
+        return c;
+      };
+      var duur = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
+      [[30, "30 min"], [45, "45 min"], [60, "1 uur"], [90, "1,5 uur"], [120, "2 uur"]].forEach(function(d) {
+        duur.appendChild(keuze(d[1], plan.minutes === d[0], function() {
+          plan.minutes = d[0];
+          opnieuw();
+        }, ["data-plan-duur", String(d[0])]));
       });
-      samen.appendChild(wijzig);
-      planBox.appendChild(samen);
-      if (plan.instOpen !== false) {
-        var inst = el("div", { padding: "4px 2px 6px" });
-        var opnieuw = function() {
-          plan.result = null;
-          startPlan();
-        };
-        var duur = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
-        [30, 45, 60, 90, 120].forEach(function(m) {
-          var g = plan.minutes === m;
-          duur.appendChild(chipKnop(fmtMin(m), g, function() {
-            plan.minutes = m;
-            opnieuw();
-          }, { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }));
-        });
-        var dLab = fieldLabel("Duur", duur);
-        dLab.style.marginTop = "10px";
-        inst.appendChild(dLab);
-        var per = el("div", { display: "flex", gap: "4px" });
+      inst.appendChild(rijLabel("Duur"));
+      inst.appendChild(duur);
+      if ((plan.weergave || "lijst") === "lijst") {
+        var per = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
         [[1, "1 week"], [2, "2 weken"], [4, "4 weken"]].forEach(function(w) {
-          var g = !plan.tot && plan.weeks === w[0];
-          per.appendChild(chipKnop(w[1], g, function() {
+          per.appendChild(keuze(w[1], !plan.tot && !plan.totOpen && plan.weeks === w[0], function() {
             plan.weeks = w[0];
             plan.tot = "";
+            plan.totOpen = false;
             opnieuw();
-          }, { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }));
+          }, ["data-plan-weken", String(w[0])]));
         });
-        var pLab = fieldLabel("Vooruit", per);
-        pLab.style.marginTop = "10px";
-        inst.appendChild(pLab);
+        var totAan = !!(plan.tot || plan.totOpen);
+        per.appendChild(keuze(plan.tot ? "Tot " + dagLang(plan.tot, true).replace(/^\S+ /, "") : "Tot datum", totAan, function() {
+          plan.totOpen = true;
+          renderPagina();
+        }, ["data-plan-tot", ""]));
+        inst.appendChild(rijLabel("Vooruit"));
+        inst.appendChild(per);
+      }
+      planBox.appendChild(inst);
+      if ((plan.weergave || "lijst") === "lijst" && (plan.tot || plan.totOpen)) {
         var kz = maakKiezers();
-        var totRij = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", marginTop: "10px" });
-        totRij.appendChild(fieldLabel("Of zoek tot en met", kz.datum(plan.tot, function(v) {
+        var totRij = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", marginTop: "8px" });
+        totRij.appendChild(fieldLabel("Zoek tot en met", kz.datum(plan.tot, function(v) {
           plan.tot = v;
           opnieuw();
         })));
-        if (plan.tot) {
-          var wis = secondaryBtn("Wissen", function() {
-            plan.tot = "";
-            opnieuw();
-          });
-          Object.assign(wis.style, { width: "auto", padding: "0 12px", marginBottom: "8px" });
-          totRij.appendChild(wis);
-        }
-        inst.appendChild(totRij);
-        inst.appendChild(kz.host);
-        inst.appendChild(txt("help", "Binnen je werktijden" + (state && state.windowLabel ? " (" + state.windowLabel + ")" : "") + ". Afspraken (ook uit Outlook, met reistijd) en onbeschikbaarheid tellen als bezet.", { margin: "8px 0 0", fontSize: "11.5px" }));
-        planBox.appendChild(inst);
+        var wis = secondaryBtn("Wissen", function() {
+          plan.tot = "";
+          plan.totOpen = false;
+          opnieuw();
+        });
+        Object.assign(wis.style, { width: "auto", padding: "0 12px", marginBottom: "8px" });
+        totRij.appendChild(wis);
+        planBox.appendChild(totRij);
+        planBox.appendChild(kz.host);
       }
       if (plan.busy) {
         zorgVoorStijl();
@@ -2981,11 +3007,14 @@
       plan.open = plan.open || {};
       d.dagen.forEach(function(date) {
         var gaps = d.per[date];
-        var kop = el("div", { display: "flex", alignItems: "baseline", gap: "8px", margin: "14px 0 6px", paddingBottom: "4px", borderBottom: "1px solid " + T.line });
-        kop.appendChild(el("span", { fontWeight: "700", fontSize: "13.5px", color: T.ink, whiteSpace: "nowrap" }, dayLabel(date)));
-        kop.appendChild(el("span", { flex: "1 1 auto", fontSize: "11.5px", color: T.inkSoft, minWidth: "0" }, gaps.map(function(g) {
-          return hm(g.startMin) + " – " + hm(g.endMin);
-        }).join(" · ")));
+        var kop = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", margin: "14px 0 6px", paddingBottom: "5px", borderBottom: "1px solid " + T.line });
+        var kopTekst = el("div", { flex: "1 1 auto", minWidth: "0" });
+        kopTekst.appendChild(el("div", { fontWeight: "700", fontSize: "13.5px", color: T.ink }, dagLang(date)));
+        var vrij = gaps.map(function(g) {
+          return vanTot(g.startMin, g.endMin);
+        });
+        kopTekst.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft }, "Vrij " + (vrij.length > 1 ? vrij.slice(0, -1).join(", ") + " en " + vrij[vrij.length - 1] : vrij[0])));
+        kop.appendChild(kopTekst);
         var naar = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 11.5px " + FONT, padding: "0", whiteSpace: "nowrap" }, "Naar dag");
         naar.type = "button";
         naar.title = "Deze dag openen in de agenda";
@@ -3034,7 +3063,7 @@
         });
         box.appendChild(rij);
         if (tijden.length > zicht.length) {
-          var meer = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "+ " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
+          var meer = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "Nog " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
           meer.type = "button";
           meer.setAttribute("data-meer-tijden", date);
           meer.addEventListener("click", function() {
@@ -3083,7 +3112,9 @@
         return b;
       };
       nav.appendChild(pijl("‹", -1, "data-week-terug"));
-      var titel = el("span", { fontWeight: "700", fontSize: "13px", color: T.ink }, "week " + isoWeek(weken[plan.week]) + " · " + ma.getDate() + (ma.getMonth() !== vr.getMonth() ? " " + MAANDEN_KORT[ma.getMonth()] : "") + " – " + vr.getDate() + " " + MAANDEN_KORT[vr.getMonth()]);
+      var titel = el("div", { textAlign: "center" });
+      titel.appendChild(el("div", { fontWeight: "700", fontSize: "13px", color: T.ink }, "Week " + isoWeek(weken[plan.week])));
+      titel.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft }, ma.getDate() + (ma.getMonth() !== vr.getMonth() ? " " + MON_LANG[ma.getMonth()] : "") + " tot en met " + vr.getDate() + " " + MON_LANG[vr.getMonth()]));
       titel.setAttribute("data-week-titel", "");
       nav.appendChild(titel);
       nav.appendChild(pijl("›", 1, "data-week-verder"));
@@ -3096,7 +3127,9 @@
       raster.appendChild(el("div"));
       ["ma", "di", "wo", "do", "vr"].forEach(function(n, i2) {
         var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
-        raster.appendChild(el("div", { textAlign: "center", color: T.inkSoft, fontWeight: "600" }, n + " " + dag.getDate()));
+        var hk = el("div", { textAlign: "center", color: T.inkSoft, fontWeight: "600", lineHeight: "1.2" }, n);
+        hk.appendChild(el("div", { color: T.ink, fontWeight: "700" }, String(dag.getDate())));
+        raster.appendChild(hk);
       });
       var uren = el("div", { position: "relative", height: hoog + "px" });
       for (var u = ws; u < we; u += 60) uren.appendChild(el("span", { position: "absolute", top: Math.max(0, (u - ws) * PX - 7) + "px", color: T.inkSoft, fontVariantNumeric: "tabular-nums", lineHeight: "14px" }, String(u / 60)));
@@ -3131,7 +3164,7 @@
               (function(m2) {
                 var s = el("button", { position: "absolute", left: "0", right: "0", top: (m2 - g.startMin) * PX + "px", height: 15 * PX + "px", border: "0", padding: "0", background: "transparent", cursor: "pointer" });
                 s.type = "button";
-                s.title = hm(m2) + " – " + hm(m2 + duur) + " kiezen";
+                s.title = hm(m2) + " tot " + hm(m2 + duur) + " kiezen";
                 s.setAttribute("aria-label", dayLabel(date) + " " + hm(m2) + " kiezen");
                 s.setAttribute("data-dag", date);
                 s.setAttribute("data-start", hm(m2));
@@ -3183,7 +3216,7 @@
       }
       box.appendChild(raster);
       var leg = el("div", { display: "flex", gap: "10px", flexWrap: "wrap", fontSize: "11px", color: T.inkSoft, marginTop: "8px" });
-      [["#ece7e5", "bezet"], ["#e6f4ec", "vrij"], ["#fdf3e2", "reservering"], [T.brand, "gekozen"]].forEach(function(l) {
+      [["#ece7e5", "Bezet"], ["#e6f4ec", "Vrij"], ["#fdf3e2", "Reservering"], [T.brand, "Gekozen"]].forEach(function(l) {
         var s = el("span");
         s.appendChild(el("i", { display: "inline-block", width: "10px", height: "10px", borderRadius: "3px", background: l[0], marginRight: "4px", verticalAlign: "-1px" }));
         s.appendChild(document.createTextNode(l[1]));
@@ -3507,7 +3540,7 @@
       var midden = el("div", { flex: "1 1 auto", textAlign: "center", minWidth: "0" });
       midden.appendChild(el("div", Object.assign({}, TYPE.section, { margin: "0" }), "Week " + (r0 && r0.week || isoWeek(doel) || "")));
       var sub = ratio.busy ? "ophalen…" : r0 ? r0.mode === "gepland" ? "gepland" : "geregistreerd" : "";
-      midden.appendChild(txt("help", (sub ? sub + " · " : "") + "vanaf " + dayLabel(doel)));
+      midden.appendChild(txt("help", (sub ? sub + ", " : "") + "vanaf " + dayLabel(doel)));
       nav.appendChild(midden);
       nav.appendChild(bladerKnop(CHEV_RECHTS, "Volgende week", function() {
         ratio.offset++;
@@ -3543,7 +3576,7 @@
       }
       var kop = el("div", { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", margin: "0 0 6px" });
       var open = t.count - t.done;
-      kop.appendChild(txt("section", open ? open + (open === 1 ? " afspraak" : " afspraken") + " open · " + fmtMin(t.openMinutes) : "Alles afgewerkt", { margin: "0" }));
+      kop.appendChild(txt("section", open ? open + (open === 1 ? " afspraak" : " afspraken") + " open, samen " + fmtMin(t.openMinutes) : "Alles afgewerkt", { margin: "0" }));
       if (t.late > 0) kop.firstChild.appendChild(tag("te laat: " + t.late, "bad"));
       var teller = txt("label", null, { flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: "4px", fontVariantNumeric: "tabular-nums" });
       teller.appendChild(vinkje());
@@ -3591,7 +3624,7 @@
           var tijd = el("span", { fontWeight: "600", flex: "0 0 auto", textDecoration: klaar ? "line-through" : "none" }, ("0" + dt.getHours()).slice(-2) + ":" + ("0" + dt.getMinutes()).slice(-2));
           row.appendChild(tijd);
           row.appendChild(el("span", { color: T.inkSoft, flex: "0 0 auto" }, fmtMin(it.minutes)));
-          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, (it.persoon ? it.persoon + " · " : "") + (it.uursoort || "")));
+          row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, (it.persoon ? it.persoon + ": " : "") + (it.uursoort || "")));
           if (klaar) {
             var v = vinkje();
             v.setAttribute("data-afgewerkt", "1");
@@ -3826,7 +3859,7 @@
                 var regel = volg.map(function(st) {
                   return st.start;
                 }).join(" → ");
-                var nb = noteBox("Kortste rondrit: ≈ " + Math.round(kort.m / 1e3) + " km · " + Math.round(kort.s / 60) + " min (" + regel + "). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.", "ok");
+                var nb = noteBox("Kortste rondrit: ≈ " + Math.round(kort.m / 1e3) + " km en " + Math.round(kort.s / 60) + " min (" + regel + "). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.", "ok");
                 nb.setAttribute("data-kortste", regel);
                 blok.appendChild(nb);
                 mapsUrls(volg.map(function(st) {
@@ -3888,7 +3921,7 @@
     function pageInfo() {
       var box = el("div");
       box.appendChild(txt("help", "Gebruik de Agendahulp voor een duidelijk agenda-overzicht.", { margin: "0 0 12px" }));
-      box.appendChild(sectionHead("Legenda (" + (state && state.windowLabel || "08:00–17:00") + ")", true));
+      box.appendChild(sectionHead("Legenda (" + (state && state.windowLabel || "08:00 tot 17:00") + ")", true));
       var wrap = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
       (state && state.legend || []).forEach(function(item) {
         var row = el("div", { display: "flex", alignItems: "center", gap: "8px" });
@@ -4315,7 +4348,7 @@
           });
           var onbekend = !!item.unknown && !item.done;
           var link = document.createElement("a");
-          link.textContent = item.question + (onbekend ? "  — niet automatisch te controleren" : "");
+          link.textContent = item.question + (onbekend ? " (niet automatisch te controleren)" : "");
           if (onbekend) link.title = "Deze verplichte vraag kon niet automatisch worden gecontroleerd. Kijk haar zelf na.";
           link.setAttribute("role", "button");
           link.tabIndex = 0;

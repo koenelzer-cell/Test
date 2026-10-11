@@ -114,7 +114,7 @@ function mkHourMinutePicker(values, onPick, labelStijl) {
     stage.appendChild(grid);
   }
   function renderMinutes(h, mins) {
-    cap.textContent = h + ' uur — aantal minuten:';
+    cap.textContent = h + ' uur, aantal minuten:';
     stage.innerHTML = '';
     const back = document.createElement('button');
     back.type = 'button'; back.textContent = '‹ Ander aantal uren';
@@ -167,7 +167,7 @@ function mkTimePicker(values, initial, onPick) {
   const plus = mkStepBtn('+', step, registrationDurationLabel(step) + ' meer');
   const hint = document.createElement('div');
   Object.assign(hint.style, { fontSize: '11px', color: T.inkSoft, minWidth: '120px', textAlign: 'center' });
-  hint.textContent = 'stap ' + registrationDurationLabel(step) + ' · max ' + registrationDurationLabel(max);
+  hint.textContent = 'stap ' + registrationDurationLabel(step) + ', max ' + registrationDurationLabel(max);
   steps.append(minus, hint, plus);
   const confirmBtn = mkPillButton('Kies deze duur', () => onPick(cur), { shadowRgb: '204,8,125' });
   Object.assign(confirmBtn.style, { width: '100%', boxSizing: 'border-box' });

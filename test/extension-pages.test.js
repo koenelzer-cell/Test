@@ -351,7 +351,7 @@ test('zijpaneel: open registraties is een eigen pagina met terug-knop', async ()
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-state', state: AGENDA_STATE_TOOLS }, { tab: { id: 5 } }));
   assert.match(document.body.textContent, /Week 2 van 9 opgehaald/, 'een pagina-update laat de pagina staan');
   opgevangen({ ok: true, result: RESULT([ITEM_A, ITEM_B]) });
-  assert.match(document.body.textContent, /2 afspraken open · 1 u 30 m/);
+  assert.match(document.body.textContent, /2 afspraken open, samen 1 u 30 m/);
   assert.match(document.body.textContent, /0 van 2/);
   [...document.querySelectorAll('[role="button"]')].find((d) => d.title === 'Klik om naar deze dag te gaan').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-05', always: true });
@@ -376,7 +376,7 @@ test('zijpaneel: open registraties wordt een afwerklijst, ook na een paginawisse
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Open registraties', 'terug op dezelfde pagina');
   assert.equal(controles, 2, 'meteen opnieuw gecontroleerd');
   assert.match(document.body.textContent, /1 van 2/);
-  assert.match(document.body.textContent, /1 afspraak open · 30 m/);
+  assert.match(document.body.textContent, /1 afspraak open, samen 30 m/);
   assert.equal(document.querySelectorAll('[data-afgewerkt]').length, 1, 'de geregistreerde afspraak is afgevinkt');
   // Terug in het zijpaneel (focus) werkt de lijst ook bij, hooguit eens per paar seconden.
   dom.window.dispatchEvent(new dom.window.Event('focus'));
@@ -434,7 +434,7 @@ test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt b
   assert.deepEqual(gevraagd, ['2026-10-07'], 'begint bij de bekeken week');
   assert.match(document.body.textContent, /Week 41geregistreerd/);
   assert.match(document.body.textContent, /JW GGZ11 u 40 m/, 'totaal = direct + indirect + reistijd + overig');
-  assert.match(document.body.textContent, /Overig10 m · 1%/);
+  assert.match(document.body.textContent, /Overig10 m \(1%\)/);
   document.querySelector('button[aria-label="Volgende week"]').click();
   await tick();
   assert.equal(gevraagd.at(-1), '2026-10-14');
@@ -537,16 +537,16 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   navKnop(document, 'Planhulp').click();
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
-  assert.match(document.body.textContent, /1 u · komende 2 weken/, 'instellingen in één regel');
-  assert.ok(knop(document, '4 weken'), 'standaard uitgeklapt');
-  assert.equal(document.querySelector('[data-plan-wijzig]').textContent, 'Inklappen');
+  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30 min45 min1 uur1,5 uur2 uurVooruit1 week2 weken4 wekenTot datum$/, 'duur en vooruit als rijen keuzes, zonder scheidingstekens');
+  assert.equal(document.querySelector('[data-plan-duur="60"]').getAttribute('aria-pressed') !== 'false', true);
   knop(document, '4 weken').click();
   await tick();
   assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
-  document.querySelector('[data-plan-wijzig]').click();
-  assert.equal(knop(document, '4 weken'), undefined, 'ingeklapt');
-  assert.equal(document.querySelector('[data-plan-wijzig]').textContent, 'Wijzigen');
-  assert.match(document.body.textContent, /do 8 okt10:30 – 12:00/);
+  document.querySelector('[data-plan-tot]').click();
+  assert.match(document.body.textContent, /Zoek tot en met/, 'Tot datum: datumveld');
+  knop(document, 'Wissen').click();
+  await tick();
+  assert.match(document.body.textContent, /Donderdag 8 oktoberVrij van 10:30 tot 12:00Naar dag/);
   const starts = [...document.querySelectorAll('[data-dag="2026-10-08"][data-start]')].map((b) => b.getAttribute('data-start'));
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past, zonder tussenpagina');
   assert.equal(document.querySelector('[data-selectie]'), null, 'nog niets gekozen: geen balk');
@@ -567,7 +567,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   // Weekraster: zelfde keuzes, tik in het groen.
   document.querySelector('[data-plan-weergave="raster"]').click();
   assert.ok(document.querySelector('[data-raster]'));
-  assert.match(document.querySelector('[data-week-titel]').textContent, /^week 41 · 5 – 9 okt$/);
+  assert.match(document.querySelector('[data-week-titel]').textContent, /^Week 415 tot en met 9 oktober$/);
   assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), 'gekozen moment roze in het raster');
   assert.ok(document.querySelector('[data-raster-vrij="10:30-12:00"]'));
   const dag = document.querySelector('[data-raster-dag="2026-10-08"]');
@@ -605,7 +605,7 @@ test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de
   assert.equal(balk.getAttribute('data-selectie'), '2');
   assert.equal(knop(document, 'Alles wissen'), undefined, 'wissen pas na openklappen');
   document.querySelector('[data-teller]').click();
-  assert.match(document.querySelector('[data-selectie]').textContent, /do 8 okt10:30 – 11:30.*di 13 okt09:00 – 10:00/s);
+  assert.match(document.querySelector('[data-selectie]').textContent, /do 8 okt10:30 tot 11:30.*di 13 okt09:00 tot 10:00/s);
   assert.ok(knop(document, 'Alles wissen'));
   // Zonder direct maken: in de balk 'Apart formulier' (niet bij het eerste moment).
   assert.equal(document.querySelector('[data-eigen="2026-10-08 10:30"]'), null, 'eerste moment: geen vinkje');
@@ -699,7 +699,7 @@ test('zijpaneel: route van de dag - kaart meteen zichtbaar, kortste volgorde via
   assert.equal(proxy[0].init.headers['X-Agendahulp-Token'], 'geheim');
   assert.deepEqual(JSON.parse(proxy[0].init.body), { origin: '4822NH', stops: ['2611EB', '2613RR'] }, 'alleen postcodes naar de server');
   assert.equal(document.querySelector('[data-kortste]').getAttribute('data-kortste'), '11:00 → 09:00');
-  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km · 30 min/);
+  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km en 30 min/);
   assert.match(document.querySelector('[data-kaart]').src, /origin=Hoge%20Mosten.*destination=Teststraat/, 'kaart volgt de kortste volgorde');
   knop(document, 'Kortste volgorde openen in Google Maps').click();
   assert.match(geopend.at(-1), /origin=Hoge%20Mosten.*destination=Hoge%20Mosten.*waypoints=Laan/, 'rondrit, kortste volgorde');
@@ -733,7 +733,7 @@ test('zijpaneel: zonder server - kortste volgorde rechtstreeks via Google Routes
   const opt = google.at(-1);
   assert.match(opt.url, /directions\/v2:computeRoutes$/);
   assert.deepEqual([opt.body.origin.address, ...opt.body.intermediates.map((i) => i.address)], ['4822NH, Nederland', '2611EB, Nederland', '2613RR, Nederland']);
-  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km · 30 min \(11:00 → 09:00\)/);
+  assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km en 30 min \(11:00 → 09:00\)/);
 });
 
 test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop per collega', async () => {
@@ -898,7 +898,7 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   assert.match(document.querySelector('[data-maak-modus="dup"]').textContent, /Zelfde cliënt\(en\)/);
   assert.match(document.body.textContent, /Voor alle 2 afspraken/);
   await kiesClient(document, dom, 'dup0', 'Tamara');
-  assert.match(document.querySelector('[data-maak-client="dup0"]').textContent, /TTTamara Testnr\. 106839 · 2611 EB/, 'compacte regel met initialen, nummer en postcode');
+  assert.match(document.querySelector('[data-maak-client="dup0"]').textContent, /TTTamara TestCl 1068392611 EB/, 'compacte regel met initialen en labels Cl en postcode');
   assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst uursoort kiezen');
   assert.ok(document.querySelector('[data-uursoort-ontbreekt="11142"]'), 'uitroepteken achter de uursoort');
   assert.equal(document.querySelector('[data-maak-uursoort="11142"]').style.background, 'rgb(255, 255, 255)', 'niet oranje');
@@ -909,13 +909,13 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   assert.equal(document.querySelector('[data-maak-type-alle]').value, '47', 'standaard Face to face');
   kies(document, dom, '[data-maak-type-alle]', '46');
-  assert.match(document.querySelector('[data-maak-regel="1"]').textContent, /Huisbezoek - Tamara & Bram/, 'type voor alle afspraken');
+  assert.match(document.querySelector('[data-maak-regel="1"]').textContent, /^Di 13 oktober10:00 tot 11:00HuisbezoekTamara en Bram/, 'type voor alle afspraken, cliënten eronder');
   document.querySelector('[data-maak-regel="1"]').click();
   kies(document, dom, '[data-maak-type="1"]', '48');
   assert.ok(document.querySelector('[data-eigen-type="1"]'), 'afwijking als label');
   kies(document, dom, '[data-maak-type-alle]', '47');
   assert.equal(document.querySelector('[data-maak-type="1"]').value, '48', 'eigen keuze blijft staan');
-  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /Face to face - Tamara & Bram/);
+  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /Face to faceTamara en Bram/);
   assert.ok(document.querySelector('[data-maak-ons]'), 'ONS Afspraakformulier onderin');
   document.querySelector('[data-maak-knop]').click();
   await tick();
@@ -924,7 +924,7 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
     ['2026-10-12', 600, 47, [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }]],
     ['2026-10-13', 600, 48, [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }]],
   ]);
-  assert.equal(ev[1].name, 'Beeldbellen - Tamara & Bram');
+  assert.equal(ev[1].name, 'Beeldbellen Tamara en Bram');
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
   assert.ok(knop(document, 'Agenda verversen'));
 });
@@ -974,8 +974,8 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
   assert.deepEqual(ev.map((e) => [e.date, e.clients, e.labelId, e.name]), [
-    ['2026-10-12', [{ id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Bram'],
-    ['2026-10-13', [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }], 46, 'Huisbezoek - Tamara & Bram'],
+    ['2026-10-12', [{ id: '222', hourTypeId: 5 }], 46, 'Huisbezoek Bram'],
+    ['2026-10-13', [{ id: '11142', hourTypeId: 1135 }, { id: '222', hourTypeId: 5 }], 46, 'Huisbezoek Tamara en Bram'],
   ]);
   assert.ok(ev[0].travelBefore > 0);
 });

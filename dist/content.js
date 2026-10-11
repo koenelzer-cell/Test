@@ -5341,7 +5341,7 @@
       stage.appendChild(grid2);
     }
     function renderMinutes(h, mins) {
-      cap.textContent = h + " uur — aantal minuten:";
+      cap.textContent = h + " uur, aantal minuten:";
       stage.innerHTML = "";
       const back = document.createElement("button");
       back.type = "button";
@@ -5417,7 +5417,7 @@
     const plus = mkStepBtn("+", step, registrationDurationLabel(step) + " meer");
     const hint = document.createElement("div");
     Object.assign(hint.style, { fontSize: "11px", color: T2.inkSoft, minWidth: "120px", textAlign: "center" });
-    hint.textContent = "stap " + registrationDurationLabel(step) + " · max " + registrationDurationLabel(max);
+    hint.textContent = "stap " + registrationDurationLabel(step) + ", max " + registrationDurationLabel(max);
     steps.append(minus, hint, plus);
     const confirmBtn = mkPillButton("Kies deze duur", () => onPick(cur), { shadowRgb: "204,8,125" });
     Object.assign(confirmBtn.style, { width: "100%", boxSizing: "border-box" });
@@ -11192,7 +11192,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.243";
+      return "1.6.244";
     }
   }();
 
@@ -12195,12 +12195,12 @@
   }
   function workdayWindowLabel() {
     const z = activeZones();
-    if (!z || !z.length) return "08:00–17:00";
+    if (!z || !z.length) return "08:00 tot 17:00";
     const hm2 = (d) => {
       const h = Math.floor(d), m = Math.round((d - h) * 60);
       return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
     };
-    return hm2(Math.min.apply(null, z.map((x) => x.from))) + "–" + hm2(Math.max.apply(null, z.map((x) => x.to)));
+    return hm2(Math.min.apply(null, z.map((x) => x.from))) + " tot " + hm2(Math.max.apply(null, z.map((x) => x.to)));
   }
 
   // src/content/features/agenda/painting.js

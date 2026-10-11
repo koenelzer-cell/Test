@@ -187,7 +187,7 @@ export function create(host, actions) {
         });
         var onbekend = !!item.unknown && !item.done;
         var link = document.createElement('a');
-        link.textContent = item.question + (onbekend ? '  — niet automatisch te controleren' : '');
+        link.textContent = item.question + (onbekend ? ' (niet automatisch te controleren)' : '');
         if (onbekend) link.title = 'Deze verplichte vraag kon niet automatisch worden gecontroleerd. Kijk haar zelf na.';
         link.setAttribute('role', 'button');
         link.tabIndex = 0;

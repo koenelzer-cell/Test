@@ -28,8 +28,8 @@ test('meta: alleen ja/nee, getallen en null', () => {
   assert.equal(learnEventMeta('x'), null);
 });
 
-test('naam zoals ONS: afspraaktype - voornaam', () => {
-  assert.equal(defaultEventName('Face to face', 'Tamara Test'), 'Face to face - Tamara');
+test('naam: afspraaktype en voornaam, zonder streepje', () => {
+  assert.equal(defaultEventName('Face to face', 'Tamara Test'), 'Face to face Tamara');
   assert.equal(defaultEventName('', 'Tamara Test'), 'Tamara');
 });
 
