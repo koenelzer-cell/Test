@@ -324,9 +324,12 @@ test('zijpaneel: de knoppen naar de pagina\'s staan onder het weekoverzicht', as
   const { document } = zijpaneelMetTools();
   await tick();
   const knoppen = ['Verhouding per uursoort', 'Open registraties', 'Snel registreren', 'Planhulp'].map((k) => navKnop(document, k));
-  assert.ok(knoppen.every(Boolean), 'drie knoppen');
-  const navBox = knoppen[0].parentElement;
-  assert.equal(navBox.previousElementSibling.children.length, 2, 'direct erboven staat het weekoverzicht (laadstrook + overzicht)');
+  assert.ok(knoppen.every(Boolean), 'knoppen naar de pagina\'s');
+  const lijst = knoppen[0].parentElement;
+  assert.ok(lijst.hasAttribute('data-hulpmiddelen'), 'samen in één lijst');
+  assert.deepEqual([...lijst.querySelectorAll('[data-hulp]')].map((b) => b.textContent), ['Open registraties', 'Planhulp', 'Snel registreren', 'Route van de dag', 'Verhouding per uursoort'], 'zonder ondertitels, in deze volgorde');
+  assert.equal(lijst.previousElementSibling.textContent, 'Hulpmiddelen');
+  assert.equal(lijst.parentElement.previousElementSibling.children.length, 2, 'direct erboven staat het weekoverzicht (laadstrook + overzicht)');
 });
 
 test('zijpaneel: open registraties is een eigen pagina met terug-knop', async () => {
@@ -355,7 +358,7 @@ test('zijpaneel: open registraties is een eigen pagina met terug-knop', async ()
   assert.match(document.body.textContent, /0 van 2/);
   [...document.querySelectorAll('[role="button"]')].find((d) => d.title === 'Klik om naar deze dag te gaan').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-05', always: true });
-  knop(document, 'Terug').click();
+  document.querySelector('[data-terug]').click();
   assert.equal(zichtbaar(navKnop(document, 'Snel registreren')), true);
   assert.equal(zichtbaar(knop(document, 'Verlof aanvragen')), true);
 });
@@ -402,9 +405,9 @@ test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijng
   assert.deepEqual({ from: verzonden.at(-1).from, to: verzonden.at(-1).to }, { from: '2026-08-19', to: '2026-11-04' }, 'standaard vier weken vooruit');
   const svg = document.querySelector('svg[role="img"]');
   assert.ok(svg, 'grafiek getekend');
-  assert.equal(svg.querySelectorAll('path[stroke="#2a78d6"]').length, 2, 'lijn direct');
-  assert.equal(svg.querySelectorAll('path[stroke="#cc087d"]').length, 2, 'lijn indirect');
-  assert.equal(svg.querySelectorAll('path[stroke="#1baf7a"]').length, 2, 'lijn reistijd: geregistreerd + gepland');
+  assert.equal(svg.querySelectorAll('path[stroke="#2f5d7c"]').length, 2, 'lijn direct');
+  assert.equal(svg.querySelectorAll('path[stroke="#b4507a"]').length, 2, 'lijn indirect');
+  assert.equal(svg.querySelectorAll('path[stroke="#d6a24c"]').length, 2, 'lijn reistijd: geregistreerd + gepland');
   assert.equal(svg.querySelectorAll('path[data-gepland]').length, 3, 'geplande weken gestippeld');
   assert.match(document.body.textContent, /gepland/);
   assert.equal(svg.querySelectorAll('rect').length, 3, 'geen staven; alleen hover-vlakken per week');
@@ -434,7 +437,7 @@ test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt b
   assert.deepEqual(gevraagd, ['2026-10-07'], 'begint bij de bekeken week');
   assert.match(document.body.textContent, /Week 41geregistreerd/);
   assert.match(document.body.textContent, /JW GGZ11 u 40 m/, 'totaal = direct + indirect + reistijd + overig');
-  assert.match(document.body.textContent, /Overig10 m \(1%\)/);
+  assert.match(document.body.textContent, /Overig10 m1%/);
   document.querySelector('button[aria-label="Volgende week"]').click();
   await tick();
   assert.equal(gevraagd.at(-1), '2026-10-14');
@@ -484,7 +487,7 @@ test('zijpaneel: het weekoverzicht toont geen lijst per uursoort meer (staat op 
   document.defaultView.eval(read('dist/react-bundle.js'));
   env_update(document, state);
   await tick();
-  assert.match(document.body.textContent, /Totaal 11 u 35 m/);
+  assert.match(document.body.textContent, /Totaal\s*11 u 35 m/);
   assert.doesNotMatch(document.body.textContent, /Per uursoort|Overig \(/);
 });
 
@@ -1062,7 +1065,7 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const voor = verzonden.filter((m) => m.type === 'ag-free-slots').length;
-  knop(document, 'Terug').click();
+  document.querySelector('[data-terug]').click();
   await tick();
   assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').length, voor + 1, 'na het maken opnieuw zoeken');
 });
@@ -1366,4 +1369,35 @@ test('zijpaneel: elke feestdag een eigen kleine animatie, één keer per week en
   document.querySelector('[data-raster-feestdag="Koningsdag"]').dispatchEvent(new dom.window.Event('mouseenter'));
   assert.equal(gespeeld.length, naHertekenen + 1, 'muis erover speelt hem nog eens');
   assert.ok(aantal >= namen.length);
+});
+
+test('zijpaneel: startscherm - weekkaart met datums en label, hulpmiddelen met teller, terugpijl in de kop', async () => {
+  const sum = { clientMinutes: 690, nonClientMinutes: 5, totalMinutes: 695, directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, byType: [] };
+  const state = { ...AGENDA_STATE_TOOLS, openCount: 3, week: { summary: sum, opts: { week: 41, date: '2026-10-07', scope: 'week', headerHint: 'geregistreerd' }, clientRows: [], overigRows: [] } };
+  const { document } = zijpaneelMetTools(null, state);
+  document.defaultView.eval(read('dist/react-bundle.js'));
+  env_update(document, state);
+  await tick();
+  const paneel = document.querySelector('[data-ons-week-panel]');
+  assert.match(paneel.textContent, /^Week 415 tot en met 9 oktobergeregistreerd/, 'week, datums en label');
+  assert.match(paneel.textContent, /Cliënttijd11 u 30 mNiet-cliënttijd5 mTotaal11 u 35 m/);
+  assert.match(paneel.textContent, /Direct8 uIndirect2 u 30 mReistijd1 u/);
+  assert.equal(paneel.querySelectorAll('[data-week-balk] i').length, 3, 'balk direct, indirect, reistijd');
+  const opbouw = paneel.querySelector('[role="button"]');
+  assert.equal(opbouw.textContent, 'Opbouw en productieverloop');
+  assert.notEqual(opbouw.style.color, 'rgb(204, 8, 125)', 'in tekstkleur, niet roze');
+  assert.equal(document.querySelector('[data-hulp="open"] [data-hulp-teller]').textContent, '3', 'teller bij Open registraties');
+  assert.equal(document.querySelectorAll('[data-hulp-teller]').length, 1, 'alleen daar');
+  assert.equal(document.querySelector('[data-terug]').style.display, 'none', 'geen terugpijl op het startscherm');
+  opbouw.click();
+  await tick();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Cliënttijd');
+  assert.equal(document.querySelector('[data-terug]').style.display, 'inline-flex', 'terugpijl in de kop');
+  assert.match(document.body.textContent, /Opbouw week 41geregistreerd/);
+  document.querySelector('[data-terug]').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agendahulp');
+  // Zonder bekend aantal: geen teller.
+  env_update(document, { ...state, openCount: null });
+  await tick();
+  assert.equal(document.querySelectorAll('[data-hulp-teller]').length, 0);
 });

@@ -39,9 +39,10 @@ var T = {
   warn: '#8a5a00', warnWash: '#fff4d6'
 };
 var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-// De reeksen in de grafiek productieverloop (gevalideerd op kleurenblindheid);
-// dezelfde kleuren als op de pagina 'Verhouding per uursoort'.
-var SERIE = { direct: '#2a78d6', indirect: '#cc087d', travel: '#1baf7a' };
+// Direct, indirect en reistijd (palet 'Rustig'): blauwgrijs, oud roze en
+// oker. Overal dezelfde: weekoverzicht, opbouw, verhouding per uursoort en de
+// grafiek productieverloop. Het roze is gedempt, zodat het niet op een knop lijkt.
+var SERIE = { direct: '#2f5d7c', indirect: '#b4507a', travel: '#d6a24c' };
 
 var SVG_NS = 'http://www.w3.org/2000/svg';
 var WD = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
@@ -99,8 +100,21 @@ function txt(kind, text, extra) {
   return n;
 }
 // Sectie met een kop en een dunne lijn erboven (behalve de eerste op een pagina).
-function sectionHead(text, first) {
-  return txt('section', text, first ? null : { borderTop: '1px solid ' + T.line, paddingTop: '12px', marginTop: '4px' });
+// Kopje boven een kaart: vet, met optioneel een grijze toelichting en rechts
+// een label (zoals 'geregistreerd'). Geen lijnen; de kaarten zelf scheiden.
+function sectionHead(text, first, sub, label) {
+  var h = el('div', { display: 'flex', alignItems: 'baseline', gap: '8px', margin: first ? '0 2px 8px' : '20px 2px 8px', minWidth: '0' });
+  h.appendChild(el('span', { fontSize: '14px', fontWeight: '700', color: T.ink, whiteSpace: 'nowrap' }, text));
+  if (sub) h.appendChild(el('span', { fontSize: '12px', color: T.inkSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, sub));
+  if (label) {
+    h.appendChild(el('span', { flex: '1 1 auto' }));
+    h.appendChild(el('span', { fontSize: '11px', fontWeight: '600', color: T.inkSoft, background: T.lineSoft, borderRadius: '6px', padding: '1px 7px', whiteSpace: 'nowrap' }, label));
+  }
+  return h;
+}
+// Witte kaart met dunne rand, zoals op het startscherm.
+function kaart(extra) {
+  return el('div', Object.assign({ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '12px 14px', boxSizing: 'border-box' }, extra || {}));
 }
 
 /* ── Iconen ────────────────────────────────────────────────────────────── */
@@ -146,7 +160,7 @@ function svgPath(d, size) {
   svg.appendChild(p); return svg;
 }
 var CHEV_RECHTS = 'M9 5.4 15.6 12 9 18.6 7.6 17.2 12.8 12 7.6 6.8z';
-var PIJL_TERUG = 'M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z';
+var CHEV_LINKS = 'M15 5.4 8.4 12l6.6 6.6 1.4-1.4-5.2-5.2 5.2-5.2z';
 var ICON_VERVERS = 'M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4z';
 // Kalender met vinkje · klok · verdeelde balk (verhouding).
 var ICON_RANGE = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm5.6 8.2-3.1-3.1 1.4-1.4 1.7 1.7 4.5-4.5 1.4 1.4z';
@@ -239,33 +253,45 @@ function clickCard(onClick, title) {
   card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } });
   return card;
 }
-// Knop die een andere pagina opent (icoon, kop, uitleg, pijl).
-function navCard(icoon, kop, uitleg, onClick) {
+// Hulpmiddelen op het startscherm: elk een eigen zachte kleur voor het icoon.
+var HULP_KLEUR = {
+  open: ['#c2185b', '#fde8f0'], plan: ['#1f7a8c', '#e3f3f5'], snel: ['#6a4fb3', '#efeafb'],
+  route: ['#c06a12', '#fdf0e1'], verhouding: ['#2f5d7c', '#e6eef4'], info: ['#6b6367', '#f1edec']
+};
+var CHEV_GRIJS = '#b9b0b4';
+// Eén regel in de lijst hulpmiddelen: gekleurd icoon, titel, eventueel een
+// teller, grijs pijltje. Tussen de regels een lijn vanaf de titel.
+function hulpRij(soort, icoon, titel, onClick, teller, eerste) {
   var b = document.createElement('button');
   b.type = 'button';
+  b.setAttribute('data-hulp', soort);
   Object.assign(b.style, {
-    display: 'flex', alignItems: 'center', gap: '10px', width: '100%', boxSizing: 'border-box',
-    padding: '10px 12px', borderRadius: '12px', border: '1px solid ' + T.line, background: '#fff',
-    color: T.ink, cursor: 'pointer', textAlign: 'left', font: 'inherit',
-    transition: 'transform .12s ease, box-shadow .12s ease, border-color .12s ease'
+    display: 'flex', alignItems: 'center', gap: '12px', width: '100%', boxSizing: 'border-box', height: '56px',
+    padding: '0 10px 0 12px', border: '0', background: '#fff', color: T.ink, cursor: 'pointer', textAlign: 'left',
+    font: 'inherit', position: 'relative', transition: 'background .12s ease'
   });
+  if (!eerste) b.appendChild(el('span', { position: 'absolute', left: '60px', right: '0', top: '0', height: '1px', background: T.line }));
+  var kl = HULP_KLEUR[soort] || [T.brand, T.brandWash];
   var ic = el('span', {
-    width: '32px', height: '32px', borderRadius: '9px', background: T.brandWash, color: T.brand,
+    width: '36px', height: '36px', borderRadius: '10px', background: kl[1], color: kl[0],
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'
   });
-  ic.appendChild(svgPath(icoon, 18));
+  ic.appendChild(svgPath(icoon, 20));
   b.appendChild(ic);
-  var tekst = el('span', { flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '2px' });
-  tekst.appendChild(el('span', { fontSize: '13px', fontWeight: '700', color: T.ink }, kop));
-  tekst.appendChild(el('span', TYPE.help, uitleg));
-  b.appendChild(tekst);
-  var pijl = svgPath(CHEV_RECHTS, 16);
-  pijl.style.color = T.brand; pijl.style.flex = '0 0 auto';
+  b.appendChild(el('span', { flex: '1 1 auto', minWidth: '0', fontSize: '13.5px', fontWeight: '600', color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, titel));
+  if (teller) {
+    var t = el('span', { background: T.brand, color: '#fff', fontWeight: '700', fontSize: '11.5px', borderRadius: '10px', minWidth: '22px', height: '20px', padding: '0 7px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', flex: '0 0 auto' }, String(teller));
+    t.setAttribute('data-hulp-teller', String(teller));
+    t.setAttribute('aria-label', teller + ' open');
+    b.appendChild(t);
+  }
+  var pijl = svgPath(CHEV_RECHTS, 20);
+  pijl.style.color = CHEV_GRIJS; pijl.style.flex = '0 0 auto';
   b.appendChild(pijl);
-  b.addEventListener('mouseenter', function () { b.style.borderColor = T.brand; b.style.transform = 'translateY(-1px)'; b.style.boxShadow = '0 4px 12px -6px rgba(32,20,15,.22)'; });
-  b.addEventListener('mouseleave', function () { b.style.borderColor = T.line; b.style.transform = 'none'; b.style.boxShadow = 'none'; });
+  b.addEventListener('mouseenter', function () { b.style.background = T.lineSoft; });
+  b.addEventListener('mouseleave', function () { b.style.background = '#fff'; });
   focusRing(b);
-  b.addEventListener('click', function (e) { e.preventDefault(); onClick(); });
+  b.addEventListener('click', onClick);
   return b;
 }
 
@@ -310,24 +336,6 @@ function voortgang(done, total) {
     p.appendChild(laadBalk());
   }
   return p;
-}
-// Grijze balkjes in de vorm van het overzicht dat eraan komt.
-function skelet() {
-  var wrap = el('div', { animation: 'onsAhPuls 1.4s ease-in-out infinite' });
-  var streep = function (breedte, hoogte, marge) {
-    return el('div', { height: (hoogte || 10) + 'px', width: breedte, borderRadius: '6px', background: T.lineSoft, margin: marge || '0 0 8px' });
-  };
-  wrap.appendChild(streep('55%', 12, '0 0 10px'));
-  var rij = el('div', { display: 'flex', gap: '8px', margin: '0 0 12px' });
-  rij.appendChild(el('div', { flex: '1 1 0', height: '56px', borderRadius: '12px', background: T.lineSoft }));
-  rij.appendChild(el('div', { flex: '1 1 0', height: '56px', borderRadius: '12px', background: T.lineSoft }));
-  wrap.appendChild(rij);
-  wrap.appendChild(streep('40%', 9));
-  ['85%', '70%', '78%'].forEach(function (b) {
-    wrap.appendChild(streep('100%', 8, '0 0 4px'));
-    wrap.appendChild(streep(b, 6, '0 0 12px'));
-  });
-  return wrap;
 }
 
 
@@ -375,7 +383,7 @@ function veldKnop(tekst, leeg, icoon) {
   var t = el('span', { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }, tekst);
   b.appendChild(t);
   var ic = svgPath(icoon, 16);
-  ic.style.color = T.brand; ic.style.flex = '0 0 auto';
+  ic.style.color = '#8d8589'; ic.style.flex = '0 0 auto';
   b.appendChild(ic);
   b.addEventListener('mouseenter', function () { if (b.getAttribute('aria-expanded') !== 'true') b.style.borderColor = T.brand; });
   b.addEventListener('mouseleave', function () { if (b.getAttribute('aria-expanded') !== 'true') b.style.borderColor = T.line; });
@@ -821,6 +829,13 @@ function isoWeek(ymd) {
   var jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d - jan1) / 86400000 + 1) / 7);
 }
+// Maandag 'YYYY-MM-DD' -> '5 tot en met 9 oktober' (werkweek).
+function werkweekTekst(maYmd) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(maYmd || ''));
+  if (!m) return '';
+  var ma = new Date(+m[1], +m[2] - 1, +m[3]), vr = new Date(+m[1], +m[2] - 1, +m[3] + 4);
+  return ma.getDate() + (ma.getMonth() !== vr.getMonth() ? ' ' + MON_LANG[ma.getMonth()] : '') + ' tot en met ' + vr.getDate() + ' ' + MON_LANG[vr.getMonth()];
+}
 function maandagVan(ymd) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
   if (!m) return ymd;
@@ -913,6 +928,23 @@ export function create(host, actions) {
     display: 'flex', alignItems: 'center', background: '#fff', padding: '12px',
     userSelect: 'none', borderBottom: '1px solid ' + T.line, flex: '0 0 auto'
   });
+  // Terugpijl in de kop (niet op de hoofdpagina): zelfde regel als vroeger de
+  // losse knop 'Terug'. Afspraak maken gaat terug naar de planhulp.
+  var terugPijl = document.createElement('button');
+  terugPijl.type = 'button';
+  terugPijl.setAttribute('data-terug', '');
+  terugPijl.setAttribute('aria-label', 'Terug');
+  terugPijl.title = 'Terug';
+  Object.assign(terugPijl.style, {
+    display: 'none', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', flex: '0 0 auto',
+    margin: '0 4px 0 -6px', padding: '0', border: '0', borderRadius: '8px', background: 'transparent', color: T.ink, cursor: 'pointer'
+  });
+  terugPijl.appendChild(svgPath(CHEV_LINKS, 22));
+  terugPijl.addEventListener('mouseenter', function () { terugPijl.style.background = T.lineSoft; });
+  terugPijl.addEventListener('mouseleave', function () { terugPijl.style.background = 'transparent'; });
+  focusRing(terugPijl);
+  terugPijl.addEventListener('click', function (e) { e.preventDefault(); naarPagina(pagina === 'maken' ? 'plan' : 'hoofd'); });
+  header.appendChild(terugPijl);
   var title = el('span', Object.assign({}, TYPE.pageTitle, {
     flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   }), PAGINA_TITEL.hoofd);
@@ -977,7 +1009,7 @@ export function create(host, actions) {
   var hoofd = el('div', { flex: '0 0 auto' });
   var statusBox = el('div', { padding: '12px 12px 0' });
   var totals = el('div', { padding: '0 12px' });
-  var weekBox = el('div', { padding: '12px 12px 0' });
+  var weekBox = el('div', { padding: '16px 12px 0' });
   // Twee gescheiden kinderen: de laadstrook is van ons, de container daaronder
   // is van React. Zelf iets in een React-container zetten laat zijn interne
   // boekhouding los van de echte DOM.
@@ -985,11 +1017,11 @@ export function create(host, actions) {
   var weekHost = el('div', { transition: 'opacity .15s ease' });
   weekBox.appendChild(laadStrook);
   weekBox.appendChild(weekHost);
-  var navBox = el('div', { padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' });
+  var navBox = el('div', { padding: '18px 12px 12px' });
   hoofd.appendChild(statusBox); hoofd.appendChild(totals); hoofd.appendChild(weekBox); hoofd.appendChild(navBox);
 
   // Andere pagina's.
-  var paginaBox = el('div', { padding: '12px', flex: '0 0 auto', display: 'none' });
+  var paginaBox = el('div', { padding: '16px 12px 12px', flex: '0 0 auto', display: 'none' });
   mainCol.appendChild(hoofd); mainCol.appendChild(paginaBox);
 
   // ── Voet ── blijft onderaan in beeld, ook als je scrolt of de pagina kort
@@ -1105,13 +1137,19 @@ export function create(host, actions) {
       laadStrook.innerHTML = '';
       zorgVoorStijl(weekBox.ownerDocument);
       // Nooit een stil leeg vak: of we halen op, of we wachten op de agenda.
-      laadStrook.appendChild(txt('section', 'Weekoverzicht'));
+      // Zelfde vorm als de weekkaart, zodat het scherm niet verspringt.
+      laadStrook.appendChild(el('div', { fontSize: '15px', fontWeight: '700', color: T.ink, margin: '0 2px 8px' }, 'Weekoverzicht'));
+      var lk = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '12px 14px', background: '#fff' });
       if (bezig) {
-        laadStrook.appendChild(laadBalk());
-        laadStrook.appendChild(skelet());
+        [['40%', '10px', '0'], ['58%', '22px', '8px'], ['100%', '8px', '16px'], ['82%', '10px', '10px']].forEach(function (b) {
+          lk.appendChild(el('div', { width: b[0], height: b[1], marginTop: b[2], borderRadius: '5px', background: '#f1ecea', animation: 'onsAhPuls 1.4s ease-in-out infinite' }));
+        });
+        var lb = laadBalk(); lb.style.marginTop = '14px';
+        lk.appendChild(lb);
       } else {
-        laadStrook.appendChild(txt('help', 'Wordt opgehaald zodra de agenda van deze week geladen is.'));
+        lk.appendChild(txt('help', 'Wordt opgehaald zodra de agenda van deze week geladen is.'));
       }
+      laadStrook.appendChild(lk);
       return;
     }
     if (!b || !b.renderWeekPanel) {
@@ -1552,7 +1590,7 @@ export function create(host, actions) {
       host.appendChild(r);
     });
     if (lijst.length < 6 && lijst.every(function (c) { return c.clientId; })) {
-      var plus = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 12.5px ' + FONT, padding: '4px 0 2px', textAlign: 'left' }, '+ Cliënt');
+      var plus = el('button', { border: '0', background: 'transparent', color: T.ink, cursor: 'pointer', font: '600 12.5px ' + FONT, padding: '4px 0 2px', textAlign: 'left' }, '+ Cliënt');
       plus.type = 'button'; plus.setAttribute('data-maak-plus', prefix);
       plus.addEventListener('click', function () { lijst.push(leegClient()); renderPagina(); });
       host.appendChild(plus);
@@ -2154,7 +2192,7 @@ export function create(host, actions) {
       var vrij = gaps.map(function (g) { return vanTot(g.startMin, g.endMin); });
       kopTekst.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft }, 'Vrij ' + (vrij.length > 1 ? vrij.slice(0, -1).join(', ') + ' en ' + vrij[vrij.length - 1] : vrij[0])));
       kop.appendChild(kopTekst);
-      var naar = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 11.5px ' + FONT, padding: '0', whiteSpace: 'nowrap' }, 'Naar dag');
+      var naar = el('button', { border: '0', background: 'transparent', color: T.ink, cursor: 'pointer', font: '600 11.5px ' + FONT, padding: '0', whiteSpace: 'nowrap' }, 'Naar dag');
       naar.type = 'button'; naar.title = 'Deze dag openen in de agenda';
       naar.addEventListener('click', function () { if (actions.onJumpToDay) actions.onJumpToDay(date, true); });
       kop.appendChild(naar);
@@ -2186,7 +2224,7 @@ export function create(host, actions) {
       });
       box.appendChild(rij);
       if (tijden.length > zicht.length) {
-        var meer = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 12px ' + FONT, padding: '4px 0 0' }, 'Nog ' + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? ' tijd' : ' tijden'));
+        var meer = el('button', { border: '0', background: 'transparent', color: T.ink, cursor: 'pointer', font: '600 12px ' + FONT, padding: '4px 0 0' }, 'Nog ' + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? ' tijd' : ' tijden'));
         meer.type = 'button'; meer.setAttribute('data-meer-tijden', date);
         meer.addEventListener('click', function () { plan.open[date] = true; renderPagina(); });
         box.appendChild(meer);
@@ -2230,7 +2268,7 @@ export function create(host, actions) {
     var nav = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0 6px' });
     var pijl = function (tekst, delta, attr) {
       var verborgen = delta < 0 && plan.rasterWeek <= huidigeWeek;
-      var b = el('button', { border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '700 16px ' + FONT, padding: '0 6px', visibility: verborgen ? 'hidden' : 'visible' }, tekst);
+      var b = el('button', { border: '0', background: 'transparent', color: T.ink, cursor: 'pointer', font: '700 16px ' + FONT, padding: '0 6px', visibility: verborgen ? 'hidden' : 'visible' }, tekst);
       b.type = 'button'; b.setAttribute(attr, '');
       b.setAttribute('aria-label', delta < 0 ? 'Vorige week' : 'Volgende week');
       b.addEventListener('click', function () {
@@ -2375,17 +2413,29 @@ export function create(host, actions) {
 
   // Schakelaar uit het beheerscherm (state.features; ontbreekt = aan).
   function fAan(k) { return !(state && state.features && state.features[k] === false); }
+  // Teller bij Open registraties: wat je zelf al hebt opgehaald (min wat je
+  // hebt afgewerkt), anders wat de hulp vooraf heeft geladen. Onbekend = geen teller.
+  function openTeller() {
+    if (range.result) { var t = telOpen(range.result, range.afgewerkt || {}); return t.count - t.done; }
+    return state && state.openCount != null ? state.openCount : null;
+  }
   var navRouteAan = null;
+  function navSleutel() { return JSON.stringify((state && state.features) || {}) + (state && state.routeEnabled === false) + '|' + openTeller(); }
   function renderNav() {
-    navRouteAan = JSON.stringify((state && state.features) || {}) + (state && state.routeEnabled === false);
+    navRouteAan = navSleutel();
     navBox.innerHTML = '';
-    if (fAan('weekRatio')) navBox.appendChild(navCard(ICON_RATIO, 'Verhouding per uursoort', 'Direct, indirect en reistijd per cliëntgebonden uursoort', function () { naarPagina('verhouding'); }));
-    if (fAan('openRegistrations')) navBox.appendChild(navCard(ICON_RANGE, 'Open registraties', 'Controleer een periode op afspraken die nog niet geregistreerd zijn', function () { naarPagina('open'); }));
-    if (fAan('quickRegister')) navBox.appendChild(navCard(ICON_QUICK, 'Snel registreren', 'Registratieformulier openen met datum en tijd ingevuld', function () { naarPagina('snel'); }));
-    if (fAan('planner')) navBox.appendChild(navCard(ICON_PLAN, 'Planhulp', 'Vrije tijd vinden voor een afspraak in de komende weken', function () { naarPagina('plan'); }));
-    if (!(state && state.routeEnabled === false) && fAan('routeLink')) {
-      navBox.appendChild(navCard(ICON_ROUTE, 'Route van de dag', 'Je afspraken bij cliënten van een dag op volgorde in Google Maps', function () { naarPagina('route'); }));
-    }
+    var rijen = [];
+    if (fAan('openRegistrations')) rijen.push(['open', ICON_RANGE, 'Open registraties', function () { naarPagina('open'); }, openTeller()]);
+    if (fAan('planner')) rijen.push(['plan', ICON_PLAN, 'Planhulp', function () { naarPagina('plan'); }]);
+    if (fAan('quickRegister')) rijen.push(['snel', ICON_QUICK, 'Snel registreren', function () { naarPagina('snel'); }]);
+    if (!(state && state.routeEnabled === false) && fAan('routeLink')) rijen.push(['route', ICON_ROUTE, 'Route van de dag', function () { naarPagina('route'); }]);
+    if (fAan('weekRatio')) rijen.push(['verhouding', ICON_RATIO, 'Verhouding per uursoort', function () { naarPagina('verhouding'); }]);
+    if (!rijen.length) return;
+    navBox.appendChild(el('div', { fontSize: '12px', fontWeight: '700', color: T.inkSoft, margin: '0 2px 8px' }, 'Hulpmiddelen'));
+    var lijst = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' });
+    lijst.setAttribute('data-hulpmiddelen', '');
+    rijen.forEach(function (r, i) { lijst.appendChild(hulpRij(r[0], r[1], r[2], r[3], r[4], i === 0)); });
+    navBox.appendChild(lijst);
   }
 
   /* ── Navigatie tussen pagina's ── */
@@ -2432,9 +2482,11 @@ export function create(host, actions) {
     paginaBox.style.display = opHoofd ? 'none' : '';
     leaveBar.style.display = (opHoofd && !(state && state.leaveRequest === false)) ? '' : 'none';
     title.textContent = PAGINA_TITEL[pagina] || PAGINA_TITEL.hoofd;
+    terugPijl.style.display = opHoofd ? 'none' : 'inline-flex';
     info.style.background = pagina === 'info' ? T.brandWash : T.lineSoft;
     info.style.color = pagina === 'info' ? T.brand : T.inkSoft;
     renderPagina();
+    if (opHoofd && navSleutel() !== navRouteAan) renderNav();
     mainCol.scrollTop = 0;
     if (p === 'verhouding') { ratio.offset = 0; laadRatio(); }
     // Meteen tonen wat er (vooraf geladen) klaarstaat: geen knop nodig.
@@ -2453,22 +2505,15 @@ export function create(host, actions) {
     Object.assign(b.style, {
       display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px 6px 6px',
       borderRadius: '8px', cursor: disabled ? 'default' : 'pointer', border: '0', background: 'transparent',
-      color: disabled ? T.inkSoft : T.brand, font: '600 13px/1 ' + FONT
+      color: disabled ? T.inkSoft : T.ink, font: '600 13px/1 ' + FONT
     });
     b.appendChild(svgPath(icoon, 16));
     b.appendChild(document.createTextNode(tekst));
-    b.addEventListener('mouseenter', function () { if (!b.disabled) b.style.background = T.brandWash; });
+    b.addEventListener('mouseenter', function () { if (!b.disabled) b.style.background = T.lineSoft; });
     b.addEventListener('mouseleave', function () { b.style.background = 'transparent'; });
     focusRing(b);
     b.addEventListener('click', function (e) { e.preventDefault(); if (!b.disabled) onClick(); });
     return b;
-  }
-  function terugKnop() {
-    // Een vrij blok hoort bij de planhulp: terug naar die lijst.
-    var doel = pagina === 'maken' ? 'plan' : 'hoofd';
-    var back = tekstKnop(PIJL_TERUG, 'Terug', function () { naarPagina(doel); });
-    back.style.margin = '0 0 10px -6px';
-    return back;
   }
 
   /* ── Pagina's ── */
@@ -2526,13 +2571,18 @@ export function create(host, actions) {
 
   function pageClientTime() {
     var box = el('div');
-    box.appendChild(sectionHead('Opbouw ' + weekNaam(), true));
+    var wo = (state && state.week && state.week.opts) || {};
+    box.appendChild(sectionHead('Opbouw ' + weekNaam(), true, '', wo.headerHint || ''));
     liveHost = el('div');
     box.appendChild(liveHost);
     if (!fAan('production')) return box; // productieverloop uit (beheer)
 
-    box.appendChild(sectionHead('Productieverloop', false));
-    box.appendChild(txt('help', 'Directe, indirecte en reistijd per week in uren. Tot en met deze week uit je registraties, latere weken uit de planning (direct of indirect via het label). Hooguit 26 weken.', { margin: '0 0 10px' }));
+    box.appendChild(sectionHead('Productieverloop', false, 'uren per week'));
+    var pk = kaart();
+    box.appendChild(pk);
+    var buiten = box;
+    box = pk;   // de rest staat in de kaart
+    box.appendChild(txt('help', 'Tot en met deze week uit je registraties, latere weken uit de planning (gestippeld). Hooguit 26 weken.', { margin: '0 0 10px' }));
     var rij = el('div', { display: 'flex', gap: '8px' });
     var k = maakKiezers();
     rij.appendChild(fieldLabel('Van', k.datum(prod.from, function (v) { prod.from = v; })));
@@ -2569,7 +2619,7 @@ export function create(host, actions) {
         });
       }
     }
-    return box;
+    return buiten;
   }
 
   // Verhouding per uursoort, per week te bladeren. Deze en eerdere weken:
@@ -2594,12 +2644,12 @@ export function create(host, actions) {
     b.setAttribute('aria-label', label);
     b.title = label;
     Object.assign(b.style, {
-      width: '32px', height: '32px', borderRadius: '8px', border: '1px solid ' + T.line, background: '#fff',
-      color: T.brand, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'
+      width: '34px', height: '34px', borderRadius: '8px', border: '0', background: 'transparent',
+      color: T.ink, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'
     });
-    b.appendChild(svgPath(icoon, 18));
-    b.addEventListener('mouseenter', function () { b.style.borderColor = T.brand; });
-    b.addEventListener('mouseleave', function () { b.style.borderColor = T.line; });
+    b.appendChild(svgPath(icoon, 22));
+    b.addEventListener('mouseenter', function () { b.style.background = T.lineSoft; });
+    b.addEventListener('mouseleave', function () { b.style.background = 'transparent'; });
     focusRing(b);
     b.addEventListener('click', function (e) { e.preventDefault(); onClick(); });
     return b;
@@ -2624,13 +2674,14 @@ export function create(host, actions) {
     var box = el('div');
     var r0 = ratio.result;
     var doel = maandagVan(ratioDatum());
-    var nav = el('div', { display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 12px' });
-    nav.appendChild(bladerKnop('M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z', 'Vorige week', function () { ratio.offset--; laadRatio(); }));
+    // Weekkiezer als kaart: pijlen links en rechts, week en datums in het midden.
+    var nav = kaart({ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 6px', margin: '0 0 10px' });
+    nav.appendChild(bladerKnop(CHEV_LINKS, 'Vorige week', function () { ratio.offset--; laadRatio(); }));
     var midden = el('div', { flex: '1 1 auto', textAlign: 'center', minWidth: '0' });
     // Het weeknummer staat er meteen, ook tijdens het laden.
-    midden.appendChild(el('div', Object.assign({}, TYPE.section, { margin: '0' }), 'Week ' + ((r0 && r0.week) || isoWeek(doel) || '')));
+    midden.appendChild(el('div', { fontSize: '14px', fontWeight: '700', color: T.ink }, 'Week ' + ((r0 && r0.week) || isoWeek(doel) || '')));
     var sub = ratio.busy ? 'ophalen…' : (r0 ? (r0.mode === 'gepland' ? 'gepland' : 'geregistreerd') : '');
-    midden.appendChild(txt('help', (sub ? sub + ', ' : '') + 'vanaf ' + dayLabel(doel)));
+    midden.appendChild(txt('help', (sub ? sub + ', ' : '') + werkweekTekst(doel)));
     nav.appendChild(midden);
     nav.appendChild(bladerKnop(CHEV_RECHTS, 'Volgende week', function () { ratio.offset++; laadRatio(); }));
     box.appendChild(nav);
@@ -2653,36 +2704,40 @@ export function create(host, actions) {
     return v;
   }
   function rangeResultEl(r) {
-    var wrap = el('div', { marginTop: '14px' });
+    var wrap = el('div', { marginTop: '12px' });
     var t = telOpen(r, range.afgewerkt);
     if (!t.count) {
       wrap.appendChild(noteBox('Alles geregistreerd van ' + dayLabel(r.from) + ' t/m ' + dayLabel(r.to) + '.', 'ok'));
       return wrap;
     }
     // Kop: hoeveel er nog open staat en hoever de afwerklijst is.
-    var kop = el('div', { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', margin: '0 0 6px' });
+    // Samenvatting als kaart: hoeveel er nog open staat, te laat, en een balk.
+    var sam = kaart({ marginBottom: '12px' });
+    var kop = el('div', { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', margin: '0 0 8px' });
     var open = t.count - t.done;
-    kop.appendChild(txt('section', open ? (open + (open === 1 ? ' afspraak' : ' afspraken') + ' open, samen ' + fmtMin(t.openMinutes)) : 'Alles afgewerkt', { margin: '0' }));
+    kop.appendChild(el('div', { fontSize: '14.5px', fontWeight: '700', color: T.ink, margin: '0' }, open ? (open + (open === 1 ? ' afspraak' : ' afspraken') + ' open, samen ' + fmtMin(t.openMinutes)) : 'Alles afgewerkt'));
     if (t.late > 0) kop.firstChild.appendChild(tag('te laat: ' + t.late, 'bad'));
     var teller = txt('label', null, { flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: '4px', fontVariantNumeric: 'tabular-nums' });
     teller.appendChild(vinkje());
     teller.appendChild(document.createTextNode(t.done + ' van ' + t.count));
     teller.title = t.done + ' van ' + t.count + ' afgewerkt';
     kop.appendChild(teller);
-    wrap.appendChild(kop);
-    var spoor = el('div', { height: '4px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden', margin: '0 0 10px' });
+    sam.appendChild(kop);
+    wrap.appendChild(sam);
+    var spoor = el('div', { height: '6px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden', margin: '0' });
     spoor.setAttribute('role', 'progressbar');
     spoor.setAttribute('aria-label', 'Afgewerkt');
     spoor.setAttribute('aria-valuemin', '0'); spoor.setAttribute('aria-valuemax', String(t.count)); spoor.setAttribute('aria-valuenow', String(t.done));
     spoor.appendChild(el('div', { height: '100%', width: Math.round(t.done / t.count * 100) + '%', background: T.ok, transition: 'width .3s ease' }));
-    wrap.appendChild(spoor);
+    sam.appendChild(spoor);
 
-    var list = el('div', { display: 'flex', flexDirection: 'column', gap: '6px' });
+    var list = el('div', { display: 'flex', flexDirection: 'column', gap: '8px' });
     r.days.forEach(function (d) {
       var dagKlaar = d.items.every(function (it) { return range.afgewerkt[it.key]; });
       var card = clickCard(function () { if (actions.onJumpToDay) actions.onJumpToDay(d.date, true); }, 'Klik om naar deze dag te gaan');
+      card.style.padding = '10px 14px 6px';
       if (dagKlaar) card.style.background = T.okWash;
-      var head = el('div', { display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: '600', color: T.ink, marginBottom: '2px' });
+      var head = el('div', { display: 'flex', alignItems: 'center', fontSize: '13.5px', fontWeight: '700', color: T.ink, marginBottom: '4px' });
       if (dagKlaar) {
         var ok = svgSpineCheck(); ok.setAttribute('width', '13'); ok.setAttribute('height', '13');
         Object.assign(ok.style, { color: T.ok, marginRight: '6px', flex: '0 0 auto' });
@@ -2696,7 +2751,7 @@ export function create(host, actions) {
       card.appendChild(head);
       d.items.forEach(function (it) {
         var klaar = !!range.afgewerkt[it.key];
-        var row = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: klaar ? T.inkSoft : T.ink, marginTop: '4px', fontVariantNumeric: 'tabular-nums' });
+        var row = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: klaar ? T.inkSoft : T.ink, padding: '7px 0', borderTop: '1px solid ' + T.lineSoft, fontVariantNumeric: 'tabular-nums' });
         var dt = new Date(it.start);
         var tijd = el('span', { fontWeight: '600', flex: '0 0 auto', textDecoration: klaar ? 'line-through' : 'none' }, ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2));
         row.appendChild(tijd);
@@ -2722,21 +2777,24 @@ export function create(host, actions) {
 
   function pageOpen() {
     var box = el('div');
-    box.appendChild(txt('help', 'Haalt elke week in deze periode op bij ONS (hooguit 26 weken) en toont per dag welke afgelopen afspraken nog niet geregistreerd zijn.', { margin: '0 0 10px' }));
+    box.appendChild(txt('help', 'Afgelopen afspraken in deze periode die nog niet geregistreerd zijn (hooguit 26 weken).', { margin: '0 2px 10px' }));
+    // Periode en Controleren samen in één kaart.
+    var pk = kaart();
     var rij = el('div', { display: 'flex', gap: '8px' });
     var k = maakKiezers();
     rij.appendChild(fieldLabel('Van', k.datum(range.from, function (v) { range.from = v; })));
     rij.appendChild(fieldLabel('Tot en met', k.datum(range.to, function (v) { range.to = v; })));
-    box.appendChild(rij);
-    box.appendChild(k.host);
-    box.appendChild(primaryBtn(range.busy ? 'Bezig met controleren…' : 'Controleren', startRangeCheck, range.busy));
-    if (range.busy) box.appendChild(voortgang(range.done, range.total));
+    pk.appendChild(rij);
+    pk.appendChild(k.host);
+    pk.appendChild(primaryBtn(range.busy ? 'Bezig met controleren…' : 'Controleren', startRangeCheck, range.busy));
+    if (range.busy) pk.appendChild(voortgang(range.done, range.total));
+    box.appendChild(pk);
     if (range.error) box.appendChild(noteBox(range.error, 'bad'));
     if (range.result && !range.busy) {
       // Afwerklijst bijwerken: gebeurt vanzelf als je terugkomt in het
       // zijpaneel; deze knop doet het meteen.
       box.appendChild(rangeResultEl(range.result));
-      var voet = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '8px' });
+      var voet = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', margin: '12px 2px 0' });
       voet.appendChild(txt('help', 'Registreer je een afspraak of zet je hem op \u2018niet registreren\u2019, dan wordt hij hier afgevinkt.', { flex: '1 1 auto' }));
       var bij = tekstKnop(ICON_VERVERS, range.bijwerken ? 'Bijwerken…' : 'Bijwerken', function () { hercontrole(); }, range.bijwerken);
       bij.style.flex = '0 0 auto';
@@ -2747,8 +2805,11 @@ export function create(host, actions) {
   }
 
   function pageQuick() {
-    var box = el('div');
-    box.appendChild(txt('help', 'Opent het registratieformulier van ONS met deze tijden ingevuld. Registreer je een afspraak? Open dan de afspraak zelf, zodat de registratie eraan gekoppeld wordt.', { margin: '0 0 10px' }));
+    var buiten = el('div');
+    buiten.appendChild(txt('help', 'Opent het registratieformulier van ONS met datum en tijd ingevuld. Voor een afspraak: open de afspraak zelf, dan wordt de registratie eraan gekoppeld.', { margin: '0 2px 10px' }));
+    // Datum, begintijd en duur in één kaart; onderin wat er geopend wordt.
+    var box = kaart();
+    buiten.appendChild(box);
     var k = maakKiezers();
     var rij = el('div', { display: 'flex', gap: '8px' });
     rij.appendChild(fieldLabel('Datum', k.datum(quick.date, function (v) { quick.date = v; quick.overlap = ''; })));
@@ -2774,14 +2835,27 @@ export function create(host, actions) {
     // Duur als chips; 'Anders' voor een eigen aantal minuten.
     rij2.appendChild(fieldLabel('Duur', duurKiezer()));
     box.appendChild(rij2);
-    if (quick.overlap) {
-      box.appendChild(noteBox(quick.overlap, 'warn'));
-      box.appendChild(primaryBtn(quick.busy ? 'Openen…' : 'Toch openen', function () { startQuickRegister(true); }, quick.busy));
-    } else {
-      box.appendChild(primaryBtn(quick.busy ? 'Controleren…' : 'Formulier openen', function () { startQuickRegister(false); }, quick.busy));
+    var tm = /^(\d{1,2}):(\d{2})$/.exec(String(quick.time || '')), mins = parseInt(quick.minutes, 10);
+    if (quick.date && tm && mins > 0) {
+      var start = (+tm[1]) * 60 + (+tm[2]);
+      var sam = el('div', { display: 'flex', justifyContent: 'space-between', gap: '8px', margin: '14px -14px -12px', padding: '10px 14px', borderTop: '1px solid ' + T.line, fontSize: '13px' });
+      sam.setAttribute('data-snel-samenvatting', '');
+      sam.appendChild(el('span', { color: T.inkSoft }, dagLang(quick.date)));
+      sam.appendChild(el('span', { fontWeight: '700', color: T.ink, whiteSpace: 'nowrap' }, vanTot(start, start + mins).replace(/^van /, '')));
+      box.appendChild(sam);
     }
-    if (quick.error) box.appendChild(noteBox(quick.error, 'bad'));
-    return box;
+    if (quick.overlap) buiten.appendChild(noteBox(quick.overlap, 'warn'));
+    if (quick.error) buiten.appendChild(noteBox(quick.error, 'bad'));
+    return buiten;
+  }
+  // De knop staat vast onderaan (zoals Verlof aanvragen op het startscherm).
+  function snelBalk() {
+    var balk = el('div', { background: '#fff', padding: '12px', borderTop: '1px solid ' + T.line });
+    balk.appendChild(quick.overlap
+      ? primaryBtn(quick.busy ? 'Openen…' : 'Toch openen', function () { startQuickRegister(true); }, quick.busy)
+      : primaryBtn(quick.busy ? 'Controleren…' : 'Formulier openen', function () { startQuickRegister(false); }, quick.busy));
+    balk.firstChild.style.marginTop = '0';
+    return balk;
   }
 
   // Wat ONS' eigen overlapcontrole zegt over het gekozen tijdstip. Vraagt het
@@ -2816,32 +2890,38 @@ export function create(host, actions) {
   function pageRoute() {
     var box = el('div');
     var rt = BEWAARD.route;
-    box.appendChild(txt('help', 'Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. \u2018Route openen\u2019 opent Google Maps met alle adressen; die gaan dan naar Google, net als met de kaartlink in het detailvenster van ONS.', { margin: '0 0 10px' }));
+    box.appendChild(txt('help', 'Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. \u2018Route openen\u2019 opent Google Maps; de adressen gaan dan naar Google, net als met de kaartlink in ONS.', { margin: '0 2px 10px' }));
+    // Dag en vertrekpunt naast elkaar in één kaart.
+    var vk = kaart();
+    var vrij = el('div', { display: 'flex', gap: '8px' });
     var k = maakKiezers();
-    box.appendChild(fieldLabel('Dag', k.datum(rt.date, function (v) { rt.date = v; rt.result = null; rt.busy = false; startRoute(); })));
-    box.appendChild(k.host);
+    vrij.appendChild(fieldLabel('Dag', k.datum(rt.date, function (v) { rt.date = v; rt.result = null; rt.busy = false; startRoute(); })));
     var vertrek = inputEl('text', leesVertrek(), function () {});
-    vertrek.placeholder = 'Bijv. kantooradres (optioneel)';
+    vertrek.placeholder = 'Bijv. kantoor (optioneel)';
     vertrek.setAttribute('data-vertrekpunt', '');
     vertrek.addEventListener('change', function () { bewaarVertrek(vertrek.value.trim()); rt.result = null; startRoute(); });
-    var vLab = fieldLabel('Vertrekpunt', vertrek);
-    vLab.style.marginTop = '10px';
-    box.appendChild(vLab);
+    vrij.appendChild(fieldLabel('Vertrekpunt', vertrek));
+    vk.appendChild(vrij);
+    vk.appendChild(k.host);
+    box.appendChild(vk);
     if (rt.busy) { zorgVoorStijl(); var lb = laadBalk(); lb.style.marginTop = '12px'; box.appendChild(lb); }
     if (rt.error) box.appendChild(noteBox(rt.error, 'bad'));
     var r = rt.result;
     if (r && !rt.busy) {
       (r.persons || []).forEach(function (p, i) {
-        var blok = el('div', { marginTop: '14px', paddingTop: i ? '12px' : '0', borderTop: i ? '1px solid ' + T.line : '0' });
+        var blok = el('div');
         blok.setAttribute('data-route-persoon', p.id || '');
-        if (p.name) blok.appendChild(txt('section', p.name));
-        if (!p.stops.length) { blok.appendChild(txt('help', 'Geen afspraken bij cliënten op ' + dayLabel(r.date) + '.')); box.appendChild(blok); return; }
-        var lijst = el('div', { display: 'flex', flexDirection: 'column', gap: '4px', margin: '6px 0 0' });
+        var aantal = p.stops.length;
+        blok.appendChild(sectionHead(p.name || (aantal === 1 ? '1 huisbezoek' : aantal + ' huisbezoeken'), false, p.name ? (aantal === 1 ? '1 huisbezoek' : aantal + ' huisbezoeken') : 'op volgorde van tijd'));
+        if (!p.stops.length) { blok.appendChild(txt('help', 'Geen afspraken bij cliënten op ' + dayLabel(r.date) + '.', { margin: '0 2px' })); box.appendChild(blok); return; }
+        // De bezoeken als genummerde lijst in een kaart, in de kleur van Route.
+        var lijst = kaart({ padding: '0 14px' });
+        var routeKleur = HULP_KLEUR.route[0];
         p.stops.forEach(function (st, j) {
-          var rij = el('div', { display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '13px', color: T.ink, padding: '6px 0', borderBottom: '1px solid ' + T.lineSoft });
-          rij.appendChild(el('span', { flex: '0 0 auto', width: '18px', height: '18px', borderRadius: '9px', background: st.address ? T.brand : T.line, color: '#fff', fontSize: '11px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }, String(j + 1)));
-          rij.appendChild(el('span', { flex: '0 0 44px', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }, st.start));
-          rij.appendChild(st.address ? el('span', { flex: '1 1 auto' }, st.address) : el('span', { flex: '1 1 auto', color: T.warn }, 'Adres onbekend'));
+          var rij = el('div', { display: 'flex', gap: '12px', alignItems: 'center', fontSize: '13px', color: T.ink, minHeight: '46px', padding: '6px 0', boxSizing: 'border-box', borderTop: j ? '1px solid ' + T.lineSoft : '0' });
+          rij.appendChild(el('span', { flex: '0 0 auto', width: '24px', height: '24px', borderRadius: '12px', background: st.address ? routeKleur : T.line, color: '#fff', fontSize: '12px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }, String(j + 1)));
+          rij.appendChild(el('span', { flex: '0 0 40px', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }, st.start));
+          rij.appendChild(st.address ? el('span', { flex: '1 1 auto', minWidth: '0' }, st.address) : el('span', { flex: '1 1 auto', color: T.warn }, 'Adres onbekend'));
           lijst.appendChild(rij);
         });
         blok.appendChild(lijst);
@@ -2940,28 +3020,40 @@ export function create(host, actions) {
 
   function pageInfo() {
     var box = el('div');
-    box.appendChild(txt('help', 'Gebruik de Agendahulp voor een duidelijk agenda-overzicht.', { margin: '0 0 12px' }));
-    box.appendChild(sectionHead('Legenda (' + ((state && state.windowLabel) || '08:00 tot 17:00') + ')', true));
-    var wrap = el('div', { display: 'flex', flexDirection: 'column', gap: '6px' });
-    ((state && state.legend) || []).forEach(function (item) {
-      var row = el('div', { display: 'flex', alignItems: 'center', gap: '8px' });
-      row.appendChild(el('span', { width: '12px', height: '12px', borderRadius: '4px', background: item.color, border: '1px solid rgba(0,0,0,.12)', flex: '0 0 auto' }));
-      row.appendChild(el('span', TYPE.text, item.text));
-      wrap.appendChild(row);
-    });
-    box.appendChild(wrap);
+    box.appendChild(txt('help', 'Gebruik de Agendahulp voor een duidelijk agenda-overzicht.', { margin: '0 2px 12px' }));
+    // Legenda, rondleidingen en versie als lijsten, zoals op het startscherm.
+    var lijstKaart = function () { return el('div', { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' }); };
+    var regel = function (eerste) { return el('div', { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '0 12px', borderTop: eerste ? '0' : '1px solid ' + T.line, fontSize: '13.5px', color: T.ink }); };
+    var legenda = (state && state.legend) || [];
+    box.appendChild(sectionHead('Legenda', true, (state && state.windowLabel) || '08:00 tot 17:00'));
+    if (legenda.length) {
+      var lk = lijstKaart();
+      legenda.forEach(function (item, i) {
+        var row = regel(i === 0);
+        row.appendChild(el('span', { width: '16px', height: '16px', borderRadius: '5px', background: item.color, border: '1px solid rgba(0,0,0,.08)', flex: '0 0 auto' }));
+        row.appendChild(el('span', { fontWeight: '600' }, item.text));
+        lk.appendChild(row);
+      });
+      box.appendChild(lk);
+    }
     box.appendChild(sectionHead('Rondleiding'));
-    var rl = el('div', { display: 'flex', flexDirection: 'column', gap: '8px' });
-    var r1 = secondaryBtn('Rondleiding zijpaneel', function () { startHoofdRondleiding(); });
+    var rl = lijstKaart();
+    var r1 = hulpRij('info', ICON_HELP, 'Rondleiding zijpaneel', function () { startHoofdRondleiding(); }, null, true);
     r1.setAttribute('data-info-rondleiding', 'zijpaneel');
     rl.appendChild(r1);
     if (fAan('planner')) {
-      var r2 = secondaryBtn('Rondleiding Planhulp', function () { naarPagina('plan'); startPlanRondleiding(); });
+      var r2 = hulpRij('plan', ICON_PLAN, 'Rondleiding Planhulp', function () { naarPagina('plan'); startPlanRondleiding(); });
       r2.setAttribute('data-info-rondleiding', 'planhulp');
       rl.appendChild(r2);
     }
     box.appendChild(rl);
-    box.appendChild(txt('help', 'Versie ' + ((state && state.version) || ''), { marginTop: '14px', paddingTop: '10px', borderTop: '1px solid ' + T.line }));
+    box.appendChild(sectionHead('Over'));
+    var ov = lijstKaart();
+    var vr = regel(true);
+    vr.appendChild(el('span', { flex: '1 1 auto', fontWeight: '600' }, 'Versie'));
+    vr.appendChild(el('span', { color: T.inkSoft, fontVariantNumeric: 'tabular-nums' }, (state && state.version) || ''));
+    ov.appendChild(vr);
+    box.appendChild(ov);
     return box;
   }
 
@@ -2973,6 +3065,7 @@ export function create(host, actions) {
     balkHost.innerHTML = '';
     if (pagina === 'plan' && BEWAARD.momenten.length) balkHost.appendChild(momentenBalk());
     if (pagina === 'maken' && BEWAARD.maak) balkHost.appendChild(maakBalk());
+    if (pagina === 'snel') balkHost.appendChild(snelBalk());
   }
   function renderPagina() {
     losKoppelen();
@@ -2981,14 +3074,14 @@ export function create(host, actions) {
     if (pagina === 'hoofd') return;
     vulStandaarden();
     if (pagina === 'plan' && fAan('planner')) {
-      var kopRij = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between' });
-      kopRij.appendChild(terugKnop());
+      var kopRij = el('div', { display: 'flex', justifyContent: 'flex-end', margin: '-6px -6px 4px 0' });
       var rk = tekstKnop(ICON_HELP, 'Rondleiding', function () { startPlanRondleiding(); });
       rk.setAttribute('data-plan-rondleiding', '');
       rk.title = 'Rondleiding door de Planhulp';
+      rk.style.color = T.inkSoft;
       kopRij.appendChild(rk);
       paginaBox.appendChild(kopRij);
-    } else paginaBox.appendChild(terugKnop());
+    }
     var inhoud = pagina === 'clienttijd' ? pageClientTime()
       : pagina === 'verhouding' ? pageRatio()
       : pagina === 'open' ? pageOpen()
@@ -3003,7 +3096,7 @@ export function create(host, actions) {
 
   /* ── Rondleidingen ── */
   function welkomIcoon(d) { return function () { var i = svgPath(d, 24); i.style.color = T.brand; return i; }; }
-  function navKaart(t) { return Array.prototype.filter.call(navBox.children, function (c) { return String(c.textContent || '').indexOf(t) === 0; })[0] || null; }
+  function navKaart(t) { return Array.prototype.filter.call(navBox.querySelectorAll('[data-hulp]'), function (c) { return String(c.textContent || '').indexOf(t) === 0; })[0] || null; }
   function opHoofd() { if (pagina !== 'hoofd') naarPagina('hoofd'); }
   function startHoofdRondleiding() {
     opHoofd();
@@ -3012,7 +3105,7 @@ export function create(host, actions) {
       stappen: [
         { titel: 'Welkom bij Agendahulp', tekst: 'In een paar stappen laten we zien wat het zijpaneel voor je doet. Het duurt nog geen minuut.', knop: 'Rondleiding starten', voor: opHoofd },
         { titel: 'Aan of uit', tekst: 'Hiermee zet je de hulp in ONS aan of uit. Staat hij uit, dan werkt ONS gewoon zoals altijd.', voor: opHoofd, vind: function () { return onoff; } },
-        { titel: 'Je week in één oogopslag', tekst: 'Cliënttijd en niet-cliënttijd van de week die je in ONS bekijkt. Tik op Cliënttijd voor de verdeling per uursoort.', voor: opHoofd, vind: function () { return weekBox; } },
+        { titel: 'Je week in één oogopslag', tekst: 'Cliënttijd en niet-cliënttijd van de week die je in ONS bekijkt, met direct, indirect en reistijd. Onderin vind je de opbouw en het productieverloop.', voor: opHoofd, vind: function () { return weekBox; } },
         { titel: 'Open registraties', tekst: 'Controleer een periode op afspraken die nog niet geregistreerd zijn en werk ze één voor één af.', voor: opHoofd, vind: function () { return navKaart('Open registraties'); } },
         { titel: 'Planhulp', tekst: 'Vind vrije tijd voor een afspraak, kies een of meer momenten en maak de afspraak meteen in ONS. De eerste keer krijg je daar een eigen rondleiding.', voor: opHoofd, vind: function () { return navKaart('Planhulp'); } },
         { titel: 'Route van de dag', tekst: 'Je huisbezoeken van een dag op volgorde in Google Maps. Met een QR-code zet je de route op je telefoon.', voor: opHoofd, vind: function () { return navKaart('Route van de dag'); } },
@@ -3227,8 +3320,7 @@ export function create(host, actions) {
       }
       if (inv) BEWAARD.inviteeId = inv;
       // Knoppen opnieuw als de beheerschakelaar voor de route verandert.
-      var routeAan = JSON.stringify((state && state.features) || {}) + (state && state.routeEnabled === false);
-      if (routeAan !== navRouteAan) renderNav();
+      if (navSleutel() !== navRouteAan) renderNav();
       render();
       // Alleen bijwerken als er echt iets in de agenda veranderde.
       vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : '';

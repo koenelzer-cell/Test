@@ -378,6 +378,8 @@ test('vooraf laden: een lopende berekening wordt gedeeld, met voortgang; vers ha
   assert.equal(aanroepen, 2, 'niet dubbel opgehaald');
   assert.deepEqual(voortgang, ['1/2', '2/2'], 'voortgang ook voor wie later aanhaakt');
   assert.equal(api.isCached('open', '2026-09-28|2026-10-07'), true);
+  assert.equal(api.openAantal('2026-09-28', '2026-10-07'), 0, 'aantal open voor de teller op het startscherm');
+  assert.equal(api.openAantal('2026-01-01', '2026-01-31'), null, 'niet opgehaald: onbekend (geen teller)');
   await api.cachedOpenRange('2026-09-28', '2026-10-07');
   assert.equal(aanroepen, 2, 'uit het geheugen');
   await api.cachedOpenRange('2026-09-28', '2026-10-07', null, true);

@@ -11220,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.259";
+      return "1.6.260";
     }
   }();
 
@@ -13861,10 +13861,22 @@
     _cache[k] = nieuw;
     return nieuw.promise;
   }
+  var _openAantal = /* @__PURE__ */ Object.create(null);
   function cachedOpenRange(from, to, onProgress, vers) {
+    const k = idsSleutel() + "|" + from + "|" + to;
     return onthouden("open", from + "|" + to, function(p) {
-      return checkOpenRange(from, to, p);
+      return checkOpenRange(from, to, p).then(function(r) {
+        _openAantal[k] = (r && r.days || []).reduce(function(t, d) {
+          return t + (d && d.items || []).length;
+        }, 0);
+        return r;
+      });
     }, onProgress, vers);
+  }
+  function openAantal(from, to) {
+    if (!isCached("open", from + "|" + to)) return null;
+    const n = _openAantal[idsSleutel() + "|" + from + "|" + to];
+    return n == null ? null : n;
   }
   function cachedProduction(from, to, onProgress) {
     return onthouden("productie", from + "|" + to, function(p) {
@@ -14132,6 +14144,9 @@
       inviteeIds: currentInviteeIds().slice().sort().join(","),
       // Standaardperiode voor 'Open registraties controleren'.
       rangeDefaultFrom: defaultRangeFrom(),
+      // Aantal open registraties in die periode, als de lijst al is opgehaald
+      // (anders null: dan geen teller op het startscherm).
+      openCount: openAantal(defaultRangeFrom(), agendaYmd(/* @__PURE__ */ new Date())),
       productionDefaultFrom: defaultProductionFrom(),
       productionDefaultTo: defaultProductionTo(),
       // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.
@@ -15900,6 +15915,7 @@
       parseHolidays,
       mergeOpenRangePerPersoon,
       cachedOpenRange,
+      openAantal,
       isCached,
       cachedFreeSlots,
       forgetFreeSlots,

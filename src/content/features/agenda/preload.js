@@ -59,8 +59,22 @@ function onthouden(soort, sleutel, werk, onProgress, vers) {
   return nieuw.promise;
 }
 
+// Aantal open afspraken per periode (voor de teller op het startscherm van
+// het zijpaneel): alleen als de lijst er al is, nooit een extra controle.
+const _openAantal = Object.create(null);
 export function cachedOpenRange(from, to, onProgress, vers) {
-  return onthouden('open', from + '|' + to, function (p) { return checkOpenRange(from, to, p); }, onProgress, vers);
+  const k = idsSleutel() + '|' + from + '|' + to;
+  return onthouden('open', from + '|' + to, function (p) {
+    return checkOpenRange(from, to, p).then(function (r) {
+      _openAantal[k] = ((r && r.days) || []).reduce(function (t, d) { return t + ((d && d.items) || []).length; }, 0);
+      return r;
+    });
+  }, onProgress, vers);
+}
+export function openAantal(from, to) {
+  if (!isCached('open', from + '|' + to)) return null;
+  const n = _openAantal[idsSleutel() + '|' + from + '|' + to];
+  return n == null ? null : n;
 }
 export function cachedProduction(from, to, onProgress) {
   return onthouden('productie', from + '|' + to, function (p) { return computeProduction(from, to, p); }, onProgress);

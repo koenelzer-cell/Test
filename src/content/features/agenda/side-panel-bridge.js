@@ -13,7 +13,7 @@ import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
 import { defaultRangeFrom } from './open-range.js';
 import { defaultProductionFrom } from './production.js';
-import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached } from './preload.js';
+import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached, openAantal } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { searchClientsForPlan } from './client-lookup.js';
@@ -99,6 +99,9 @@ function agPanelState() {
     inviteeIds: currentInviteeIds().slice().sort().join(','),
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
+    // Aantal open registraties in die periode, als de lijst al is opgehaald
+    // (anders null: dan geen teller op het startscherm).
+    openCount: openAantal(defaultRangeFrom(), agendaYmd(new Date())),
     productionDefaultFrom: defaultProductionFrom(),
     productionDefaultTo: defaultProductionTo(),
     // Markering van niet-cliënturen, voor de uitleg op de pagina 'Verhouding per uursoort'.

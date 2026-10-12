@@ -120,10 +120,20 @@ per collega, en bij open registraties de naam bij elke afspraak.
 Het lipje aan de rechterrand opent het zijpaneel. In rust tikt de pijl af en toe
 even naar links; bij het verschijnen schuift het lipje uit de rand.
 
-De hoofdpagina toont de status en het weekoverzicht. Alles wat verder gaat, opent
-als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
+De hoofdpagina toont het weekoverzicht en de hulpmiddelen. Het weekoverzicht is
+één kaart: 'Week 41' met de datums en het label geregistreerd of gepland, de
+cliënttijd groot, niet-cliënttijd en totaal klein rechts, een balk met direct,
+indirect en reistijd, en onderin 'Opbouw en productieverloop'. Daaronder de
+hulpmiddelen als één lijst (Open registraties, Planhulp, Snel registreren, Route
+van de dag, Verhouding per uursoort), elk met een eigen kleur; bij Open
+registraties een teller zodra het aantal bekend is (vooraf geladen, nooit een
+extra controle). Alles wat verder gaat, opent als eigen pagina in het zijpaneel,
+met een terugpijl in de kop. Overal dezelfde stijl: kopjes boven witte kaarten,
+roze alleen voor de hoofdknop, gekozen opties en tellers, links in tekstkleur.
+Direct, indirect en reistijd hebben overal dezelfde kleuren (blauwgrijs, oud roze
+en oker).
 
-- **Cliënttijd** (klik op de cliënttijd in het weekoverzicht): de opbouw van de
+- **Cliënttijd** (via 'Opbouw en productieverloop' in het weekoverzicht): de opbouw van de
   week (direct, indirect, reistijd, niet-cliënttijd) en het **productieverloop**:
   kies een periode (standaard acht weken terug tot vier weken vooruit, hooguit
   26) en zie directe, indirecte en reistijd per week als lijngrafiek, met de
