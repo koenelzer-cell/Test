@@ -149,6 +149,13 @@ en oker).
   niet geregistreerd zijn. Dit is een afwerklijst: registreer je een afspraak of
   zet je hem op *niet registreren*, dan wordt hij vanzelf afgevinkt zodra de
   agenda dat laat zien. De lijst blijft bewaard zolang het zijpaneel open is.
+  Bij elke open afspraak een knop **Registreren**: de hulp gaat in ONS naar de
+  dag, opent de afspraak en klikt op de knop Registreren van ONS, zodat het
+  verder gaat zoals altijd (geen eigen weg naar het registratiescherm). Lukt
+  dat niet, dan staat er bij die afspraak wat er aan de hand is.
+- **Route van de dag**: reageert ONS niet, dan geen technische melding maar
+  "De agenda is even niet bereikbaar" met een knop **ONS-pagina herladen**; geen
+  huisbezoeken op die dag geeft een rustige lege melding.
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.

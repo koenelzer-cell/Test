@@ -45,6 +45,8 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
+    AGENDA_REGISTER_ITEM: "ag-register-item",
+    // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
@@ -2796,6 +2798,44 @@
       h.appendChild(el("span", { fontSize: "11px", fontWeight: "600", color: T.inkSoft, background: T.lineSoft, borderRadius: "6px", padding: "1px 7px", whiteSpace: "nowrap" }, label));
     }
     return h;
+  }
+  function foutStaat(o) {
+    var w = el("div", { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 18px 20px" });
+    w.setAttribute("data-staat", "");
+    var kl = o.kleur || [T.brand, T.brandWash];
+    var ic = el("div", { width: "64px", height: "64px", borderRadius: "20px", background: kl[1], color: kl[0], display: "flex", alignItems: "center", justifyContent: "center" });
+    ic.appendChild(svgPath(o.icoon, 30));
+    w.appendChild(ic);
+    w.appendChild(el("div", { fontSize: "15px", fontWeight: "700", color: T.ink, marginTop: "12px" }, o.titel));
+    if (o.tekst) w.appendChild(el("div", { fontSize: "12.5px", color: T.inkSoft, marginTop: "4px", maxWidth: "280px", lineHeight: "1.45" }, o.tekst));
+    if (o.knop && o.onKnop) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("data-staat-knop", "");
+      Object.assign(b.style, {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "7px",
+        height: "38px",
+        padding: "0 18px",
+        marginTop: "14px",
+        border: "0",
+        borderRadius: "10px",
+        background: T.brand,
+        color: "#fff",
+        font: "700 13px " + FONT,
+        cursor: "pointer"
+      });
+      if (o.knopIcoon) b.appendChild(svgPath(o.knopIcoon, 16));
+      b.appendChild(document.createTextNode(o.knop));
+      focusRing(b);
+      b.addEventListener("click", function(e) {
+        e.preventDefault();
+        o.onKnop();
+      });
+      w.appendChild(b);
+    }
+    return w;
   }
   function kaart(extra) {
     return el("div", Object.assign({ border: "1px solid " + T.line, borderRadius: "12px", background: "#fff", padding: "12px 14px", boxSizing: "border-box" }, extra || {}));
@@ -6329,6 +6369,48 @@
       Object.assign(v.style, { color: T.ok, flex: "0 0 auto", width: "14px", height: "14px" });
       return v;
     }
+    function itemId(it) {
+      var m = /^(?:[^:|]+:)?([\w-]+)\|/.exec(String(it.key || ""));
+      return m && m[1] !== "x" ? m[1] : "";
+    }
+    function registreerKnop(it, date) {
+      var id = itemId(it);
+      if (!id || !actions.onRegisterItem) return null;
+      var bezig = range.regBezig === it.key;
+      var b = el("button", {
+        flex: "0 0 auto",
+        height: "26px",
+        padding: "0 10px",
+        border: "0",
+        borderRadius: "7px",
+        background: bezig ? "#d9c2cf" : T.brand,
+        color: "#fff",
+        font: "700 11.5px " + FONT,
+        cursor: bezig ? "default" : "pointer",
+        whiteSpace: "nowrap"
+      }, bezig ? "Openen…" : "Registreren");
+      b.type = "button";
+      b.setAttribute("data-registreer", it.key);
+      b.title = "Afspraak openen in ONS en registreren";
+      focusRing(b);
+      b.addEventListener("keydown", function(e) {
+        e.stopPropagation();
+      });
+      b.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (range.regBezig) return;
+        range.regBezig = it.key;
+        range.regFout = null;
+        if (pagina === "open") renderPagina();
+        actions.onRegisterItem(id, date, function(res) {
+          range.regBezig = null;
+          if (!(res && res.ok)) range.regFout = { key: it.key, error: res && res.error || "Openen mislukt." };
+          if (pagina === "open") renderPagina();
+        });
+      });
+      return b;
+    }
     function rangeResultEl(r) {
       var wrap = el("div", { marginTop: "12px" });
       var t = telOpen(r, range.afgewerkt);
@@ -6399,8 +6481,15 @@
             row.appendChild(v);
           } else {
             row.appendChild(tag(it.client ? "cliënt" : "overig", it.client ? "ok" : null));
+            var rk = registreerKnop(it, d.date);
+            if (rk) row.appendChild(rk);
           }
           card.appendChild(row);
+          if (range.regFout && range.regFout.key === it.key) {
+            var nf = noteBox(range.regFout.error, "warn");
+            nf.style.margin = "2px 0 6px";
+            card.appendChild(nf);
+          }
         });
         list.appendChild(card);
       });
@@ -6539,6 +6628,7 @@
       actions.onDayRoute(rt.date, leesVertrek(), function(res) {
         if (BEWAARD.route !== rt || rt.date !== voor) return;
         rt.busy = false;
+        rt.geenAntwoord = !!(res && res.geenAntwoord);
         if (res && res.ok && res.result) rt.result = res.result;
         else {
           rt.result = null;
@@ -6579,7 +6669,37 @@
         lb.style.marginTop = "12px";
         box.appendChild(lb);
       }
-      if (rt.error) box.appendChild(noteBox(rt.error, "bad"));
+      if (rt.error && !rt.busy) {
+        box.appendChild(rt.geenAntwoord ? foutStaat({
+          icoon: ICON_ROUTE,
+          kleur: HULP_KLEUR.route,
+          titel: "De agenda is even niet bereikbaar",
+          tekst: "ONS reageert niet op de extensie. Meestal helpt het om de ONS-pagina te herladen.",
+          knop: "ONS-pagina herladen",
+          knopIcoon: ICON_VERVERS,
+          onKnop: function() {
+            rt.error = "";
+            rt.busy = true;
+            renderPagina();
+            if (actions.onReloadTab) actions.onReloadTab();
+            setTimeout(function() {
+              rt.busy = false;
+              if (pagina === "route" && !rt.result) startRoute();
+            }, 4e3);
+          }
+        }) : foutStaat({
+          icoon: ICON_ROUTE,
+          kleur: HULP_KLEUR.route,
+          titel: "De route ophalen lukt niet",
+          tekst: rt.error,
+          knop: "Opnieuw proberen",
+          knopIcoon: ICON_VERVERS,
+          onKnop: function() {
+            rt.error = "";
+            startRoute();
+          }
+        }));
+      }
       var r = rt.result;
       if (r && !rt.busy) {
         (r.persons || []).forEach(function(p, i) {
@@ -6588,7 +6708,11 @@
           var aantal = p.stops.length;
           blok.appendChild(sectionHead(p.name || (aantal === 1 ? "1 huisbezoek" : aantal + " huisbezoeken"), false, p.name ? aantal === 1 ? "1 huisbezoek" : aantal + " huisbezoeken" : "op volgorde van tijd"));
           if (!p.stops.length) {
-            blok.appendChild(txt("help", "Geen afspraken bij cliënten op " + dayLabel(r.date) + ".", { margin: "0 2px" }));
+            if ((r.persons || []).length > 1) blok.appendChild(txt("help", "Geen afspraken bij cliënten op " + dayLabel(r.date) + ".", { margin: "0 2px" }));
+            else {
+              blok.innerHTML = "";
+              blok.appendChild(foutStaat({ icoon: ICON_ROUTE, kleur: HULP_KLEUR.route, titel: "Geen huisbezoeken", tekst: "Geen afspraken bij cliënten op " + dagLang(r.date).toLowerCase() + ". Kies hierboven een andere dag." }));
+            }
             box.appendChild(blok);
             return;
           }
@@ -7515,13 +7639,13 @@
     try {
       chrome.tabs.sendMessage(onsTabId, msg, function(res) {
         if (chrome.runtime.lastError || !res) {
-          cb({ ok: false, error: "De ONS-pagina reageert niet. Herlaad de pagina en probeer het opnieuw." });
+          cb({ ok: false, geenAntwoord: true, error: "De ONS-pagina reageert niet. Herlaad de pagina en probeer het opnieuw." });
           return;
         }
         cb(res);
       });
     } catch (e) {
-      cb({ ok: false, error: "De ONS-pagina reageert niet." });
+      cb({ ok: false, geenAntwoord: true, error: "De ONS-pagina reageert niet." });
     }
   }
   var agendaActies = {
@@ -7567,6 +7691,17 @@
     onReloadAgenda: function() {
       vraagAanTab({ type: MSG.AGENDA_RELOAD }, function() {
       });
+    },
+    // Het ONS-tabblad zelf herladen (ook als het content-script niet meer antwoordt).
+    onReloadTab: function() {
+      if (onsTabId == null) return;
+      try {
+        chrome.tabs.reload(onsTabId);
+      } catch (e) {
+      }
+    },
+    onRegisterItem: function(id, date, cb) {
+      vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id, date }, cb);
     },
     onClientSearch: function(term, cb, outOfCare) {
       vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term, outOfCare: !!outOfCare }, cb);

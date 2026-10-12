@@ -52,10 +52,10 @@ function vraagAanTab(msg, cb) {
   if (onsTabId == null) { cb({ ok: false, error: 'Geen ONS-tabblad gevonden.' }); return; }
   try {
     chrome.tabs.sendMessage(onsTabId, msg, function (res) {
-      if (chrome.runtime.lastError || !res) { cb({ ok: false, error: 'De ONS-pagina reageert niet. Herlaad de pagina en probeer het opnieuw.' }); return; }
+      if (chrome.runtime.lastError || !res) { cb({ ok: false, geenAntwoord: true, error: 'De ONS-pagina reageert niet. Herlaad de pagina en probeer het opnieuw.' }); return; }
       cb(res);
     });
-  } catch (e) { cb({ ok: false, error: 'De ONS-pagina reageert niet.' }); }
+  } catch (e) { cb({ ok: false, geenAntwoord: true, error: 'De ONS-pagina reageert niet.' }); }
 }
 
 /* ── De twee panelen ───────────────────────────────────────────────────── */
@@ -79,6 +79,9 @@ const agendaActies = {
   onEventOptions: function (clientIds, cb) { vraagAanTab({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, cb); },
   onCreateEvents: function (events, cb) { vraagAanTab({ type: MSG.AGENDA_CREATE_EVENTS, events: events }, cb); },
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },
+  // Het ONS-tabblad zelf herladen (ook als het content-script niet meer antwoordt).
+  onReloadTab: function () { if (onsTabId == null) return; try { chrome.tabs.reload(onsTabId); } catch (e) {} },
+  onRegisterItem: function (id, date, cb) { vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id: id, date: date }, cb); },
   onClientSearch: function (term, cb, outOfCare) { vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term: term, outOfCare: !!outOfCare }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },

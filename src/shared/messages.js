@@ -38,6 +38,7 @@ export const MSG = {
   AGENDA_JUMP_DAY: 'ag-jump-day',       // { date }
   AGENDA_JUMP_WEEK: 'ag-jump-week',
   AGENDA_OPEN_OCCURRENCE: 'ag-open-occurrence', // { id }
+  AGENDA_REGISTER_ITEM: 'ag-register-item', // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
   AGENDA_OPEN_LEAVE: 'ag-open-leave',   //                 verlofdialoog openen in de pagina
   AGENDA_CHECK_RANGE: 'ag-check-range', // { from, to } -> { ok, result | error }  open registraties in een periode
   AGENDA_QUICK_REGISTER: 'ag-quick-register', // { date, time, minutes, force } -> { ok, overlap?, error? }

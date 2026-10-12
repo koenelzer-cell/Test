@@ -12,6 +12,7 @@ import { safe } from '../../screen/status.js';
 import { storageSet } from '../../storage/page-prefs.js';
 import { leaveRequestEnabled, openLeaveDialog } from '../leave/leave-request.js';
 import { defaultRangeFrom } from './open-range.js';
+import { registerOpenItem } from './register-item.js';
 import { defaultProductionFrom } from './production.js';
 import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached, openAantal } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
@@ -167,6 +168,13 @@ export function listenForSidePanelMessages() {
             if (item) openOccurrence(item.el);
           });
           return;
+        case MSG.AGENDA_REGISTER_ITEM:
+          registerOpenItem(msg.id, msg.date).then(function (r) {
+            try { sendResponse(r); } catch (e) {}
+          }, function () {
+            try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {}
+          });
+          return true;
         case MSG.AGENDA_OPEN_LEAVE:
           // De dialoog draait in de pagina: alleen daar zijn de ONS-sessie en
           // het CSRF-token beschikbaar.

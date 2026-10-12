@@ -844,6 +844,8 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
+    AGENDA_REGISTER_ITEM: "ag-register-item",
+    // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
@@ -1376,7 +1378,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.260";
+      return "1.6.261";
     }
   }();
 

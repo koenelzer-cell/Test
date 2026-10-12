@@ -1210,6 +1210,8 @@
     AGENDA_JUMP_WEEK: "ag-jump-week",
     AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
     // { id }
+    AGENDA_REGISTER_ITEM: "ag-register-item",
+    // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
     AGENDA_OPEN_LEAVE: "ag-open-leave",
     //                 verlofdialoog openen in de pagina
     AGENDA_CHECK_RANGE: "ag-check-range",
@@ -11220,7 +11222,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.260";
+      return "1.6.261";
     }
   }();
 
@@ -13154,6 +13156,59 @@
     };
   }
 
+  // src/content/features/agenda/register-item.js
+  var REGISTREER_KNOP = '[data-qa="occurrence-popover-primary"], [data-qa="declare_button"], #declare-option-link';
+  function vindAfspraak(id, date) {
+    try {
+      const kandidaten = document.querySelectorAll(ONS.occurrenceBase + '[data-id="' + id + '"]');
+      for (const occ of kandidaten) if (!date || occ.getAttribute("data-date") === date) return occ;
+    } catch (e) {
+    }
+    return null;
+  }
+  function vindKnop() {
+    try {
+      const pop = document.querySelector(ONS.popoverRoot);
+      return pop && pop.querySelector(REGISTREER_KNOP) || document.querySelector(REGISTREER_KNOP);
+    } catch (e) {
+      return null;
+    }
+  }
+  function wachtOp(vind, ms, stap) {
+    return new Promise(function(klaar) {
+      const tot = Date.now() + ms;
+      (function kijk() {
+        const r = vind();
+        if (r || Date.now() >= tot) {
+          klaar(r || null);
+          return;
+        }
+        setTimeout(kijk, stap || 150);
+      })();
+    });
+  }
+  function registerOpenItem(id, date, opts) {
+    opts = opts || {};
+    id = String(id || "");
+    if (!/^[\w-]+$/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return Promise.resolve({ ok: false, error: "Deze afspraak is niet te openen." });
+    let occ = vindAfspraak(id, date);
+    const naarDag = occ ? Promise.resolve(occ) : function() {
+      jumpToDay(date, true);
+      return wachtOp(function() {
+        return vindAfspraak(id, date);
+      }, opts.wachtDag || 8e3);
+    }();
+    return naarDag.then(function(o) {
+      if (!o) return { ok: false, error: "De afspraak staat niet (meer) in de agenda. Ververs de lijst en probeer het opnieuw." };
+      openOccurrence(o);
+      return wachtOp(vindKnop, opts.wachtKnop || 3e3).then(function(knop) {
+        if (!knop) return { ok: false, error: "De afspraak is geopend, maar de knop Registreren is niet gevonden. Registreer hem in ONS." };
+        knop.click();
+        return { ok: true };
+      });
+    });
+  }
+
   // src/content/features/agenda/week-ratio.js
   function round(n) {
     return Math.round(n || 0);
@@ -14223,6 +14278,19 @@
               if (item) openOccurrence(item.el);
             });
             return;
+          case MSG.AGENDA_REGISTER_ITEM:
+            registerOpenItem(msg.id, msg.date).then(function(r) {
+              try {
+                sendResponse(r);
+              } catch (e) {
+              }
+            }, function() {
+              try {
+                sendResponse({ ok: false, error: "Openen mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
           case MSG.AGENDA_OPEN_LEAVE:
             safe(function() {
               if (leaveRequestEnabled()) openLeaveDialog();
@@ -15913,6 +15981,7 @@
       findFreeSlots,
       _forgetHolidays,
       parseHolidays,
+      registerOpenItem,
       mergeOpenRangePerPersoon,
       cachedOpenRange,
       openAantal,

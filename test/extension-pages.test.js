@@ -1401,3 +1401,50 @@ test('zijpaneel: startscherm - weekkaart met datums en label, hulpmiddelen met t
   await tick();
   assert.equal(document.querySelectorAll('[data-hulp-teller]').length, 0);
 });
+
+test('zijpaneel: open registraties - knop Registreren per afspraak opent hem in ONS', async () => {
+  let antwoord = (msg, cb) => cb({ ok: true });
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-check-range': (msg, cb) => cb({ ok: true, result: RESULT([ITEM_A, ITEM_B, { ...ITEM_A, key: 'x|2026-10-05|9', start: ITEM_A.start + 3600000 }]) }),
+    'ag-register-item': (msg, cb) => antwoord(msg, cb),
+  });
+  await tick();
+  navKnop(document, 'Open registraties').click();
+  await tick();
+  const knoppen = [...document.querySelectorAll('[data-registreer]')];
+  assert.equal(knoppen.length, 2, 'alleen bij afspraken met een id');
+  assert.equal(knoppen[0].textContent, 'Registreren');
+  const springen = verzonden.filter((m) => m.type === 'ag-jump-day').length;
+  knoppen[0].click();
+  await tick();
+  assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-register-item') }, { type: 'ag-register-item', id: 'a', date: '2026-10-05' });
+  assert.equal(verzonden.filter((m) => m.type === 'ag-jump-day').length, springen, 'niet ook naar de dag springen');
+  // Mislukt: uitleg bij die afspraak.
+  antwoord = (msg, cb) => cb({ ok: false, error: 'De afspraak staat niet (meer) in de agenda.' });
+  document.querySelector('[data-registreer]').click();
+  await tick();
+  assert.match(document.body.textContent, /De afspraak staat niet \(meer\) in de agenda\./);
+});
+
+test('zijpaneel: route van de dag - nette melding met knop als ONS niet antwoordt, en bij geen bezoeken', async () => {
+  let herladen = 0;
+  let route = null;   // geen antwoord: de pagina reageert niet
+  const r = zijpaneelMetTools({ 'ag-day-route': (msg, cb) => (route ? route(msg, cb) : cb(null)) });
+  r.env.chrome.tabs.reload = () => { herladen++; };
+  const { document } = r;
+  await tick();
+  navKnop(document, 'Route van de dag').click();
+  await tick();
+  const staat = document.querySelector('[data-staat]');
+  assert.ok(staat, 'nette melding');
+  assert.match(staat.textContent, /De agenda is even niet bereikbaar/);
+  assert.doesNotMatch(document.body.textContent, /Herlaad de pagina en probeer het opnieuw/, 'geen technische tekst');
+  staat.querySelector('[data-staat-knop]').click();
+  assert.equal(herladen, 1, 'ONS-pagina herladen');
+  // Wel antwoord, maar geen bezoeken: rustige lege staat.
+  route = (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '', name: '', stops: [], urls: [] }] } });
+  document.querySelector('[data-terug]').click();
+  navKnop(document, 'Route van de dag').click();
+  await new Promise((r2) => setTimeout(r2, 4100));
+  assert.match(document.body.textContent, /Geen huisbezoeken/);
+});

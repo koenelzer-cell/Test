@@ -536,3 +536,29 @@ test('planhulp: alleen vrije tijd op gekozen weekdagen', () => {
   assert.deepEqual(dagen(opts), ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16']);
   assert.deepEqual(dagen({ ...opts, weekdays: [2, 5] }), ['2026-10-13', '2026-10-16'], 'alleen dinsdag en vrijdag');
 });
+
+test('open registraties: Registreren opent de afspraak en klikt op de Registreren-knop van ONS', async () => {
+  const { api, window } = bootHelper();
+  const doc = window.document;
+  const occ = doc.createElement('div');
+  occ.className = 'js_calendar_occurrence calendar_occurrence_base';
+  occ.setAttribute('data-id', '777'); occ.setAttribute('data-date', '2026-10-05'); occ.setAttribute('data-type', 'event');
+  const titel = doc.createElement('div'); titel.className = 'calendar_occurrence--has-title'; occ.appendChild(titel);
+  doc.body.appendChild(occ);
+  let geklikt = 0;
+  titel.addEventListener('click', () => {
+    const pop = doc.createElement('div'); pop.setAttribute('data-qa', 'occurrence-popover');
+    const knop = doc.createElement('button'); knop.setAttribute('data-qa', 'occurrence-popover-primary');
+    knop.addEventListener('click', () => { geklikt++; });
+    pop.appendChild(knop);
+    setTimeout(() => doc.body.appendChild(pop), 30);   // ONS bouwt de popup even later op
+  });
+  const r = await api.registerOpenItem('777', '2026-10-05');
+  assert.deepEqual({ ...r }, { ok: true });
+  assert.equal(geklikt, 1, 'Registreren geklikt');
+  const weg = await api.registerOpenItem('999', '2026-10-05', { wachtDag: 200 });
+  assert.equal(weg.ok, false);
+  assert.match(weg.error, /niet \(meer\) in de agenda/);
+  const raar = await api.registerOpenItem('1"]', '2026-10-05');
+  assert.equal(raar.ok, false, 'geen vreemde id in een selector');
+});
