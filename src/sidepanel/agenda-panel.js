@@ -1,5 +1,6 @@
 import { buren, extraKmVan, planMany } from './multi-plan.js';
 import { qrSvg } from './qr.js';
+import { feestdagIcoon, feestdagSlinger, feestdagStijl } from './feestdagen.js';
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
@@ -1965,6 +1966,7 @@ export function create(host, actions) {
     if (!res && !plan.busy && !plan.error) planBox.appendChild(primaryBtn('Vrije tijd zoeken', function () { startPlan(); }));
     if (res && !plan.busy) {
       if (!res.gaps.length) {
+        if (feestdagenOpWerkdag(res).length) planBox.appendChild(planLijst(res));
         planBox.appendChild(noteBox('Geen vrij blok van ' + fmtMin(res.minutes) + ' gevonden ' +
           (res.to ? 't/m ' + dayLabel(res.to) : 'in de komende ' + (res.weeks === 1 ? 'week' : res.weeks + ' weken')) + '.', 'warn'));
       } else {
@@ -1992,12 +1994,52 @@ export function create(host, actions) {
     res.gaps.forEach(function (g) { if (!per[g.date]) { per[g.date] = []; dagen.push(g.date); } per[g.date].push(g); });
     return { dagen: dagen, per: per };
   }
+  // Feestdagen (uit ONS) van maandag tot en met vrijdag: { date, name }.
+  function feestdagenOpWerkdag(res) {
+    return ((res && res.holidays) || []).filter(function (h) { var w = datumUitYmd(h.date).getDay(); return w > 0 && w < 6; });
+  }
+  function feestdagPer(res) { var per = {}; feestdagenOpWerkdag(res).forEach(function (h) { per[h.date] = h; }); return per; }
+  // Feestdag in de lijst: gekleurde regel met tekening, zonder tijden.
+  function feestdagRegel(h) {
+    var st = feestdagStijl(h.name);
+    var r = el('div', { display: 'flex', alignItems: 'center', gap: '10px', borderRadius: '10px', padding: '8px 10px', margin: '14px 0 6px', background: st.achtergrond, color: st.ink });
+    r.setAttribute('data-feestdag', h.date);
+    r.setAttribute('data-feestdag-stijl', st.sleutel);
+    var ic = feestdagIcoon(document, h.name);
+    ic.setAttribute('width', '32'); ic.setAttribute('height', '32'); ic.style.flex = '0 0 auto';
+    r.appendChild(ic);
+    var t = el('div', { minWidth: '0' });
+    t.appendChild(el('div', { fontWeight: '700', fontSize: '13.5px' }, dagLang(h.date)));
+    t.appendChild(el('div', { fontSize: '11.5px', opacity: '.9' }, h.name + ', geen tijden'));
+    r.appendChild(t);
+    return r;
+  }
+  // Feestdag in het weekraster: de hele kolom, met tekening en de naam.
+  function feestdagKolom(h, hoog) {
+    var st = feestdagStijl(h.name);
+    var k = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center',
+      background: st.achtergrond, color: st.ink, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.06)' });
+    k.setAttribute('data-raster-dag', h.date);
+    k.setAttribute('data-raster-feestdag', h.name);
+    k.setAttribute('data-feestdag-stijl', st.sleutel);
+    k.title = h.name;
+    if (st.slinger) { var sl = feestdagSlinger(document); Object.assign(sl.style, { position: 'absolute', top: '0', left: '0', width: '100%', height: '10px' }); k.appendChild(sl); }
+    var ic = feestdagIcoon(document, h.name);
+    Object.assign(ic.style, { width: '78%', maxWidth: '44px', marginTop: '14px', flex: '0 0 auto', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,.12))' });
+    k.appendChild(ic);
+    var nm = el('div', { writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontWeight: '800', fontSize: '13px', letterSpacing: '.3px', margin: '12px 0 12px', flex: '1 1 auto', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }, h.name);
+    k.appendChild(nm);
+    return k;
+  }
   var TOON_TIJDEN = 8;
   function planLijst(res) {
     var box = el('div');
     var duur = res.minutes, d = dagenVan(res);
     plan.open = plan.open || {};
-    d.dagen.forEach(function (date) {
+    var feest = feestdagPer(res);
+    var alleDagen = d.dagen.concat(Object.keys(feest).filter(function (k) { return !d.per[k]; })).sort();
+    alleDagen.forEach(function (date) {
+      if (feest[date] && !d.per[date]) { box.appendChild(feestdagRegel(feest[date])); return; }
       var gaps = d.per[date];
       var kop = el('div', { display: 'flex', alignItems: 'flex-end', gap: '8px', margin: '14px 0 6px', paddingBottom: '5px', borderBottom: '1px solid ' + T.line });
       var kopTekst = el('div', { flex: '1 1 auto', minWidth: '0' });
@@ -2107,10 +2149,13 @@ export function create(host, actions) {
     var raster = el('div', { display: 'grid', gridTemplateColumns: '26px repeat(5, 1fr)', gap: '3px', fontSize: '11px' });
     raster.setAttribute('data-raster', '');
     raster.appendChild(el('div'));
+    var feest = feestdagPer(res);
     ['ma', 'di', 'wo', 'do', 'vr'].forEach(function (n, i) {
       var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
-      var hk = el('div', { textAlign: 'center', color: T.inkSoft, fontWeight: '600', lineHeight: '1.2' }, n);
-      hk.appendChild(el('div', { color: T.ink, fontWeight: '700' }, String(dag.getDate())));
+      var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
+      var hk = el('div', { textAlign: 'center', color: fst ? fst.kop : T.inkSoft, fontWeight: '600', lineHeight: '1.2' }, n);
+      hk.appendChild(el('div', { color: fst ? fst.kop : T.ink, fontWeight: '700' }, String(dag.getDate())));
+      if (fst) { hk.title = fh.name; hk.appendChild(el('i', { display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', background: fst.stip })); }
       raster.appendChild(hk);
     });
     var uren = el('div', { position: 'relative', height: hoog + 'px' });
@@ -2121,6 +2166,7 @@ export function create(host, actions) {
       (function (i) {
         var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
         var date = ymdVan(dag);
+        if (feest[date]) { raster.appendChild(feestdagKolom(feest[date], hoog)); return; }
         var kol = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', background: '#ece7e5' });
         kol.setAttribute('data-raster-dag', date);
         (d.per[date] || []).forEach(function (g) {
@@ -2167,7 +2213,9 @@ export function create(host, actions) {
     }
     box.appendChild(raster);
     var leg = el('div', { display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '11px', color: T.inkSoft, marginTop: '8px' });
-    [['#ece7e5', 'Bezet'], ['#e6f4ec', 'Vrij'], ['#fdf3e2', 'Reservering'], [T.brand, 'Gekozen']].forEach(function (l) {
+    var legenda = [['#ece7e5', 'Bezet'], ['#e6f4ec', 'Vrij'], ['#fdf3e2', 'Reservering'], [T.brand, 'Gekozen']];
+    if (Object.keys(feest).length) legenda.push(['linear-gradient(135deg,#ff9a33,#cfe8fd,#24684a)', 'Feestdag']);
+    legenda.forEach(function (l) {
       var s = el('span'); s.appendChild(el('i', { display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: l[0], marginRight: '4px', verticalAlign: '-1px' })); s.appendChild(document.createTextNode(l[1])); leg.appendChild(s);
     });
     box.appendChild(leg);

@@ -2009,6 +2009,223 @@
     return svg;
   }
 
+  // src/sidepanel/feestdagen.js
+  var SVG_NS2 = "http://www.w3.org/2000/svg";
+  function patroonUrl(w, h, inner) {
+    var svg = '<svg xmlns="' + SVG_NS2 + '" width="' + w + '" height="' + h + '">' + inner + "</svg>";
+    return "url('data:image/svg+xml," + encodeURIComponent(svg).replace(/'/g, "%27") + "')";
+  }
+  function wolk(x, y, s, f) {
+    return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')" fill="' + f + '"><circle cx="8" cy="8" r="6"/><circle cx="16" cy="6" r="8"/><circle cx="25" cy="9" r="5.5"/><rect x="6" y="8" width="22" height="6.5" rx="3.2"/></g>';
+  }
+  function bloem(x, y, s, f, h) {
+    return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')"><circle cx="0" cy="-5" r="4.2" fill="' + f + '"/><circle cx="5" cy="0" r="4.2" fill="' + f + '"/><circle cx="0" cy="5" r="4.2" fill="' + f + '"/><circle cx="-5" cy="0" r="4.2" fill="' + f + '"/><circle r="2.6" fill="' + h + '"/></g>';
+  }
+  function ster(x, y, s, f) {
+    return '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" fill="' + f + '" d="M0 -6 L1.7 -1.9 L6 -1.9 L2.6 0.8 L3.8 5 L0 2.5 L-3.8 5 L-2.6 0.8 L-6 -1.9 L-1.7 -1.9Z"/>';
+  }
+  function vlok(x, y, s, f) {
+    return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')" stroke="' + f + '" stroke-width="1.3" stroke-linecap="round" fill="none"><path d="M0 -6V6M-5.2 -3L5.2 3M-5.2 3L5.2 -3"/><path d="M-1.6 -4.4L0 -3L1.6 -4.4M-1.6 4.4L0 3L1.6 4.4"/></g>';
+  }
+  function ei(x, y, s, f, b) {
+    return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')"><path d="M0 -8C4.5 -8 7 -1 7 2.5C7 6.5 4 9 0 9C-4 9 -7 6.5 -7 2.5C-7 -1 -4.5 -8 0 -8Z" fill="' + f + '"/><path d="M-6.6 1.5L-3.3 -0.5L0 1.5L3.3 -0.5L6.6 1.5" stroke="' + b + '" stroke-width="1.3" fill="none"/></g>';
+  }
+  function knal(x, y, s, f) {
+    var r = "";
+    for (var a = 0; a < 360; a += 45) r += '<path transform="rotate(' + a + ')" d="M0 -3V-7"/>';
+    return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')" stroke="' + f + '" stroke-width="1.4" stroke-linecap="round">' + r + "</g>";
+  }
+  function vlam(x, y, s, f) {
+    return '<path transform="translate(' + x + " " + y + ") scale(" + s + ')" fill="' + f + '" d="M0 -8C3 -4 5 -1 5 2.5C5 6 2.6 8 0 8C-2.6 8 -5 6 -5 2.5C-5 0 -3.5 -1 -2.5 -3C-1.5 -1 -1 0 0 0C0 -3 -1 -5 0 -8Z"/>';
+  }
+  function duif(f, s) {
+    return '<g fill="' + f + '" stroke="' + s + '" stroke-width="1.2" stroke-linejoin="round"><path d="M8 26C12 20 18 18 23 19L30 12C33 10 37 11 38 14L42 15L38 17C37 22 33 27 26 29C20 31 13 30 8 26Z"/><path d="M20 21C18 15 13 11 7 10C10 15 13 19 20 23Z"/><path d="M14 28L8 33L16 31Z"/></g><circle cx="35" cy="14" r="1" fill="' + s + '"/>';
+  }
+  function zonnestralen() {
+    var r = "";
+    [-60, -30, 0, 30, 60].forEach(function(a) {
+      r += '<path transform="rotate(' + a + ' 24 26)" d="M24 12V4"/>';
+    });
+    return '<g stroke="#ffd34d" stroke-width="2" stroke-linecap="round">' + r + "</g>";
+  }
+  var STIJLEN = {
+    goedevrijdag: {
+      bg: "linear-gradient(180deg,#f1ecf8,#e3d9f1)",
+      ink: "#5a4785",
+      stip: "#9a86c4",
+      patroon: function() {
+        return patroonUrl(30, 34, ster(8, 9, 0.45, "#cbbde3") + ster(23, 26, 0.35, "#d8cdeb"));
+      },
+      icoon: function() {
+        return '<rect x="19" y="18" width="10" height="22" rx="2" fill="#fff" stroke="#9a86c4" stroke-width="1.4"/><path d="M24 18V14" stroke="#5a4785" stroke-width="1.4"/><path d="M24 4C27 8 28 10 28 12C28 14.5 26 16 24 16C22 16 20 14.5 20 12C20 10 21.5 7.5 24 4Z" fill="#f2b84b"/><path d="M24 9C25.2 10.5 25.6 11.5 25.6 12.4C25.6 13.4 24.9 14 24 14C23.1 14 22.4 13.4 22.4 12.4C22.4 11.5 23 10.5 24 9Z" fill="#fff3c4"/><ellipse cx="24" cy="41" rx="12" ry="3" fill="#cbbde3"/>';
+      }
+    },
+    paas1: {
+      bg: "linear-gradient(180deg,#fff8dc,#fdeeb4)",
+      ink: "#8a5a00",
+      stip: "#f0a92e",
+      patroon: function() {
+        return patroonUrl(34, 40, ei(9, 11, 0.55, "#f9c6d9", "#fff") + ei(25, 30, 0.5, "#bfe3c9", "#fff"));
+      },
+      icoon: function() {
+        return '<path d="M8 30H40L36 42H12Z" fill="#c98a3d"/><path d="M8 30H40" stroke="#a46c28" stroke-width="2"/><path d="M10 34H38M11 38H37" stroke="#a46c28" stroke-width="1"/>' + ei(16, 24, 1, "#f79ac0", "#fff") + ei(32, 24, 1, "#8fd3a8", "#fff") + ei(24, 20, 1.15, "#ffd34d", "#f08a24");
+      }
+    },
+    paas2: {
+      bg: "linear-gradient(180deg,#eef8e6,#d8efc9)",
+      ink: "#2f6b2a",
+      stip: "#5aa84f",
+      patroon: function() {
+        return patroonUrl(34, 40, ei(9, 11, 0.55, "#fff1a8", "#fff") + ei(25, 30, 0.5, "#f9c6d9", "#fff"));
+      },
+      icoon: function() {
+        return '<path d="M6 42C10 36 38 36 42 42Z" fill="#8cc97a"/><circle cx="24" cy="27" r="11" fill="#ffd94a"/><circle cx="24" cy="15" r="7.5" fill="#ffd94a"/><circle cx="26.5" cy="14" r="1.2" fill="#3b2a12"/><path d="M31 15L35 16.5L31 18Z" fill="#f08a24"/><path d="M15 26C12 24 11 21 12 19C15 21 17 23 17 26Z" fill="#f5c22e"/><path d="M19 37L18 41M28 37L29 41" stroke="#f08a24" stroke-width="1.6" stroke-linecap="round"/>';
+      }
+    },
+    koning: {
+      bg: "linear-gradient(180deg,#ff9a33,#ff7a00)",
+      ink: "#ffffff",
+      kop: "#b85c00",
+      stip: "#ff7a00",
+      slinger: true,
+      patroon: function() {
+        return patroonUrl(30, 34, ster(8, 9, 0.45, "rgba(255,255,255,.28)") + ster(23, 26, 0.35, "rgba(255,255,255,.2)"));
+      },
+      icoon: function() {
+        return '<path d="M8 34L6 14L16 22L24 8L32 22L42 14L40 34Z" fill="#ffd34d" stroke="#b86200" stroke-width="1.4" stroke-linejoin="round"/><rect x="8" y="34" width="32" height="6" rx="2" fill="#ffd34d" stroke="#b86200" stroke-width="1.4"/><circle cx="24" cy="27" r="3" fill="#e03a3a"/><circle cx="15" cy="29" r="2" fill="#2a6fd6"/><circle cx="33" cy="29" r="2" fill="#2a6fd6"/><circle cx="6" cy="13" r="2" fill="#fff"/><circle cx="24" cy="7" r="2" fill="#fff"/><circle cx="42" cy="13" r="2" fill="#fff"/>';
+      }
+    },
+    bevrijding: {
+      bg: "linear-gradient(180deg,#eaf2fc,#d4e4f8)",
+      ink: "#1f3f8c",
+      stip: "#21468b",
+      patroon: function() {
+        return patroonUrl(32, 36, '<path d="M4 10q4 -3 8 0" stroke="#b8cdea" stroke-width="1.4" fill="none"/><path d="M20 28q4 -3 8 0" stroke="#c9d9ef" stroke-width="1.4" fill="none"/>');
+      },
+      icoon: function() {
+        return '<path d="M10 6V44" stroke="#6b6367" stroke-width="1.8" stroke-linecap="round"/><path d="M11 7C18 4 24 10 34 7V13C24 16 18 10 11 13Z" fill="#c8102e"/><path d="M11 13C18 10 24 16 34 13V19C24 22 18 16 11 19Z" fill="#fff"/><path d="M11 19C18 16 24 22 34 19V25C24 28 18 22 11 25Z" fill="#21468b"/><g transform="translate(14 22) scale(.75)">' + duif("#fff", "#21468b") + '</g><path d="M38 34C40 31 43 31 44 33" stroke="#3f8a3a" stroke-width="1.4" fill="none"/><ellipse cx="41" cy="31" rx="1.8" ry="1" fill="#3f8a3a"/>';
+      }
+    },
+    hemel: {
+      bg: "linear-gradient(180deg,#cfe8fd,#eef7ff)",
+      ink: "#1f5b8c",
+      stip: "#4a9be0",
+      patroon: function() {
+        return patroonUrl(46, 52, wolk(2, 6, 0.55, "#ffffff") + wolk(22, 32, 0.45, "#f4faff"));
+      },
+      icoon: function() {
+        return zonnestralen() + '<circle cx="24" cy="26" r="9" fill="#ffd34d"/>' + wolk(6, 22, 1.2, "#fff");
+      }
+    },
+    pinkster1: {
+      bg: "linear-gradient(180deg,#fde8f3,#f9d2e7)",
+      ink: "#a01866",
+      stip: "#cc087d",
+      patroon: function() {
+        return patroonUrl(32, 36, bloem(8, 9, 0.5, "#f6b3d6", "#fff") + bloem(24, 27, 0.42, "#eec5f0", "#fff"));
+      },
+      icoon: function() {
+        return duif("#fff", "#a01866") + vlam(24, 41, 0.7, "#f08a24") + vlam(16, 42, 0.5, "#ffcc33") + vlam(32, 42, 0.5, "#ffcc33");
+      }
+    },
+    pinkster2: {
+      bg: "linear-gradient(180deg,#f7ecfb,#ecd8f6)",
+      ink: "#7a2f8f",
+      stip: "#a35cc0",
+      patroon: function() {
+        return patroonUrl(32, 36, bloem(8, 9, 0.5, "#ddb8ee", "#fff") + bloem(24, 27, 0.42, "#f6b3d6", "#fff"));
+      },
+      icoon: function() {
+        return '<path d="M24 44V22M24 32C20 30 16 30 13 33M24 28C28 25 32 25 35 27" stroke="#3f8a3a" stroke-width="1.8" fill="none" stroke-linecap="round"/>' + bloem(24, 16, 1.4, "#e7a6dc", "#ffd34d") + bloem(12, 30, 0.9, "#f6b3d6", "#fff") + bloem(36, 25, 0.9, "#ddb8ee", "#fff");
+      }
+    },
+    kerst1: {
+      bg: "linear-gradient(180deg,#24684a,#174a33)",
+      ink: "#ffffff",
+      kop: "#174a33",
+      stip: "#24684a",
+      patroon: function() {
+        return patroonUrl(30, 34, vlok(8, 9, 0.6, "rgba(255,255,255,.35)") + vlok(23, 26, 0.45, "rgba(255,255,255,.22)"));
+      },
+      icoon: function() {
+        return '<path d="M24 8L36 22H30L40 34H8L18 22H12Z" fill="#7ccf8f"/><path d="M24 8L36 22H30L40 34H24Z" fill="#5fb377"/><rect x="21" y="34" width="6" height="7" fill="#8a5a2b"/>' + ster(24, 7, 1, "#ffd34d") + '<circle cx="18" cy="28" r="1.8" fill="#e03a3a"/><circle cx="29" cy="25" r="1.8" fill="#ffd34d"/><circle cx="32" cy="31" r="1.8" fill="#e03a3a"/><circle cx="21" cy="19" r="1.5" fill="#ffd34d"/>';
+      }
+    },
+    kerst2: {
+      bg: "linear-gradient(180deg,#b3302a,#8c1f1b)",
+      ink: "#ffffff",
+      kop: "#8c1f1b",
+      stip: "#b3302a",
+      patroon: function() {
+        return patroonUrl(30, 34, ster(8, 9, 0.5, "rgba(255,214,100,.45)") + ster(23, 26, 0.35, "rgba(255,214,100,.3)"));
+      },
+      icoon: function() {
+        return '<path d="M4 6C14 10 34 10 44 6" stroke="#ffd34d" stroke-width="1.2" fill="none"/><path d="M14 9V16M34 9V18M24 10V24" stroke="#ffd34d" stroke-width="1"/><circle cx="14" cy="21" r="5.5" fill="#ffd34d"/><circle cx="34" cy="23" r="5.5" fill="#7ccf8f"/><circle cx="24" cy="31" r="8" fill="#fff"/><path d="M17 30C20 28 28 28 31 30M17.5 34C20 32 28 32 30.5 34" stroke="#e03a3a" stroke-width="1.4" fill="none"/><rect x="12.5" y="14" width="3" height="2.5" fill="#d9b23a"/><rect x="32.5" y="16" width="3" height="2.5" fill="#d9b23a"/><rect x="22.5" y="22" width="3" height="2.5" fill="#d9b23a"/>';
+      }
+    },
+    nieuwjaar: {
+      bg: "linear-gradient(180deg,#1c2150,#2c2f6e)",
+      ink: "#ffd34d",
+      kop: "#1c2150",
+      stip: "#2c2f6e",
+      patroon: function() {
+        return patroonUrl(36, 40, knal(9, 10, 0.55, "rgba(255,211,77,.4)") + ster(27, 30, 0.3, "rgba(255,255,255,.45)"));
+      },
+      icoon: function() {
+        return knal(14, 14, 1.3, "#f79ac0") + knal(34, 12, 1.1, "#7fd3ff") + knal(26, 28, 1.6, "#ffd34d") + '<circle cx="14" cy="14" r="1.6" fill="#fff"/><circle cx="34" cy="12" r="1.4" fill="#fff"/><circle cx="26" cy="28" r="2" fill="#fff"/>';
+      }
+    },
+    // Onbekende feestdag: nette standaard in de huisstijl.
+    standaard: {
+      bg: "linear-gradient(180deg,#fdf0f7,#fbe6f2)",
+      ink: "#a01866",
+      stip: "#cc087d",
+      patroon: function() {
+        return patroonUrl(30, 34, ster(8, 9, 0.45, "#f6c3df") + ster(23, 26, 0.35, "#f9d3e8"));
+      },
+      icoon: function() {
+        return ster(24, 24, 2.6, "#cc087d") + ster(24, 24, 1.2, "#ffd34d");
+      }
+    }
+  };
+  function feestdagSleutel(naam) {
+    var n = String(naam || "").trim().toLowerCase().replace(/\s+/g, " ");
+    var tweede = /^(tweede|2e)\b/.test(n);
+    if (/goede vrijdag/.test(n)) return "goedevrijdag";
+    if (/pas(en|dag)|paas/.test(n)) return tweede ? "paas2" : "paas1";
+    if (/koning/.test(n)) return "koning";
+    if (/bevrijding/.test(n)) return "bevrijding";
+    if (/hemelvaart/.test(n)) return "hemel";
+    if (/pinkster/.test(n)) return tweede ? "pinkster2" : "pinkster1";
+    if (/kerst/.test(n)) return tweede ? "kerst2" : "kerst1";
+    if (/nieuwjaar/.test(n)) return "nieuwjaar";
+    return "standaard";
+  }
+  function feestdagStijl(naam) {
+    var s = STIJLEN[feestdagSleutel(naam)];
+    return { sleutel: feestdagSleutel(naam), achtergrond: s.patroon() + "," + s.bg, ink: s.ink, kop: s.kop || s.ink, stip: s.stip, slinger: !!s.slinger };
+  }
+  function svgUit(doc, viewBox, inner) {
+    var p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS2 + '" viewBox="' + viewBox + '">' + inner + "</svg>", "image/svg+xml");
+    return doc.importNode(p.documentElement, true);
+  }
+  function feestdagIcoon(doc, naam) {
+    var svg = svgUit(doc, "0 0 48 48", STIJLEN[feestdagSleutel(naam)].icoon());
+    svg.setAttribute("aria-hidden", "true");
+    return svg;
+  }
+  function feestdagSlinger(doc) {
+    var kleuren = ["#c8102e", "#fff", "#21468b"], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
+    [4, 14, 24, 34, 44, 54].forEach(function(x, i) {
+      var y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
+      d += '<path d="M' + (x - 3) + " " + y + "L" + (x + 3) + " " + y + "L" + x + ' 9Z" fill="' + kleuren[i % 3] + '"/>';
+    });
+    var svg = svgUit(doc, "0 0 60 10", d);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("aria-hidden", "true");
+    return svg;
+  }
+
   // src/sidepanel/geo.js
   function normPostcode(v) {
     var m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ""));
@@ -2159,7 +2376,7 @@
   };
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   var SERIE = { direct: "#2a78d6", indirect: "#cc087d", travel: "#1baf7a" };
-  var SVG_NS2 = "http://www.w3.org/2000/svg";
+  var SVG_NS3 = "http://www.w3.org/2000/svg";
   var WD = ["zo", "ma", "di", "wo", "do", "vr", "za"];
   var MON = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
   function fmtMin(min) {
@@ -2227,7 +2444,7 @@
     return txt("section", text, first ? null : { borderTop: "1px solid " + T.line, paddingTop: "12px", marginTop: "4px" });
   }
   function svgSpineCheck() {
-    var svg = document.createElementNS(SVG_NS2, "svg");
+    var svg = document.createElementNS(SVG_NS3, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -2237,13 +2454,13 @@
     svg.setAttribute("stroke-width", "1.8");
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
-    var p = document.createElementNS(SVG_NS2, "path");
+    var p = document.createElementNS(SVG_NS3, "path");
     p.setAttribute("d", "M3 7.2l2.6 2.6L11 4");
     svg.appendChild(p);
     return svg;
   }
   function svgSpinePause() {
-    var svg = document.createElementNS(SVG_NS2, "svg");
+    var svg = document.createElementNS(SVG_NS3, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -2253,7 +2470,7 @@
     svg.setAttribute("stroke-width", "1.8");
     svg.setAttribute("stroke-linecap", "round");
     [5, 9].forEach(function(x) {
-      var l = document.createElementNS(SVG_NS2, "line");
+      var l = document.createElementNS(SVG_NS3, "line");
       l.setAttribute("x1", x);
       l.setAttribute("y1", "3.5");
       l.setAttribute("x2", x);
@@ -2263,7 +2480,7 @@
     return svg;
   }
   function svgInfoIcon() {
-    var svg = document.createElementNS(SVG_NS2, "svg");
+    var svg = document.createElementNS(SVG_NS3, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "14");
     svg.setAttribute("height", "14");
@@ -2272,18 +2489,18 @@
     svg.setAttribute("stroke", "currentColor");
     svg.setAttribute("stroke-width", "1.6");
     svg.setAttribute("stroke-linecap", "round");
-    var line = document.createElementNS(SVG_NS2, "line");
+    var line = document.createElementNS(SVG_NS3, "line");
     line.setAttribute("x1", "7");
     line.setAttribute("y1", "6.2");
     line.setAttribute("x2", "7");
     line.setAttribute("y2", "10.4");
-    var dot = document.createElementNS(SVG_NS2, "circle");
+    var dot = document.createElementNS(SVG_NS3, "circle");
     dot.setAttribute("cx", "7");
     dot.setAttribute("cy", "3.6");
     dot.setAttribute("r", ".9");
     dot.setAttribute("fill", "currentColor");
     dot.setAttribute("stroke", "none");
-    var ring = document.createElementNS(SVG_NS2, "circle");
+    var ring = document.createElementNS(SVG_NS3, "circle");
     ring.setAttribute("cx", "7");
     ring.setAttribute("cy", "7");
     ring.setAttribute("r", "6.1");
@@ -2293,12 +2510,12 @@
     return svg;
   }
   function svgPath(d, size) {
-    var svg = document.createElementNS(SVG_NS2, "svg");
+    var svg = document.createElementNS(SVG_NS3, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("width", size || 18);
     svg.setAttribute("height", size || 18);
     svg.setAttribute("aria-hidden", "true");
-    var p = document.createElementNS(SVG_NS2, "path");
+    var p = document.createElementNS(SVG_NS3, "path");
     p.setAttribute("fill", "currentColor");
     p.setAttribute("d", d);
     svg.appendChild(p);
@@ -2903,7 +3120,7 @@
     return 100;
   }
   function svgEl(tag2, attrs, parent) {
-    var n = document.createElementNS(SVG_NS2, tag2);
+    var n = document.createElementNS(SVG_NS3, tag2);
     for (var k in attrs) n.setAttribute(k, attrs[k]);
     if (parent) parent.appendChild(n);
     return n;
@@ -4769,6 +4986,7 @@
       }));
       if (res && !plan.busy) {
         if (!res.gaps.length) {
+          if (feestdagenOpWerkdag(res).length) planBox.appendChild(planLijst(res));
           planBox.appendChild(noteBox("Geen vrij blok van " + fmtMin(res.minutes) + " gevonden " + (res.to ? "t/m " + dayLabel(res.to) : "in de komende " + (res.weeks === 1 ? "week" : res.weeks + " weken")) + ".", "warn"));
         } else {
           planBox.appendChild(planLijst(res));
@@ -4802,12 +5020,79 @@
       });
       return { dagen, per };
     }
+    function feestdagenOpWerkdag(res) {
+      return (res && res.holidays || []).filter(function(h) {
+        var w = datumUitYmd(h.date).getDay();
+        return w > 0 && w < 6;
+      });
+    }
+    function feestdagPer(res) {
+      var per = {};
+      feestdagenOpWerkdag(res).forEach(function(h) {
+        per[h.date] = h;
+      });
+      return per;
+    }
+    function feestdagRegel(h) {
+      var st = feestdagStijl(h.name);
+      var r = el("div", { display: "flex", alignItems: "center", gap: "10px", borderRadius: "10px", padding: "8px 10px", margin: "14px 0 6px", background: st.achtergrond, color: st.ink });
+      r.setAttribute("data-feestdag", h.date);
+      r.setAttribute("data-feestdag-stijl", st.sleutel);
+      var ic = feestdagIcoon(document, h.name);
+      ic.setAttribute("width", "32");
+      ic.setAttribute("height", "32");
+      ic.style.flex = "0 0 auto";
+      r.appendChild(ic);
+      var t = el("div", { minWidth: "0" });
+      t.appendChild(el("div", { fontWeight: "700", fontSize: "13.5px" }, dagLang(h.date)));
+      t.appendChild(el("div", { fontSize: "11.5px", opacity: ".9" }, h.name + ", geen tijden"));
+      r.appendChild(t);
+      return r;
+    }
+    function feestdagKolom(h, hoog) {
+      var st = feestdagStijl(h.name);
+      var k = el("div", {
+        position: "relative",
+        height: hoog + "px",
+        borderRadius: "6px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        background: st.achtergrond,
+        color: st.ink,
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,.06)"
+      });
+      k.setAttribute("data-raster-dag", h.date);
+      k.setAttribute("data-raster-feestdag", h.name);
+      k.setAttribute("data-feestdag-stijl", st.sleutel);
+      k.title = h.name;
+      if (st.slinger) {
+        var sl = feestdagSlinger(document);
+        Object.assign(sl.style, { position: "absolute", top: "0", left: "0", width: "100%", height: "10px" });
+        k.appendChild(sl);
+      }
+      var ic = feestdagIcoon(document, h.name);
+      Object.assign(ic.style, { width: "78%", maxWidth: "44px", marginTop: "14px", flex: "0 0 auto", filter: "drop-shadow(0 2px 2px rgba(0,0,0,.12))" });
+      k.appendChild(ic);
+      var nm = el("div", { writingMode: "vertical-rl", transform: "rotate(180deg)", fontWeight: "800", fontSize: "13px", letterSpacing: ".3px", margin: "12px 0 12px", flex: "1 1 auto", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }, h.name);
+      k.appendChild(nm);
+      return k;
+    }
     var TOON_TIJDEN = 8;
     function planLijst(res) {
       var box = el("div");
       var duur = res.minutes, d = dagenVan(res);
       plan.open = plan.open || {};
-      d.dagen.forEach(function(date) {
+      var feest = feestdagPer(res);
+      var alleDagen = d.dagen.concat(Object.keys(feest).filter(function(k) {
+        return !d.per[k];
+      })).sort();
+      alleDagen.forEach(function(date) {
+        if (feest[date] && !d.per[date]) {
+          box.appendChild(feestdagRegel(feest[date]));
+          return;
+        }
         var gaps = d.per[date];
         var kop = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", margin: "14px 0 6px", paddingBottom: "5px", borderBottom: "1px solid " + T.line });
         var kopTekst = el("div", { flex: "1 1 auto", minWidth: "0" });
@@ -4960,10 +5245,16 @@
       var raster = el("div", { display: "grid", gridTemplateColumns: "26px repeat(5, 1fr)", gap: "3px", fontSize: "11px" });
       raster.setAttribute("data-raster", "");
       raster.appendChild(el("div"));
+      var feest = feestdagPer(res);
       ["ma", "di", "wo", "do", "vr"].forEach(function(n, i2) {
         var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
-        var hk = el("div", { textAlign: "center", color: T.inkSoft, fontWeight: "600", lineHeight: "1.2" }, n);
-        hk.appendChild(el("div", { color: T.ink, fontWeight: "700" }, String(dag.getDate())));
+        var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
+        var hk = el("div", { textAlign: "center", color: fst ? fst.kop : T.inkSoft, fontWeight: "600", lineHeight: "1.2" }, n);
+        hk.appendChild(el("div", { color: fst ? fst.kop : T.ink, fontWeight: "700" }, String(dag.getDate())));
+        if (fst) {
+          hk.title = fh.name;
+          hk.appendChild(el("i", { display: "block", width: "6px", height: "6px", borderRadius: "3px", margin: "2px auto 0", background: fst.stip }));
+        }
         raster.appendChild(hk);
       });
       var uren = el("div", { position: "relative", height: hoog + "px" });
@@ -4973,6 +5264,10 @@
         (function(i2) {
           var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
           var date = ymdVan(dag);
+          if (feest[date]) {
+            raster.appendChild(feestdagKolom(feest[date], hoog));
+            return;
+          }
           var kol = el("div", { position: "relative", height: hoog + "px", borderRadius: "6px", background: "#ece7e5" });
           kol.setAttribute("data-raster-dag", date);
           (d.per[date] || []).forEach(function(g) {
@@ -5051,7 +5346,9 @@
       }
       box.appendChild(raster);
       var leg = el("div", { display: "flex", gap: "10px", flexWrap: "wrap", fontSize: "11px", color: T.inkSoft, marginTop: "8px" });
-      [["#ece7e5", "Bezet"], ["#e6f4ec", "Vrij"], ["#fdf3e2", "Reservering"], [T.brand, "Gekozen"]].forEach(function(l) {
+      var legenda = [["#ece7e5", "Bezet"], ["#e6f4ec", "Vrij"], ["#fdf3e2", "Reservering"], [T.brand, "Gekozen"]];
+      if (Object.keys(feest).length) legenda.push(["linear-gradient(135deg,#ff9a33,#cfe8fd,#24684a)", "Feestdag"]);
+      legenda.forEach(function(l) {
         var s = el("span");
         s.appendChild(el("i", { display: "inline-block", width: "10px", height: "10px", borderRadius: "3px", background: l[0], marginRight: "4px", verticalAlign: "-1px" }));
         s.appendChild(document.createTextNode(l[1]));
@@ -5999,7 +6296,7 @@
     amberLine: "#f0b429",
     amberInk: "#704b00"
   };
-  var SVG_NS3 = "http://www.w3.org/2000/svg";
+  var SVG_NS4 = "http://www.w3.org/2000/svg";
   function el2(tag2, styles, text) {
     var n = document.createElement(tag2);
     if (styles) Object.assign(n.style, styles);
@@ -6016,7 +6313,7 @@
     });
   }
   function svgStroke(d, w) {
-    var svg = document.createElementNS(SVG_NS3, "svg");
+    var svg = document.createElementNS(SVG_NS4, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -6026,7 +6323,7 @@
     svg.setAttribute("stroke-width", w || "1.8");
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
-    var p = document.createElementNS(SVG_NS3, "path");
+    var p = document.createElementNS(SVG_NS4, "path");
     p.setAttribute("d", d);
     svg.appendChild(p);
     return svg;

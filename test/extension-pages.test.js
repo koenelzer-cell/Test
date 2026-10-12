@@ -1104,3 +1104,39 @@ test('zijpaneel: planhulp - agenda erbij of eraf: zonder keuzes meteen opnieuw z
   assert.equal(zoekvragen(), start + 2, 'opnieuw gezocht');
   assert.equal(document.querySelector('[data-agenda-melding]'), null);
 });
+
+test('zijpaneel: planhulp - feestdagen met eigen ontwerp in weekraster en lijst', async () => {
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7);
+  const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
+  const { document } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020,
+      gaps: [{ date: dag(1), startMin: 540, endMin: 660, minutes: 120 }, { date: dag(3), startMin: 540, endMin: 660, minutes: 120 }],
+      holidays: [{ date: dag(0), name: 'Tweede kerstdag' }, { date: dag(2), name: 'Koningsdag' }, { date: dag(5), name: 'Zaterdagfeest' }] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  // Lijst: feestdag als eigen regel tussen de dagen, zonder tijden; geen weekend.
+  const regels = [...document.querySelectorAll('[data-feestdag]')];
+  assert.deepEqual(regels.map((r) => [r.getAttribute('data-feestdag'), r.getAttribute('data-feestdag-stijl')]), [[dag(0), 'kerst2'], [dag(2), 'koning']]);
+  assert.match(regels[1].textContent, /Koningsdag, geen tijden$/);
+  assert.equal(regels[1].querySelector('svg').getAttribute('viewBox'), '0 0 48 48');
+  assert.equal(document.querySelectorAll('[data-dag="' + dag(2) + '"]').length, 0);
+  // Weekraster: de hele kolom is de feestdag, met tekening en naam, zonder groet.
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  document.querySelector('[data-week-verder]').click();
+  await tick();
+  const kol = document.querySelector('[data-raster-feestdag="Koningsdag"]');
+  assert.ok(kol, 'Koningsdag in het raster');
+  assert.equal(kol.getAttribute('data-raster-dag'), dag(2));
+  assert.equal(kol.getAttribute('data-feestdag-stijl'), 'koning');
+  assert.equal(kol.textContent, 'Koningsdag', 'alleen de naam, geen extra tekst');
+  assert.equal(kol.querySelectorAll('svg').length, 2, 'tekening en vlaggetjes');
+  assert.equal(kol.querySelectorAll('[data-start]').length, 0, 'niets te kiezen');
+  assert.match(kol.style.background, /data:image\/svg\+xml/);
+  assert.equal(document.querySelector('[data-raster-feestdag="Tweede kerstdag"]').getAttribute('data-feestdag-stijl'), 'kerst2');
+  assert.match(document.querySelector('[data-raster]').parentNode.textContent, /Feestdag/, 'in de legenda');
+  assert.ok(document.querySelector('[data-raster-dag="' + dag(1) + '"] [data-raster-vrij]'), 'gewone dag blijft gewoon');
+});

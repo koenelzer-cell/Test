@@ -176,7 +176,8 @@ import { createEvents, eventOptions } from './features/agenda/event-create.js';
 import { newEventUrl } from './features/agenda/navigation.js';
 import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from './domain/free-slots.js';
-import { findFreeSlots } from './features/agenda/free-slots.js';
+import { findFreeSlots, _forgetHolidays } from './features/agenda/free-slots.js';
+import { parseHolidays } from './domain/holidays.js';
 import { mergeOpenRangePerPersoon } from './features/agenda/open-range.js';
 import { _clearPreloadCache, cachedFreeSlots, cachedOpenRange, forgetFreeSlots, isCached } from './features/agenda/preload.js';
 import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest } from './features/agenda/navigation.js';
@@ -361,6 +362,8 @@ export function exposeTestApi() {
     onsDateText,
     findFreeGaps, reservationBlocks, reservationsOverlapping,
     findFreeSlots,
+    _forgetHolidays,
+    parseHolidays,
     mergeOpenRangePerPersoon,
     cachedOpenRange,
     isCached,

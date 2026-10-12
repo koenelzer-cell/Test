@@ -12,6 +12,7 @@ import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../
 import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domain/route.js';
 import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
+import { holidaysBetween, parseHolidays } from '../../domain/holidays.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
@@ -50,6 +51,18 @@ export function checkSlotWithOns(req) {
 
 // Zoeken tot en met een datum: hooguit een half jaar vooruit.
 export const MAX_ZOEK_DAGEN = 182;
+
+// Feestdagen uit ONS, één keer per pagina opgehaald. Mislukt het, dan zonder
+// (en de volgende zoekactie probeert het opnieuw).
+var feestdagenBelofte = null;
+export function holidays() {
+  if (!feestdagenBelofte) {
+    feestdagenBelofte = Promise.resolve().then(function () { return getJson(_apiUrl('holidays')); })
+      .then(parseHolidays).catch(function () { feestdagenBelofte = null; return []; });
+  }
+  return feestdagenBelofte;
+}
+export function _forgetHolidays() { feestdagenBelofte = null; }
 
 // Waar ben je op de dagen met vrije tijd? Afspraken op een kantoorlocatie
 // (postcode van het kantoor, uit de ONS-locatie; zie domain/offices.js) en
@@ -147,7 +160,11 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
       ]));
     });
   });
-  return Promise.all(taken).then(function (perWeek) {
+  return Promise.all([Promise.all(taken), holidays()]).then(function (r) {
+    var perWeek = r[0];
+    // Op een feestdag geen vrije tijd.
+    var feest = holidaysBetween(r[1], agendaYmd(vandaag), agendaYmd(laatste));
+    var isFeest = {}; feest.forEach(function (h) { isFeest[h.date] = true; });
     var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
     // Reserveringen houden tijd vast maar bezetten hem niet: apart houden.
     var isRes = function (e) { return e.layer === 'reservations' || e.type === 'reservation'; };
@@ -156,14 +173,15 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: startMs, days: dagen, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12)
+      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12),
+      skipDates: isFeest
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
     // die het begin van het blok raken.
     gaps.forEach(function (g) {
       g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
     });
-    var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+    var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, holidays: feest, invitees: ids.length, onsCheck: overlapCheckStatus() };
     var datums = {}; gaps.forEach(function (g) { datums[g.date] = true; });
     var bezoeken = metBezoeken ? huisbezoekenPerDag(alles, datums).then(function (v) { res.visits = v; }, function () { res.visits = {}; }) : Promise.resolve();
     return bezoeken.then(function () { return onsNakijken(res); });

@@ -21,6 +21,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   weekUnavailabilities              afwezigheid, voor de planhulp         (free-slots.js)
 //   weekOutlook, weekPlannedVisits    Outlook-afspraken en geplande bezoeken (free-slots.js)
 //   availableLabels / createEvent / productOptions  afspraak maken vanuit de planhulp (event-create.js)
+//   holidays                          feestdagen: geen vrije tijd in de planhulp (free-slots.js)
 //   weekReservations                  reserveringen: tijd vastgehouden voor een soort werk (free-slots.js)
 //   newEvent                          nieuw afspraakformulier (planhulp)     (paginaroute, geen API)
 //   newRegistration                   registratieformulier, vooraf ingevuld (paginaroute, geen API)
@@ -34,6 +35,7 @@ const _API_DEFAULTS = {
   registrationDetails: '/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details',
   eventDetails: '/calendar/invitee/{inviteeId}/events/{occurrenceId}/details',
   searchClients: '/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1',
+  holidays: '/calendar/holidays',
   availableLabels: '/calendar/events/available_labels',
   createEvent: '/calendar/events',
   productOptions: '/product_selection/product_list?employee_ids%5B%5D={employeeId}&client_ids%5B%5D={clientId}',

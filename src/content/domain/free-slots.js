@@ -20,7 +20,7 @@ function minutenVanDag(ms, dagStartMs) { return Math.round((ms - dagStartMs) / 6
 // entries: genormaliseerde entries (mapAgendaEntry). opts:
 //   now (ms), days (aantal kalenderdagen vooruit), minMinutes, stepMin (15),
 //   windowStart/windowEnd (minuten sinds middernacht), blocked [{from,to}] (minuten, optioneel),
-//   maxResults
+//   maxResults, skipDates { 'YYYY-MM-DD': true } (bijv. feestdagen: geen vrije tijd)
 // -> [{ date, startMin, endMin, minutes }]
 export function findFreeGaps(entries, opts) {
   opts = opts || {};
@@ -32,6 +32,7 @@ export function findFreeGaps(entries, opts) {
   var blocked = opts.blocked || [];
   var max = opts.maxResults || 12;
   var dagen = opts.days || 14;
+  var overslaan = opts.skipDates || {};
 
   // Bezet per dag (minuten), plus dagen die helemaal bezet zijn.
   var bezet = Object.create(null), heleDag = Object.create(null);
@@ -66,7 +67,7 @@ export function findFreeGaps(entries, opts) {
   for (var i = 0; i < dagen && uit.length < max; i++) {
     var dag = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     var key = ymd(dag);
-    if (_excludeWeekendYmd(key) || heleDag[key]) continue;
+    if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
     var dStart = dag.getTime();
     var vanaf = wS;
     if (i === 0) {

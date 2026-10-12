@@ -1104,6 +1104,7 @@
     registrationDetails: "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
     searchClients: "/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1",
+    holidays: "/calendar/holidays",
     availableLabels: "/calendar/events/available_labels",
     createEvent: "/calendar/events",
     productOptions: "/product_selection/product_list?employee_ids%5B%5D={employeeId}&client_ids%5B%5D={clientId}",
@@ -11219,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.249";
+      return "1.6.250";
     }
   }();
 
@@ -13328,6 +13329,7 @@
     var blocked = opts.blocked || [];
     var max = opts.maxResults || 12;
     var dagen = opts.days || 14;
+    var overslaan = opts.skipDates || {};
     var bezet = /* @__PURE__ */ Object.create(null), heleDag = /* @__PURE__ */ Object.create(null);
     (entries || []).forEach(function(e) {
       if (!e || !e.date) return;
@@ -13358,7 +13360,7 @@
     for (var i = 0; i < dagen && uit.length < max; i++) {
       var dag = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       var key = ymd(dag);
-      if (_excludeWeekendYmd(key) || heleDag[key]) continue;
+      if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
       var dStart = dag.getTime();
       var vanaf = wS;
       if (i === 0) {
@@ -13559,6 +13561,30 @@
     return { name: kandidaten[0].o.name, postcode: String(kandidaten[0].o.postcode || "").replace(/\s+/g, "").toUpperCase() };
   }
 
+  // src/content/domain/holidays.js
+  function parseHolidays(json) {
+    var lijst = json && Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
+    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
+    lijst.forEach(function(h) {
+      if (!h || h.type && h.type !== "holiday") return;
+      var date = String(h.date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+      if (h.time_slot && h.time_slot.all_day === false) return;
+      var name = String(h.name == null ? "" : h.name).trim().replace(/\s+/g, " ").slice(0, 80) || "Feestdag";
+      if (gezien[date]) return;
+      gezien[date] = true;
+      uit.push({ date, name });
+    });
+    return uit.sort(function(a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    });
+  }
+  function holidaysBetween(holidays2, from, to) {
+    return (holidays2 || []).filter(function(h) {
+      return h.date >= from && h.date <= to;
+    });
+  }
+
   // src/content/features/agenda/free-slots.js
   function workWindow() {
     var z = activeZones() || [];
@@ -13592,6 +13618,21 @@
     });
   }
   var MAX_ZOEK_DAGEN = 182;
+  var feestdagenBelofte = null;
+  function holidays() {
+    if (!feestdagenBelofte) {
+      feestdagenBelofte = Promise.resolve().then(function() {
+        return getJson(_apiUrl("holidays"));
+      }).then(parseHolidays).catch(function() {
+        feestdagenBelofte = null;
+        return [];
+      });
+    }
+    return feestdagenBelofte;
+  }
+  function _forgetHolidays() {
+    feestdagenBelofte = null;
+  }
   function huisbezoekenPerDag(alles, datums) {
     var gezien = /* @__PURE__ */ Object.create(null);
     var opDag = alles.filter(function(e) {
@@ -13691,7 +13732,13 @@
         ]));
       });
     });
-    return Promise.all(taken).then(function(perWeek) {
+    return Promise.all([Promise.all(taken), holidays()]).then(function(r) {
+      var perWeek = r[0];
+      var feest = holidaysBetween(r[1], agendaYmd(vandaag), agendaYmd(laatste));
+      var isFeest = {};
+      feest.forEach(function(h) {
+        isFeest[h.date] = true;
+      });
       var alles = [].concat.apply([], perWeek.map(function(w) {
         return [].concat.apply([], w);
       }));
@@ -13710,12 +13757,13 @@
         stepMin: 15,
         windowStart: win.start,
         windowEnd: win.end,
-        maxResults: veel ? 400 : totDatum ? 40 : 12
+        maxResults: veel ? 400 : totDatum ? 40 : 12,
+        skipDates: isFeest
       });
       gaps.forEach(function(g) {
         g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
       });
-      var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, invitees: ids.length, onsCheck: overlapCheckStatus() };
+      var res = { minutes, weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps, holidays: feest, invitees: ids.length, onsCheck: overlapCheckStatus() };
       var datums = {};
       gaps.forEach(function(g) {
         datums[g.date] = true;
@@ -15829,6 +15877,8 @@
       reservationBlocks,
       reservationsOverlapping,
       findFreeSlots,
+      _forgetHolidays,
+      parseHolidays,
       mergeOpenRangePerPersoon,
       cachedOpenRange,
       isCached,

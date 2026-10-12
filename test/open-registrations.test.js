@@ -494,3 +494,34 @@ test('planhulp-afstand: elke afspraak met een cliënt telt (geen labelcontrole),
   const dag = (r.visits || {})[ymd] || [];
   assert.deepEqual(JSON.parse(JSON.stringify(dag.map((v) => [v.pc, v.soort]))), [['2611EB', 'client'], ['4822NH', 'kantoor']]);
 });
+
+test('planhulp: feestdagen uit ONS zijn geen vrije tijd en gaan mee in de uitslag', async () => {
+  const { api, window } = bootHelper();
+  const ruw = { data: [
+    { id: '1', type: 'holiday', name: 'Hemelvaartsdag', date: '2026-05-14', time_slot: { all_day: true, duration: 86340 } },
+    { id: '3', type: 'holiday', name: ' Tweede pinksterdag', date: '2026-05-25', time_slot: { all_day: true } },
+    { id: '4', type: 'holiday', name: 'Dubbel', date: '2026-05-25', time_slot: { all_day: true } },
+    { id: '5', type: 'holiday', name: 'Halve dag', date: '2026-06-01', time_slot: { all_day: false } },
+    { id: '6', type: 'holiday', name: 'Kapot', date: 'morgen' },
+  ] };
+  assert.deepEqual(JSON.parse(JSON.stringify(api.parseHolidays(ruw))), [
+    { date: '2026-05-14', name: 'Hemelvaartsdag' }, { date: '2026-05-25', name: 'Tweede pinksterdag' },
+  ], 'spatie voor de naam weg, dubbele datum en halve dagen niet');
+  // Volgende week: woensdag is een feestdag.
+  const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  const nu = new Date();
+  const ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7);
+  const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
+  const urls = [];
+  window.fetch = (url) => {
+    urls.push(url);
+    const data = /\/calendar\/holidays$/.test(url) ? [{ id: '9', type: 'holiday', name: 'Koningsdag', date: dag(2), time_slot: { all_day: true } }] : [];
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ data }) });
+  };
+  api._forgetHolidays();
+  const r = await api.findFreeSlots(60, 1, dag(4), false, true, dag(0));
+  assert.deepEqual([...new Set(r.gaps.map((g) => g.date))], [dag(0), dag(1), dag(3), dag(4)], 'geen vrije tijd op de feestdag');
+  assert.deepEqual(JSON.parse(JSON.stringify(r.holidays)), [{ date: dag(2), name: 'Koningsdag' }]);
+  await api.findFreeSlots(30, 1, dag(4), false, true, dag(0));
+  assert.equal(urls.filter((u) => /holidays/.test(u)).length, 1, 'feestdagen één keer per pagina opgehaald');
+});
