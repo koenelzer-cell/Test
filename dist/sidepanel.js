@@ -5223,7 +5223,7 @@
         planBox.lastChild.style.margin = "0 0 10px";
       }
       var seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "10px" });
-      [["lijst", "Lijst"], ["raster", "Weekraster"]].forEach(function(o) {
+      [["lijst", "Lijst"], ["raster", "Weekplanning"]].forEach(function(o) {
         var aan = (plan.weergave || "lijst") === o[0];
         var b = el("button", {
           flex: "1 1 0",
@@ -6696,7 +6696,7 @@
         icoon: welkomIcoon(ICON_PLAN),
         stappen: [
           { titel: "Welkom in de Planhulp", tekst: "Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.", knop: "Rondleiding starten", voor: lijstKlaar },
-          { titel: "Lijst of weekraster", tekst: "In de lijst zie je per dag de begintijden. Het weekraster toont je week als mini agenda.", voor: lijstKlaar, vind: alle("[data-plan-weergave]") },
+          { titel: "Lijst of weekplanning", tekst: "In de lijst zie je per dag de begintijden. De weekplanning toont je week als mini agenda.", voor: lijstKlaar, vind: alle("[data-plan-weergave]") },
           { titel: "Hoe lang duurt de afspraak?", tekst: "Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.", voor: lijstKlaar, vind: alle("[data-plan-duur]"), breedte: inst },
           { titel: "Hoe ver vooruit", tekst: "Zoek 1, 2 of 4 weken vooruit, of tot een datum die je zelf kiest.", voor: lijstKlaar, vind: alle("[data-plan-weken],[data-plan-tot]"), breedte: inst },
           { titel: "Alleen bepaalde dagen", tekst: "Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.", voor: lijstKlaar, vind: alle("[data-plan-dag]"), breedte: inst },
@@ -6716,7 +6716,7 @@
             return balkHost.firstChild;
           } },
           {
-            titel: "Het weekraster",
+            titel: "De weekplanning",
             tekst: "Groen is vrij. Tik in het groen op de begintijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.",
             voor: function() {
               naarPlan("raster");

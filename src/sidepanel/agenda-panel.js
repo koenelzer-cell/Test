@@ -1966,7 +1966,7 @@ export function create(host, actions) {
     if (meer) { planBox.appendChild(noteBox('Er staan ' + meer + ' agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.', 'ok')); planBox.lastChild.style.margin = '0 0 10px'; }
     // Lijst of weekraster.
     var seg = el('div', { display: 'flex', background: T.lineSoft, borderRadius: '10px', padding: '3px', marginBottom: '10px' });
-    [['lijst', 'Lijst'], ['raster', 'Weekraster']].forEach(function (o) {
+    [['lijst', 'Lijst'], ['raster', 'Weekplanning']].forEach(function (o) {
       var aan = (plan.weergave || 'lijst') === o[0];
       var b = el('button', { flex: '1 1 0', border: '0', borderRadius: '8px', padding: '6px 0', cursor: 'pointer', font: '600 12.5px ' + FONT,
         background: aan ? '#fff' : 'transparent', color: aan ? T.ink : T.inkSoft, boxShadow: aan ? '0 1px 3px rgba(0,0,0,.12)' : 'none' }, o[1]);
@@ -3035,7 +3035,7 @@ export function create(host, actions) {
       naam: 'planhulp', kop: 'Rondleiding Planhulp', stapLabel: 'Planhulp, stap', icoon: welkomIcoon(ICON_PLAN),
       stappen: [
         { titel: 'Welkom in de Planhulp', tekst: 'Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.', knop: 'Rondleiding starten', voor: lijstKlaar },
-        { titel: 'Lijst of weekraster', tekst: 'In de lijst zie je per dag de begintijden. Het weekraster toont je week als mini agenda.', voor: lijstKlaar, vind: alle('[data-plan-weergave]') },
+        { titel: 'Lijst of weekplanning', tekst: 'In de lijst zie je per dag de begintijden. De weekplanning toont je week als mini agenda.', voor: lijstKlaar, vind: alle('[data-plan-weergave]') },
         { titel: 'Hoe lang duurt de afspraak?', tekst: 'Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.', voor: lijstKlaar, vind: alle('[data-plan-duur]'), breedte: inst },
         { titel: 'Hoe ver vooruit', tekst: 'Zoek 1, 2 of 4 weken vooruit, of tot een datum die je zelf kiest.', voor: lijstKlaar, vind: alle('[data-plan-weken],[data-plan-tot]'), breedte: inst },
         { titel: 'Alleen bepaalde dagen', tekst: 'Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.', voor: lijstKlaar, vind: alle('[data-plan-dag]'), breedte: inst },
@@ -3048,7 +3048,7 @@ export function create(host, actions) {
             return els;
           } },
         { titel: 'Je gekozen momenten', tekst: 'Hier staan je keuzes. Tik op de teller om ze te bekijken of te wissen, en ga dan door naar Afspraak maken.', voor: eenMoment, vind: function () { return balkHost.firstChild; } },
-        { titel: 'Het weekraster', tekst: 'Groen is vrij. Tik in het groen op de begintijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.', voor: function () { naarPlan('raster'); },
+        { titel: 'De weekplanning', tekst: 'Groen is vrij. Tik in het groen op de begintijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.', voor: function () { naarPlan('raster'); },
           vind: alle('[data-raster],[data-week-titel],[data-week-vandaag]') },
         { titel: 'Zelfde of per afspraak anders', tekst: 'Bij meerdere momenten kies je of elke afspraak dezelfde cliënt(en) krijgt, of per afspraak andere.', als: kanDirect, voor: naarMakenPagina, vind: alle('[data-maak-modus]') },
         { titel: 'Cliënt zoeken', tekst: 'Typ een naam zoals in ONS. Je ziet cliëntnummer, geboortedatum en postcode. Vink aan om ook cliënten uit zorg te vinden.', als: kanDirect, voor: naarMakenPagina,

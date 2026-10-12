@@ -1313,7 +1313,7 @@ test('zijpaneel: rondleiding Planhulp met knop, weekraster en afspraak maken, da
   for (let n = 0; n < 14 && tour(); n++) {
     const t = tour().querySelector('[data-rondleiding-titel]').textContent;
     gezien.push(tour().textContent);
-    if (/^Het weekraster$/.test(t)) assert.ok(document.querySelector('[data-raster]'), 'raster getoond');
+    if (/^De weekplanning$/.test(t)) assert.ok(document.querySelector('[data-raster]'), 'raster getoond');
     if (/^Cliënt zoeken$/.test(t)) assert.ok(document.querySelector('[data-maak-zoek]'), 'op Afspraak maken');
     if (/^Je gekozen momenten$/.test(t)) assert.ok(document.querySelector('[data-selectie]'), 'voorbeeldmoment');
     tour().querySelector('[data-rondleiding-volgende]').click();

@@ -145,24 +145,24 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - **Rondleidingen**: bij de eerste keer openen een korte rondleiding door het
   zijpaneel (aan/uit, weekoverzicht, open registraties, planhulp, route,
   verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (lijst
-  en weekraster, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
-  weekraster, afspraak maken). Een onderdeel dat uit staat, wordt
+  en weekplanning, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
+  weekplanning, afspraak maken). Een onderdeel dat uit staat, wordt
   overgeslagen; na afloop staat alles terug zoals het was. Opnieuw starten via
   de i-knop of de knop 'Rondleiding' in de Planhulp. Of hij gedaan is, staat
   alleen in het zijpaneel zelf (localStorage).
-- **Planhulp**: bovenaan **Lijst** of **Weekraster** (het raster haalt per
+- **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder Duur en
   Vooruit als rijen keuzes (1, 2 of 4 weken of 'Tot datum'), en in de lijst
   Dagen (ma di wo do vr, standaard alle aan; uitvinken = op die dag geen
   vrije momenten, meteen zichtbaar, ook tijdens het laden en in het
-  weekraster waar de dag 'Uit' toont; minstens één dag blijft aan). Onderaan
+  weekplanning waar de dag 'Uit' toont; minstens één dag blijft aan). Onderaan
   de lijst 'Meer laden': meer vrije blokken (per 24), of als de periode op is
   twee weken verder (tot een half jaar); een wijziging
   zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
-  tikken = loslaten, ook over meerdere dagen. *Weekraster*: een mini-agenda
+  tikken = loslaten, ook over meerdere dagen. *Weekplanning*: een mini-agenda
   ma-vr per week (bladeren met ‹ ›, de knop 'Vandaag' brengt je terug naar
   de huidige week; vandaag heeft een roze kop, wat al voorbij is staat
   gestreept en een roze lijn met stip toont het huidige tijdstip): grijs bezet, groen vrij, oranje
