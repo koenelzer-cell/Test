@@ -1,6 +1,7 @@
 import { buren, extraKmVan, planMany } from './multi-plan.js';
 import { qrSvg } from './qr.js';
 import { feestdagIcoon, feestdagSlinger, feestdagStijl } from './feestdagen.js';
+import { rondleidingActief, rondleidingGedaan, sluitRondleiding, startRondleiding } from './rondleiding.js';
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagRoutes } from './geo.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
@@ -154,6 +155,8 @@ var ICON_QUICK = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8
 var ICON_PLAN = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6v-2H5V9h14v2h2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zm9.5 11a3.5 3.5 0 1 0 1.9 6.4l2.2 2.2 1.4-1.4-2.2-2.2A3.5 3.5 0 0 0 16.5 13zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z';
 // Route: kaartspeld.
 var ICON_ROUTE = 'M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z';
+// Vraagteken in een rondje (rondleiding).
+var ICON_HELP = 'M11 18h2v-2h-2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5a4 4 0 0 0-4-4z';
 var ICON_RATIO = 'M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z';
 
 /* ── Bouwstenen ────────────────────────────────────────────────────────── */
@@ -1143,7 +1146,7 @@ export function create(host, actions) {
       plan.busy = false; plan.meerBezig = false;
       if (!(res && res.ok && res.result)) plan.error = (res && res.error) || 'Zoeken mislukt.';
       else plan.result = res.result;
-      if (pagina === 'plan') setTimeout(function () { if (pagina === 'plan' && mijn === planNr) renderPagina(); }, 0);
+      if (pagina === 'plan') setTimeout(function () { if (pagina === 'plan' && mijn === planNr) { renderPagina(); misschienRondleiding(); } }, 0);
     }, plan.tot, false, false, '', gekozenDagen(), plan.limit || PLAN_STAP);
   }
   // Dagen aan- of uitvinken: meteen zichtbaar (filter in het paneel), het
@@ -2416,6 +2419,7 @@ export function create(host, actions) {
     if (p === 'open' && !range.result && !range.busy && !range.error) { vulStandaarden(); startRangeCheck(); }
     if (p === 'plan' && !plan.result && !plan.busy && !plan.error) startPlan();
     if (p === 'route') startRoute();
+    setTimeout(misschienRondleiding, 0);
   }
 
   // Tekstknop met icoon (Terug, Lijst bijwerken): licht, roze, geen rand.
@@ -2923,6 +2927,17 @@ export function create(host, actions) {
       wrap.appendChild(row);
     });
     box.appendChild(wrap);
+    box.appendChild(sectionHead('Rondleiding'));
+    var rl = el('div', { display: 'flex', flexDirection: 'column', gap: '8px' });
+    var r1 = secondaryBtn('Rondleiding zijpaneel', function () { startHoofdRondleiding(); });
+    r1.setAttribute('data-info-rondleiding', 'zijpaneel');
+    rl.appendChild(r1);
+    if (fAan('planner')) {
+      var r2 = secondaryBtn('Rondleiding Planhulp', function () { naarPagina('plan'); startPlanRondleiding(); });
+      r2.setAttribute('data-info-rondleiding', 'planhulp');
+      rl.appendChild(r2);
+    }
+    box.appendChild(rl);
     box.appendChild(txt('help', 'Versie ' + ((state && state.version) || ''), { marginTop: '14px', paddingTop: '10px', borderTop: '1px solid ' + T.line }));
     return box;
   }
@@ -2942,7 +2957,15 @@ export function create(host, actions) {
     renderBalk();
     if (pagina === 'hoofd') return;
     vulStandaarden();
-    paginaBox.appendChild(terugKnop());
+    if (pagina === 'plan' && fAan('planner')) {
+      var kopRij = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between' });
+      kopRij.appendChild(terugKnop());
+      var rk = tekstKnop(ICON_HELP, 'Rondleiding', function () { startPlanRondleiding(); });
+      rk.setAttribute('data-plan-rondleiding', '');
+      rk.title = 'Rondleiding door de Planhulp';
+      kopRij.appendChild(rk);
+      paginaBox.appendChild(kopRij);
+    } else paginaBox.appendChild(terugKnop());
     var inhoud = pagina === 'clienttijd' ? pageClientTime()
       : pagina === 'verhouding' ? pageRatio()
       : pagina === 'open' ? pageOpen()
@@ -2953,6 +2976,108 @@ export function create(host, actions) {
       : pageInfo();
     paginaBox.appendChild(inhoud);
     renderLive();
+  }
+
+  /* ── Rondleidingen ── */
+  function welkomIcoon(d) { return function () { var i = svgPath(d, 24); i.style.color = T.brand; return i; }; }
+  function navKaart(t) { return Array.prototype.filter.call(navBox.children, function (c) { return String(c.textContent || '').indexOf(t) === 0; })[0] || null; }
+  function opHoofd() { if (pagina !== 'hoofd') naarPagina('hoofd'); }
+  function startHoofdRondleiding() {
+    opHoofd();
+    startRondleiding({
+      naam: 'zijpaneel', icoon: welkomIcoon(ICON_RANGE),
+      stappen: [
+        { titel: 'Welkom bij Agendahulp', tekst: 'In een paar stappen laten we zien wat het zijpaneel voor je doet. Het duurt nog geen minuut.', knop: 'Rondleiding starten', voor: opHoofd },
+        { titel: 'Aan of uit', tekst: 'Hiermee zet je de hulp in ONS aan of uit. Staat hij uit, dan werkt ONS gewoon zoals altijd.', voor: opHoofd, vind: function () { return onoff; } },
+        { titel: 'Je week in één oogopslag', tekst: 'Cliënttijd en niet-cliënttijd van de week die je in ONS bekijkt. Tik op Cliënttijd voor de verdeling per uursoort.', voor: opHoofd, vind: function () { return weekBox; } },
+        { titel: 'Open registraties', tekst: 'Controleer een periode op afspraken die nog niet geregistreerd zijn en werk ze één voor één af.', voor: opHoofd, vind: function () { return navKaart('Open registraties'); } },
+        { titel: 'Planhulp', tekst: 'Vind vrije tijd voor een afspraak, kies een of meer momenten en maak de afspraak meteen in ONS. De eerste keer krijg je daar een eigen rondleiding.', voor: opHoofd, vind: function () { return navKaart('Planhulp'); } },
+        { titel: 'Route van de dag', tekst: 'Je huisbezoeken van een dag op volgorde in Google Maps. Met een QR-code zet je de route op je telefoon.', voor: opHoofd, vind: function () { return navKaart('Route van de dag'); } },
+        { titel: 'Verlof aanvragen', tekst: 'Vraag verlof aan zonder door ONS te zoeken. Je kiest de dagen, de hulp vult de rest in.', voor: opHoofd, vind: function () { return leaveBar.style.display === 'none' ? null : leaveBtn; } },
+        { titel: 'Later nog eens?', tekst: 'Via deze knop vind je de rondleidingen terug, en de legenda en de versie.', voor: opHoofd, vind: function () { return info; }, knop: 'Klaar' }
+      ]
+    });
+  }
+  // Planhulp: voorbeeldmoment, weergave en pagina na afloop terugzetten.
+  var tourTijdelijk = null;
+  var planTourWacht = false;
+  function startPlanRondleiding() {
+    if (!fAan('planner')) return;
+    if (pagina !== 'plan') naarPagina('plan');
+    // Eerst de vrije tijd: anders zijn er nog geen tijden om te laten zien.
+    if (!plan.result || plan.busy) { planTourWacht = true; if (!plan.busy && !plan.error) startPlan(); return; }
+    planTourWacht = false;
+    var oud = { weergave: plan.weergave || 'lijst', momenten: BEWAARD.momenten.length, maak: BEWAARD.maak };
+    tourTijdelijk = null;
+    function naarPlan(w) {
+      if (pagina !== 'plan') naarPagina('plan');
+      if ((plan.weergave || 'lijst') !== w) { plan.weergave = w; renderPagina(); }
+    }
+    function lijstKlaar() { naarPlan('lijst'); }
+    function eenMoment() {
+      lijstKlaar();
+      if (BEWAARD.momenten.length) return;
+      var c = paginaBox.querySelector('[data-dag][data-start]');
+      if (!c) return;
+      var d = c.getAttribute('data-dag'), t = c.getAttribute('data-start').split(':');
+      tourTijdelijk = { date: d, startMin: (+t[0]) * 60 + (+t[1]) };
+      wisselMoment(tourTijdelijk.date, tourTijdelijk.startMin);
+      renderPagina();
+    }
+    function naarMakenPagina() {
+      if (pagina === 'maken') return;
+      if (!BEWAARD.momenten.length) eenMoment();
+      if (BEWAARD.momenten.length && kanDirect()) naarMaken(BEWAARD.momenten, plan.minutes);
+    }
+    var inst = function () { return paginaBox.querySelector('[data-plan-instellingen]'); };
+    var alle = function (sel) { return function () { return paginaBox.querySelectorAll(sel); }; };
+    startRondleiding({
+      naam: 'planhulp', kop: 'Rondleiding Planhulp', stapLabel: 'Planhulp, stap', icoon: welkomIcoon(ICON_PLAN),
+      stappen: [
+        { titel: 'Welkom in de Planhulp', tekst: 'Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.', knop: 'Rondleiding starten', voor: lijstKlaar },
+        { titel: 'Lijst of weekraster', tekst: 'In de lijst zie je per dag de begintijden. Het weekraster toont je week als mini agenda.', voor: lijstKlaar, vind: alle('[data-plan-weergave]') },
+        { titel: 'Hoe lang duurt de afspraak?', tekst: 'Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.', voor: lijstKlaar, vind: alle('[data-plan-duur]'), breedte: inst },
+        { titel: 'Hoe ver vooruit', tekst: 'Zoek 1, 2 of 4 weken vooruit, of tot een datum die je zelf kiest.', voor: lijstKlaar, vind: alle('[data-plan-weken],[data-plan-tot]'), breedte: inst },
+        { titel: 'Alleen bepaalde dagen', tekst: 'Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.', voor: lijstKlaar, vind: alle('[data-plan-dag]'), breedte: inst },
+        { titel: 'Tik op een begintijd', tekst: 'Een tik kiest de tijd, nog een tik laat hem los. Je kunt meerdere momenten kiezen, ook op verschillende dagen. ONS kijkt meteen na of er overlap is.', voor: lijstKlaar,
+          vind: function () {
+            var c = paginaBox.querySelector('[data-dag][data-start]');
+            if (!c) return null;
+            var els = Array.prototype.slice.call(paginaBox.querySelectorAll('[data-dag="' + c.getAttribute('data-dag') + '"]'));
+            if (c.parentNode && c.parentNode.previousSibling) els.push(c.parentNode.previousSibling);
+            return els;
+          } },
+        { titel: 'Je gekozen momenten', tekst: 'Hier staan je keuzes. Tik op de teller om ze te bekijken of te wissen, en ga dan door naar Afspraak maken.', voor: eenMoment, vind: function () { return balkHost.firstChild; } },
+        { titel: 'Het weekraster', tekst: 'Groen is vrij. Tik in het groen op de begintijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.', voor: function () { naarPlan('raster'); },
+          vind: alle('[data-raster],[data-week-titel],[data-week-vandaag]') },
+        { titel: 'Zelfde of per afspraak anders', tekst: 'Bij meerdere momenten kies je of elke afspraak dezelfde cliënt(en) krijgt, of per afspraak andere.', als: kanDirect, voor: naarMakenPagina, vind: alle('[data-maak-modus]') },
+        { titel: 'Cliënt zoeken', tekst: 'Typ een naam zoals in ONS. Je ziet cliëntnummer, geboortedatum en postcode. Vink aan om ook cliënten uit zorg te vinden.', als: kanDirect, voor: naarMakenPagina,
+          vind: function () { var z = paginaBox.querySelector('[data-maak-zoek]'), v = paginaBox.querySelector('[data-client-uit-zorg]'); return [z, v && v.parentNode].filter(Boolean); } },
+        { titel: 'Afspraak maken', tekst: 'Maak de afspraken meteen in ONS, of open liever het ONS Afspraakformulier met alles al ingevuld.', als: kanDirect, voor: naarMakenPagina,
+          vind: function () { return balkHost.querySelectorAll('[data-maak-knop],[data-maak-ons]'); }, knop: 'Klaar' }
+      ],
+      onEinde: function () {
+        // Alles terug zoals het was.
+        if (tourTijdelijk && momentIndex(tourTijdelijk.date, tourTijdelijk.startMin) >= 0 && BEWAARD.momenten.length > oud.momenten) wisselMoment(tourTijdelijk.date, tourTijdelijk.startMin);
+        tourTijdelijk = null;
+        if (pagina === 'maken' && BEWAARD.maak !== oud.maak) { BEWAARD.maak = oud.maak; naarPagina('plan'); }
+        plan.weergave = oud.weergave;
+        if (pagina === 'plan') renderPagina();
+      }
+    });
+  }
+  // Vanzelf, één keer: het zijpaneel als er een agenda is, de Planhulp als de
+  // eerste vrije tijd binnen is.
+  var tourGepland = false;
+  function misschienRondleiding() {
+    if (tourGepland || rondleidingActief() || !state) return;
+    if (pagina === 'hoofd' && navBox.children.length && !rondleidingGedaan('zijpaneel')) {
+      tourGepland = true;
+      setTimeout(function () { tourGepland = false; if (pagina === 'hoofd' && !rondleidingActief() && !rondleidingGedaan('zijpaneel') && root.isConnected) startHoofdRondleiding(); }, 600);
+    } else if (pagina === 'plan' && plan.result && !plan.busy && (planTourWacht || !rondleidingGedaan('planhulp'))) {
+      tourGepland = true;
+      setTimeout(function () { tourGepland = false; if (pagina === 'plan' && !rondleidingActief() && (planTourWacht || !rondleidingGedaan('planhulp')) && root.isConnected) startPlanRondleiding(); }, 400);
+    }
   }
 
   /* ── Acties ── */
@@ -3040,6 +3165,7 @@ export function create(host, actions) {
 
   renderNav();
   render();
+  setTimeout(misschienRondleiding, 0);
   // Na opnieuw opbouwen (paginawissel in ONS) terug naar de pagina waar je was;
   // stond je op de afwerklijst, dan meteen bijwerken.
   if (vorigePagina === 'vrijblok') vorigePagina = 'plan';
@@ -3084,6 +3210,7 @@ export function create(host, actions) {
       // Alleen bijwerken als er echt iets in de agenda veranderde.
       vergelijkSig = state ? JSON.stringify([state.past, state.unfinished, state.week && state.week.summary]) : '';
       if (vorigeSig && vergelijkSig !== vorigeSig) planHercontrole();
+      misschienRondleiding();
     },
     // Uitslag van de kopieën (content-script, na het opslaan in ONS).
     setDuplicates: function (info) {
@@ -3098,6 +3225,7 @@ export function create(host, actions) {
       if ((kind === 'productie' && pagina === 'clienttijd') || (kind !== 'productie' && pagina === 'open')) renderPagina();
     },
     destroy: function () {
+      sluitRondleiding();
       window.removeEventListener('focus', bijFocus);
       document.removeEventListener('visibilitychange', bijZichtbaar);
       if (planTimer) clearTimeout(planTimer);

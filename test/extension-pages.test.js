@@ -1276,3 +1276,59 @@ test('zijpaneel: planhulp - Meer laden onderaan de lijst', async () => {
   assert.equal(zoek().at(-1).to, '2026-11-08', 'twee weken verder');
   assert.match(document.querySelector('[data-plan-tot]').textContent, /^Tot /);
 });
+
+test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () => {
+  const { document } = zijpaneelMetTools(null);
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-rondleiding="zijpaneel"]').click();
+  await new Promise((r) => setTimeout(r, 100));
+  const tour = () => document.querySelector('[data-rondleiding="zijpaneel"]');
+  assert.ok(tour(), 'rondleiding open');
+  assert.match(tour().textContent, /Welkom bij Agendahulp/);
+  const titels = [];
+  for (let n = 0; n < 12 && tour(); n++) {
+    titels.push(tour().querySelector('[data-rondleiding-titel]').textContent);
+    tour().querySelector('[data-rondleiding-volgende]').click();
+    for (let w = 0; w < 30 && tour() && tour().hasAttribute('data-rondleiding-bezig'); w++) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(tour(), null, 'na Klaar dicht');
+  assert.ok(titels.includes('Aan of uit') && titels.includes('Planhulp') && titels.includes('Later nog eens?'), titels.join(' | '));
+  assert.ok(!titels.some((t) => /[·–—]/.test(t)), 'geen puntjes of streepjes');
+  assert.ok(document.querySelector('[data-paneel-titel]') === null || !/Legenda/.test(document.querySelector('[data-paneel-titel]').textContent), 'terug op de hoofdpagina');
+});
+
+test('zijpaneel: rondleiding Planhulp met knop, weekraster en afspraak maken, daarna alles terug', async () => {
+  const { document } = maakPaneel();
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.equal(document.querySelector('[data-selectie]'), null, 'nog niets gekozen');
+  document.querySelector('[data-plan-rondleiding]').click();
+  await new Promise((r) => setTimeout(r, 100));
+  const tour = () => document.querySelector('[data-rondleiding="planhulp"]');
+  assert.match(tour().textContent, /Welkom in de Planhulp/);
+  const gezien = [];
+  for (let n = 0; n < 14 && tour(); n++) {
+    const t = tour().querySelector('[data-rondleiding-titel]').textContent;
+    gezien.push(tour().textContent);
+    if (/^Het weekraster$/.test(t)) assert.ok(document.querySelector('[data-raster]'), 'raster getoond');
+    if (/^Cliënt zoeken$/.test(t)) assert.ok(document.querySelector('[data-maak-zoek]'), 'op Afspraak maken');
+    if (/^Je gekozen momenten$/.test(t)) assert.ok(document.querySelector('[data-selectie]'), 'voorbeeldmoment');
+    tour().querySelector('[data-rondleiding-volgende]').click();
+    for (let w = 0; w < 30 && tour() && tour().hasAttribute('data-rondleiding-bezig'); w++) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(tour(), null);
+  assert.ok(gezien.some((t) => /Planhulp, stap 1 van/.test(t)));
+  assert.ok(gezien.some((t) => /Afspraak maken/.test(t)));
+  await tick();
+  assert.equal(document.querySelector('[data-plan-weergave="lijst"]').getAttribute('aria-pressed'), 'true', 'terug in de lijst');
+  assert.equal(document.querySelector('[data-selectie]'), null, 'voorbeeldmoment weer weg');
+  // Sluiten met Escape.
+  document.querySelector('[data-plan-rondleiding]').click();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(tour());
+  document.dispatchEvent(new document.defaultView.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.equal(tour(), null, 'Escape sluit');
+});

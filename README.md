@@ -142,6 +142,14 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
   keuzevenster van de browser.
+- **Rondleidingen**: bij de eerste keer openen een korte rondleiding door het
+  zijpaneel (aan/uit, weekoverzicht, open registraties, planhulp, route,
+  verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (lijst
+  en weekraster, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
+  weekraster, afspraak maken). Een onderdeel dat uit staat, wordt
+  overgeslagen; na afloop staat alles terug zoals het was. Opnieuw starten via
+  de i-knop of de knop 'Rondleiding' in de Planhulp. Of hij gedaan is, staat
+  alleen in het zijpaneel zelf (localStorage).
 - **Planhulp**: bovenaan **Lijst** of **Weekraster** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder Duur en
