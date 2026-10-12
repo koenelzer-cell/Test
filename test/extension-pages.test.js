@@ -1140,3 +1140,35 @@ test('zijpaneel: planhulp - feestdagen met eigen ontwerp in weekraster en lijst'
   assert.match(document.querySelector('[data-raster]').parentNode.textContent, /Feestdag/, 'in de legenda');
   assert.ok(document.querySelector('[data-raster-dag="' + dag(1) + '"] [data-raster-vrij]'), 'gewone dag blijft gewoon');
 });
+
+test('zijpaneel: weekraster - Vandaag-knop en vandaag herkenbaar (roze kop, nu-lijn)', async () => {
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), vandaag = ymd(nu);
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 0, windowEnd: 1439, gaps: [] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  const knopV = () => document.querySelector('[data-week-vandaag]');
+  assert.equal(knopV().disabled, true, 'in de week van vandaag: grijs');
+  assert.match(knopV().textContent, /^Vandaag$/);
+  const werkdag = nu.getDay() > 0 && nu.getDay() < 6;
+  if (werkdag) {
+    assert.equal(document.querySelectorAll('[data-raster]').length, 1, 'raster');
+    assert.equal(document.querySelectorAll('[data-raster-vandaag]').length, 1, 'één kop is vandaag');
+    const kol = document.querySelector('[data-raster-dag="' + vandaag + '"]');
+    assert.ok(kol.querySelector('[data-raster-voorbij]'), 'wat voorbij is, is gestreept');
+    assert.ok(kol.querySelector('[data-raster-nu]'), 'lijn op nu');
+  }
+  document.querySelector('[data-week-verder]').click(); await tick();
+  document.querySelector('[data-week-verder]').click(); await tick();
+  assert.equal(knopV().disabled, false);
+  assert.equal(document.querySelectorAll('[data-raster-vandaag]').length, 0, 'andere week: geen vandaag');
+  const voor = verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  knopV().click(); await tick();
+  assert.equal(knopV().disabled, true, 'terug in de week van vandaag');
+  assert.ok(verzonden.filter((m) => m.type === 'ag-free-slots').length > voor, 'week opnieuw opgehaald');
+});

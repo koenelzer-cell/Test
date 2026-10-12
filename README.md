@@ -150,7 +150,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
   tikken = loslaten, ook over meerdere dagen. *Weekraster*: een mini-agenda
-  ma-vr per week (bladeren met ‹ ›): grijs bezet, groen vrij, oranje
+  ma-vr per week (bladeren met ‹ ›, de knop 'Vandaag' brengt je terug naar
+  de huidige week; vandaag heeft een roze kop, wat al voorbij is staat
+  gestreept en een roze lijn met stip toont het huidige tijdstip): grijs bezet, groen vrij, oranje
   reservering, roze gekozen; tik in het groen op de begintijd. Feestdagen
   (één keer per pagina uit ONS, `GET /calendar/holidays`) zijn geen vrije
   tijd: in het raster is de hele kolom de feestdag, met een eigen kleur en

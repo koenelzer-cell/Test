@@ -2104,7 +2104,9 @@ export function create(host, actions) {
       rs.busy = false;
       if (res && res.ok && res.result) rs.result = res.result;
       else rs.error = (res && res.error) || 'Vrije tijd ophalen mislukt.';
-      if (pagina === 'plan' && plan.weergave === 'raster') renderPagina();
+      // Pas na de huidige opbouw opnieuw tekenen (een antwoord uit het geheugen
+      // komt meteen; anders staat het raster er twee keer).
+      setTimeout(function () { if (plan.raster === rs && pagina === 'plan' && plan.weergave === 'raster') renderPagina(); }, 0);
     }, vr, false, false, ma > vandaag ? ma : vandaag);
   }
   function planRaster() {
@@ -2133,12 +2135,27 @@ export function create(host, actions) {
     };
     nav.appendChild(pijl('‹', -1, 'data-week-terug'));
     // 'Week 42' met eronder '12 tot en met 16 oktober'.
-    var titel = el('div', { textAlign: 'center' });
+    var titel = el('div', { textAlign: 'center', flex: '1 1 auto', minWidth: '0' });
     titel.appendChild(el('div', { fontWeight: '700', fontSize: '13px', color: T.ink }, 'Week ' + isoWeek(plan.rasterWeek)));
     titel.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft }, ma.getDate() + (ma.getMonth() !== vr.getMonth() ? ' ' + MON_LANG[ma.getMonth()] : '') + ' tot en met ' + vr.getDate() + ' ' + MON_LANG[vr.getMonth()] + (ma.getFullYear() !== new Date().getFullYear() ? ' ' + ma.getFullYear() : '')));
     titel.setAttribute('data-week-titel', '');
     nav.appendChild(titel);
     nav.appendChild(pijl('›', 1, 'data-week-verder'));
+    // Vandaag: terug naar de huidige week (grijs als je daar al bent).
+    var hier = plan.rasterWeek === huidigeWeek;
+    var vk = el('button', { flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 9px', marginLeft: '4px', whiteSpace: 'nowrap',
+      border: '1px solid ' + (hier ? T.line : T.brand), borderRadius: '8px', background: '#fff', color: hier ? '#b9b0b4' : T.brand, font: '600 12px ' + FONT, cursor: hier ? 'default' : 'pointer' });
+    vk.type = 'button'; vk.disabled = hier; vk.setAttribute('data-week-vandaag', '');
+    vk.title = hier ? 'Je bekijkt de week van vandaag' : 'Naar de week van vandaag';
+    var kal = document.createElementNS(SVG_NS, 'svg');
+    kal.setAttribute('viewBox', '0 0 16 16'); kal.setAttribute('width', '14'); kal.setAttribute('height', '14'); kal.setAttribute('aria-hidden', 'true');
+    kal.setAttribute('fill', 'none'); kal.setAttribute('stroke', 'currentColor'); kal.setAttribute('stroke-width', '1.6');
+    [['rect', { x: '2', y: '3', width: '12', height: '11', rx: '2' }], ['path', { d: 'M2 7h12M5 1.5v3M11 1.5v3' }], ['circle', { cx: '8', cy: '10.5', r: '1.4', fill: 'currentColor', stroke: 'none' }]].forEach(function (v) {
+      var n = document.createElementNS(SVG_NS, v[0]); Object.keys(v[1]).forEach(function (k) { n.setAttribute(k, v[1][k]); }); kal.appendChild(n);
+    });
+    vk.appendChild(kal); vk.appendChild(document.createTextNode('Vandaag'));
+    vk.addEventListener('click', function () { if (plan.rasterWeek !== huidigeWeek) { plan.rasterWeek = huidigeWeek; renderPagina(); } });
+    nav.appendChild(vk);
     box.appendChild(nav);
     if (rs && rs.busy) { zorgVoorStijl(); var lb = laadBalk(); lb.style.margin = '0 0 8px'; box.appendChild(lb); }
     if (rs && rs.error) { var fb = noteBox(rs.error, 'bad'); fb.style.margin = '0 0 8px'; box.appendChild(fb); }
@@ -2150,11 +2167,14 @@ export function create(host, actions) {
     raster.setAttribute('data-raster', '');
     raster.appendChild(el('div'));
     var feest = feestdagPer(res);
+    var nuD = new Date(), vandaagYmd = ymdVan(nuD), nuMin = nuD.getHours() * 60 + nuD.getMinutes();
     ['ma', 'di', 'wo', 'do', 'vr'].forEach(function (n, i) {
       var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
       var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
-      var hk = el('div', { textAlign: 'center', color: fst ? fst.kop : T.inkSoft, fontWeight: '600', lineHeight: '1.2' }, n);
-      hk.appendChild(el('div', { color: fst ? fst.kop : T.ink, fontWeight: '700' }, String(dag.getDate())));
+      var isVandaag = ymdVan(dag) === vandaagYmd;
+      var hk = el('div', { textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' }, n);
+      hk.appendChild(el('div', { color: isVandaag ? '#fff' : (fst ? fst.kop : T.ink), fontWeight: '700' }, String(dag.getDate())));
+      if (isVandaag) { Object.assign(hk.style, { background: T.brand, borderRadius: '6px', padding: '1px 0' }); hk.setAttribute('data-raster-vandaag', ''); hk.title = 'Vandaag'; }
       if (fst) { hk.title = fh.name; hk.appendChild(el('i', { display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', background: fst.stip })); }
       raster.appendChild(hk);
     });
@@ -2205,6 +2225,19 @@ export function create(host, actions) {
           b.addEventListener('click', function () { tikMoment(date, mo.startMin, duur); });
           kol.appendChild(b);
         });
+        // Vandaag: wat voorbij is gestreept, met een stip en lijn op nu.
+        if (date === vandaagYmd && nuMin > ws) {
+          var voorbij = el('div', { position: 'absolute', left: '0', right: '0', top: '0', height: ((Math.min(nuMin, we) - ws) * PX) + 'px', borderRadius: '6px 6px 0 0', pointerEvents: 'none', zIndex: '1',
+            background: 'repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 4px, transparent 4px 8px)' });
+          voorbij.setAttribute('data-raster-voorbij', '');
+          kol.appendChild(voorbij);
+          if (nuMin < we) {
+            var nuLijn = el('div', { position: 'absolute', left: '-2px', right: '0', top: ((nuMin - ws) * PX - 1) + 'px', height: '2px', background: T.brand, pointerEvents: 'none', zIndex: '3' });
+            nuLijn.appendChild(el('i', { position: 'absolute', left: '-3px', top: '-3px', width: '8px', height: '8px', borderRadius: '4px', background: T.brand }));
+            nuLijn.setAttribute('data-raster-nu', hm(nuMin)); nuLijn.title = 'Nu ' + hm(nuMin);
+            kol.appendChild(nuLijn);
+          }
+        }
         for (var uu = ws + 60; uu < we; uu += 60) kol.appendChild(el('div', { position: 'absolute', left: '0', right: '0', top: ((uu - ws) * PX) + 'px', height: '1px', background: 'rgba(32,29,31,.16)', pointerEvents: 'none', zIndex: '1' }));
         // Geen vrije tijd: 'Bezet' (of 'Voorbij' voor eerdere dagen); niet tijdens het laden.
         if (!(d.per[date] || []).length && !(rs && rs.busy)) kol.appendChild(el('div', { position: 'absolute', top: '4px', left: '0', right: '0', textAlign: 'center', color: T.inkSoft, fontSize: '10px' }, date < ymdVan(new Date()) ? 'Voorbij' : 'Bezet'));
