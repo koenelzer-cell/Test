@@ -5669,7 +5669,7 @@
         });
         kopTekst.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft }, "Vrij " + (vrij.length > 1 ? vrij.slice(0, -1).join(", ") + " en " + vrij[vrij.length - 1] : vrij[0])));
         kop.appendChild(kopTekst);
-        var naar = el("button", { border: "0", background: "transparent", color: T.ink, cursor: "pointer", font: "600 11.5px " + FONT, padding: "0", whiteSpace: "nowrap" }, "Naar dag");
+        var naar = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 11.5px " + FONT, padding: "0", whiteSpace: "nowrap" }, "Naar dag");
         naar.type = "button";
         naar.title = "Deze dag openen in de agenda";
         naar.addEventListener("click", function() {
@@ -5717,7 +5717,7 @@
         });
         box.appendChild(rij);
         if (tijden.length > zicht.length) {
-          var meer = el("button", { border: "0", background: "transparent", color: T.ink, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "Nog " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
+          var meer = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "Nog " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
           meer.type = "button";
           meer.setAttribute("data-meer-tijden", date);
           meer.addEventListener("click", function() {
