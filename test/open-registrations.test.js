@@ -503,10 +503,11 @@ test('planhulp: feestdagen uit ONS zijn geen vrije tijd en gaan mee in de uitsla
     { id: '4', type: 'holiday', name: 'Dubbel', date: '2026-05-25', time_slot: { all_day: true } },
     { id: '5', type: 'holiday', name: 'Halve dag', date: '2026-06-01', time_slot: { all_day: false } },
     { id: '6', type: 'holiday', name: 'Kapot', date: 'morgen' },
+    { id: '7', type: 'holiday', name: 'Goede Vrijdag', date: '2027-03-26', time_slot: { all_day: true } },
   ] };
   assert.deepEqual(JSON.parse(JSON.stringify(api.parseHolidays(ruw))), [
     { date: '2026-05-14', name: 'Hemelvaartsdag' }, { date: '2026-05-25', name: 'Tweede pinksterdag' },
-  ], 'spatie voor de naam weg, dubbele datum en halve dagen niet');
+  ], 'spatie voor de naam weg; dubbele datum, halve dagen en Goede Vrijdag niet');
   // Volgende week: woensdag is een feestdag.
   const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   const nu = new Date();

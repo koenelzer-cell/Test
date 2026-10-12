@@ -30,9 +30,6 @@ function zonnestralen() {
 }
 
 var STIJLEN = {
-  goedevrijdag: { bg: 'linear-gradient(180deg,#f1ecf8,#e3d9f1)', ink: '#5a4785', stip: '#9a86c4',
-    patroon: function () { return patroonUrl(30, 34, ster(8, 9, .45, '#cbbde3') + ster(23, 26, .35, '#d8cdeb')); },
-    icoon: function () { return '<rect x="19" y="18" width="10" height="22" rx="2" fill="#fff" stroke="#9a86c4" stroke-width="1.4"/><path d="M24 18V14" stroke="#5a4785" stroke-width="1.4"/><path d="M24 4C27 8 28 10 28 12C28 14.5 26 16 24 16C22 16 20 14.5 20 12C20 10 21.5 7.5 24 4Z" fill="#f2b84b"/><path d="M24 9C25.2 10.5 25.6 11.5 25.6 12.4C25.6 13.4 24.9 14 24 14C23.1 14 22.4 13.4 22.4 12.4C22.4 11.5 23 10.5 24 9Z" fill="#fff3c4"/><ellipse cx="24" cy="41" rx="12" ry="3" fill="#cbbde3"/>'; } },
   paas1: { bg: 'linear-gradient(180deg,#fff8dc,#fdeeb4)', ink: '#8a5a00', stip: '#f0a92e',
     patroon: function () { return patroonUrl(34, 40, ei(9, 11, .55, '#f9c6d9', '#fff') + ei(25, 30, .5, '#bfe3c9', '#fff')); },
     icoon: function () { return '<path d="M8 30H40L36 42H12Z" fill="#c98a3d"/><path d="M8 30H40" stroke="#a46c28" stroke-width="2"/><path d="M10 34H38M11 38H37" stroke="#a46c28" stroke-width="1"/>' + ei(16, 24, 1, '#f79ac0', '#fff') + ei(32, 24, 1, '#8fd3a8', '#fff') + ei(24, 20, 1.15, '#ffd34d', '#f08a24'); } },
@@ -73,7 +70,6 @@ var STIJLEN = {
 export function feestdagSleutel(naam) {
   var n = String(naam || '').trim().toLowerCase().replace(/\s+/g, ' ');
   var tweede = /^(tweede|2e)\b/.test(n);
-  if (/goede vrijdag/.test(n)) return 'goedevrijdag';
   if (/pas(en|dag)|paas/.test(n)) return tweede ? 'paas2' : 'paas1';
   if (/koning/.test(n)) return 'koning';
   if (/bevrijding/.test(n)) return 'bevrijding';
