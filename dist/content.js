@@ -1233,7 +1233,7 @@
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
+    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -11220,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.254";
+      return "1.6.255";
     }
   }();
 
@@ -13637,6 +13637,11 @@
   function _forgetHolidays() {
     feestdagenBelofte = null;
   }
+  var ONS_CONTROLE_MAX = 12;
+  function maxBlokken(limiet, standaard) {
+    var n = parseInt(limiet, 10);
+    return n > 0 ? Math.min(400, n) : standaard;
+  }
   function weekdagen(dagen) {
     var d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function(x, i, a) {
       return x >= 1 && x <= 5 && a.indexOf(x) === i;
@@ -13686,7 +13691,7 @@
       return uit;
     });
   }
-  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
+  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
     var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
@@ -13767,7 +13772,7 @@
         stepMin: 15,
         windowStart: win.start,
         windowEnd: win.end,
-        maxResults: veel ? 400 : totDatum ? 40 : 12,
+        maxResults: veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12),
         skipDates: isFeest,
         weekdays: weekdagen(dagen)
       });
@@ -13790,7 +13795,7 @@
     });
     function onsNakijken(res) {
       if (res.onsCheck !== "ready" || veel) return res;
-      var gaps = res.gaps;
+      var gaps = res.gaps.slice(0, ONS_CONTROLE_MAX);
       var nakijk = createLimiter(3);
       return Promise.all(gaps.map(function(g) {
         return nakijk(function() {
@@ -13871,10 +13876,10 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
-    var d = weekdagen(dagen);
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : "") + (d ? "|d" + d.join("") : ""), function() {
-      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d);
+  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
+    var d = weekdagen(dagen), l = parseInt(limiet, 10) > 0 ? Math.min(400, parseInt(limiet, 10)) : 0;
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : "") + (d ? "|d" + d.join("") : "") + (l ? "|l" + l : ""), function() {
+      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d, l);
     });
   }
   function defaultProductionTo() {
@@ -14315,7 +14320,7 @@
             });
             return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || "", msg.days).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || "", msg.days, msg.limit).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {

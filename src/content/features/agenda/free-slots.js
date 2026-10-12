@@ -64,6 +64,12 @@ export function holidays() {
 }
 export function _forgetHolidays() { feestdagenBelofte = null; }
 
+var ONS_CONTROLE_MAX = 12;
+export function maxBlokken(limiet, standaard) {
+  var n = parseInt(limiet, 10);
+  return n > 0 ? Math.min(400, n) : standaard;
+}
+
 // [1..5] -> gesorteerd en uniek; leeg of alle vijf = geen filter (null).
 export function weekdagen(dagen) {
   var d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function (x, i, a) { return x >= 1 && x <= 5 && a.indexOf(x) === i; }).sort();
@@ -120,7 +126,8 @@ function huisbezoekenPerDag(alles, datums) {
 // van: 'YYYY-MM-DD' (optioneel, met tot): zoeken vanaf die dag i.p.v. vandaag,
 // zonder grens hoe ver vooruit (weekraster: één week per keer).
 // dagen: [1..5] (optioneel): alleen vrije tijd op deze weekdagen (1 = maandag).
-export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
+// limiet (optioneel): hoeveel vrije blokken (lijst: 'Meer laden'), max. 400.
+export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
@@ -180,7 +187,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
       now: startMs, days: dagen, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12),
+      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12),
       skipDates: isFeest, weekdays: weekdagen(dagen)
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
@@ -195,7 +202,9 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   });
   function onsNakijken(res) {
     if (res.onsCheck !== 'ready' || veel) return res;
-    var gaps = res.gaps;
+    // Alleen de eerste blokken (zoveel als vroeger): 'Meer laden' kost zo
+    // geen extra controles bij ONS.
+    var gaps = res.gaps.slice(0, ONS_CONTROLE_MAX);
     // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
     // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.
     var nakijk = createLimiter(3);

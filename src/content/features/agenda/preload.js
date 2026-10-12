@@ -68,9 +68,9 @@ export function cachedProduction(from, to, onProgress) {
 export function cachedWeekRatio(date) {
   return onthouden('ratio', String(date), function () { return fetchWeekRatio(date); });
 }
-export function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
-  var d = weekdagen(dagen);
-  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : '') + (veel ? 'v' : '') + (van ? '|' + van : '') + (d ? '|d' + d.join('') : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d); });
+export function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
+  var d = weekdagen(dagen), l = parseInt(limiet, 10) > 0 ? Math.min(400, parseInt(limiet, 10)) : 0;
+  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : '') + (veel ? 'v' : '') + (van ? '|' + van : '') + (d ? '|d' + d.join('') : '') + (l ? '|l' + l : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d, l); });
 }
 
 // Standaardperiodes: gelijk aan wat het zijpaneel als standaard invult, zodat

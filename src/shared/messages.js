@@ -49,7 +49,7 @@ export const MSG = {
   AGENDA_CREATE_EVENTS: 'ag-create-events', // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
   AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
-  AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
+  AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
   AGENDA_WEEK_RATIO: 'ag-week-ratio',   // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
   AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week
 

@@ -1126,19 +1126,57 @@ export function create(host, actions) {
   }
 
   function hm(min) { return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
-  function startPlan() {
-    if (plan.busy || !actions.onFreeSlots) return;
-    plan.busy = true; plan.error = ''; plan.result = null;
+  // Zoeken. Een nieuwe zoekactie gaat altijd door (ook als er nog een loopt):
+  // het antwoord van een oudere telt dan niet meer. houd: het huidige
+  // resultaat blijven tonen tot het nieuwe er is (dagen, 'Meer laden').
+  var planNr = 0;
+  var PLAN_STAP = 24;
+  function startPlan(houd) {
+    if (!actions.onFreeSlots) return;
+    var mijn = ++planNr;
+    plan.busy = true; plan.error = '';
+    if (!houd) plan.result = null;
     if (pagina === 'plan') renderPagina();
     var voor = plan;
     actions.onFreeSlots(plan.minutes, plan.weeks, function (res) {
-      if (BEWAARD.plan !== voor) return;
-      plan.busy = false;
+      if (BEWAARD.plan !== voor || mijn !== planNr) return;
+      plan.busy = false; plan.meerBezig = false;
       if (!(res && res.ok && res.result)) plan.error = (res && res.error) || 'Zoeken mislukt.';
       else plan.result = res.result;
-      if (pagina === 'plan') renderPagina();
-    }, plan.tot, false, false, '', gekozenDagen());
+      if (pagina === 'plan') setTimeout(function () { if (pagina === 'plan' && mijn === planNr) renderPagina(); }, 0);
+    }, plan.tot, false, false, '', gekozenDagen(), plan.limit || PLAN_STAP);
   }
+  // Dagen aan- of uitvinken: meteen zichtbaar (filter in het paneel), het
+  // nieuwe zoeken pas als je even niets meer aanklikt.
+  var dagenTimer = null;
+  function dagenGewijzigd() {
+    renderPagina();
+    clearTimeout(dagenTimer);
+    dagenTimer = setTimeout(function () { plan.limit = PLAN_STAP; startPlan(true); }, 300);
+  }
+  // Meer laden: meer blokken in dezelfde periode, of (als de periode op is)
+  // twee weken verder zoeken, tot een half jaar vooruit.
+  function meerLaden(res) {
+    plan.meerBezig = true;
+    if (res.gaps.length >= (plan.limit || PLAN_STAP)) plan.limit = (plan.limit || PLAN_STAP) + PLAN_STAP;
+    else plan.tot = verderTot(res);
+    startPlan(true);
+  }
+  function verderTot(res) {
+    var laatste = res.lastDate || res.to;
+    if (!laatste) return '';
+    var d = datumUitYmd(laatste); d.setDate(d.getDate() + 14);
+    var grens = new Date(); grens.setHours(0, 0, 0, 0); grens.setDate(grens.getDate() + 181);
+    return d > grens ? '' : ymdVan(d);
+  }
+  // Dagenfilter in het paneel: meteen zichtbaar, ook op een resultaat van
+  // voor de wijziging (en in het weekraster).
+  function opGekozenDag(date) { var a = gekozenDagen(); return !a || a.indexOf(datumUitYmd(date).getDay()) >= 0; }
+  function metDagen(res) {
+    if (!res || !gekozenDagen()) return res;
+    return Object.assign({}, res, { gaps: (res.gaps || []).filter(function (g) { return opGekozenDag(g.date); }), holidays: (res.holidays || []).filter(function (h) { return opGekozenDag(h.date); }) });
+  }
+  function kanMeer(res) { return res.gaps.length >= (plan.limit || PLAN_STAP) || !!verderTot(res); }
   // Dagenfilter: [1..5] (1 = maandag); null of alle vijf = alle dagen.
   function gekozenDagen() { return plan.dagen && plan.dagen.length && plan.dagen.length < 5 ? plan.dagen.slice() : null; }
   /* ── Meerdere momenten: één afspraak, daarna kopieën ── */
@@ -1936,7 +1974,7 @@ export function create(host, actions) {
     planBox.appendChild(seg);
     // Instellingen: Duur en (in de lijst) Vooruit als rijen keuzes. Een
     // wijziging zoekt meteen opnieuw.
-    var opnieuw = function () { plan.result = null; startPlan(); };
+    var opnieuw = function () { plan.result = null; plan.limit = PLAN_STAP; startPlan(); };
     var inst = el('div', { display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center', border: '1px solid ' + T.line, borderRadius: '12px', padding: '10px 12px' });
     inst.setAttribute('data-plan-instellingen', '');
     var rijLabel = function (t) { return el('span', { fontSize: '12px', fontWeight: '600', color: T.inkSoft }, t); };
@@ -1958,24 +1996,24 @@ export function create(host, actions) {
       var totAan = !!(plan.tot || plan.totOpen);
       per.appendChild(keuze(plan.tot ? 'Tot ' + dagLang(plan.tot, true).replace(/^\S+ /, '') : 'Tot datum', totAan, function () { plan.totOpen = true; renderPagina(); }, ['data-plan-tot', '']));
       inst.appendChild(rijLabel('Vooruit')); inst.appendChild(per);
-      // Optioneel: alleen vrije tijd op bepaalde dagen (standaard alle dagen aan).
-      var dagRij = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px' });
-      var gek = gekozenDagen() || [1, 2, 3, 4, 5];
-      ['ma', 'di', 'wo', 'do', 'vr'].forEach(function (n, i) {
-        var wd = i + 1, aan = gek.indexOf(wd) >= 0;
-        var c = keuze(n, aan, function () {
-          var nieuw = aan ? gek.filter(function (x) { return x !== wd; }) : gek.concat([wd]).sort();
-          if (!nieuw.length) return;   // minstens één dag
-          plan.dagen = nieuw.length === 5 ? null : nieuw;
-          opnieuw();
-        }, ['data-plan-dag', String(wd)]);
-        c.style.minWidth = '36px';
-        c.setAttribute('aria-pressed', aan ? 'true' : 'false');
-        c.title = aan ? (gek.length === 1 ? 'Minstens één dag' : 'Deze dag niet tonen') : 'Deze dag ook tonen';
-        dagRij.appendChild(c);
-      });
-      inst.appendChild(rijLabel('Dagen')); inst.appendChild(dagRij);
     }
+    // Optioneel: alleen vrije tijd op bepaalde dagen (standaard alle dagen aan).
+    var dagRij = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px' });
+    var gek = gekozenDagen() || [1, 2, 3, 4, 5];
+    ['ma', 'di', 'wo', 'do', 'vr'].forEach(function (n, i) {
+      var wd = i + 1, aan = gek.indexOf(wd) >= 0;
+      var c = keuze(n, aan, function () {
+        var nieuw = aan ? gek.filter(function (x) { return x !== wd; }) : gek.concat([wd]).sort();
+        if (!nieuw.length) return;   // minstens één dag
+        plan.dagen = nieuw.length === 5 ? null : nieuw;
+        dagenGewijzigd();
+      }, ['data-plan-dag', String(wd)]);
+      c.style.minWidth = '36px';
+      c.setAttribute('aria-pressed', aan ? 'true' : 'false');
+      c.title = aan ? (gek.length === 1 ? 'Minstens één dag' : 'Deze dag niet tonen') : 'Deze dag ook tonen';
+      dagRij.appendChild(c);
+    });
+    inst.appendChild(rijLabel('Dagen')); inst.appendChild(dagRij);
     planBox.appendChild(inst);
     if ((plan.weergave || 'lijst') === 'lijst' && (plan.tot || plan.totOpen)) {
       var kz = maakKiezers();
@@ -1994,18 +2032,25 @@ export function create(host, actions) {
       planBox.appendChild(planRaster());
       return planBox;
     }
-    if (plan.busy) { zorgVoorStijl(); var lb = laadBalk(); lb.style.marginTop = '10px'; planBox.appendChild(lb); }
+    if (plan.busy && !plan.meerBezig) { zorgVoorStijl(); var lb = laadBalk(); lb.style.marginTop = '10px'; planBox.appendChild(lb); }
     if (plan.error) { planBox.appendChild(noteBox(plan.error, 'bad')); planBox.appendChild(primaryBtn('Opnieuw zoeken', function () { startPlan(); })); }
     if (uitslag) planBox.appendChild(uitslag);
-    var res = plan.result;
+    var res = metDagen(plan.result);
     if (!res && !plan.busy && !plan.error) planBox.appendChild(primaryBtn('Vrije tijd zoeken', function () { startPlan(); }));
-    if (res && !plan.busy) {
+    if (res && !(plan.busy && !res.gaps.length)) {
       if (!res.gaps.length) {
         if (feestdagenOpWerkdag(res).length) planBox.appendChild(planLijst(res));
         planBox.appendChild(noteBox('Geen vrij blok van ' + fmtMin(res.minutes) + ' gevonden ' +
           (res.to ? 't/m ' + dayLabel(res.to) : 'in de komende ' + (res.weeks === 1 ? 'week' : res.weeks + ' weken')) + '.', 'warn'));
       } else {
         planBox.appendChild(planLijst(res));
+        if (kanMeer(plan.result)) {
+          var meerKnop = secondaryBtn(plan.meerBezig ? 'Meer laden…' : 'Meer laden', function () { if (!plan.meerBezig) meerLaden(plan.result); });
+          meerKnop.setAttribute('data-plan-meer', '');
+          meerKnop.disabled = !!plan.meerBezig;
+          meerKnop.style.marginTop = '12px';
+          planBox.appendChild(meerKnop);
+        }
         if (res.onsCheck === 'unknown') planBox.appendChild(txt('help', 'Open één keer een afspraak in ONS; daarna kijkt de planhulp gekozen tijden ook na met de overlapcontrole van ONS.', { margin: '10px 0 0', fontSize: '11.5px' }));
       }
     }
@@ -2070,10 +2115,6 @@ export function create(host, actions) {
   var TOON_TIJDEN = 8;
   function planLijst(res) {
     var box = el('div');
-    // Dagenfilter ook hier (ook voor een eerder, ongefilterd resultaat).
-    var alleen = gekozenDagen();
-    var opDag = function (date) { return !alleen || alleen.indexOf(datumUitYmd(date).getDay()) >= 0; };
-    res = Object.assign({}, res, { gaps: res.gaps.filter(function (g) { return opDag(g.date); }), holidays: (res.holidays || []).filter(function (h) { return opDag(h.date); }) });
     var duur = res.minutes, d = dagenVan(res);
     plan.open = plan.open || {};
     var feest = feestdagPer(res);
@@ -2212,7 +2253,8 @@ export function create(host, actions) {
       var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
       var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
       var isVandaag = ymdVan(dag) === vandaagYmd;
-      var hk = el('div', { textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' }, n);
+      var dagUit = !fst && !opGekozenDag(ymdVan(dag));
+      var hk = el('div', { textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2', opacity: dagUit && !isVandaag ? '.45' : '1' }, n);
       hk.appendChild(el('div', { color: isVandaag ? '#fff' : (fst ? fst.kop : T.ink), fontWeight: '700' }, String(dag.getDate())));
       if (isVandaag) { Object.assign(hk.style, { background: T.brand, borderRadius: '6px', padding: '1px 0' }); hk.setAttribute('data-raster-vandaag', ''); hk.title = 'Vandaag'; }
       if (fst) { hk.title = fh.name; hk.appendChild(el('i', { display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', background: fst.stip })); }
@@ -2227,6 +2269,15 @@ export function create(host, actions) {
         var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
         var date = ymdVan(dag);
         if (feest[date]) { raster.appendChild(feestdagKolom(feest[date], hoog)); return; }
+        // Uitgevinkt in Dagen: geen vrije tijd tonen.
+        if (!opGekozenDag(date)) {
+          var uitK = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', background: 'repeating-linear-gradient(135deg, #f3efee 0 5px, #ece7e5 5px 10px)' });
+          uitK.setAttribute('data-raster-dag', date); uitK.setAttribute('data-raster-uit', '');
+          uitK.title = 'Uitgevinkt bij Dagen';
+          uitK.appendChild(el('div', { position: 'absolute', top: '4px', left: '0', right: '0', textAlign: 'center', color: T.inkSoft, fontSize: '10px' }, 'Uit'));
+          raster.appendChild(uitK);
+          return;
+        }
         var kol = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', background: '#ece7e5' });
         kol.setAttribute('data-raster-dag', date);
         (d.per[date] || []).forEach(function (g) {

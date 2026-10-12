@@ -146,8 +146,11 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder Duur en
   Vooruit als rijen keuzes (1, 2 of 4 weken of 'Tot datum'), en in de lijst
-  optioneel Dagen (ma di wo do vr, standaard alle aan; uitvinken = op die dag
-  geen vrije momenten, minstens één dag blijft aan); een wijziging
+  Dagen (ma di wo do vr, standaard alle aan; uitvinken = op die dag geen
+  vrije momenten, meteen zichtbaar, ook tijdens het laden en in het
+  weekraster waar de dag 'Uit' toont; minstens één dag blijft aan). Onderaan
+  de lijst 'Meer laden': meer vrije blokken (per 24), of als de periode op is
+  twee weken verder (tot een half jaar); een wijziging
   zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
