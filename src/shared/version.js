@@ -2,5 +2,5 @@
 
 // Eén bron van waarheid: versie komt uit manifest.json (met fallback).
 export const SCRIPT_VERSION = (function () {
-  try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.257'; }
+  try { return chrome.runtime.getManifest().version; } catch (e) { return '1.6.258'; }
 })();

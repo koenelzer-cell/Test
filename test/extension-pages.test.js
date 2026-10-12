@@ -1132,7 +1132,13 @@ test('zijpaneel: planhulp - feestdagen met eigen ontwerp in weekraster en lijst'
   assert.ok(kol, 'Koningsdag in het raster');
   assert.equal(kol.getAttribute('data-raster-dag'), dag(2));
   assert.equal(kol.getAttribute('data-feestdag-stijl'), 'koning');
-  assert.equal(kol.textContent, 'Koningsdag', 'alleen de naam, geen extra tekst');
+  assert.equal(kol.querySelector('[data-rondleiding-titel], .nm') , null);
+  assert.equal(kol.textContent.replace('Proost!', ''), 'Koningsdag', 'alleen de naam (en het ballonnetje van Prins Pils)');
+  const pils = kol.querySelector('[data-prins-pils]');
+  assert.ok(pils, 'Prins Pils op Koningsdag');
+  assert.match(pils.querySelector('[data-prins-pils-foto]').style.background, /assets\/prins-pils\.jpg/);
+  assert.equal(pils.querySelector('[data-prins-pils-proost]').textContent, 'Proost!');
+  assert.equal(document.querySelectorAll('[data-prins-pils]').length, 1, 'alleen op Koningsdag');
   assert.equal(kol.querySelectorAll('svg').length, 2, 'tekening en vlaggetjes');
   assert.equal(kol.querySelectorAll('[data-start]').length, 0, 'niets te kiezen');
   assert.match(kol.style.background, /data:image\/svg\+xml/);
@@ -1331,4 +1337,22 @@ test('zijpaneel: rondleiding Planhulp met knop, weekraster en afspraak maken, da
   assert.ok(tour());
   document.dispatchEvent(new document.defaultView.KeyboardEvent('keydown', { key: 'Escape' }));
   assert.equal(tour(), null, 'Escape sluit');
+});
+
+test('zijpaneel: Prins Pils uit via beheer', async () => {
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7);
+  const di = ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + 1));
+  const { document } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [], holidays: [{ date: di, name: 'Koningsdag' }] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false, prinsPils: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  document.querySelector('[data-week-verder]').click();
+  await tick(); await tick();
+  assert.ok(document.querySelector('[data-raster-feestdag="Koningsdag"]'), 'Koningsdag wel');
+  assert.equal(document.querySelector('[data-prins-pils]'), null, 'Prins Pils niet');
 });

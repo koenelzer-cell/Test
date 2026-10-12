@@ -540,7 +540,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, prinsPils: true, preload: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
@@ -11220,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.257";
+      return "1.6.258";
     }
   }();
 
@@ -14070,7 +14070,7 @@
   }
 
   // src/content/features/agenda/side-panel-bridge.js
-  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerDirect", "routeLink"];
+  var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerDirect", "prinsPils", "routeLink"];
   function routesProxyVoorPaneel() {
     var p = APP_CONFIG.routesProxy || {};
     var url = String(p.url || "").trim().replace(/\/+$/, "");

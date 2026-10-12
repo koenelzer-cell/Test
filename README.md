@@ -171,7 +171,10 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   tijd: in het raster is de hele kolom de feestdag, met een eigen kleur en
   tekening per feestdag (bijv. kroon en vlaggetjes op Koningsdag, kerstboom
   op Eerste kerstdag); in de lijst een gekleurde regel 'Koningsdag, geen
-  tijden'. Een onbekende feestdag krijgt een standaardontwerp. Goede Vrijdag
+  tijden'. Op Koningsdag komt in de weekplanning Prins Pils (foto,
+  `assets/prins-pils.jpg`) van onderen de kolom in en zegt 'Proost!' (één keer
+  per week, met de muis erover nog eens; uit te zetten in het beheer:
+  `prinsPils`). Een onbekende feestdag krijgt een standaardontwerp. Goede Vrijdag
   telt niet als feestdag (gewone werkdag). Elke gekozen
   tijd wordt bij ONS' overlapcontrole nagekeken (melding als ONS overlap
   ziet). De gekozen momenten staan in een vaste balk onderin met één knop

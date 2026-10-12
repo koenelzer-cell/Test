@@ -22,7 +22,7 @@ import { checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
-export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
+export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'prinsPils', 'routeLink'];
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
 // Routes-sleutel; anders niets (dan geen rijtijden).
 function routesProxyVoorPaneel() {

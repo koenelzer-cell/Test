@@ -2113,7 +2113,60 @@ export function create(host, actions) {
     k.appendChild(ic);
     var nm = el('div', { writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontWeight: '800', fontSize: '13px', letterSpacing: '.3px', margin: '12px 0 12px', flex: '1 1 auto', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }, h.name);
     k.appendChild(nm);
+    if (st.sleutel === 'koning' && fAan('prinsPils')) prinsPils(k, h.date);
     return k;
+  }
+  // Koningsdag: Prins Pils (foto) komt van onderen de kolom in, met 'Proost!'.
+  // Eén keer per week die je bekijkt; daarna staat hij er gewoon. Met de muis
+  // erover proost hij nog eens. Bij 'minder beweging' zonder animatie.
+  var pilsStart = {};
+  var PILS_DUUR = 1500;
+  function pilsUrl() {
+    try { if (window.chrome && chrome.runtime && chrome.runtime.getURL) return chrome.runtime.getURL('assets/prins-pils.jpg'); } catch (e) {}
+    return '../assets/prins-pils.jpg';
+  }
+  // 'Proost!' op het ballonnetje dat er nu staat (het paneel kan intussen
+  // opnieuw getekend zijn).
+  function pilsProost(hop) {
+    var foto = paginaBox.querySelector('[data-prins-pils]');
+    var bal = foto && foto.querySelector('[data-prins-pils-proost]');
+    if (!bal) return;
+    bal.style.opacity = '1';
+    clearTimeout(pilsProost._t); pilsProost._t = setTimeout(function () { var b = paginaBox.querySelector('[data-prins-pils-proost]'); if (b) b.style.opacity = '0'; }, 2200);
+    if (hop && foto.animate) { try { foto.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-6px)' }, { transform: 'translateY(0)' }], { duration: 420, easing: 'ease-out' }); } catch (e) {} }
+  }
+  function prinsPils(k, date) {
+    // Houder (beweegt) met de foto (zachte bovenrand) en het ballonnetje erboven.
+    var foto = el('div', { position: 'absolute', left: '2px', right: '2px', bottom: '0', pointerEvents: 'none' });
+    var beeld = el('div', { paddingTop: '153%', borderRadius: '8px 8px 0 0', background: '#222 url("' + pilsUrl() + '") center top / cover no-repeat',
+      WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 14px)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 14px)' });
+    beeld.setAttribute('data-prins-pils-foto', '');
+    foto.appendChild(beeld);
+    foto.setAttribute('data-prins-pils', '');
+    foto.setAttribute('role', 'img');
+    foto.setAttribute('aria-label', 'Prins Pils');
+    var bal = el('div', { position: 'absolute', left: '4px', bottom: 'calc(100% + 4px)', background: '#fff', color: '#b85c00', borderRadius: '8px', padding: '1px 6px',
+      font: '800 9.5px ' + FONT, whiteSpace: 'nowrap', opacity: '0', transition: 'opacity .25s ease', boxShadow: '0 1px 3px rgba(0,0,0,.2)', marginBottom: '-8px' }, 'Proost!');
+    bal.setAttribute('data-prins-pils-proost', '');
+    foto.appendChild(bal);
+    k.appendChild(foto);
+    var rustig = false;
+    try { rustig = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+    k.addEventListener('mouseenter', function () { pilsProost(!rustig); });
+    // Eén keer per week: de klok loopt door, ook als het paneel intussen
+    // opnieuw getekend wordt (dan gaat de animatie verder waar hij was).
+    var sleutel = date + '|' + plan.rasterWeek;
+    var nu = Date.now();
+    if (!pilsStart[sleutel]) {
+      pilsStart[sleutel] = nu;
+      setTimeout(function () { pilsProost(false); }, rustig ? 300 : PILS_DUUR);
+    }
+    var verstreken = nu - pilsStart[sleutel];
+    if (rustig || !foto.animate || verstreken >= PILS_DUUR) return;
+    try {
+      foto.animate([{ transform: 'translateY(100%)' }, { transform: 'translateY(100%)', offset: 0.35 }, { transform: 'translateY(-4%)', offset: 0.85 }, { transform: 'translateY(0)' }],
+        { duration: PILS_DUUR, delay: -verstreken, easing: 'ease-out', fill: 'backwards' });
+    } catch (e) {}
   }
   var TOON_TIJDEN = 8;
   function planLijst(res) {
