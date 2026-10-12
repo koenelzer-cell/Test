@@ -169,8 +169,11 @@ en oker).
   alleen in het zijpaneel zelf (localStorage).
 - **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
-  'Vooruit' in de lijst), daaronder Duur en
-  Vooruit als rijen keuzes (1, 2 of 4 weken of 'Tot datum'), en in de lijst
+  'Vooruit' in de lijst), daaronder een compacte tabel met drie regels: Duur
+  (30m, 45m, 1u, 1,5u, 2u), Vooruit (1, 2 of 4 wk, of het kalendertje voor een
+  eigen datum; die staat er dan kort naast, bijvoorbeeld '8 nov') en Dagen.
+  Per regel staat het label links en de keuzes even breed op één regel;
+  gekozen is roze, ook bij de dagen. Voluit staat in aria-label en title.
   Dagen (ma di wo do vr, standaard alle aan; uitvinken = op die dag geen
   vrije momenten, meteen zichtbaar, ook tijdens het laden en in het
   weekplanning waar de dag 'Uit' toont; minstens één dag blijft aan). Onderaan

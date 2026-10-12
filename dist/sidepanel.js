@@ -5415,48 +5415,55 @@
         plan.limit = PLAN_STAP;
         startPlan();
       };
-      var inst = el("div", { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 12px", alignItems: "center", border: "1px solid " + T.line, borderRadius: "12px", padding: "10px 12px" });
+      var inst = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "0 12px" });
       inst.setAttribute("data-plan-instellingen", "");
-      var rijLabel = function(t) {
-        return el("span", { fontSize: "12px", fontWeight: "600", color: T.inkSoft }, t);
+      var instRij = function(label, keuzes) {
+        var r = el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "46px", borderTop: inst.firstChild ? "1px solid " + T.line : "0" });
+        r.appendChild(el("span", { flex: "0 0 52px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, label));
+        var k = el("div", { display: "flex", gap: "5px", flex: "1 1 auto", minWidth: "0" });
+        keuzes.forEach(function(c) {
+          k.appendChild(c);
+        });
+        r.appendChild(k);
+        inst.appendChild(r);
       };
-      var keuze = function(tekst, aan, fn, attr) {
-        var c = chipKnop(tekst, aan, fn, { padding: "0 9px", height: "28px", border: "1px solid " + (aan ? T.brand : T.line) });
-        if (attr) c.setAttribute(attr[0], attr[1]);
+      var keuze = function(tekst, voluit, aan, fn, attr) {
+        var c = chipKnop(tekst, aan, fn, { flex: "1 1 0", minWidth: "0", height: "30px", fontSize: "12.5px", border: "1px solid " + (aan ? T.brand : T.line) });
+        c.setAttribute(attr[0], attr[1]);
+        c.setAttribute("aria-pressed", aan ? "true" : "false");
+        c.setAttribute("aria-label", voluit);
+        c.title = voluit;
         return c;
       };
-      var duur = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
-      [[30, "30 min"], [45, "45 min"], [60, "1 uur"], [90, "1,5 uur"], [120, "2 uur"]].forEach(function(d) {
-        duur.appendChild(keuze(d[1], plan.minutes === d[0], function() {
+      instRij("Duur", [[30, "30m", "30 minuten"], [45, "45m", "45 minuten"], [60, "1u", "1 uur"], [90, "1,5u", "1,5 uur"], [120, "2u", "2 uur"]].map(function(d) {
+        return keuze(d[1], d[2], plan.minutes === d[0], function() {
           plan.minutes = d[0];
           opnieuw();
-        }, ["data-plan-duur", String(d[0])]));
-      });
-      inst.appendChild(rijLabel("Duur"));
-      inst.appendChild(duur);
+        }, ["data-plan-duur", String(d[0])]);
+      }));
       if ((plan.weergave || "lijst") === "lijst") {
-        var per = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
-        [[1, "1 week"], [2, "2 weken"], [4, "4 weken"]].forEach(function(w) {
-          per.appendChild(keuze(w[1], !plan.tot && !plan.totOpen && plan.weeks === w[0], function() {
+        var per = [[1, "1 wk", "1 week"], [2, "2 wk", "2 weken"], [4, "4 wk", "4 weken"]].map(function(w) {
+          return keuze(w[1], w[2], !plan.tot && !plan.totOpen && plan.weeks === w[0], function() {
             plan.weeks = w[0];
             plan.tot = "";
             plan.totOpen = false;
             opnieuw();
-          }, ["data-plan-weken", String(w[0])]));
+          }, ["data-plan-weken", String(w[0])]);
         });
-        var totAan = !!(plan.tot || plan.totOpen);
-        per.appendChild(keuze(plan.tot ? "Tot " + dagLang(plan.tot, true).replace(/^\S+ /, "") : "Tot datum", totAan, function() {
+        var totDag = plan.tot ? dagLang(plan.tot, true).replace(/^\S+ /, "") : "";
+        var tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, "$1"), plan.tot ? "Tot en met " + totDag : "Tot een datum", !!(plan.tot || plan.totOpen), function() {
           plan.totOpen = true;
           renderPagina();
-        }, ["data-plan-tot", ""]));
-        inst.appendChild(rijLabel("Vooruit"));
-        inst.appendChild(per);
+        }, ["data-plan-tot", ""]);
+        Object.assign(tot.style, { flex: "0 0 auto", minWidth: "34px", padding: "0 8px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "5px" });
+        tot.insertBefore(svgPath(ICON_KALENDER, 15), tot.firstChild);
+        per.push(tot);
+        instRij("Vooruit", per);
       }
-      var dagRij = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
       var gek = gekozenDagen() || [1, 2, 3, 4, 5];
-      ["ma", "di", "wo", "do", "vr"].forEach(function(n, i) {
+      instRij("Dagen", ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"].map(function(naam, i) {
         var wd = i + 1, aan = gek.indexOf(wd) >= 0;
-        var c = keuze(n, aan, function() {
+        var c = keuze(naam.slice(0, 2), naam, aan, function() {
           var nieuw = aan ? gek.filter(function(x) {
             return x !== wd;
           }) : gek.concat([wd]).sort();
@@ -5464,13 +5471,9 @@
           plan.dagen = nieuw.length === 5 ? null : nieuw;
           dagenGewijzigd();
         }, ["data-plan-dag", String(wd)]);
-        c.style.minWidth = "36px";
-        c.setAttribute("aria-pressed", aan ? "true" : "false");
-        c.title = aan ? gek.length === 1 ? "Minstens één dag" : "Deze dag niet tonen" : "Deze dag ook tonen";
-        dagRij.appendChild(c);
-      });
-      inst.appendChild(rijLabel("Dagen"));
-      inst.appendChild(dagRij);
+        c.title = aan ? gek.length === 1 ? "Minstens één dag" : naam + " niet tonen" : naam + " ook tonen";
+        return c;
+      }));
       planBox.appendChild(inst);
       if ((plan.weergave || "lijst") === "lijst" && (plan.tot || plan.totOpen)) {
         var kz = maakKiezers();
@@ -5484,7 +5487,7 @@
           plan.totOpen = false;
           opnieuw();
         });
-        Object.assign(wis.style, { width: "auto", padding: "0 12px", marginBottom: "8px" });
+        Object.assign(wis.style, { width: "auto", flex: "0 0 auto", padding: "0 12px", height: "32px" });
         totRij.appendChild(wis);
         planBox.appendChild(totRij);
         planBox.appendChild(kz.host);
@@ -7029,7 +7032,7 @@
           { titel: "Welkom in de Planhulp", tekst: "Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.", knop: "Rondleiding starten", voor: lijstKlaar },
           { titel: "Lijst of weekplanning", tekst: "In de lijst zie je per dag de begintijden. De weekplanning toont je week als mini agenda.", voor: lijstKlaar, vind: alle("[data-plan-weergave]") },
           { titel: "Hoe lang duurt de afspraak?", tekst: "Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.", voor: lijstKlaar, vind: alle("[data-plan-duur]"), breedte: inst },
-          { titel: "Hoe ver vooruit", tekst: "Zoek 1, 2 of 4 weken vooruit, of tot een datum die je zelf kiest.", voor: lijstKlaar, vind: alle("[data-plan-weken],[data-plan-tot]"), breedte: inst },
+          { titel: "Hoe ver vooruit", tekst: "Zoek 1, 2 of 4 weken vooruit. Met het kalendertje zoek je tot een datum die je zelf kiest.", voor: lijstKlaar, vind: alle("[data-plan-weken],[data-plan-tot]"), breedte: inst },
           { titel: "Alleen bepaalde dagen", tekst: "Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.", voor: lijstKlaar, vind: alle("[data-plan-dag]"), breedte: inst },
           {
             titel: "Tik op een begintijd",

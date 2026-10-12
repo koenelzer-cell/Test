@@ -541,9 +541,15 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   navKnop(document, 'Planhulp').click();
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
-  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30 min45 min1 uur1,5 uur2 uurVooruit1 week2 weken4 wekenTot datumDagenmadiwodovr$/, 'duur en vooruit als rijen keuzes, zonder scheidingstekens');
-  assert.equal(document.querySelector('[data-plan-duur="60"]').getAttribute('aria-pressed') !== 'false', true);
-  knop(document, '4 weken').click();
+  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30m45m1u1,5u2uVooruit1 wk2 wk4 wkDagenmadiwodovr$/, 'compacte tabel: korte teksten, Tot datum als kalendertje');
+  assert.equal(document.querySelector('[data-plan-duur="60"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(document.querySelector('[data-plan-duur="90"]').getAttribute('aria-label'), '1,5 uur', 'voluit voor schermlezers');
+  assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot een datum');
+  assert.ok(document.querySelector('[data-plan-tot] svg'), 'kalendericoon');
+  assert.equal(document.querySelector('[data-plan-instellingen]').querySelectorAll(':scope > div').length, 3, 'drie regels');
+  const dag1 = document.querySelector('[data-plan-dag="1"]'), duur60 = document.querySelector('[data-plan-duur="60"]');
+  assert.equal(dag1.style.background, duur60.style.background, 'gekozen dagen in hetzelfde roze als de andere keuzes');
+  document.querySelector('[data-plan-weken="4"]').click();
   await tick();
   assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
   document.querySelector('[data-plan-tot]').click();
@@ -1277,7 +1283,8 @@ test('zijpaneel: planhulp - Meer laden onderaan de lijst', async () => {
   // Nu minder dan gevraagd (periode op): twee weken verder zoeken.
   meer().click(); await tick(); await tick();
   assert.equal(zoek().at(-1).to, '2026-11-08', 'twee weken verder');
-  assert.match(document.querySelector('[data-plan-tot]').textContent, /^Tot /);
+  assert.equal(document.querySelector('[data-plan-tot]').textContent, '8 nov', 'gekozen datum kort naast het kalendertje');
+  assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot en met 8 november');
 });
 
 test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () => {
