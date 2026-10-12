@@ -526,3 +526,11 @@ test('planhulp: feestdagen uit ONS zijn geen vrije tijd en gaan mee in de uitsla
   await api.findFreeSlots(30, 1, dag(4), false, true, dag(0));
   assert.equal(urls.filter((u) => /holidays/.test(u)).length, 1, 'feestdagen één keer per pagina opgehaald');
 });
+
+test('planhulp: alleen vrije tijd op gekozen weekdagen', () => {
+  const { api } = bootHelper();
+  const opts = { now: Date.parse('2026-10-12T06:00:00'), days: 7, minMinutes: 60, stepMin: 15, windowStart: 480, windowEnd: 1020 };
+  const dagen = (o) => [...new Set(api.findFreeGaps([], o).map((g) => g.date))];
+  assert.deepEqual(dagen(opts), ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16']);
+  assert.deepEqual(dagen({ ...opts, weekdays: [2, 5] }), ['2026-10-13', '2026-10-16'], 'alleen dinsdag en vrijdag');
+});

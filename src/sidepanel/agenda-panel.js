@@ -796,7 +796,7 @@ function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', busy: false, result: null, error: '' };
+  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: '' };
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
@@ -1137,8 +1137,10 @@ export function create(host, actions) {
       if (!(res && res.ok && res.result)) plan.error = (res && res.error) || 'Zoeken mislukt.';
       else plan.result = res.result;
       if (pagina === 'plan') renderPagina();
-    }, plan.tot);
+    }, plan.tot, false, false, '', gekozenDagen());
   }
+  // Dagenfilter: [1..5] (1 = maandag); null of alle vijf = alle dagen.
+  function gekozenDagen() { return plan.dagen && plan.dagen.length && plan.dagen.length < 5 ? plan.dagen.slice() : null; }
   /* ── Meerdere momenten: één afspraak, daarna kopieën ── */
   // Reserveringen (uit het vrije blok) die [start, start+duur) raken.
   function reserveringenIn(g, start, duur) {
@@ -1956,6 +1958,23 @@ export function create(host, actions) {
       var totAan = !!(plan.tot || plan.totOpen);
       per.appendChild(keuze(plan.tot ? 'Tot ' + dagLang(plan.tot, true).replace(/^\S+ /, '') : 'Tot datum', totAan, function () { plan.totOpen = true; renderPagina(); }, ['data-plan-tot', '']));
       inst.appendChild(rijLabel('Vooruit')); inst.appendChild(per);
+      // Optioneel: alleen vrije tijd op bepaalde dagen (standaard alle dagen aan).
+      var dagRij = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px' });
+      var gek = gekozenDagen() || [1, 2, 3, 4, 5];
+      ['ma', 'di', 'wo', 'do', 'vr'].forEach(function (n, i) {
+        var wd = i + 1, aan = gek.indexOf(wd) >= 0;
+        var c = keuze(n, aan, function () {
+          var nieuw = aan ? gek.filter(function (x) { return x !== wd; }) : gek.concat([wd]).sort();
+          if (!nieuw.length) return;   // minstens één dag
+          plan.dagen = nieuw.length === 5 ? null : nieuw;
+          opnieuw();
+        }, ['data-plan-dag', String(wd)]);
+        c.style.minWidth = '36px';
+        c.setAttribute('aria-pressed', aan ? 'true' : 'false');
+        c.title = aan ? (gek.length === 1 ? 'Minstens één dag' : 'Deze dag niet tonen') : 'Deze dag ook tonen';
+        dagRij.appendChild(c);
+      });
+      inst.appendChild(rijLabel('Dagen')); inst.appendChild(dagRij);
     }
     planBox.appendChild(inst);
     if ((plan.weergave || 'lijst') === 'lijst' && (plan.tot || plan.totOpen)) {
@@ -2012,7 +2031,8 @@ export function create(host, actions) {
   }
   // Feestdagen (uit ONS) van maandag tot en met vrijdag: { date, name }.
   function feestdagenOpWerkdag(res) {
-    return ((res && res.holidays) || []).filter(function (h) { var w = datumUitYmd(h.date).getDay(); return w > 0 && w < 6; });
+    // Goede Vrijdag is geen vrije dag (ook al stuurt ONS hem mee).
+    return ((res && res.holidays) || []).filter(function (h) { var w = datumUitYmd(h.date).getDay(); return w > 0 && w < 6 && !/goede\s*vrijdag/i.test(String(h.name || '')); });
   }
   function feestdagPer(res) { var per = {}; feestdagenOpWerkdag(res).forEach(function (h) { per[h.date] = h; }); return per; }
   // Feestdag in de lijst: gekleurde regel met tekening, zonder tijden.
@@ -2050,6 +2070,10 @@ export function create(host, actions) {
   var TOON_TIJDEN = 8;
   function planLijst(res) {
     var box = el('div');
+    // Dagenfilter ook hier (ook voor een eerder, ongefilterd resultaat).
+    var alleen = gekozenDagen();
+    var opDag = function (date) { return !alleen || alleen.indexOf(datumUitYmd(date).getDay()) >= 0; };
+    res = Object.assign({}, res, { gaps: res.gaps.filter(function (g) { return opDag(g.date); }), holidays: (res.holidays || []).filter(function (h) { return opDag(h.date); }) });
     var duur = res.minutes, d = dagenVan(res);
     plan.open = plan.open || {};
     var feest = feestdagPer(res);

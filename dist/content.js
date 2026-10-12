@@ -1233,7 +1233,7 @@
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
+    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -11220,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.253";
+      return "1.6.254";
     }
   }();
 
@@ -13330,6 +13330,7 @@
     var max = opts.maxResults || 12;
     var dagen = opts.days || 14;
     var overslaan = opts.skipDates || {};
+    var alleenDagen = Array.isArray(opts.weekdays) && opts.weekdays.length ? opts.weekdays : null;
     var bezet = /* @__PURE__ */ Object.create(null), heleDag = /* @__PURE__ */ Object.create(null);
     (entries || []).forEach(function(e) {
       if (!e || !e.date) return;
@@ -13361,6 +13362,7 @@
       var dag = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       var key = ymd(dag);
       if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
+      if (alleenDagen && alleenDagen.indexOf(dag.getDay()) < 0) continue;
       var dStart = dag.getTime();
       var vanaf = wS;
       if (i === 0) {
@@ -13635,6 +13637,12 @@
   function _forgetHolidays() {
     feestdagenBelofte = null;
   }
+  function weekdagen(dagen) {
+    var d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function(x, i, a) {
+      return x >= 1 && x <= 5 && a.indexOf(x) === i;
+    }).sort();
+    return d.length && d.length < 5 ? d : null;
+  }
   function huisbezoekenPerDag(alles, datums) {
     var gezien = /* @__PURE__ */ Object.create(null);
     var opDag = alles.filter(function(e) {
@@ -13678,7 +13686,7 @@
       return uit;
     });
   }
-  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
+  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
     var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
@@ -13760,7 +13768,8 @@
         windowStart: win.start,
         windowEnd: win.end,
         maxResults: veel ? 400 : totDatum ? 40 : 12,
-        skipDates: isFeest
+        skipDates: isFeest,
+        weekdays: weekdagen(dagen)
       });
       gaps.forEach(function(g) {
         g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
@@ -13862,9 +13871,10 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : ""), function() {
-      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van);
+  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
+    var d = weekdagen(dagen);
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : "") + (d ? "|d" + d.join("") : ""), function() {
+      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d);
     });
   }
   function defaultProductionTo() {
@@ -14305,7 +14315,7 @@
             });
             return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || "").then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || "", msg.days).then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {

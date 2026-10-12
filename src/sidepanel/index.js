@@ -70,7 +70,11 @@ const agendaActies = {
   onNewEvent: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_NEW_EVENT }, req), cb); },
   onDayRoute: function (date, origin, cb) { vraagAanTab({ type: MSG.AGENDA_DAY_ROUTE, date: date, origin: origin || '' }, cb); },
   onSlotCheck: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb); },
-  onFreeSlots: function (minutes, weeks, cb, to, visits, many, from) { vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '', visits: !!visits, many: !!many, from: from || '' }, cb); },
+  onFreeSlots: function (minutes, weeks, cb, to, visits, many, from, days) {
+    var m = { type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '', visits: !!visits, many: !!many, from: from || '' };
+    if (Array.isArray(days) && days.length && days.length < 5) m.days = days.slice();
+    vraagAanTab(m, cb);
+  },
   onEventOptions: function (clientIds, cb) { vraagAanTab({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, cb); },
   onCreateEvents: function (events, cb) { vraagAanTab({ type: MSG.AGENDA_CREATE_EVENTS, events: events }, cb); },
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },

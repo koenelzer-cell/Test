@@ -68,7 +68,7 @@
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
+    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -3321,7 +3321,7 @@
     BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
     BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
     BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
-    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", busy: false, result: null, error: "" };
+    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: "" };
     BEWAARD.momenten = [];
     BEWAARD.kopie = null;
     BEWAARD.balkOpen = false;
@@ -3741,7 +3741,10 @@
         if (!(res && res.ok && res.result)) plan.error = res && res.error || "Zoeken mislukt.";
         else plan.result = res.result;
         if (pagina === "plan") renderPagina();
-      }, plan.tot);
+      }, plan.tot, false, false, "", gekozenDagen());
+    }
+    function gekozenDagen() {
+      return plan.dagen && plan.dagen.length && plan.dagen.length < 5 ? plan.dagen.slice() : null;
     }
     function reserveringenIn(g, start, duur) {
       return (g.reservations || []).filter(function(r) {
@@ -4951,6 +4954,25 @@
         }, ["data-plan-tot", ""]));
         inst.appendChild(rijLabel("Vooruit"));
         inst.appendChild(per);
+        var dagRij = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
+        var gek = gekozenDagen() || [1, 2, 3, 4, 5];
+        ["ma", "di", "wo", "do", "vr"].forEach(function(n, i) {
+          var wd = i + 1, aan = gek.indexOf(wd) >= 0;
+          var c = keuze(n, aan, function() {
+            var nieuw = aan ? gek.filter(function(x) {
+              return x !== wd;
+            }) : gek.concat([wd]).sort();
+            if (!nieuw.length) return;
+            plan.dagen = nieuw.length === 5 ? null : nieuw;
+            opnieuw();
+          }, ["data-plan-dag", String(wd)]);
+          c.style.minWidth = "36px";
+          c.setAttribute("aria-pressed", aan ? "true" : "false");
+          c.title = aan ? gek.length === 1 ? "Minstens één dag" : "Deze dag niet tonen" : "Deze dag ook tonen";
+          dagRij.appendChild(c);
+        });
+        inst.appendChild(rijLabel("Dagen"));
+        inst.appendChild(dagRij);
       }
       planBox.appendChild(inst);
       if ((plan.weergave || "lijst") === "lijst" && (plan.tot || plan.totOpen)) {
@@ -5032,7 +5054,7 @@
     function feestdagenOpWerkdag(res) {
       return (res && res.holidays || []).filter(function(h) {
         var w = datumUitYmd(h.date).getDay();
-        return w > 0 && w < 6;
+        return w > 0 && w < 6 && !/goede\s*vrijdag/i.test(String(h.name || ""));
       });
     }
     function feestdagPer(res) {
@@ -5091,6 +5113,15 @@
     var TOON_TIJDEN = 8;
     function planLijst(res) {
       var box = el("div");
+      var alleen = gekozenDagen();
+      var opDag = function(date) {
+        return !alleen || alleen.indexOf(datumUitYmd(date).getDay()) >= 0;
+      };
+      res = Object.assign({}, res, { gaps: res.gaps.filter(function(g) {
+        return opDag(g.date);
+      }), holidays: (res.holidays || []).filter(function(h) {
+        return opDag(h.date);
+      }) });
       var duur = res.minutes, d = dagenVan(res);
       plan.open = plan.open || {};
       var feest = feestdagPer(res);
@@ -6765,8 +6796,10 @@
     onSlotCheck: function(req, cb) {
       vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb);
     },
-    onFreeSlots: function(minutes, weeks, cb, to, visits, many, from) {
-      vraagAanTab({ type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits, many: !!many, from: from || "" }, cb);
+    onFreeSlots: function(minutes, weeks, cb, to, visits, many, from, days) {
+      var m = { type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits, many: !!many, from: from || "" };
+      if (Array.isArray(days) && days.length && days.length < 5) m.days = days.slice();
+      vraagAanTab(m, cb);
     },
     onEventOptions: function(clientIds, cb) {
       vraagAanTab({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds }, cb);

@@ -64,6 +64,12 @@ export function holidays() {
 }
 export function _forgetHolidays() { feestdagenBelofte = null; }
 
+// [1..5] -> gesorteerd en uniek; leeg of alle vijf = geen filter (null).
+export function weekdagen(dagen) {
+  var d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function (x, i, a) { return x >= 1 && x <= 5 && a.indexOf(x) === i; }).sort();
+  return d.length && d.length < 5 ? d : null;
+}
+
 // Waar ben je op de dagen met vrije tijd? Afspraken op een kantoorlocatie
 // (postcode van het kantoor, uit de ONS-locatie; zie domain/offices.js) en
 // andere afspraken met een cliënt (postcode van de cliënt, uit de details).
@@ -113,7 +119,8 @@ function huisbezoekenPerDag(alles, datums) {
 // dan geen ONS-controle per blok (het zijpaneel controleert het voorstel).
 // van: 'YYYY-MM-DD' (optioneel, met tot): zoeken vanaf die dag i.p.v. vandaag,
 // zonder grens hoe ver vooruit (weekraster: één week per keer).
-export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
+// dagen: [1..5] (optioneel): alleen vrije tijd op deze weekdagen (1 = maandag).
+export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
@@ -174,7 +181,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
     var gaps = findFreeGaps(alles, {
       now: startMs, days: dagen, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12),
-      skipDates: isFeest
+      skipDates: isFeest, weekdays: weekdagen(dagen)
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
     // die het begin van het blok raken.

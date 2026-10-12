@@ -538,7 +538,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   navKnop(document, 'Planhulp').click();
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
-  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30 min45 min1 uur1,5 uur2 uurVooruit1 week2 weken4 wekenTot datum$/, 'duur en vooruit als rijen keuzes, zonder scheidingstekens');
+  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30 min45 min1 uur1,5 uur2 uurVooruit1 week2 weken4 wekenTot datumDagenmadiwodovr$/, 'duur en vooruit als rijen keuzes, zonder scheidingstekens');
   assert.equal(document.querySelector('[data-plan-duur="60"]').getAttribute('aria-pressed') !== 'false', true);
   knop(document, '4 weken').click();
   await tick();
@@ -1112,7 +1112,7 @@ test('zijpaneel: planhulp - feestdagen met eigen ontwerp in weekraster en lijst'
   const { document } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020,
       gaps: [{ date: dag(1), startMin: 540, endMin: 660, minutes: 120 }, { date: dag(3), startMin: 540, endMin: 660, minutes: 120 }],
-      holidays: [{ date: dag(0), name: 'Tweede kerstdag' }, { date: dag(2), name: 'Koningsdag' }, { date: dag(5), name: 'Zaterdagfeest' }] } }),
+      holidays: [{ date: dag(0), name: 'Tweede kerstdag' }, { date: dag(2), name: 'Koningsdag' }, { date: dag(4), name: ' Goede Vrijdag' }, { date: dag(5), name: 'Zaterdagfeest' }] } }),
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
   navKnop(document, 'Planhulp').click();
@@ -1198,4 +1198,26 @@ test('zijpaneel: cliënt zoeken met vinkje Inclusief cliënten uit zorg', async 
   tim.click();
   await tick();
   assert.match(document.querySelector('[data-maak-client]').textContent, /Tim Oud/);
+});
+
+test('zijpaneel: planhulp - dagenfilter ma t/m vr onder Duur en Vooruit', async () => {
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-16', startMin: 540, endMin: 660, minutes: 120 }] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-free-slots');
+  assert.equal(zoek().at(-1).days, undefined, 'standaard alle dagen: geen filter');
+  assert.deepEqual([...document.querySelectorAll('[data-plan-dag]')].map((b) => b.getAttribute('aria-pressed')), ['true', 'true', 'true', 'true', 'true']);
+  for (const d of ['1', '2', '3', '4']) { document.querySelector('[data-plan-dag="' + d + '"]').click(); await tick(); }
+  assert.deepEqual([...zoek().at(-1).days], [5], 'alleen vrijdag');
+  assert.equal(document.querySelector('[data-plan-dag="5"]').getAttribute('aria-pressed'), 'true');
+  const voor = zoek().length;
+  document.querySelector('[data-plan-dag="5"]').click(); await tick();
+  assert.equal(zoek().length, voor, 'de laatste dag kan niet uit');
+  document.querySelector('[data-plan-dag="2"]').click(); await tick();
+  assert.deepEqual([...zoek().at(-1).days], [2, 5]);
+  for (const d of ['1', '3', '4']) { document.querySelector('[data-plan-dag="' + d + '"]').click(); await tick(); }
+  assert.equal(zoek().at(-1).days, undefined, 'alles weer aan: geen filter');
 });

@@ -225,7 +225,7 @@ export function listenForSidePanelMessages() {
           });
           return true;
         case MSG.AGENDA_FREE_SLOTS:
-          cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || '').then(function (result) {
+          cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || '', msg.days).then(function (result) {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Zoeken mislukt.' }); } catch (e2) {}

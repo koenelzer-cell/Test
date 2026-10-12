@@ -13,7 +13,7 @@ import { viewedInviteeIds } from './navigation.js';
 import { checkOpenRange, defaultRangeFrom } from './open-range.js';
 import { computeProduction, defaultProductionFrom } from './production.js';
 import { fetchWeekRatio } from './week-ratio.js';
-import { findFreeSlots } from './free-slots.js';
+import { findFreeSlots, weekdagen } from './free-slots.js';
 import { resolveInviteeId, currentAgendaDate } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -68,8 +68,9 @@ export function cachedProduction(from, to, onProgress) {
 export function cachedWeekRatio(date) {
   return onthouden('ratio', String(date), function () { return fetchWeekRatio(date); });
 }
-export function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
-  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : '') + (veel ? 'v' : '') + (van ? '|' + van : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van); });
+export function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen) {
+  var d = weekdagen(dagen);
+  return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : '') + (veel ? 'v' : '') + (van ? '|' + van : '') + (d ? '|d' + d.join('') : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d); });
 }
 
 // Standaardperiodes: gelijk aan wat het zijpaneel als standaard invult, zodat
