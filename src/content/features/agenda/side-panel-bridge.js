@@ -94,6 +94,9 @@ function agPanelState() {
     viewDate: currentAgendaDate(),
     // Hoeveel agenda's er naast elkaar open staan (planhulp zoekt dan gezamenlijke tijd).
     inviteeCount: currentInviteeIds().length || 1,
+    // Welke agenda's er open staan (gesorteerd): verandert dit, dan zoekt de
+    // planhulp opnieuw of vraagt hij het (als er al momenten gekozen zijn).
+    inviteeIds: currentInviteeIds().slice().sort().join(','),
     // Standaardperiode voor 'Open registraties controleren'.
     rangeDefaultFrom: defaultRangeFrom(),
     productionDefaultFrom: defaultProductionFrom(),

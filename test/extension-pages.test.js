@@ -1066,3 +1066,41 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   await tick();
   assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').length, voor + 1, 'na het maken opnieuw zoeken');
 });
+
+test('zijpaneel: planhulp - agenda erbij of eraf: zonder keuzes meteen opnieuw zoeken, met keuzes eerst vragen', async () => {
+  const een = { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false }, inviteeId: '13970', inviteeIds: '13970', inviteeCount: 1 };
+  const twee = { ...een, inviteeIds: '13970,45267', inviteeCount: 2 };
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 }] } }),
+  }, een);
+  const zoekvragen = () => verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const start = zoekvragen();
+  // Agenda erbij, nog niets gekozen: meteen opnieuw zoeken.
+  env_update(document, twee);
+  await tick();
+  assert.equal(zoekvragen(), start + 1, 'opnieuw gezocht');
+  assert.equal(document.querySelector('[data-agenda-melding]'), null, 'geen vraag zonder keuzes');
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'blijft op de planhulp');
+  // Moment kiezen, dan agenda sluiten: eerst vragen.
+  document.querySelector('[data-start="10:30"]').click();
+  env_update(document, een);
+  await tick();
+  assert.equal(zoekvragen(), start + 1, 'niet vanzelf opnieuw');
+  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda gesloten\..*Opnieuw beginnen.*Negeren/s);
+  document.querySelector('[data-agenda-negeren]').click();
+  assert.equal(document.querySelector('[data-agenda-melding]'), null);
+  assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'keuze blijft staan');
+  assert.equal(zoekvragen(), start + 1, 'negeren = niet verversen');
+  // Weer een agenda erbij: opnieuw beginnen wist de keuze en zoekt opnieuw.
+  env_update(document, twee);
+  await tick();
+  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda geopend \(nu 2 agenda’s\)\./);
+  document.querySelector('[data-agenda-opnieuw]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-selectie]'), null, 'keuzes gewist');
+  assert.equal(zoekvragen(), start + 2, 'opnieuw gezocht');
+  assert.equal(document.querySelector('[data-agenda-melding]'), null);
+});

@@ -1505,6 +1505,8 @@ export function create(host, actions) {
   function pageMaken() {
     var mk = BEWAARD.maak, box = el('div');
     if (!mk) return box;
+    var meldingM = agendaMeldingBlok();
+    if (meldingM) box.appendChild(meldingM);
     var n = mk.items.length, klaar = !!mk.uitslag;
     mk.open = mk.open || {};
     if (mk.laden) { zorgVoorStijl(); box.appendChild(laadBalk()); return box; }
@@ -1856,8 +1858,50 @@ export function create(host, actions) {
   // vooruit). Lijst: per dag de begintijden, meteen te kiezen.
   // Weekraster: mini-agenda per week; tik in de vrije tijd. Gekozen momenten
   // staan in de balk onderin.
+  // Agenda's erbij of eraf: zonder gekozen momenten meteen opnieuw zoeken;
+  // met gekozen momenten eerst vragen (opnieuw beginnen of negeren).
+  function agendasGewijzigd(oud, nieuw) {
+    var nOud = oud.split(',').length, nNieuw = nieuw.split(',').length;
+    var bezig = BEWAARD.momenten.length > 0 || (pagina === 'maken' && BEWAARD.maak && !BEWAARD.maak.uitslag);
+    if (bezig) {
+      BEWAARD.agendaMelding = { meer: nNieuw > nOud, minder: nNieuw < nOud, aantal: nNieuw };
+      if (pagina === 'plan' || pagina === 'maken') renderPagina();
+      return;
+    }
+    planVernieuwen();
+  }
+  function planVernieuwen() {
+    plan.result = null; plan.error = ''; plan.raster = null;
+    BEWAARD.agendaMelding = null;
+    if (pagina === 'plan') { startPlan(); renderPagina(); }
+  }
+  function agendaMeldingBlok() {
+    var m = BEWAARD.agendaMelding;
+    if (!m) return null;
+    var box = el('div', { border: '1px solid #f0d6a8', background: '#fdf3e2', borderRadius: '12px', padding: '10px 12px', margin: '0 0 10px' });
+    box.setAttribute('data-agenda-melding', '');
+    var wat = m.meer ? 'Er is een agenda geopend' : m.minder ? 'Er is een agenda gesloten' : 'Er staan andere agenda\u2019s open';
+    box.appendChild(el('div', { fontWeight: '700', fontSize: '13px', color: T.warn }, wat + (m.aantal > 1 ? ' (nu ' + m.aantal + ' agenda\u2019s).' : '.')));
+    box.appendChild(el('div', { fontSize: '12px', color: T.ink, margin: '2px 0 8px' }, 'Je gekozen momenten zijn gezocht met de vorige agenda\u2019s. Opnieuw beginnen zoekt tijd die nu voor iedereen vrij is.'));
+    var rij = el('div', { display: 'flex', gap: '8px' });
+    var opnieuw = primaryBtn('Opnieuw beginnen', function () {
+      BEWAARD.momenten = []; BEWAARD.balkOpen = false; BEWAARD.maak = null; BEWAARD.agendaMelding = null;
+      plan.result = null; plan.error = ''; plan.raster = null;
+      naarPagina('plan');
+    });
+    Object.assign(opnieuw.style, { marginTop: '0', flex: '1 1 0' });
+    opnieuw.setAttribute('data-agenda-opnieuw', '');
+    var negeer = secondaryBtn('Negeren', function () { BEWAARD.agendaMelding = null; renderPagina(); });
+    negeer.style.flex = '1 1 0';
+    negeer.setAttribute('data-agenda-negeren', '');
+    rij.appendChild(opnieuw); rij.appendChild(negeer);
+    box.appendChild(rij);
+    return box;
+  }
   function pagePlan() {
     var planBox = el('div');
+    var melding = agendaMeldingBlok();
+    if (melding) planBox.appendChild(melding);
     var meer = (state && state.inviteeCount > 1) ? state.inviteeCount : 0;
     if (meer) { planBox.appendChild(noteBox('Er staan ' + meer + ' agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.', 'ok')); planBox.lastChild.style.margin = '0 0 10px'; }
     // Lijst of weekraster.
@@ -2839,6 +2883,18 @@ export function create(host, actions) {
       // Andere medewerker (invitee) in de URL: resultaten van de vorige horen
       // er niet meer bij. Terug naar de hoofdpagina met een schone lei.
       var inv = state && state.inviteeId;
+      // Agenda's erbij of eraf (meerdere naast elkaar): planhulp bijwerken.
+      var agendas = (state && state.inviteeIds) || '';
+      var vorigeAgendas = BEWAARD.agendaSleutel;
+      var gedeeld = function (a, b) { var x = String(a || '').split(','); return String(b || '').split(',').some(function (id) { return id && x.indexOf(id) >= 0; }); };
+      if (agendas && vorigeAgendas && agendas !== vorigeAgendas && gedeeld(agendas, vorigeAgendas)) {
+        BEWAARD.agendaSleutel = agendas;
+        if (inv) BEWAARD.inviteeId = inv;
+        agendasGewijzigd(vorigeAgendas, agendas);
+        render();
+        return;
+      }
+      if (agendas) BEWAARD.agendaSleutel = agendas;
       if (inv && BEWAARD.inviteeId && inv !== BEWAARD.inviteeId) {
         legeResultaten();
         range = BEWAARD.range; prod = BEWAARD.prod; ratio = BEWAARD.ratio; plan = BEWAARD.plan;

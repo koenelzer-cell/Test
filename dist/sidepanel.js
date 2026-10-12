@@ -4033,6 +4033,8 @@
     function pageMaken() {
       var mk = BEWAARD.maak, box = el("div");
       if (!mk) return box;
+      var meldingM = agendaMeldingBlok();
+      if (meldingM) box.appendChild(meldingM);
       var n = mk.items.length, klaar = !!mk.uitslag;
       mk.open = mk.open || {};
       if (mk.laden) {
@@ -4598,8 +4600,62 @@
       });
       else reken();
     }
+    function agendasGewijzigd(oud, nieuw) {
+      var nOud = oud.split(",").length, nNieuw = nieuw.split(",").length;
+      var bezig = BEWAARD.momenten.length > 0 || pagina === "maken" && BEWAARD.maak && !BEWAARD.maak.uitslag;
+      if (bezig) {
+        BEWAARD.agendaMelding = { meer: nNieuw > nOud, minder: nNieuw < nOud, aantal: nNieuw };
+        if (pagina === "plan" || pagina === "maken") renderPagina();
+        return;
+      }
+      planVernieuwen();
+    }
+    function planVernieuwen() {
+      plan.result = null;
+      plan.error = "";
+      plan.raster = null;
+      BEWAARD.agendaMelding = null;
+      if (pagina === "plan") {
+        startPlan();
+        renderPagina();
+      }
+    }
+    function agendaMeldingBlok() {
+      var m = BEWAARD.agendaMelding;
+      if (!m) return null;
+      var box = el("div", { border: "1px solid #f0d6a8", background: "#fdf3e2", borderRadius: "12px", padding: "10px 12px", margin: "0 0 10px" });
+      box.setAttribute("data-agenda-melding", "");
+      var wat = m.meer ? "Er is een agenda geopend" : m.minder ? "Er is een agenda gesloten" : "Er staan andere agenda’s open";
+      box.appendChild(el("div", { fontWeight: "700", fontSize: "13px", color: T.warn }, wat + (m.aantal > 1 ? " (nu " + m.aantal + " agenda’s)." : ".")));
+      box.appendChild(el("div", { fontSize: "12px", color: T.ink, margin: "2px 0 8px" }, "Je gekozen momenten zijn gezocht met de vorige agenda’s. Opnieuw beginnen zoekt tijd die nu voor iedereen vrij is."));
+      var rij = el("div", { display: "flex", gap: "8px" });
+      var opnieuw = primaryBtn("Opnieuw beginnen", function() {
+        BEWAARD.momenten = [];
+        BEWAARD.balkOpen = false;
+        BEWAARD.maak = null;
+        BEWAARD.agendaMelding = null;
+        plan.result = null;
+        plan.error = "";
+        plan.raster = null;
+        naarPagina("plan");
+      });
+      Object.assign(opnieuw.style, { marginTop: "0", flex: "1 1 0" });
+      opnieuw.setAttribute("data-agenda-opnieuw", "");
+      var negeer = secondaryBtn("Negeren", function() {
+        BEWAARD.agendaMelding = null;
+        renderPagina();
+      });
+      negeer.style.flex = "1 1 0";
+      negeer.setAttribute("data-agenda-negeren", "");
+      rij.appendChild(opnieuw);
+      rij.appendChild(negeer);
+      box.appendChild(rij);
+      return box;
+    }
     function pagePlan() {
       var planBox = el("div");
+      var melding = agendaMeldingBlok();
+      if (melding) planBox.appendChild(melding);
       var meer = state && state.inviteeCount > 1 ? state.inviteeCount : 0;
       if (meer) {
         planBox.appendChild(noteBox("Er staan " + meer + " agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.", "ok"));
@@ -5864,6 +5920,22 @@
         var vorigeSig = vergelijkSig;
         state = next || null;
         var inv = state && state.inviteeId;
+        var agendas = state && state.inviteeIds || "";
+        var vorigeAgendas = BEWAARD.agendaSleutel;
+        var gedeeld = function(a, b) {
+          var x = String(a || "").split(",");
+          return String(b || "").split(",").some(function(id) {
+            return id && x.indexOf(id) >= 0;
+          });
+        };
+        if (agendas && vorigeAgendas && agendas !== vorigeAgendas && gedeeld(agendas, vorigeAgendas)) {
+          BEWAARD.agendaSleutel = agendas;
+          if (inv) BEWAARD.inviteeId = inv;
+          agendasGewijzigd(vorigeAgendas, agendas);
+          render();
+          return;
+        }
+        if (agendas) BEWAARD.agendaSleutel = agendas;
         if (inv && BEWAARD.inviteeId && inv !== BEWAARD.inviteeId) {
           legeResultaten();
           range = BEWAARD.range;

@@ -169,7 +169,10 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   Outlook-afspraken die bezet, afwezig of voorlopig zijn ('vrij' en 'elders aan
   het werk' tellen niet). Staan er meerdere agenda's naast elkaar open
   (/invitees/13970,45267/...), dan zoekt hij tijd waarop iedereen vrij is, en
-  opent 'Afspraak maken' het formulier met alle personen erin. De hulp vult in het
+  opent 'Afspraak maken' het formulier met alle personen erin. Gaat er een
+  agenda bij of af terwijl de planhulp open staat, dan zoekt hij meteen
+  opnieuw; heb je al momenten gekozen, dan vraagt hij eerst: 'Opnieuw
+  beginnen' (keuzes weg, opnieuw zoeken) of 'Negeren' (alles blijft staan). De hulp vult in het
   ONS-formulier de datum, begintijd en eindtijd (begintijd + gekozen duur) van
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel).
