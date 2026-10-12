@@ -171,12 +171,16 @@ en oker).
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder een compacte tabel met drie regels: Duur
   (30m, 45m, 1u, 1,5u, 2u), Vooruit (1, 2 of 4 wk, of het kalendertje voor een
-  eigen datum; die staat er dan kort naast, bijvoorbeeld '8 nov') en Dagen.
-  Per regel staat het label links en de keuzes even breed op één regel;
-  gekozen is roze, ook bij de dagen. Voluit staat in aria-label en title.
-  Dagen (ma di wo do vr, standaard alle aan; uitvinken = op die dag geen
-  vrije momenten, meteen zichtbaar, ook tijdens het laden en in het
-  weekplanning waar de dag 'Uit' toont; minstens één dag blijft aan). Onderaan
+  eigen datum) en Dagen. Per regel staat het label links en de keuzes even
+  breed op één regel; gekozen is roze, ook bij de dagen. Voluit staat in
+  aria-label en title. Het kalendertje klapt onder de tabel een maandkalender
+  open ('Zoek tot en met'); een dag kiezen zoekt meteen en klapt hem dicht, de
+  datum staat dan kort naast het kalendertje ('8 nov'). Nog een tik of Escape
+  klapt hem dicht; terug naar weken is een tik op 1, 2 of 4 wk (er is geen
+  aparte Wissen-knop). Dagen staat alleen bij de lijst (ma di wo do vr,
+  standaard alle aan; uitvinken = op die dag geen vrije momenten, meteen
+  zichtbaar, ook tijdens het laden; minstens één dag blijft aan). De
+  weekplanning toont altijd de hele week. Onderaan
   de lijst 'Meer laden': meer vrije blokken (per 24), of als de periode op is
   twee weken verder (tot een half jaar); een wijziging
   zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van

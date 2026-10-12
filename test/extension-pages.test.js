@@ -552,10 +552,32 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   document.querySelector('[data-plan-weken="4"]').click();
   await tick();
   assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
-  document.querySelector('[data-plan-tot]').click();
-  assert.match(document.body.textContent, /Zoek tot en met/, 'Tot datum: datumveld');
-  knop(document, 'Wissen').click();
+  // Tot datum: het kalendertje klapt een maandkalender open, nog een tik klapt hem dicht.
+  const totKnop = () => document.querySelector('[data-plan-tot]');
+  const kalender = () => document.querySelector('[data-plan-kalender]');
+  const zoekVraag = () => verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  totKnop().click();
+  assert.ok(kalender(), 'maandkalender open');
+  assert.match(kalender().textContent, /^Zoek tot en met/);
+  assert.equal(totKnop().getAttribute('aria-expanded'), 'true');
+  assert.equal(knop(document, 'Wissen'), undefined, 'geen aparte Wissen-knop meer');
+  totKnop().click();
+  assert.equal(kalender(), null, 'nog een tik: dicht');
+  assert.equal(document.querySelector('[data-plan-weken="4"]').getAttribute('aria-pressed'), 'true', 'zonder datum blijft 4 wk gekozen');
+  totKnop().click();
+  const dagKnop = [...kalender().querySelectorAll('[data-ymd]')].at(-1);
+  const gekozenYmd = dagKnop.getAttribute('data-ymd');
+  dagKnop.click();
   await tick();
+  assert.equal(zoekVraag().to, gekozenYmd, 'een dag kiezen zoekt meteen tot en met die dag');
+  assert.equal(kalender(), null, 'en klapt de kalender dicht');
+  assert.equal(totKnop().getAttribute('aria-pressed'), 'true');
+  assert.notEqual(totKnop().textContent, '', 'de datum staat kort naast het kalendertje');
+  // Terug naar weken: gewoon een tik op 2 wk.
+  document.querySelector('[data-plan-weken="2"]').click();
+  await tick();
+  assert.deepEqual({ weeks: zoekVraag().weeks, to: zoekVraag().to || '' }, { weeks: 2, to: '' }, 'een tik op weken wist de datum');
+  assert.equal(totKnop().textContent, '');
   assert.match(document.body.textContent, /Donderdag 8 oktoberVrij van 10:30 tot 12:00Naar dag/);
   const starts = [...document.querySelectorAll('[data-dag="2026-10-08"][data-start]')].map((b) => b.getAttribute('data-start'));
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past, zonder tussenpagina');
@@ -1209,7 +1231,7 @@ test('zijpaneel: cliënt zoeken met vinkje Inclusief cliënten uit zorg', async 
   assert.match(document.querySelector('[data-maak-client]').textContent, /Tim Oud/);
 });
 
-test('zijpaneel: planhulp - dagenfilter: meteen zichtbaar, vlot tijdens laden, ook in het weekraster', async () => {
+test('zijpaneel: planhulp - dagenfilter: meteen zichtbaar, vlot tijdens laden, niet in de weekplanning', async () => {
   const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
   const open = [];   // antwoorden die nog niet gegeven zijn (traag ONS)
   const antwoord = (msg) => ({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
@@ -1253,14 +1275,17 @@ test('zijpaneel: planhulp - dagenfilter: meteen zichtbaar, vlot tijdens laden, o
   const n = zoek().length;
   document.querySelector('[data-plan-dag="5"]').click(); await wacht(350);
   assert.equal(zoek().length, n, 'de laatste dag kan niet uit');
-  // Weekraster: uitgevinkte dagen zonder vrije tijd, met 'Uit'.
+  // Weekplanning: altijd de hele week, zonder Dagen.
   document.querySelector('[data-plan-weergave="raster"]').click();
   await tick();
-  assert.ok(document.querySelector('[data-plan-dag]'), 'Dagen ook bij het weekraster');
-  const uit = [...document.querySelectorAll('[data-raster-uit]')];
-  assert.equal(uit.length, 4, 'ma t/m do uit');
-  assert.ok(uit.every((k) => !k.querySelector('[data-start]')));
-  assert.ok(document.querySelector('[data-raster-dag]:not([data-raster-uit]) [data-raster-vrij]'), 'vrijdag wel');
+  assert.equal(document.querySelector('[data-plan-dag]'), null, 'geen Dagen bij de weekplanning');
+  assert.equal(document.querySelector('[data-plan-instellingen]').querySelectorAll(':scope > div').length, 1, 'alleen Duur');
+  assert.equal(document.querySelectorAll('[data-raster-uit]').length, 0, 'geen dagen uit');
+  assert.equal(document.querySelectorAll('[data-raster-dag]').length, 5, 'vijf gewone dagkolommen');
+  // Terug naar de lijst: het filter staat er nog.
+  document.querySelector('[data-plan-weergave="lijst"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-plan-dag="1"]').getAttribute('aria-pressed'), 'false', 'dagenfilter blijft voor de lijst');
 });
 
 test('zijpaneel: planhulp - Meer laden onderaan de lijst', async () => {

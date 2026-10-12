@@ -419,6 +419,57 @@ function veldKnop(tekst, leeg, icoon) {
 }
 var ICON_KALENDER = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5z';
 
+// Maandkalender in paneel p: bladeren per maand, vandaag omrand, de gekozen
+// dag roze. kies(ymd) bij een tik op een dag (of op Vandaag).
+function maandKalender(p, huidig, kies) {
+  var start = datumUitYmd(huidig) || new Date();
+  var toon = new Date(start.getFullYear(), start.getMonth(), 1);
+  function teken() {
+    p.innerHTML = '';
+    var kop = el('div', { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' });
+    var vorige = chipKnop('', false, function () { toon = new Date(toon.getFullYear(), toon.getMonth() - 1, 1); teken(); }, { width: '32px', color: T.brand });
+    vorige.appendChild(svgPath('M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z', 18));
+    vorige.setAttribute('aria-label', 'Vorige maand');
+    var volgende = chipKnop('', false, function () { toon = new Date(toon.getFullYear(), toon.getMonth() + 1, 1); teken(); }, { width: '32px', color: T.brand });
+    volgende.appendChild(svgPath(CHEV_RECHTS, 18));
+    volgende.setAttribute('aria-label', 'Volgende maand');
+    kop.appendChild(vorige);
+    kop.appendChild(el('div', Object.assign({}, TYPE.section, { margin: '0', flex: '1 1 auto', textAlign: 'center' }), MAANDEN_LANG[toon.getMonth()] + ' ' + toon.getFullYear()));
+    kop.appendChild(volgende);
+    p.appendChild(kop);
+    var rooster = el('div', { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' });
+    ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].forEach(function (w) {
+      rooster.appendChild(el('div', Object.assign({}, TYPE.small, { color: T.inkSoft, textAlign: 'center', padding: '4px 0', fontWeight: '600' }), w));
+    });
+    var eerste = new Date(toon.getFullYear(), toon.getMonth(), 1);
+    var begin = new Date(eerste); begin.setDate(1 - ((eerste.getDay() + 6) % 7));
+    var vandaag = ymdVan(new Date());
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(begin); d.setDate(begin.getDate() + i);
+      if (i >= 35 && d.getMonth() !== toon.getMonth()) break;
+      (function (d) {
+        var ymd = ymdVan(d);
+        var buiten = d.getMonth() !== toon.getMonth();
+        var gekozen = ymd === huidig;
+        var extra = { width: '100%' };
+        if (buiten) extra.color = '#b9b1b5';
+        if (!gekozen && ymd === vandaag) { extra.border = '1px solid ' + T.brand; extra.fontWeight = '600'; }
+        var dag = chipKnop(String(d.getDate()), gekozen, function () { kies(ymd); }, extra);
+        dag.setAttribute('aria-label', datumTekst(ymd) + (ymd === vandaag ? ' (vandaag)' : ''));
+        if (gekozen) dag.setAttribute('aria-pressed', 'true');
+        dag.setAttribute('data-ymd', ymd);
+        rooster.appendChild(dag);
+      })(d);
+    }
+    p.appendChild(rooster);
+    var voet = el('div', { display: 'flex', justifyContent: 'flex-end', marginTop: '6px' });
+    var nu = chipKnop('Vandaag', false, function () { kies(vandaag); }, { padding: '0 10px', color: T.brand, fontWeight: '600' });
+    voet.appendChild(nu);
+    p.appendChild(voet);
+  }
+  teken();
+}
+
 export function maakKiezers() {
   var host = el('div');           // hier klapt de open kiezer uit
   var open = null;                // { knop, sluit }
@@ -458,7 +509,6 @@ export function maakKiezers() {
     knop.setAttribute('aria-haspopup', 'dialog');
     knop.setAttribute('aria-expanded', 'false');
     knop.setAttribute('data-datum', huidig || '');
-    var toon = new Date();
     function kies(ymd) {
       huidig = ymd;
       knop._tekst.textContent = datumTekst(ymd);
@@ -470,55 +520,10 @@ export function maakKiezers() {
     }
     knop.addEventListener('click', function (e) {
       e.preventDefault();
-      var start = datumUitYmd(huidig) || new Date();
-      toon = new Date(start.getFullYear(), start.getMonth(), 1);
       openVoor(knop, function (p) {
         p.setAttribute('role', 'dialog');
         p.setAttribute('aria-label', 'Kies een datum');
-        function teken() {
-          p.innerHTML = '';
-          var kop = el('div', { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' });
-          var vorige = chipKnop('', false, function () { toon = new Date(toon.getFullYear(), toon.getMonth() - 1, 1); teken(); }, { width: '32px', color: T.brand });
-          vorige.appendChild(svgPath('M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z', 18));
-          vorige.setAttribute('aria-label', 'Vorige maand');
-          var volgende = chipKnop('', false, function () { toon = new Date(toon.getFullYear(), toon.getMonth() + 1, 1); teken(); }, { width: '32px', color: T.brand });
-          volgende.appendChild(svgPath(CHEV_RECHTS, 18));
-          volgende.setAttribute('aria-label', 'Volgende maand');
-          kop.appendChild(vorige);
-          kop.appendChild(el('div', Object.assign({}, TYPE.section, { margin: '0', flex: '1 1 auto', textAlign: 'center' }), MAANDEN_LANG[toon.getMonth()] + ' ' + toon.getFullYear()));
-          kop.appendChild(volgende);
-          p.appendChild(kop);
-          var rooster = el('div', { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' });
-          ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'].forEach(function (w) {
-            rooster.appendChild(el('div', Object.assign({}, TYPE.small, { color: T.inkSoft, textAlign: 'center', padding: '4px 0', fontWeight: '600' }), w));
-          });
-          var eerste = new Date(toon.getFullYear(), toon.getMonth(), 1);
-          var begin = new Date(eerste); begin.setDate(1 - ((eerste.getDay() + 6) % 7));
-          var vandaag = ymdVan(new Date());
-          for (var i = 0; i < 42; i++) {
-            var d = new Date(begin); d.setDate(begin.getDate() + i);
-            if (i >= 35 && d.getMonth() !== toon.getMonth()) break;
-            (function (d) {
-              var ymd = ymdVan(d);
-              var buiten = d.getMonth() !== toon.getMonth();
-              var gekozen = ymd === huidig;
-              var extra = { width: '100%' };
-              if (buiten) extra.color = '#b9b1b5';
-              if (!gekozen && ymd === vandaag) { extra.border = '1px solid ' + T.brand; extra.fontWeight = '600'; }
-              var dag = chipKnop(String(d.getDate()), gekozen, function () { kies(ymd); }, extra);
-              dag.setAttribute('aria-label', datumTekst(ymd) + (ymd === vandaag ? ' (vandaag)' : ''));
-              if (gekozen) dag.setAttribute('aria-pressed', 'true');
-              dag.setAttribute('data-ymd', ymd);
-              rooster.appendChild(dag);
-            })(d);
-          }
-          p.appendChild(rooster);
-          var voet = el('div', { display: 'flex', justifyContent: 'flex-end', marginTop: '6px' });
-          var nu = chipKnop('Vandaag', false, function () { kies(vandaag); }, { padding: '0 10px', color: T.brand, fontWeight: '600' });
-          voet.appendChild(nu);
-          p.appendChild(voet);
-        }
-        teken();
+        maandKalender(p, huidig, kies);
       });
     });
     return knop;
@@ -1236,8 +1241,8 @@ export function create(host, actions) {
     var grens = new Date(); grens.setHours(0, 0, 0, 0); grens.setDate(grens.getDate() + 181);
     return d > grens ? '' : ymdVan(d);
   }
-  // Dagenfilter in het paneel: meteen zichtbaar, ook op een resultaat van
-  // voor de wijziging (en in het weekraster).
+  // Dagenfilter in het paneel (alleen de lijst): meteen zichtbaar, ook op een
+  // resultaat van voor de wijziging.
   function opGekozenDag(date) { var a = gekozenDagen(); return !a || a.indexOf(datumUitYmd(date).getDay()) >= 0; }
   function metDagen(res) {
     if (!res || !gekozenDagen()) return res;
@@ -2069,17 +2074,23 @@ export function create(host, actions) {
       var per = [[1, '1 wk', '1 week'], [2, '2 wk', '2 weken'], [4, '4 wk', '4 weken']].map(function (w) {
         return keuze(w[1], w[2], !plan.tot && !plan.totOpen && plan.weeks === w[0], function () { plan.weeks = w[0]; plan.tot = ''; plan.totOpen = false; opnieuw(); }, ['data-plan-weken', String(w[0])]);
       });
-      // Tot datum: een kalendertje; met een gekozen datum staat die er kort naast.
+      // Tot datum: een kalendertje; met een gekozen datum staat die er kort
+      // naast. Een tik klapt de maandkalender onder de tabel open of dicht;
+      // terug naar weken = een tik op 1, 2 of 4 wk (geen aparte Wissen-knop).
       var totDag = plan.tot ? dagLang(plan.tot, true).replace(/^\S+ /, '') : '';
-      var tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, '$1'), plan.tot ? 'Tot en met ' + totDag : 'Tot een datum', !!(plan.tot || plan.totOpen), function () { plan.totOpen = true; renderPagina(); }, ['data-plan-tot', '']);
+      var tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, '$1'), plan.tot ? 'Tot en met ' + totDag : 'Tot een datum', !!(plan.tot || plan.totOpen), function () { plan.totOpen = !plan.totOpen; renderPagina(); }, ['data-plan-tot', '']);
       Object.assign(tot.style, { flex: '0 0 auto', minWidth: '34px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' });
       tot.insertBefore(svgPath(ICON_KALENDER, 15), tot.firstChild);
+      tot.setAttribute('aria-haspopup', 'dialog');
+      tot.setAttribute('aria-expanded', plan.totOpen ? 'true' : 'false');
+      if (plan.totOpen) tot.style.boxShadow = '0 0 0 3px ' + T.brandWash;
       per.push(tot);
       instRij('Vooruit', per);
     }
-    // Optioneel: alleen vrije tijd op bepaalde dagen (standaard alle dagen aan).
+    // Optioneel, alleen in de lijst: vrije tijd op bepaalde dagen (standaard
+    // alle dagen aan). De weekplanning toont altijd de hele week.
     var gek = gekozenDagen() || [1, 2, 3, 4, 5];
-    instRij('Dagen', ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'].map(function (naam, i) {
+    if ((plan.weergave || 'lijst') === 'lijst') instRij('Dagen', ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'].map(function (naam, i) {
       var wd = i + 1, aan = gek.indexOf(wd) >= 0;
       var c = keuze(naam.slice(0, 2), naam, aan, function () {
         var nieuw = aan ? gek.filter(function (x) { return x !== wd; }) : gek.concat([wd]).sort();
@@ -2091,15 +2102,18 @@ export function create(host, actions) {
       return c;
     }));
     planBox.appendChild(inst);
-    if ((plan.weergave || 'lijst') === 'lijst' && (plan.tot || plan.totOpen)) {
-      var kz = maakKiezers();
-      var totRij = el('div', { display: 'flex', alignItems: 'flex-end', gap: '8px', marginTop: '8px' });
-      totRij.appendChild(fieldLabel('Zoek tot en met', kz.datum(plan.tot, function (v) { plan.tot = v; opnieuw(); })));
-      var wis = secondaryBtn('Wissen', function () { plan.tot = ''; plan.totOpen = false; opnieuw(); });
-      Object.assign(wis.style, { width: 'auto', flex: '0 0 auto', padding: '0 12px', height: '32px' });
-      totRij.appendChild(wis);
-      planBox.appendChild(totRij);
-      planBox.appendChild(kz.host);
+    // Maandkalender voor Tot datum: een dag kiezen zoekt meteen en klapt hem dicht.
+    if ((plan.weergave || 'lijst') === 'lijst' && plan.totOpen) {
+      var kal = el('div', { margin: '8px 0 2px', padding: '10px', borderRadius: '12px', border: '1px solid ' + T.line, background: '#fff', boxShadow: '0 10px 28px -14px rgba(32,20,15,.35)' });
+      kal.setAttribute('data-plan-kalender', '');
+      kal.setAttribute('role', 'dialog');
+      kal.setAttribute('aria-label', 'Zoek tot en met');
+      kal.appendChild(el('div', { fontSize: '12px', fontWeight: '600', color: T.inkSoft, margin: '0 2px 6px' }, 'Zoek tot en met'));
+      var maand = el('div');
+      maandKalender(maand, plan.tot, function (ymd) { plan.tot = ymd; plan.totOpen = false; opnieuw(); });
+      kal.appendChild(maand);
+      kal.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); plan.totOpen = false; renderPagina(); } });
+      planBox.appendChild(kal);
     }
     var uitslag = kopieUitslag();
     // Weekraster: eigen gegevens per week, los van 'Vooruit' in de lijst.
@@ -2352,8 +2366,7 @@ export function create(host, actions) {
       var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
       var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
       var isVandaag = ymdVan(dag) === vandaagYmd;
-      var dagUit = !fst && !opGekozenDag(ymdVan(dag));
-      var hk = el('div', { textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2', opacity: dagUit && !isVandaag ? '.45' : '1' }, n);
+      var hk = el('div', { textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' }, n);
       hk.appendChild(el('div', { color: isVandaag ? '#fff' : (fst ? fst.kop : T.ink), fontWeight: '700' }, String(dag.getDate())));
       if (isVandaag) { Object.assign(hk.style, { background: T.brand, borderRadius: '6px', padding: '1px 0' }); hk.setAttribute('data-raster-vandaag', ''); hk.title = 'Vandaag'; }
       if (fst) { hk.title = fh.name; hk.appendChild(el('i', { display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', background: fst.stip })); }
@@ -2368,15 +2381,6 @@ export function create(host, actions) {
         var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
         var date = ymdVan(dag);
         if (feest[date]) { raster.appendChild(feestdagKolom(feest[date], hoog)); return; }
-        // Uitgevinkt in Dagen: geen vrije tijd tonen.
-        if (!opGekozenDag(date)) {
-          var uitK = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', background: 'repeating-linear-gradient(135deg, #f3efee 0 5px, #ece7e5 5px 10px)' });
-          uitK.setAttribute('data-raster-dag', date); uitK.setAttribute('data-raster-uit', '');
-          uitK.title = 'Uitgevinkt bij Dagen';
-          uitK.appendChild(el('div', { position: 'absolute', top: '4px', left: '0', right: '0', textAlign: 'center', color: T.inkSoft, fontSize: '10px' }, 'Uit'));
-          raster.appendChild(uitK);
-          return;
-        }
         var kol = el('div', { position: 'relative', height: hoog + 'px', borderRadius: '6px', background: '#ece7e5' });
         kol.setAttribute('data-raster-dag', date);
         (d.per[date] || []).forEach(function (g) {
