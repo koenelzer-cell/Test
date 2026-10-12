@@ -93,7 +93,7 @@ export const DEFAULT_APP_CONFIG = {
   nonClientCategories: [],
   // Eigen server voor rijtijden over de weg (Google Routes API; zie
   // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
-  // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
+  // embedKey: vervallen (de kaart is vervangen door een QR-code); blijft leeg.
   // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
   // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
   // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.

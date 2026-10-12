@@ -616,8 +616,8 @@
     <h2>Functies aan- en uitzetten <span class="badge actief">gefaseerde uitrol</span></h2>
     <p class="uitleg">Schakel onderdelen centraal uit zonder de overige hulp te verwijderen.</p>
     <div id="featureFlags" class="feature-grid"></div>
-    <h3 style="margin:18px 0 4px">Google Maps: rijtijden en kaart</h3>
-    <p class="uitleg">Met een <b>Routes-sleutel</b> kan Afspraak maken (Geavanceerd) de afspraken <b>efficiënter indelen op rijtijd</b> en vult de reistijd in, en berekent Route van de dag de kortste volgorde. Met een <b>kaartsleutel</b> toont Route van de dag een kaart. Naar Google Routes gaan alleen postcodes. Leeg laten = geen rijtijden en geen kaart.</p>
+    <h3 style="margin:18px 0 4px">Google Maps: rijtijden</h3>
+    <p class="uitleg">Met een <b>Routes-sleutel</b> kan Afspraak maken (Geavanceerd) de afspraken <b>efficiënter indelen op rijtijd</b> en vult de reistijd in, en berekent Route van de dag de kortste volgorde. Naar Google Routes gaan alleen postcodes. Leeg laten = geen rijtijden. (Route van de dag toont een QR-code om de route op de telefoon te openen; daar is geen sleutel voor nodig.)</p>
     <div class="beheer-grid">
       <label class="beheer-veld"><span>Routes-sleutel (alleen Routes API)</span><input id="routesKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
     </div>
@@ -628,10 +628,6 @@
       <label class="beheer-veld"><span>Token (PROXY_TOKEN van de server)</span><input id="routesProxyToken" type="password" autocomplete="off" oninput="markDirty(event)"></label>
     </div>
     </details>
-    <div class="beheer-grid">
-      <label class="beheer-veld"><span>Kaartsleutel (alleen Maps Embed API)</span><input id="mapsEmbedKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
-    </div>
-    <p class="uitleg">De kaartsleutel staat wél in de extensie. Gebruik daarom een <b>aparte</b> sleutel die in Google Cloud is beperkt tot <b>alleen de Maps Embed API</b> (kaarten tonen is daar gratis). Gebruik hier niet de Routes-sleutel.</p>
     <h3 style="margin:18px 0 4px">Kantoren voor de planhulp</h3>
     <p class="uitleg">Een afspraak met een ONS-locatie die begint met <b>BG</b> (Begeleiding) of <b>J&amp;G</b> (Jeugd en Gezin) telt in de planhulp als 'op kantoor'. De locatienaam wordt herkend aan een van de herkenningswoorden (hele woorden, na 'BG'/'J&amp;G'; het langste woord wint). Postcode zonder spatie, bijv. 4822NH.</p>
     <table id="tblOffices"><thead><tr>
@@ -2615,12 +2611,12 @@ function renderFeatures(value) {
   });
 }
 // ===== Rijtijden-server =====
-function renderRoutesProxy(v) { v = v || {}; $('#routesProxyUrl').value = v.url || ''; $('#routesProxyToken').value = v.token || ''; $('#mapsEmbedKey').value = v.embedKey || ''; $('#routesKey').value = v.routesKey || ''; }
+function renderRoutesProxy(v) { v = v || {}; $('#routesProxyUrl').value = v.url || ''; $('#routesProxyToken').value = v.token || ''; $('#routesKey').value = v.routesKey || ''; }
 function readRoutesProxy() {
   const url = $('#routesProxyUrl').value.trim().replace(/\/+$/, ''), token = $('#routesProxyToken').value.trim();
-  const embedKey = $('#mapsEmbedKey').value.trim(), routesKey = $('#routesKey').value.trim();
+  const routesKey = $('#routesKey').value.trim();
   const sleutel = (k) => /^[A-Za-z0-9_-]{20,60}$/.test(k) ? k : '';
-  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: sleutel(embedKey), routesKey: sleutel(routesKey) };
+  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: '', routesKey: sleutel(routesKey) };   // kaart (embedKey) vervallen: QR-code
 }
 // ===== Kantoren (planhulp) =====
 function addOffice(o) {

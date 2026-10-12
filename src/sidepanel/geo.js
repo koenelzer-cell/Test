@@ -114,17 +114,3 @@ export function mapsUrls(adressen, origin, terug) {
   }
   return uit;
 }
-
-// Kaart (Google Maps Embed API, directions): origin, stops (adressen), sleutel.
-// Zonder vertrekpunt begint de kaart bij de eerste stop. Max. 20 tussenstops.
-export function embedUrl(key, adressen, origin) {
-  var stops = (adressen || []).filter(Boolean);
-  if (!key || !stops.length) return '';
-  var start = origin || stops[0];
-  var rest = origin ? stops : stops.slice(1);
-  if (!rest.length) return 'https://www.google.com/maps/embed/v1/place?key=' + encodeURIComponent(key) + '&q=' + encodeURIComponent(start);
-  var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
-  return 'https://www.google.com/maps/embed/v1/directions?key=' + encodeURIComponent(key) +
-    '&origin=' + encodeURIComponent(start) + '&destination=' + encodeURIComponent(dest) +
-    (tussen.length ? '&waypoints=' + tussen.map(encodeURIComponent).join('%7C') : '') + '&mode=driving';
-}

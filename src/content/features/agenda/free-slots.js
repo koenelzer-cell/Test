@@ -98,15 +98,26 @@ function huisbezoekenPerDag(alles, datums) {
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
 // bezet. veel: alle vrije blokken in de periode (meerdere afspraken plannen);
 // dan geen ONS-controle per blok (het zijpaneel controleert het voorstel).
-export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
+// van: 'YYYY-MM-DD' (optioneel, met tot): zoeken vanaf die dag i.p.v. vandaag,
+// zonder grens hoe ver vooruit (weekraster: één week per keer).
+export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
   var ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
   if (!(minutes >= 5)) return Promise.reject(new Error('Kies een duur.'));
   weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
-  var vandaag = new Date();
+  var nu = new Date();
+  var vandaag = nu;
   var dagen = weeks * 7;
   var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || '')) ? String(tot) : '';
+  // Vanaf een latere dag (middernacht): dan telt 'nu' niet mee.
+  var vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || '')) ? String(van) : '';
+  if (vanDatum) {
+    var pv = vanDatum.split('-');
+    var vanDag = new Date(+pv[0], +pv[1] - 1, +pv[2]);
+    if (vanDag > nu) vandaag = vanDag;
+  }
+  var startMs = vandaag === nu ? Date.now() : vandaag.getTime();
   if (totDatum) {
     var p = totDatum.split('-');
     var eind = new Date(+p[0], +p[1] - 1, +p[2]);
@@ -144,7 +155,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
     alles = alles.filter(function (e) { return !isRes(e); });
     var win = workWindow();
     var gaps = findFreeGaps(alles, {
-      now: Date.now(), days: dagen, minMinutes: minutes, stepMin: 15,
+      now: startMs, days: dagen, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : (totDatum ? 40 : 12)
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en

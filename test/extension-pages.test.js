@@ -527,8 +527,9 @@ test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', asy
 
 test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden kiezen, ONS-controle, weekraster', async () => {
   const { document, verzonden } = zijpaneelMetTools({
+    // Lijst: vast blok op do 8 okt. Weekraster (from/to): een blok op de eerste dag van die week.
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
-      { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
+      { date: msg.from || '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
     ] } }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
     'ag-slot-check': (msg, cb) => cb({ ok: true, status: 'ready', overlap: msg.startMin === 645 }),
@@ -564,20 +565,32 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.doesNotMatch(document.body.textContent, /ONS meldt/, 'geen overlap: geen melding');
   knop(document, 'Naar dag').click();
   assert.deepEqual({ ...verzonden.at(-1) }, { type: 'ag-jump-day', date: '2026-10-08', always: true });
-  // Weekraster: zelfde keuzes, tik in het groen.
+  // Weekraster: eigen gegevens per week, vanaf de huidige week, zonder maximum.
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7));
+  const plusDagen = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const vandaag = ymd(nu), vanaf = ymd(ma) > vandaag ? ymd(ma) : vandaag;
   document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  const eerste = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  assert.deepEqual([eerste.from, eerste.to, eerste.weeks], [vanaf, ymd(plusDagen(ma, 4)), 1], 'één week opgehaald, vanaf vandaag');
   assert.ok(document.querySelector('[data-raster]'));
-  assert.match(document.querySelector('[data-week-titel]').textContent, /^Week 415 tot en met 9 oktober$/);
-  assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), 'gekozen moment roze in het raster');
-  assert.ok(document.querySelector('[data-raster-vrij="10:30-12:00"]'));
-  const dag = document.querySelector('[data-raster-dag="2026-10-08"]');
+  assert.equal(document.querySelector('[data-week-terug]').style.visibility, 'hidden', 'niet terug voor deze week');
+  const dag = document.querySelector('[data-raster-dag="' + vanaf + '"]');
+  assert.ok(dag.querySelector('[data-raster-vrij="10:30-12:00"]'));
   assert.equal([...dag.children].filter((c) => c.style.height === '1px').length, 8, 'een streepje op elk uur (9 t/m 16)');
-  assert.match(document.querySelector('[data-raster-dag="2026-10-05"]').textContent, /Bezet/, 'dag zonder vrije tijd: Bezet');
-  document.querySelector('[data-raster] [data-dag="2026-10-08"][data-start="10:30"]').click();
-  assert.ok(document.querySelector('[data-raster-gekozen="2026-10-08 10:30"]'), 'overlappend moment vervangen');
-  assert.equal(document.querySelector('[data-raster-gekozen="2026-10-08 11:00"]'), null);
-  knop(document, 'Afspraak maken').click();
-  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [], eigen: [] });
+  const leeg = ymd(plusDagen(new Date(vanaf + 'T00:00:00'), 1));
+  if (leeg <= ymd(plusDagen(ma, 4))) assert.match(document.querySelector('[data-raster-dag="' + leeg + '"]').textContent, /Bezet/, 'dag zonder vrije tijd: Bezet');
+  // Tien weken vooruit klikken: geen maximum, elke week een eigen aanvraag.
+  for (let i = 0; i < 10; i++) { document.querySelector('[data-week-verder]').click(); await tick(); }
+  const later = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  const ma10 = plusDagen(ma, 70);
+  assert.deepEqual([later.from, later.to], [ymd(ma10), ymd(plusDagen(ma10, 4))]);
+  assert.match(document.querySelector('[data-week-titel]').textContent, /tot en met/);
+  document.querySelector('[data-raster] [data-dag="' + ymd(ma10) + '"][data-start="10:30"]').click();
+  assert.ok(document.querySelector('[data-raster-gekozen="' + ymd(ma10) + ' 10:30"]'), 'kiezen in een week ver vooruit');
+  knop(document, 'Afspraak maken op 2 momenten').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [{ date: ymd(ma10), time: '10:30' }], eigen: [] });
 });
 
 test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de balk, kopieën (zonder direct maken)', async () => {
@@ -675,20 +688,23 @@ test('zijpaneel: planhulp zonder kopieën (beheer): één moment tegelijk', asyn
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
 });
 
-test('zijpaneel: route van de dag - kaart meteen zichtbaar, kortste volgorde via de eigen server', async () => {
+test('zijpaneel: route van de dag - QR-code op de plek van de kaart, kortste volgorde via de eigen server', async () => {
   const geopend = [], proxy = [];
   const { document, dom } = zijpaneelMetTools({
     'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
       stops: [{ start: '09:00', address: 'Teststraat 1, 2611EB, Delft' }, { start: '11:00', address: 'Laan 5, 2613RR, Delft' }],
       urls: ['https://www.google.com/maps/dir/?api=1&destination=x'] }] } }),
-  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12', mapsEmbedKey: 'EMBEDSLEUTEL_alleen_embed_123', routesProxy: { url: 'https://proxy.example', token: 'geheim' } });
+  }, { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12', routesProxy: { url: 'https://proxy.example', token: 'geheim' } });
   dom.window.open = (u) => { geopend.push(u); };
   dom.window.fetch = (url, init) => { proxy.push({ url, init }); return Promise.resolve({ ok: true, json: () => Promise.resolve({ order: [1, 0], m: 24000, s: 1800 }) }); };
   await tick();
   navKnop(document, 'Route van de dag').click();
   await tick();
-  const kaart = document.querySelector('[data-kaart]');
-  assert.match(kaart.src, /^https:\/\/www\.google\.com\/maps\/embed\/v1\/directions\?key=EMBEDSLEUTEL_alleen_embed_123&origin=Teststraat/);
+  assert.equal(document.querySelector('[data-kaart], iframe'), null, 'geen kaart meer');
+  const qr = document.querySelector('[data-route-qr] svg');
+  assert.equal(qr.getAttribute('data-qr-url'), 'https://www.google.com/maps/dir/?api=1&destination=x', 'QR-code meteen zichtbaar, met de route-link');
+  const qrBox = document.querySelector('[data-route-qr]');
+  assert.ok(qrBox.compareDocumentPosition(document.querySelector('[data-route-url]')) & 4, 'QR-code staat waar de kaart stond (boven de knoppen)');
   assert.match(document.body.textContent, /Vul een vertrekpunt met postcode in voor de kortste volgorde/);
   const v = document.querySelector('[data-vertrekpunt]');
   v.value = 'Hoge Mosten 58, 4822 NH Breda'; v.dispatchEvent(new dom.window.Event('change'));
@@ -700,7 +716,8 @@ test('zijpaneel: route van de dag - kaart meteen zichtbaar, kortste volgorde via
   assert.deepEqual(JSON.parse(proxy[0].init.body), { origin: '4822NH', stops: ['2611EB', '2613RR'] }, 'alleen postcodes naar de server');
   assert.equal(document.querySelector('[data-kortste]').getAttribute('data-kortste'), '11:00 → 09:00');
   assert.match(document.body.textContent, /Kortste rondrit: ≈ 24 km en 30 min/);
-  assert.match(document.querySelector('[data-kaart]').src, /origin=Hoge%20Mosten.*destination=Teststraat/, 'kaart volgt de kortste volgorde');
+  assert.match(document.querySelector('[data-route-qr] svg').getAttribute('data-qr-url'), /origin=Hoge%20Mosten.*destination=Hoge%20Mosten.*waypoints=Laan.*Teststraat/, 'QR-code volgt de kortste volgorde');
+  assert.match(document.querySelector('[data-route-qr]').textContent, /in de kortste volgorde/);
   knop(document, 'Kortste volgorde openen in Google Maps').click();
   assert.match(geopend.at(-1), /origin=Hoge%20Mosten.*destination=Hoge%20Mosten.*waypoints=Laan/, 'rondrit, kortste volgorde');
 });
@@ -992,7 +1009,7 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   assert.equal(google.length, 0);
 });
 
-test('zijpaneel: route van de dag - op telefoon openen met een QR-code (in de extensie gemaakt)', async () => {
+test('zijpaneel: route van de dag - QR-code per routedeel, in de extensie gemaakt (geen netwerk)', async () => {
   const gevraagd = [];
   const { document, dom } = zijpaneelMetTools({
     'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
@@ -1003,14 +1020,11 @@ test('zijpaneel: route van de dag - op telefoon openen met een QR-code (in de ex
   await tick();
   navKnop(document, 'Route van de dag').click();
   await tick();
-  assert.equal(document.querySelector('[data-route-qr]'), null, 'pas na klikken');
-  knop(document, 'Op telefoon openen').click();
   const box = document.querySelector('[data-route-qr]');
-  assert.equal(box.querySelectorAll('svg').length, 2, 'per deel van de route een QR-code');
-  assert.match(box.textContent, /Deel 1 van 2.*Deel 2 van 2.*Scan met de camera van je telefoon/s);
+  assert.equal(box.querySelectorAll('svg').length, 2, 'per deel van de route een QR-code, meteen zichtbaar');
+  assert.match(box.textContent, /Op je telefoon openen.*Deel 1 van 2.*Deel 2 van 2.*Scan met de camera van je telefoon/s);
+  assert.equal(knop(document, 'Op telefoon openen'), undefined, 'geen aparte knop meer');
   assert.deepEqual(gevraagd, [], 'geen QR-dienst of ander netwerkverzoek');
-  knop(document, 'QR-code verbergen').click();
-  assert.equal(document.querySelector('[data-route-qr]'), null);
 });
 
 test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd die niet past, daarna opnieuw zoeken', async () => {

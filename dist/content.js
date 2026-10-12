@@ -544,7 +544,7 @@
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
-    // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
+    // embedKey: vervallen (de kaart is vervangen door een QR-code); blijft leeg.
     // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
     // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
     // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.
@@ -1232,7 +1232,7 @@
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks, to? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum)
+    // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_PRODUCTION: "ag-production",
@@ -11219,7 +11219,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.246";
+      return "1.6.247";
     }
   }();
 
@@ -13635,15 +13635,23 @@
       return uit;
     });
   }
-  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
+  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
     var ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
     if (!(minutes >= 5)) return Promise.reject(new Error("Kies een duur."));
     weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
-    var vandaag = /* @__PURE__ */ new Date();
+    var nu = /* @__PURE__ */ new Date();
+    var vandaag = nu;
     var dagen = weeks * 7;
     var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || "")) ? String(tot) : "";
+    var vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || "")) ? String(van) : "";
+    if (vanDatum) {
+      var pv = vanDatum.split("-");
+      var vanDag = new Date(+pv[0], +pv[1] - 1, +pv[2]);
+      if (vanDag > nu) vandaag = vanDag;
+    }
+    var startMs = vandaag === nu ? Date.now() : vandaag.getTime();
     if (totDatum) {
       var p = totDatum.split("-");
       var eind = new Date(+p[0], +p[1] - 1, +p[2]);
@@ -13696,7 +13704,7 @@
       });
       var win = workWindow();
       var gaps = findFreeGaps(alles, {
-        now: Date.now(),
+        now: startMs,
         days: dagen,
         minMinutes: minutes,
         stepMin: 15,
@@ -13804,9 +13812,9 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel) {
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : ""), function() {
-      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel);
+  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van) {
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : ""), function() {
+      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van);
     });
   }
   function defaultProductionTo() {
@@ -14063,8 +14071,6 @@
       features: panelFeatures(),
       // Rijtijden-server (alleen https); leeg = niet ingesteld.
       routesProxy: routesProxyVoorPaneel(),
-      // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
-      mapsEmbedKey: String(APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey || "").trim(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }
@@ -14242,7 +14248,7 @@
             });
             return true;
           case MSG.AGENDA_FREE_SLOTS:
-            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many).then(function(result) {
+            cachedFreeSlots(msg.minutes, msg.weeks, msg.to, !!msg.visits, !!msg.many, msg.from || "").then(function(result) {
               try {
                 sendResponse({ ok: true, result });
               } catch (e) {

@@ -219,8 +219,6 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
     Wie de sleutel geheim wil houden gebruikt de eigen server
     (`server/routes-proxy`), die dan voorrang heeft. Zonder sleutel:
     geen kortste volgorde.
-  - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
-    toont Route van de dag meteen de route op een kaart.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
   (met apart: kopieën op meerdere momenten, afspraak meteen maken en Huisbezoek/efficiënter indelen), Route
@@ -230,12 +228,12 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   BG/J&G-kantoorlocatie; geen labelcontrole) op volgorde van begintijd, met het adres uit het
   detailvenster van ONS. 'Route openen' opent Google Maps met alle stops
   (10 per route; meer = meerdere aansluitende routes), optioneel vanaf een
-  vertrekpunt dat alleen op dit apparaat wordt bewaard. Met een
-  Embed-sleutel staat de kaart er meteen bij; de adressen gaan dan naar
-  Google zodra je de pagina opent (zonder sleutel pas als je 'Route
-  openen' klikt). **Op telefoon openen** toont een QR-code van de route
-  (per deel bij meer dan 10 stops): scan met de camera van je telefoon en
-  Google Maps opent met de route. De code wordt in de extensie zelf gemaakt
+  vertrekpunt dat alleen op dit apparaat wordt bewaard. Onder de stops (waar
+  vroeger de kaart stond) staat meteen een **QR-code** van de route (per
+  deel bij meer dan 10 stops; na 'Kortste volgorde berekenen' in die
+  volgorde): scan met de camera van je telefoon en Google Maps opent met de
+  route. De adressen gaan pas naar Google als je de link opent of op 'Route
+  openen' klikt. De code wordt in de extensie zelf gemaakt
   (`qrcode-generator`, MIT); er gaat niets naar een QR-dienst. Uit te zetten
   in het beheerscherm (`routeLink`).
 - **Snel registreren**: datum, begintijd en duur invullen opent het
