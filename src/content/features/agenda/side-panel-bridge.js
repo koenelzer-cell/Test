@@ -105,6 +105,8 @@ function agPanelState() {
     features: panelFeatures(),
     // Rijtijden-server (alleen https); leeg = niet ingesteld.
     routesProxy: routesProxyVoorPaneel(),
+    // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
+    mapsEmbedKey: String((APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey) || '').trim(),
     today: agendaYmd(new Date())
   };
 }

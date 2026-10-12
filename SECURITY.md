@@ -102,11 +102,16 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     nooit cliënt-id's. Bij het nakijken gaan de id's van de gekozen
     cliënt(en) mee naar dezelfde ONS-omgeving, zoals het ONS-formulier dat
     zelf doet.
-  - **QR-code** (Route van de dag, in plaats van een kaart): de QR-code met de Google
+  - **QR-code tonen** (Route van de dag, op de plek van de kaart): de QR-code met de Google
     Maps-link wordt in het zijpaneel zelf gemaakt (meegeleverde bibliotheek
     `qrcode-generator`, MIT). Geen QR-dienst, geen sms of mail: de adressen
     gaan pas naar Google als de medewerker de code met de eigen telefoon
     scant en de link opent.
+  - **Kaart** (optioneel, `routesProxy.embedKey`): laadt in Route van de dag
+    meteen een Google Maps Embed-kaart met de adressen van de route (de
+    medewerker opent die pagina zelf). Die sleutel
+    staat in de extensie en moet in Google Cloud beperkt zijn tot alleen de
+    Maps Embed API (kosteloos); nooit de Routes-sleutel gebruiken.
   - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS
     (met cliëntgegevens zoals ONS ze zelf verstuurt) wordt in het geheugen
     gehouden om dezelfde afspraak op de gekozen momenten aan te maken, en

@@ -544,7 +544,7 @@
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
-    // embedKey: vervallen (de kaart is vervangen door een QR-code); blijft leeg.
+    // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
     // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
     // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
     // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.
@@ -11219,7 +11219,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.247";
+      return "1.6.248";
     }
   }();
 
@@ -14071,6 +14071,8 @@
       features: panelFeatures(),
       // Rijtijden-server (alleen https); leeg = niet ingesteld.
       routesProxy: routesProxyVoorPaneel(),
+      // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
+      mapsEmbedKey: String(APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey || "").trim(),
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }

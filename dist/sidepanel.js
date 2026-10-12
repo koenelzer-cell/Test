@@ -2131,6 +2131,15 @@
     }
     return uit;
   }
+  function embedUrl(key, adressen, origin) {
+    var stops = (adressen || []).filter(Boolean);
+    if (!key || !stops.length) return "";
+    var start = origin || stops[0];
+    var rest = origin ? stops : stops.slice(1);
+    if (!rest.length) return "https://www.google.com/maps/embed/v1/place?key=" + encodeURIComponent(key) + "&q=" + encodeURIComponent(start);
+    var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+    return "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(key) + "&origin=" + encodeURIComponent(start) + "&destination=" + encodeURIComponent(dest) + (tussen.length ? "&waypoints=" + tussen.map(encodeURIComponent).join("%7C") : "") + "&mode=driving";
+  }
 
   // src/sidepanel/agenda-panel.js
   var T = {
@@ -5591,18 +5600,26 @@
           blok.appendChild(lijst);
           if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " afspraak zonder adres staat" : " afspraken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
           var vertrekAdres = leesVertrek();
+          var pid = p.id || "p" + i;
+          rt.qr = rt.qr || {};
           var metPcQr = p.stops.filter(function(st) {
             return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
           });
-          var qrUrls = p.kort && p.kort.order ? mapsUrls(p.kort.order.map(function(i2) {
-            return metPcQr[i2];
-          }).filter(Boolean).map(function(st) {
+          var kortVolg = p.kort && p.kort.order ? p.kort.order.map(function(k2) {
+            return metPcQr[k2];
+          }).filter(Boolean) : null;
+          var kaartStops = (kortVolg || p.stops.filter(function(st) {
+            return st.address;
+          })).map(function(st) {
+            return st.address;
+          });
+          var qrUrls = kortVolg ? mapsUrls(kortVolg.map(function(st) {
             return st.address;
           }), vertrekAdres, true) : p.urls || [];
-          if (qrUrls.length) {
+          var kaartKey = state && state.mapsEmbedKey;
+          if (rt.qr[pid] && qrUrls.length) {
             var qrBox = el("div", { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginTop: "10px", padding: "12px", border: "1px solid " + T.line, borderRadius: "12px", background: "#fff" });
             qrBox.setAttribute("data-route-qr", p.id || "");
-            qrBox.appendChild(el("div", { fontSize: "12.5px", fontWeight: "700", color: T.ink }, "Op je telefoon openen"));
             qrUrls.forEach(function(u, n) {
               if (qrUrls.length > 1) qrBox.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, marginTop: n ? "8px" : "0" }, "Deel " + (n + 1) + " van " + qrUrls.length));
               var svg = qrSvg(document, u, 220);
@@ -5612,8 +5629,28 @@
                 qrBox.appendChild(svg);
               } else qrBox.appendChild(noteBox("Deze route is te lang voor een QR-code.", "warn"));
             });
-            qrBox.appendChild(txt("help", "Scan met de camera van je telefoon; Google Maps opent met de route" + (p.kort && p.kort.order ? " in de kortste volgorde" : "") + ".", { margin: "4px 0 0", fontSize: "11.5px", textAlign: "center" }));
+            qrBox.appendChild(txt("help", "Scan met de camera van je telefoon; Google Maps opent met de route" + (kortVolg ? " in de kortste volgorde" : "") + ".", { margin: "4px 0 0", fontSize: "11.5px", textAlign: "center" }));
             blok.appendChild(qrBox);
+          } else if (kaartKey && kaartStops.length) {
+            var ifr = document.createElement("iframe");
+            ifr.src = embedUrl(kaartKey, kaartStops, vertrekAdres);
+            ifr.title = "Kaart van de route";
+            ifr.setAttribute("loading", "lazy");
+            ifr.setAttribute("referrerpolicy", "no-referrer-when-downgrade");
+            ifr.setAttribute("data-kaart", "");
+            Object.assign(ifr.style, { width: "100%", height: "300px", border: "1px solid " + T.line, borderRadius: "12px", marginTop: "10px", display: "block" });
+            blok.appendChild(ifr);
+          } else if (!kaartKey && kaartStops.length) {
+            blok.appendChild(txt("help", "Voor de kaart: vul in het beheerscherm (Functies → Google Maps) een sleutel voor de Maps Embed API in.", { margin: "8px 0 0", fontSize: "11.5px" }));
+          }
+          if (qrUrls.length) {
+            var wissel = secondaryBtn(rt.qr[pid] ? "Kaart tonen" : "QR-code tonen", function() {
+              rt.qr[pid] = !rt.qr[pid];
+              renderPagina();
+            });
+            wissel.style.marginTop = "8px";
+            wissel.setAttribute("data-route-qr-knop", p.id || "");
+            blok.appendChild(wissel);
           }
           var vertrekPc = normPostcode((String(vertrekAdres).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
           var metPc = p.stops.filter(function(st) {
