@@ -1132,13 +1132,7 @@ test('zijpaneel: planhulp - feestdagen met eigen ontwerp in weekraster en lijst'
   assert.ok(kol, 'Koningsdag in het raster');
   assert.equal(kol.getAttribute('data-raster-dag'), dag(2));
   assert.equal(kol.getAttribute('data-feestdag-stijl'), 'koning');
-  assert.equal(kol.querySelector('[data-rondleiding-titel], .nm') , null);
-  assert.equal(kol.textContent.replace('Proost!', ''), 'Koningsdag', 'alleen de naam (en het ballonnetje van Prins Pils)');
-  const pils = kol.querySelector('[data-prins-pils]');
-  assert.ok(pils, 'Prins Pils op Koningsdag');
-  assert.match(pils.querySelector('[data-prins-pils-foto]').style.background, /assets\/prins-pils\.jpg/);
-  assert.equal(pils.querySelector('[data-prins-pils-proost]').textContent, 'Proost!');
-  assert.equal(document.querySelectorAll('[data-prins-pils]').length, 1, 'alleen op Koningsdag');
+  assert.equal(kol.textContent, 'Koningsdag', 'alleen de naam, geen extra tekst');
   assert.equal(kol.querySelectorAll('svg').length, 2, 'tekening en vlaggetjes');
   assert.equal(kol.querySelectorAll('[data-start]').length, 0, 'niets te kiezen');
   assert.match(kol.style.background, /data:image\/svg\+xml/);
@@ -1339,13 +1333,16 @@ test('zijpaneel: rondleiding Planhulp met knop, weekraster en afspraak maken, da
   assert.equal(tour(), null, 'Escape sluit');
 });
 
-test('zijpaneel: Prins Pils uit via beheer', async () => {
+test('zijpaneel: elke feestdag een eigen kleine animatie, één keer per week en bij muis erover', async () => {
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7);
-  const di = ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + 1));
-  const { document } = zijpaneelMetTools({
-    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [], holidays: [{ date: di, name: 'Koningsdag' }] } }),
-  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false, prinsPils: false } });
+  const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
+  const namen = ['Koningsdag', 'Bevrijdingsdag', 'Hemelvaartsdag', 'Eerste kerstdag', 'Nieuwjaarsdag'];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [], holidays: namen.map((name, i) => ({ date: dag(i), name })) } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  const gespeeld = [];
+  dom.window.Element.prototype.animate = function (frames, opts) { gespeeld.push({ el: this, frames: JSON.stringify(frames), opts }); return {}; };
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
@@ -1353,6 +1350,20 @@ test('zijpaneel: Prins Pils uit via beheer', async () => {
   await tick();
   document.querySelector('[data-week-verder]').click();
   await tick(); await tick();
-  assert.ok(document.querySelector('[data-raster-feestdag="Koningsdag"]'), 'Koningsdag wel');
-  assert.equal(document.querySelector('[data-prins-pils]'), null, 'Prins Pils niet');
+  const kolommen = namen.map((n) => document.querySelector('[data-raster-feestdag="' + n + '"]'));
+  assert.ok(kolommen.every((k) => k && k.querySelector('[data-feestdag-animatie]')), 'elke feestdag geanimeerd');
+  const perStijl = new Set(gespeeld.map((g) => g.frames));
+  assert.equal(perStijl.size, namen.length, 'elke feestdag een eigen beweging');
+  const aantal = gespeeld.length;
+  // Opnieuw tekenen (andere duur kiezen en terug): niet nog eens van voren af.
+  document.querySelector('[data-plan-duur="30"]').click(); await tick();
+  document.querySelector('[data-plan-duur="60"]').click(); await tick();
+  await new Promise((r) => setTimeout(r, 1900));
+  document.querySelector('[data-plan-weergave="lijst"]').click(); await tick();
+  document.querySelector('[data-plan-weergave="raster"]').click(); await tick();
+  const naHertekenen = gespeeld.length;
+  // Muis erover: nog een keer.
+  document.querySelector('[data-raster-feestdag="Koningsdag"]').dispatchEvent(new dom.window.Event('mouseenter'));
+  assert.equal(gespeeld.length, naHertekenen + 1, 'muis erover speelt hem nog eens');
+  assert.ok(aantal >= namen.length);
 });

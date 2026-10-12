@@ -778,7 +778,6 @@
     "plannerCopies": true,
     "plannerDistance": true,
     "plannerDirect": true,
-    "prinsPils": true,
     "routeLink": true,
     "preload": true
   },

@@ -2178,8 +2178,8 @@
     }
   };
   function feestdagSleutel(naam) {
-    var n = String(naam || "").trim().toLowerCase().replace(/\s+/g, " ");
-    var tweede = /^(tweede|2e)\b/.test(n);
+    var n = String(naam || "").trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, " ").trim();
+    var tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
     if (/pas(en|dag)|paas/.test(n)) return tweede ? "paas2" : "paas1";
     if (/koning/.test(n)) return "koning";
     if (/bevrijding/.test(n)) return "bevrijding";
@@ -2212,6 +2212,83 @@
     svg.setAttribute("preserveAspectRatio", "none");
     svg.setAttribute("aria-hidden", "true");
     return svg;
+  }
+  var ANIMATIES = {
+    koning: { origin: "50% 100%", duur: 1100, frames: [
+      { transform: "translateY(0) rotate(0)" },
+      { transform: "translateY(-9px) rotate(-7deg)", offset: 0.3 },
+      { transform: "translateY(0) rotate(0)", offset: 0.55 },
+      { transform: "translateY(-4px) rotate(5deg)", offset: 0.75 },
+      { transform: "translateY(0) rotate(0)" }
+    ] },
+    bevrijding: { origin: "18% 50%", duur: 1500, frames: [
+      { transform: "skewY(0)" },
+      { transform: "skewY(-7deg)", offset: 0.25 },
+      { transform: "skewY(6deg)", offset: 0.5 },
+      { transform: "skewY(-3deg)", offset: 0.75 },
+      { transform: "skewY(0)" }
+    ] },
+    hemel: { origin: "50% 50%", duur: 1600, frames: [
+      { transform: "translateY(0) scale(1)" },
+      { transform: "translateY(-7px) scale(1.07)", offset: 0.5 },
+      { transform: "translateY(0) scale(1)" }
+    ] },
+    pinkster1: { origin: "50% 60%", duur: 1200, frames: [
+      { transform: "translate(0,0) rotate(0)" },
+      { transform: "translate(2px,-6px) rotate(-9deg)", offset: 0.3 },
+      { transform: "translate(-1px,-3px) rotate(6deg)", offset: 0.65 },
+      { transform: "translate(0,0) rotate(0)" }
+    ] },
+    pinkster2: { origin: "50% 100%", duur: 1500, frames: [
+      { transform: "rotate(0)" },
+      { transform: "rotate(-9deg)", offset: 0.25 },
+      { transform: "rotate(8deg)", offset: 0.55 },
+      { transform: "rotate(-3deg)", offset: 0.8 },
+      { transform: "rotate(0)" }
+    ] },
+    kerst1: { origin: "50% 100%", duur: 1300, frames: [
+      { transform: "scale(1)", filter: "brightness(1)" },
+      { transform: "scale(1.13)", filter: "brightness(1.35)", offset: 0.35 },
+      { transform: "scale(.97)", filter: "brightness(1)", offset: 0.65 },
+      { transform: "scale(1.04)", filter: "brightness(1.2)", offset: 0.85 },
+      { transform: "scale(1)", filter: "brightness(1)" }
+    ] },
+    kerst2: { origin: "50% 0%", duur: 1600, frames: [
+      { transform: "rotate(0)" },
+      { transform: "rotate(11deg)", offset: 0.25 },
+      { transform: "rotate(-9deg)", offset: 0.5 },
+      { transform: "rotate(5deg)", offset: 0.75 },
+      { transform: "rotate(0)" }
+    ] },
+    nieuwjaar: { origin: "50% 50%", duur: 1200, frames: [
+      { transform: "scale(.4) rotate(-20deg)", opacity: 0 },
+      { transform: "scale(1.18) rotate(6deg)", opacity: 1, offset: 0.45 },
+      { transform: "scale(.95) rotate(0)", opacity: 1, offset: 0.75 },
+      { transform: "scale(1) rotate(0)", opacity: 1 }
+    ] },
+    paas1: { origin: "50% 100%", duur: 1100, frames: [
+      { transform: "translateY(0) scale(1,1)" },
+      { transform: "translateY(-10px) scale(.96,1.05)", offset: 0.3 },
+      { transform: "translateY(0) scale(1.06,.92)", offset: 0.5 },
+      { transform: "translateY(-4px) scale(1,1)", offset: 0.7 },
+      { transform: "translateY(0) scale(1,1)" }
+    ] },
+    paas2: { origin: "50% 100%", duur: 1200, frames: [
+      { transform: "translateY(0) rotate(0)" },
+      { transform: "translateY(-7px) rotate(-8deg)", offset: 0.25 },
+      { transform: "translateY(0) rotate(0)", offset: 0.45 },
+      { transform: "translateY(-7px) rotate(8deg)", offset: 0.7 },
+      { transform: "translateY(0) rotate(0)" }
+    ] },
+    standaard: { origin: "50% 50%", duur: 1200, frames: [
+      { transform: "rotate(0) scale(1)" },
+      { transform: "rotate(180deg) scale(1.15)", offset: 0.5 },
+      { transform: "rotate(360deg) scale(1)" }
+    ] }
+  };
+  function feestdagAnimatie(naam) {
+    var a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
+    return { origin: a.origin, duur: a.duur, frames: a.frames };
   }
 
   // src/sidepanel/rondleiding.js
@@ -5406,6 +5483,34 @@
       });
       return per;
     }
+    var feestStart = {};
+    function animeerFeestdag(ic, naam, sleutel, houder) {
+      if (!ic.animate) return;
+      var rustig = false;
+      try {
+        rustig = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      } catch (e) {
+      }
+      if (rustig) return;
+      var a = feestdagAnimatie(naam);
+      ic.style.transformOrigin = a.origin;
+      ic.style.transformBox = "fill-box";
+      ic.setAttribute("data-feestdag-animatie", "");
+      var speel = function(vanaf) {
+        try {
+          ic.animate(a.frames, { duration: a.duur, delay: -(vanaf || 0) + (vanaf ? 0 : 250), easing: "ease-in-out" });
+        } catch (e) {
+        }
+      };
+      var nu = Date.now();
+      if (!feestStart[sleutel]) {
+        feestStart[sleutel] = nu;
+        speel(0);
+      } else if (nu - feestStart[sleutel] < a.duur + 250) speel(Math.max(0, nu - feestStart[sleutel] - 250));
+      if (houder) houder.addEventListener("mouseenter", function() {
+        speel(0);
+      });
+    }
     function feestdagRegel(h) {
       var st = feestdagStijl(h.name);
       var r = el("div", { display: "flex", alignItems: "center", gap: "10px", borderRadius: "10px", padding: "8px 10px", margin: "14px 0 6px", background: st.achtergrond, color: st.ink });
@@ -5416,6 +5521,7 @@
       ic.setAttribute("height", "32");
       ic.style.flex = "0 0 auto";
       r.appendChild(ic);
+      animeerFeestdag(ic, h.name, "regel|" + h.date, r);
       var t = el("div", { minWidth: "0" });
       t.appendChild(el("div", { fontWeight: "700", fontSize: "13.5px" }, dagLang(h.date)));
       t.appendChild(el("div", { fontSize: "11.5px", opacity: ".9" }, h.name + ", geen tijden"));
@@ -5448,94 +5554,10 @@
       var ic = feestdagIcoon(document, h.name);
       Object.assign(ic.style, { width: "78%", maxWidth: "44px", marginTop: "14px", flex: "0 0 auto", filter: "drop-shadow(0 2px 2px rgba(0,0,0,.12))" });
       k.appendChild(ic);
+      animeerFeestdag(ic, h.name, "kolom|" + h.date + "|" + plan.rasterWeek, k);
       var nm = el("div", { writingMode: "vertical-rl", transform: "rotate(180deg)", fontWeight: "800", fontSize: "13px", letterSpacing: ".3px", margin: "12px 0 12px", flex: "1 1 auto", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }, h.name);
       k.appendChild(nm);
-      if (st.sleutel === "koning" && fAan("prinsPils")) prinsPils(k, h.date);
       return k;
-    }
-    var pilsStart = {};
-    var PILS_DUUR = 1500;
-    function pilsUrl() {
-      try {
-        if (window.chrome && chrome.runtime && chrome.runtime.getURL) return chrome.runtime.getURL("assets/prins-pils.jpg");
-      } catch (e) {
-      }
-      return "../assets/prins-pils.jpg";
-    }
-    function pilsProost(hop) {
-      var foto = paginaBox.querySelector("[data-prins-pils]");
-      var bal = foto && foto.querySelector("[data-prins-pils-proost]");
-      if (!bal) return;
-      bal.style.opacity = "1";
-      clearTimeout(pilsProost._t);
-      pilsProost._t = setTimeout(function() {
-        var b = paginaBox.querySelector("[data-prins-pils-proost]");
-        if (b) b.style.opacity = "0";
-      }, 2200);
-      if (hop && foto.animate) {
-        try {
-          foto.animate([{ transform: "translateY(0)" }, { transform: "translateY(-6px)" }, { transform: "translateY(0)" }], { duration: 420, easing: "ease-out" });
-        } catch (e) {
-        }
-      }
-    }
-    function prinsPils(k, date) {
-      var foto = el("div", { position: "absolute", left: "2px", right: "2px", bottom: "0", pointerEvents: "none" });
-      var beeld = el("div", {
-        paddingTop: "153%",
-        borderRadius: "8px 8px 0 0",
-        background: '#222 url("' + pilsUrl() + '") center top / cover no-repeat',
-        WebkitMaskImage: "linear-gradient(to bottom, transparent 0, #000 14px)",
-        maskImage: "linear-gradient(to bottom, transparent 0, #000 14px)"
-      });
-      beeld.setAttribute("data-prins-pils-foto", "");
-      foto.appendChild(beeld);
-      foto.setAttribute("data-prins-pils", "");
-      foto.setAttribute("role", "img");
-      foto.setAttribute("aria-label", "Prins Pils");
-      var bal = el("div", {
-        position: "absolute",
-        left: "4px",
-        bottom: "calc(100% + 4px)",
-        background: "#fff",
-        color: "#b85c00",
-        borderRadius: "8px",
-        padding: "1px 6px",
-        font: "800 9.5px " + FONT,
-        whiteSpace: "nowrap",
-        opacity: "0",
-        transition: "opacity .25s ease",
-        boxShadow: "0 1px 3px rgba(0,0,0,.2)",
-        marginBottom: "-8px"
-      }, "Proost!");
-      bal.setAttribute("data-prins-pils-proost", "");
-      foto.appendChild(bal);
-      k.appendChild(foto);
-      var rustig = false;
-      try {
-        rustig = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-      } catch (e) {
-      }
-      k.addEventListener("mouseenter", function() {
-        pilsProost(!rustig);
-      });
-      var sleutel = date + "|" + plan.rasterWeek;
-      var nu = Date.now();
-      if (!pilsStart[sleutel]) {
-        pilsStart[sleutel] = nu;
-        setTimeout(function() {
-          pilsProost(false);
-        }, rustig ? 300 : PILS_DUUR);
-      }
-      var verstreken = nu - pilsStart[sleutel];
-      if (rustig || !foto.animate || verstreken >= PILS_DUUR) return;
-      try {
-        foto.animate(
-          [{ transform: "translateY(100%)" }, { transform: "translateY(100%)", offset: 0.35 }, { transform: "translateY(-4%)", offset: 0.85 }, { transform: "translateY(0)" }],
-          { duration: PILS_DUUR, delay: -verstreken, easing: "ease-out", fill: "backwards" }
-        );
-      } catch (e) {
-      }
     }
     var TOON_TIJDEN = 8;
     function planLijst(res) {

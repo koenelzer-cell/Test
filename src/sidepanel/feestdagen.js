@@ -66,10 +66,12 @@ var STIJLEN = {
     icoon: function () { return ster(24, 24, 2.6, '#cc087d') + ster(24, 24, 1.2, '#ffd34d'); } }
 };
 
-// Naam uit ONS -> sleutel van de stijl. ONS zet soms een spatie voor de naam.
+// Naam uit ONS -> sleutel van de stijl. Alleen op naam (feestdagen worden in
+// ONS met de hand ingevoerd en krijgen elk jaar een ander id). Ruim gelezen:
+// hoofdletters, spaties, '2e', 'tweede', '...maandag' en dergelijke.
 export function feestdagSleutel(naam) {
-  var n = String(naam || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  var tweede = /^(tweede|2e)\b/.test(n);
+  var n = String(naam || '').trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ').trim();
+  var tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
   if (/pas(en|dag)|paas/.test(n)) return tweede ? 'paas2' : 'paas1';
   if (/koning/.test(n)) return 'koning';
   if (/bevrijding/.test(n)) return 'bevrijding';
@@ -110,4 +112,41 @@ export function feestdagSlinger(doc) {
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('aria-hidden', 'true');
   return svg;
+}
+
+// Korte animatie per feestdag (Web Animations API): frames, duur en het
+// draaipunt van de tekening. Speelt één keer als de dag in beeld komt.
+var ANIMATIES = {
+  koning: { origin: '50% 100%', duur: 1100, frames: [
+    { transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-9px) rotate(-7deg)', offset: 0.3 },
+    { transform: 'translateY(0) rotate(0)', offset: 0.55 }, { transform: 'translateY(-4px) rotate(5deg)', offset: 0.75 }, { transform: 'translateY(0) rotate(0)' }] },
+  bevrijding: { origin: '18% 50%', duur: 1500, frames: [
+    { transform: 'skewY(0)' }, { transform: 'skewY(-7deg)', offset: 0.25 }, { transform: 'skewY(6deg)', offset: 0.5 }, { transform: 'skewY(-3deg)', offset: 0.75 }, { transform: 'skewY(0)' }] },
+  hemel: { origin: '50% 50%', duur: 1600, frames: [
+    { transform: 'translateY(0) scale(1)' }, { transform: 'translateY(-7px) scale(1.07)', offset: 0.5 }, { transform: 'translateY(0) scale(1)' }] },
+  pinkster1: { origin: '50% 60%', duur: 1200, frames: [
+    { transform: 'translate(0,0) rotate(0)' }, { transform: 'translate(2px,-6px) rotate(-9deg)', offset: 0.3 },
+    { transform: 'translate(-1px,-3px) rotate(6deg)', offset: 0.65 }, { transform: 'translate(0,0) rotate(0)' }] },
+  pinkster2: { origin: '50% 100%', duur: 1500, frames: [
+    { transform: 'rotate(0)' }, { transform: 'rotate(-9deg)', offset: 0.25 }, { transform: 'rotate(8deg)', offset: 0.55 }, { transform: 'rotate(-3deg)', offset: 0.8 }, { transform: 'rotate(0)' }] },
+  kerst1: { origin: '50% 100%', duur: 1300, frames: [
+    { transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(1.13)', filter: 'brightness(1.35)', offset: 0.35 },
+    { transform: 'scale(.97)', filter: 'brightness(1)', offset: 0.65 }, { transform: 'scale(1.04)', filter: 'brightness(1.2)', offset: 0.85 }, { transform: 'scale(1)', filter: 'brightness(1)' }] },
+  kerst2: { origin: '50% 0%', duur: 1600, frames: [
+    { transform: 'rotate(0)' }, { transform: 'rotate(11deg)', offset: 0.25 }, { transform: 'rotate(-9deg)', offset: 0.5 }, { transform: 'rotate(5deg)', offset: 0.75 }, { transform: 'rotate(0)' }] },
+  nieuwjaar: { origin: '50% 50%', duur: 1200, frames: [
+    { transform: 'scale(.4) rotate(-20deg)', opacity: 0 }, { transform: 'scale(1.18) rotate(6deg)', opacity: 1, offset: 0.45 },
+    { transform: 'scale(.95) rotate(0)', opacity: 1, offset: 0.75 }, { transform: 'scale(1) rotate(0)', opacity: 1 }] },
+  paas1: { origin: '50% 100%', duur: 1100, frames: [
+    { transform: 'translateY(0) scale(1,1)' }, { transform: 'translateY(-10px) scale(.96,1.05)', offset: 0.3 },
+    { transform: 'translateY(0) scale(1.06,.92)', offset: 0.5 }, { transform: 'translateY(-4px) scale(1,1)', offset: 0.7 }, { transform: 'translateY(0) scale(1,1)' }] },
+  paas2: { origin: '50% 100%', duur: 1200, frames: [
+    { transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-7px) rotate(-8deg)', offset: 0.25 }, { transform: 'translateY(0) rotate(0)', offset: 0.45 },
+    { transform: 'translateY(-7px) rotate(8deg)', offset: 0.7 }, { transform: 'translateY(0) rotate(0)' }] },
+  standaard: { origin: '50% 50%', duur: 1200, frames: [
+    { transform: 'rotate(0) scale(1)' }, { transform: 'rotate(180deg) scale(1.15)', offset: 0.5 }, { transform: 'rotate(360deg) scale(1)' }] }
+};
+export function feestdagAnimatie(naam) {
+  var a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
+  return { origin: a.origin, duur: a.duur, frames: a.frames };
 }
