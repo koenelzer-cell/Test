@@ -1231,7 +1231,7 @@
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -11220,7 +11220,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.252";
+      return "1.6.253";
     }
   }();
 
@@ -13989,13 +13989,15 @@
       var tekst = function(v) {
         return v == null ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, 40);
       };
-      return { id: String(c.id), name: tekst(naam).slice(0, 200) || String(naam), pc: postcodeFromClient(c), number: tekst(c.identification_no), birth: tekst(c.date_of_birth) };
+      var uit = { id: String(c.id), name: tekst(naam).slice(0, 200) || String(naam), pc: postcodeFromClient(c), number: tekst(c.identification_no), birth: tekst(c.date_of_birth) };
+      if (c.out_of_care === true || c.in_care === false) uit.outOfCare = true;
+      return uit;
     });
   }
-  function searchClientsForPlan(term) {
+  function searchClientsForPlan(term, outOfCare) {
     var t = String(term || "").trim();
     if (t.length < 2) return Promise.resolve([]);
-    return getJson(_apiUrl("searchClients", { term: t, outOfCare: "false" })).then(clientsForPlan);
+    return getJson(_apiUrl("searchClients", { term: t, outOfCare: outOfCare === true ? "true" : "false" })).then(clientsForPlan);
   }
 
   // src/content/features/agenda/route.js
@@ -14290,7 +14292,7 @@
             }, 50);
             return false;
           case MSG.AGENDA_CLIENT_SEARCH:
-            searchClientsForPlan(msg.term).then(function(clients) {
+            searchClientsForPlan(msg.term, msg.outOfCare === true).then(function(clients) {
               try {
                 sendResponse({ ok: true, clients });
               } catch (e) {

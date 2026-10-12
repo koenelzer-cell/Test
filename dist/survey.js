@@ -865,7 +865,7 @@
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -1376,7 +1376,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.252";
+      return "1.6.253";
     }
   }();
 

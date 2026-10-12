@@ -188,7 +188,9 @@ als eigen pagina in het zijpaneel, met **Terug** naar de hoofdpagina:
   momenten) *Zelfde cliënt(en)* of *Per afspraak anders*. Daaronder de kaart
   **Voor alle afspraken**: de cliënt(en) - zoeken op naam zoals in ONS (pas
   als je even stopt met typen; de keuzelijst toont ook cliëntnummer,
-  geboortedatum en postcode), daarna een compacte regel met initialen, naam,
+  geboortedatum en postcode; met het vinkje 'Inclusief cliënten uit zorg'
+  zoekt hij ook cliënten uit zorg, `out_of_care=true`, met het label 'Uit
+  zorg'), daarna een compacte regel met initialen, naam,
   de labels 'Cl 106839' en de postcode, en rechts de uursoort (een rood !
   zolang die ontbreekt) - plus het afspraaktype voor alle afspraken. Dan
   **Afspraken**: per afspraak één regel met dag en tijd ('Do 8 oktober',

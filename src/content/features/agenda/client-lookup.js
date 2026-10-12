@@ -20,13 +20,17 @@ export function clientsForPlan(json) {
   return lijst.filter(function (c) { return c && c.id != null; }).slice(0, MAX_TREFFERS).map(function (c) {
     var naam = c.display_name || c.name || c.full_name || c.sortable_name || '';
     var tekst = function (v) { return v == null ? '' : String(v).replace(/\s+/g, ' ').trim().slice(0, 40); };
-    return { id: String(c.id), name: tekst(naam).slice(0, 200) || String(naam), pc: postcodeFromClient(c), number: tekst(c.identification_no), birth: tekst(c.date_of_birth) };
+    var uit = { id: String(c.id), name: tekst(naam).slice(0, 200) || String(naam), pc: postcodeFromClient(c), number: tekst(c.identification_no), birth: tekst(c.date_of_birth) };
+    // Uit zorg (alleen als ONS het aangeeft): als label in de lijst.
+    if (c.out_of_care === true || c.in_care === false) uit.outOfCare = true;
+    return uit;
   });
 }
 
 // term (min. 2 tekens) -> Promise<[{ id, name, pc }]>
-export function searchClientsForPlan(term) {
+// outOfCare: ook cliënten die uit zorg zijn (out_of_care=true, zoals in ONS).
+export function searchClientsForPlan(term, outOfCare) {
   var t = String(term || '').trim();
   if (t.length < 2) return Promise.resolve([]);
-  return getJson(_apiUrl('searchClients', { term: t, outOfCare: 'false' })).then(clientsForPlan);
+  return getJson(_apiUrl('searchClients', { term: t, outOfCare: outOfCare === true ? 'true' : 'false' })).then(clientsForPlan);
 }

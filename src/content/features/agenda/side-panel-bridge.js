@@ -218,7 +218,7 @@ export function listenForSidePanelMessages() {
           setTimeout(function () { location.reload(); }, 50);
           return false;
         case MSG.AGENDA_CLIENT_SEARCH:
-          searchClientsForPlan(msg.term).then(function (clients) {
+          searchClientsForPlan(msg.term, msg.outOfCare === true).then(function (clients) {
             try { sendResponse({ ok: true, clients: clients }); } catch (e) {}
           }, function () {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}

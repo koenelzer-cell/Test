@@ -74,3 +74,8 @@ test('extra km van een eigen indeling (voor de vergelijking met het voorstel)', 
   assert.equal(extraKmVan([{ date: '2026-10-12', startMin: 615, minutes: 60, pc: '2222DD' }], visits, afstand, ''), 1);
   assert.equal(extraKmVan([{ date: '2026-10-12', startMin: 615, minutes: 60, pc: '1111AA' }], visits, afstand, ''), 20);
 });
+
+test('cliënt zoeken: uit zorg als ONS het aangeeft', () => {
+  assert.equal(clientsForPlan({ clients: [{ id: 1, name: 'A', out_of_care: true }] })[0].outOfCare, true);
+  assert.equal(clientsForPlan({ clients: [{ id: 1, name: 'A', out_of_care: false }] })[0].outOfCare, undefined);
+});

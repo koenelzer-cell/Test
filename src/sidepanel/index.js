@@ -74,7 +74,7 @@ const agendaActies = {
   onEventOptions: function (clientIds, cb) { vraagAanTab({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, cb); },
   onCreateEvents: function (events, cb) { vraagAanTab({ type: MSG.AGENDA_CREATE_EVENTS, events: events }, cb); },
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },
-  onClientSearch: function (term, cb) { vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term: term }, cb); },
+  onClientSearch: function (term, cb, outOfCare) { vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term: term, outOfCare: !!outOfCare }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },

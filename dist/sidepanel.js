@@ -66,7 +66,7 @@
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to?, from? } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -3918,7 +3918,8 @@
       return null;
     }
     function clientZoeker(r, nr, naKiezen) {
-      var wrap = el("div", { position: "relative", flex: "1 1 auto", minWidth: "0" });
+      var wrap = el("div", { flex: "1 1 auto", minWidth: "0" });
+      var veld = el("div", { position: "relative" });
       var inp = inputEl("text", r.name || r.zoek, function() {
       });
       inp.placeholder = "Naam cliënt";
@@ -3954,7 +3955,7 @@
           b.setAttribute("role", "option");
           b.setAttribute("data-client-id", c.id);
           b.appendChild(el("span", { fontWeight: "600" }, c.name || "Cliënt " + c.id));
-          if (c.number || c.birth || c.pc) b.appendChild(labels([c.number ? "Cl " + c.number : "", c.birth ? "Geb " + c.birth : "", pcTekst(c.pc)], "data-client-extra"));
+          if (c.number || c.birth || c.pc || c.outOfCare) b.appendChild(labels([c.number ? "Cl " + c.number : "", c.birth ? "Geb " + c.birth : "", pcTekst(c.pc), c.outOfCare ? "Uit zorg" : ""], "data-client-extra"));
           b.addEventListener("mouseenter", function() {
             b.style.background = T.brandWash;
           });
@@ -3978,11 +3979,7 @@
           lijst.appendChild(b);
         });
       }
-      inp.addEventListener("input", function() {
-        r.zoek = inp.value;
-        r.name = "";
-        r.clientId = "";
-        r.pcUitOns = false;
+      function zoek(wacht) {
         clearTimeout(timer);
         var term = inp.value.trim();
         if (term.length < 2 || !actions.onClientSearch) {
@@ -3998,8 +3995,15 @@
             if (mijn !== vraagNr) return;
             r.treffers = res && res.ok ? { lijst: res.clients || [] } : { fout: res && res.error || "Zoeken mislukt.", lijst: [] };
             (r._toon || toon2)();
-          });
-        }, 350);
+          }, !!r.uitZorg);
+        }, wacht);
+      }
+      inp.addEventListener("input", function() {
+        r.zoek = inp.value;
+        r.name = "";
+        r.clientId = "";
+        r.pcUitOns = false;
+        zoek(350);
       });
       inp.addEventListener("blur", function() {
         setTimeout(function() {
@@ -4013,8 +4017,25 @@
           toon2();
         }
       });
-      wrap.appendChild(inp);
-      wrap.appendChild(lijst);
+      veld.appendChild(inp);
+      veld.appendChild(lijst);
+      wrap.appendChild(veld);
+      var vink = el("label", { display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", fontSize: "12px", color: T.inkSoft, cursor: "pointer", userSelect: "none" });
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!r.uitZorg;
+      cb.setAttribute("data-client-uit-zorg", String(nr));
+      Object.assign(cb.style, { margin: "0", accentColor: T.brand });
+      vink.addEventListener("mousedown", function(e) {
+        e.preventDefault();
+      });
+      cb.addEventListener("change", function() {
+        r.uitZorg = cb.checked;
+        if (inp.value.trim().length >= 2) zoek(0);
+      });
+      vink.appendChild(cb);
+      vink.appendChild(document.createTextNode("Inclusief cliënten uit zorg"));
+      wrap.appendChild(vink);
       r._toon = toon2;
       toon2();
       return wrap;
@@ -4131,12 +4152,12 @@
     }
     function clientBlok(mk, c, sleutel, weg) {
       if (!c.clientId) {
-        var leeg2 = el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "4px 0" });
+        var leeg2 = el("div", { display: "flex", alignItems: "flex-start", gap: "6px", padding: "4px 0" });
         var zoeker = clientZoeker(c, sleutel, function() {
           haalUursoorten(mk, c.clientId);
           mk.eff = null;
         });
-        zoeker.firstChild.setAttribute("data-maak-zoek", sleutel);
+        zoeker.querySelector("[data-client-zoek]").setAttribute("data-maak-zoek", sleutel);
         leeg2.appendChild(zoeker);
         if (weg) leeg2.appendChild(wegKnop(weg, "Cliënt weghalen"));
         return leeg2;
@@ -6757,8 +6778,8 @@
       vraagAanTab({ type: MSG.AGENDA_RELOAD }, function() {
       });
     },
-    onClientSearch: function(term, cb) {
-      vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term }, cb);
+    onClientSearch: function(term, cb, outOfCare) {
+      vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term, outOfCare: !!outOfCare }, cb);
     },
     onWeekRatio: function(date, cb) {
       vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date }, cb);

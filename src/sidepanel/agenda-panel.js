@@ -1280,7 +1280,8 @@ export function create(host, actions) {
   // letter); een later antwoord op een oude zoekterm telt niet meer.
   // r: { zoek, name, clientId, pc, pcUitOns, treffers }; naKiezen: na een keuze.
   function clientZoeker(r, nr, naKiezen) {
-    var wrap = el('div', { position: 'relative', flex: '1 1 auto', minWidth: '0' });
+    var wrap = el('div', { flex: '1 1 auto', minWidth: '0' });
+    var veld = el('div', { position: 'relative' });
     var inp = inputEl('text', r.name || r.zoek, function () {});
     inp.placeholder = 'Naam cliënt';
     inp.setAttribute('data-client-zoek', String(nr));
@@ -1305,7 +1306,7 @@ export function create(host, actions) {
         b.appendChild(el('span', { fontWeight: '600' }, c.name || 'Cliënt ' + c.id));
         // Cliëntnummer, geboortedatum en postcode: om de juiste cliënt te kiezen.
         // Cliëntnummer, geboortedatum en postcode als labels: om de juiste cliënt te kiezen.
-        if (c.number || c.birth || c.pc) b.appendChild(labels([c.number ? 'Cl ' + c.number : '', c.birth ? 'Geb ' + c.birth : '', pcTekst(c.pc)], 'data-client-extra'));
+        if (c.number || c.birth || c.pc || c.outOfCare) b.appendChild(labels([c.number ? 'Cl ' + c.number : '', c.birth ? 'Geb ' + c.birth : '', pcTekst(c.pc), c.outOfCare ? 'Uit zorg' : ''], 'data-client-extra'));
         b.addEventListener('mouseenter', function () { b.style.background = T.brandWash; });
         b.addEventListener('mouseleave', function () { b.style.background = '#fff'; });
         b.addEventListener('mousedown', function (e) { e.preventDefault(); });
@@ -1319,8 +1320,7 @@ export function create(host, actions) {
         lijst.appendChild(b);
       });
     }
-    inp.addEventListener('input', function () {
-      r.zoek = inp.value; r.name = ''; r.clientId = ''; r.pcUitOns = false;
+    function zoek(wacht) {
       clearTimeout(timer);
       var term = inp.value.trim();
       if (term.length < 2 || !actions.onClientSearch) { r.treffers = null; toon(); return; }
@@ -1332,13 +1332,29 @@ export function create(host, actions) {
           r.treffers = res && res.ok ? { lijst: res.clients || [] } : { fout: (res && res.error) || 'Zoeken mislukt.', lijst: [] };
           // Is het paneel intussen opnieuw getekend, dan de lijst van het nieuwe veld bijwerken.
           (r._toon || toon)();
-        });
-      }, 350);
+        }, !!r.uitZorg);
+      }, wacht);
+    }
+    inp.addEventListener('input', function () {
+      r.zoek = inp.value; r.name = ''; r.clientId = ''; r.pcUitOns = false;
+      zoek(350);
     });
     inp.addEventListener('blur', function () { setTimeout(function () { r.treffers = null; toon(); }, 150); });
     inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') { r.treffers = null; toon(); } });
-    wrap.appendChild(inp);
-    wrap.appendChild(lijst);
+    veld.appendChild(inp);
+    veld.appendChild(lijst);
+    wrap.appendChild(veld);
+    // Vinkje: ook cliënten die uit zorg zijn (ONS: out_of_care=true).
+    var vink = el('label', { display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '12px', color: T.inkSoft, cursor: 'pointer', userSelect: 'none' });
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !!r.uitZorg; cb.setAttribute('data-client-uit-zorg', String(nr));
+    Object.assign(cb.style, { margin: '0', accentColor: T.brand });
+    // Klikken op het vinkje laat het zoekveld (en de lijst) open.
+    vink.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    cb.addEventListener('change', function () { r.uitZorg = cb.checked; if (inp.value.trim().length >= 2) zoek(0); });
+    vink.appendChild(cb);
+    vink.appendChild(document.createTextNode('Inclusief cliënten uit zorg'));
+    wrap.appendChild(vink);
     r._toon = toon;
     toon();
     return wrap;
@@ -1433,9 +1449,9 @@ export function create(host, actions) {
   // initialen, naam, cliëntnummer en postcode, en rechts de uursoort.
   function clientBlok(mk, c, sleutel, weg) {
     if (!c.clientId) {
-      var leeg = el('div', { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' });
+      var leeg = el('div', { display: 'flex', alignItems: 'flex-start', gap: '6px', padding: '4px 0' });
       var zoeker = clientZoeker(c, sleutel, function () { haalUursoorten(mk, c.clientId); mk.eff = null; });
-      zoeker.firstChild.setAttribute('data-maak-zoek', sleutel);
+      zoeker.querySelector('[data-client-zoek]').setAttribute('data-maak-zoek', sleutel);
       leeg.appendChild(zoeker);
       if (weg) leeg.appendChild(wegKnop(weg, 'Cliënt weghalen'));
       return leeg;

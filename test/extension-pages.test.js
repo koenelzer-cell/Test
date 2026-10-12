@@ -1172,3 +1172,30 @@ test('zijpaneel: weekraster - Vandaag-knop en vandaag herkenbaar (roze kop, nu-l
   assert.equal(knopV().disabled, true, 'terug in de week van vandaag');
   assert.ok(verzonden.filter((m) => m.type === 'ag-free-slots').length > voor, 'week opnieuw opgehaald');
 });
+
+test('zijpaneel: cliënt zoeken met vinkje Inclusief cliënten uit zorg', async () => {
+  const UIT = { id: '999', name: 'Tim Oud', pc: '', number: '77', birth: '03-03-1970', outOfCare: true };
+  const { document, dom, verzonden } = maakPaneel({
+    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [CLIENTEN.Tamara].concat(msg.outOfCare ? [UIT] : []) }),
+  });
+  await tweeMomenten(document);
+  const vink = document.querySelector('[data-client-uit-zorg]');
+  assert.ok(vink, 'vinkje bij het zoekveld');
+  assert.equal(vink.checked, false, 'standaard uit');
+  assert.match(vink.parentNode.textContent, /^Inclusief cliënten uit zorg$/);
+  const z = document.querySelector('[data-maak-zoek]');
+  z.value = 'T'; z.value = 'Ti'; z.dispatchEvent(new dom.window.Event('input'));
+  await new Promise((r) => setTimeout(r, 420));
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-client-search');
+  assert.deepEqual([zoek().at(-1).term, zoek().at(-1).outOfCare], ['Ti', false]);
+  assert.equal(document.querySelector('[data-client-id="999"]'), null);
+  vink.checked = true; vink.dispatchEvent(new dom.window.Event('change'));
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual([zoek().at(-1).term, zoek().at(-1).outOfCare], ['Ti', true], 'aanvinken zoekt meteen opnieuw, met uit zorg');
+  const tim = document.querySelector('[data-client-id="999"]');
+  assert.ok(tim, 'cliënt uit zorg in de lijst');
+  assert.match(tim.textContent, /Uit zorg/);
+  tim.click();
+  await tick();
+  assert.match(document.querySelector('[data-maak-client]').textContent, /Tim Oud/);
+});
