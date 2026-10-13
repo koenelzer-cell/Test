@@ -993,13 +993,20 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   assert.equal(document.querySelector('[data-maak-type-alle]').value, '47', 'standaard Face to face');
   kies(document, dom, '[data-maak-type-alle]', '46');
-  assert.match(document.querySelector('[data-maak-regel="1"]').textContent, /^Di 13 oktober10:00 tot 11:00HuisbezoekTamara en Bram/, 'type voor alle afspraken, cliënten eronder');
-  document.querySelector('[data-maak-regel="1"]').click();
+  assert.equal(document.querySelector('[data-maak-regel="1"]').textContent, '2Afspraak 2 van 2Di 13 oktober10:00 tot 11:00', 'kaart met nummer, dag en tijd');
+  assert.match(document.querySelector('[data-maak-samenvatting="1"]').textContent, /^Huisbezoek Tamara en Bram/, 'type voor alle afspraken, met de cliënten');
+  assert.equal(document.querySelector('[data-maak-aanpassen="1"]').textContent, 'Aanpassen', 'knop met tekst in plaats van een pijltje');
+  assert.equal(document.querySelector('[data-maak-weg="1"]').textContent, 'Verwijderen', 'knop met tekst in plaats van een kruisje');
+  document.querySelector('[data-maak-aanpassen="1"]').click();
+  assert.equal(document.querySelector('[data-maak-aanpassen="1"]').textContent, 'Klaar');
+  assert.match(document.querySelector('[data-maak-afspraak="1"]').textContent, /Alleen voor deze afspraak:/);
   kies(document, dom, '[data-maak-type="1"]', '48');
+  document.querySelector('[data-maak-aanpassen="1"]').click();
   assert.ok(document.querySelector('[data-eigen-type="1"]'), 'afwijking als label');
+  assert.equal(document.querySelector('[data-eigen-type="1"]').textContent, 'Eigen keuze');
   kies(document, dom, '[data-maak-type-alle]', '47');
-  assert.equal(document.querySelector('[data-maak-type="1"]').value, '48', 'eigen keuze blijft staan');
-  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /Face to faceTamara en Bram/);
+  assert.match(document.querySelector('[data-maak-samenvatting="1"]').textContent, /^Beeldbellen Tamara en Bram/, 'eigen keuze blijft staan');
+  assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /^Face to face Tamara en Bram/);
   assert.ok(document.querySelector('[data-maak-ons]'), 'ONS Afspraakformulier onderin');
   document.querySelector('[data-maak-knop]').click();
   await tick();
@@ -1031,9 +1038,8 @@ test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uurs
   assert.equal(document.querySelector('[data-maak-geavanceerd]'), null, 'geen geavanceerd');
   assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst een uursoort');
   kies(document, dom, '[data-maak-nc-uursoort]', '77');
-  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /^Ma 12 oktober10:00 tot 11:00Teamoverleg$/, 'regel: moment en uursoort');
-  document.querySelector('[data-maak-regel="0"]').click();
-  assert.equal(document.querySelector('[data-maak-type="0"]'), null, 'niets uit te klappen');
+  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /^1Afspraak 1 van 2Ma 12 oktober10:00 tot 11:00TeamoverlegVerwijderen$/, 'kaart: moment en uursoort');
+  assert.equal(document.querySelector('[data-maak-aanpassen="0"]'), null, 'niets aan te passen');
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
@@ -1091,9 +1097,9 @@ test('zijpaneel: afspraak maken - reistijd invullen bij een type met reistijd (b
   const vul = async (sel, v) => { const i = document.querySelector(sel); i.value = v; i.dispatchEvent(new dom.window.Event('input')); i.dispatchEvent(new dom.window.Event('change')); await tick(); };
   await vul('[data-maak-reis-alle-heen]', '20');
   await vul('[data-maak-reis-alle-terug]', '15');
-  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /reistijd 20 \/ 15 min/);
-  // Per afspraak aan te passen in de details.
-  document.querySelector('[data-maak-regel="1"]').click();
+  assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /Reistijd 20 min heen en 15 min terug/);
+  // Per afspraak aan te passen via Aanpassen.
+  document.querySelector('[data-maak-aanpassen="1"]').click();
   await vul('[data-maak-heen="1"]', '30');
   // Ander type zonder reistijd: niets mee; terug naar Huisbezoek: weer erbij.
   kies(document, dom, '[data-maak-type-alle]', '48');
@@ -1148,7 +1154,7 @@ test('zijpaneel: afspraak maken - moment verwijderen na Weet je het zeker?', asy
   antwoord = true;
   document.querySelector('[data-maak-weg="0"]').click();
   assert.equal(regels().length, 1, 'OK: weg');
-  assert.match(regels()[0].textContent, /^Di 13 oktober/, 'het andere moment blijft');
+  assert.match(regels()[0].textContent, /^1Di 13 oktober/, 'het andere moment blijft, nu als enige');
   assert.equal(document.querySelector('[data-maak-modus]'), null, 'bij één moment geen keuze zelfde of per afspraak');
   document.querySelector('[data-maak-weg="0"]').click();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'laatste weg: terug naar de planhulp');
@@ -1183,8 +1189,9 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   document.querySelector('[data-maak-modus="los"]').click();
   await kiesClient(document, dom, 'los0-0', 'Tamara');   // ma 12 okt, maar die dag zit je in Tilburg
   await kiesClient(document, dom, 'los1-0', 'Bram');     // di 13 okt, die dag zit je in Delft
-  document.querySelector('[data-maak-regel="0"]').click();
-  assert.equal(document.querySelector('[data-maak-heen="0"]'), null, 'reistijd pas bij Geavanceerd');
+  assert.equal(document.querySelector('[data-maak-heen="0"]'), null, 'Face to face: reistijd pas bij Geavanceerd');
+  assert.ok(document.querySelector('[data-maak-type="0"]'), 'per afspraak anders: type in de kaart');
+  assert.ok(document.querySelector('[data-maak-aanwezig-afspraak="1"]'), 'per afspraak anders: aanwezig in de kaart');
   const adv = document.querySelector('[data-maak-geavanceerd]');
   assert.match(adv.parentElement.textContent, /^Geavanceerd/);
   adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
@@ -1205,9 +1212,8 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   // Nu: ma 12 okt Bram (bij Tilburg), di 13 okt Tamara (bij Delft).
   assert.match(document.querySelector('[data-maak-client="los0-0"]').textContent, /Bram Proef/);
   assert.match(document.querySelector('[data-maak-client="los1-0"]').textContent, /Tamara Test/);
-  assert.equal(document.querySelector('[data-maak-regel="0"]').getAttribute('aria-expanded'), 'true', 'staat nog open');
   assert.ok(+document.querySelector('[data-maak-heen="0"]').value > 0, 'reistijd heen ingevuld');
-  assert.match(document.querySelector('[data-maak-afspraak="1"]').textContent, /reistijd \d+ \/ \d+ min/, 'ingeklapt: reistijd in de regel');
+  assert.ok(document.querySelector('[data-maak-heen="1"]'), 'reistijd ook in de kaart van afspraak 2');
   // Ook meerdere cliënten in één afspraak (Bram erbij bij Tamara).
   document.querySelector('[data-maak-plus="los1-"]').click();
   await kiesClient(document, dom, 'los1-1', 'Bram');
@@ -1235,7 +1241,7 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
   assert.equal(document.querySelector('[data-maak-efficient]'), null);
   assert.match(document.body.textContent, /vul in het beheerscherm \(Functies → Google Maps\) een Routes-sleutel in/);
-  document.querySelector('[data-maak-regel="0"]').click();
+  document.querySelector('[data-maak-aanpassen="0"]').click();
   assert.ok(document.querySelector('[data-maak-heen="0"]'), 'reistijd wel zelf in te vullen');
   assert.equal(google.length, 0);
 });
@@ -1273,7 +1279,7 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   // Reistijd: het vrije blok begint om 9:00, de afspraak om 10:00.
   const adv = document.querySelector('[data-maak-geavanceerd]');
   adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
-  document.querySelector('[data-maak-regel="0"]').click();
+  document.querySelector('[data-maak-aanpassen="0"]').click();
   const heen = document.querySelector('[data-maak-heen="0"]');
   heen.value = '90'; heen.dispatchEvent(new dom.window.Event('input')); heen.dispatchEvent(new dom.window.Event('change'));
   await tick();

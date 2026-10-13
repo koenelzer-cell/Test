@@ -11244,7 +11244,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.265";
+      return "1.6.266";
     }
   }();
 
@@ -13209,11 +13209,14 @@
       })();
     });
   }
+  function veiligPad(url) {
+    return typeof url === "string" && /^\/(?![\/\\])/.test(url) ? url : null;
+  }
   function declareUrlUitDetails(json) {
     const body = json && typeof json === "object" ? json.event || json.data || json : null;
-    const url = body && body.meta && body.meta.declareUrl;
-    if (typeof url !== "string" || !/^\/(?![\/\\])/.test(url)) return null;
-    return url;
+    const meta = body && body.meta;
+    if (!meta) return null;
+    return veiligPad(meta.declareUrl) || veiligPad(meta.declareAsUrl);
   }
   function haalDeclareUrl(occurrenceId, opts) {
     const occ = String(occurrenceId || "");

@@ -158,7 +158,8 @@ en oker).
   Bij elke open afspraak een knop **Registreren**: de hulp haalt de details
   van de afspraak op (dezelfde call als de popup van ONS,
   `/calendar/invitee/{id}/events/{occurrence}/details`) en gaat meteen naar
-  `meta.declareUrl`, het registratieformulier van ONS (bijvoorbeeld
+  `meta.declareUrl` (bij de afspraak van een collega `meta.declareAsUrl`,
+  registreren als), het registratieformulier van ONS (bijvoorbeeld
   `/registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true`; na opslaan
   terug naar de agenda). Alleen een relatief pad op dezelfde site. Is er geen
   declareUrl of lukt het ophalen niet, dan zoals vroeger: naar de dag, de
@@ -256,16 +257,18 @@ en oker).
   standaard van dat type) en bij een type met reistijd (kolom *Reistijd* in
   beheer; niet ingesteld: alleen een huisbezoek) **Reistijd** heen en terug
   voor alle afspraken, per afspraak aan te passen. Dan
-  **Afspraken**: per afspraak één regel met dag en tijd ('Do 8 oktober',
-  '10:45 tot 11:45'), het type en de cliënten eronder ('Tamara en Bram'); tik
-  om type (alleen deze afspraak; dan het label 'Eigen type'), titel en (bij
-  Geavanceerd of een type met reistijd) reistijd te wijzigen. Het kruisje
-  achter een regel haalt dat moment weg, na de browsermelding 'Weet je het
-  zeker?' (ook uit de keuze in de planhulp; het laatste weg = terug naar de
-  planhulp). De titel in ONS wordt bijvoorbeeld
-  'Huisbezoek Tamara en Bram'. Bij
-  *Per afspraak anders* staan de cliënten (ook meerdere, '+ Cliënt') per
-  afspraak in de regel. Onderin: 'n afspraken maken in ONS' (pas als elke
+  **n afspraken**: elke afspraak een eigen kaart met een roze nummer,
+  'Afspraak 1 van 2', de dag en de tijd ('Di 13 oktober', '10:00 tot
+  11:00'). Bij *Zelfde cliënt(en)* daaronder de titel ('Huisbezoek Tamara en
+  Bram') met labels: Cliënten aanwezig of niet, de reistijd, en 'Eigen keuze'
+  als deze afspraak afwijkt. Onderin twee knoppen met tekst: **Aanpassen**
+  (klapt de kaart open: type, titel, Cliënten zijn aanwezig en reistijd van
+  alleen deze afspraak; de knop heet dan Klaar) en **Verwijderen** (rood; na
+  de browsermelding 'Weet je het zeker?', ook uit de keuze in de planhulp;
+  het laatste weg = terug naar de planhulp). Bij *Per afspraak anders* staat
+  bovenin alleen het type voor alle afspraken, en in elke kaart de cliënten
+  (ook meerdere, '+ Cliënt'), het type, Cliënten zijn aanwezig en de reistijd
+  van die afspraak; Aanpassen geeft daar de titel. Onderin: 'n afspraken maken in ONS' (pas als elke
   cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als
   terugval (zelfde cliënten: één formulier + kopieën; per afspraak anders:
   een eigen formulier per afspraak, cliënten al ingevuld via

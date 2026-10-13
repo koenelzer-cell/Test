@@ -601,6 +601,15 @@ test('open registraties: Registreren gaat meteen naar de declareUrl uit de detai
   await api.registerOpenItem('4450924', '2026-10-12', { ...opts(DETAILS), occurrenceId: 'a/b' });
   assert.deepEqual(gevraagd, []);
   assert.equal(api.declareUrlUitDetails({ data: { meta: { declareUrl: '/registrations/x/edit' } } }), '/registrations/x/edit');
+  // Afspraak van een collega: ONS geeft declareAsUrl (registreren als).
+  assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: null, declareAsUrl: '/registrations/y/edit?declare_as=51486' } } }), '/registrations/y/edit?declare_as=51486');
+  assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: null, declareAsUrl: '//elders.example/y' } } }), null, 'ook hier alleen een pad op dezelfde site');
+  assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: '/eigen', declareAsUrl: '/als' } } }), '/eigen', 'eigen afspraak gaat voor');
+  naar.length = 0; gevraagd.length = 0;
+  const collega = await api.registerOpenItem('4450925', '2026-10-12', { ...opts({ event: { meta: { declareUrl: null, declareAsUrl: '/registrations/abc/edit' } } }), occurrenceId: 'abc', inviteeId: '51486' });
+  assert.deepEqual({ ...collega }, { ok: true, direct: true });
+  assert.deepEqual(gevraagd, ['/calendar/invitee/51486/events/abc/details'], 'details in de agenda van de collega');
+  assert.deepEqual(naar, ['/registrations/abc/edit'], 'meteen naar het formulier, niet eerst naar de dag');
   assert.equal(api.declareUrlUitDetails(null), null);
   assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: '/\\\\elders' } } }), null);
 });

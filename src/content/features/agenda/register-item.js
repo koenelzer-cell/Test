@@ -2,7 +2,7 @@
 //
 // Eerst rechtstreeks: de details van de afspraak (dezelfde call die ONS doet
 // als je de afspraak opent) geven in meta.declareUrl ONS' eigen link naar het
-// registratieformulier, bijvoorbeeld
+// registratieformulier (bij een collega: meta.declareAsUrl), bijvoorbeeld
 //   /registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true
 // Daar gaan we meteen heen; na opslaan stuurt ONS je terug naar de agenda.
 // We maken die link niet zelf: alleen wat ONS aanbiedt, en alleen een
@@ -48,12 +48,15 @@ export function wachtOp(vind, ms, stap) {
 }
 
 // meta.declareUrl uit een details-respons ({event:{meta:{declareUrl}}}), mits
-// een relatief pad op dezelfde site. Anders null.
+// een relatief pad op dezelfde site. Bij de afspraak van een collega geeft
+// ONS geen declareUrl maar declareAsUrl ('registreren als'); die telt dan.
+// Anders null.
+function veiligPad(url) { return typeof url === 'string' && /^\/(?![\/\\])/.test(url) ? url : null; }
 export function declareUrlUitDetails(json) {
   const body = json && typeof json === 'object' ? (json.event || json.data || json) : null;
-  const url = body && body.meta && body.meta.declareUrl;
-  if (typeof url !== 'string' || !/^\/(?![\/\\])/.test(url)) return null;
-  return url;
+  const meta = body && body.meta;
+  if (!meta) return null;
+  return veiligPad(meta.declareUrl) || veiligPad(meta.declareAsUrl);
 }
 function haalDeclareUrl(occurrenceId, opts) {
   const occ = String(occurrenceId || '');

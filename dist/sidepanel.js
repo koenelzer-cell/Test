@@ -4588,7 +4588,10 @@
     function zetTypeAlle(mk, v) {
       mk.typeAlle = v;
       mk.items.forEach(function(it) {
-        if (!it.typeAangepast) it.labelId = v;
+        if (!it.typeAangepast) {
+          it.labelId = v;
+          it.aanwezig = null;
+        }
       });
       mk.aanwezig = null;
       pasReisAlleToe(mk);
@@ -4596,6 +4599,7 @@
     function zetType(mk, k, v) {
       mk.items[k].labelId = v;
       mk.items[k].typeAangepast = v !== mk.typeAlle;
+      mk.items[k].aanwezig = null;
       pasReisAlleToe(mk);
     }
     function typeNaamVan(mk, id) {
@@ -4630,7 +4634,7 @@
       return t ? !!t.addTravelTime : /huisbezoek/i.test(typeNaamVan(mk, labelId));
     }
     function aanwezigVan(mk, it) {
-      return mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, it.labelId);
+      return it.aanwezig != null ? it.aanwezig : mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, it.labelId);
     }
     function reisVan(mk, it) {
       return mk.geavanceerd || metReistijd(mk, it.labelId);
@@ -4666,6 +4670,65 @@
         return;
       }
       renderPagina();
+    }
+    function aanwezigRij(aan, attr, fn) {
+      var r = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "8px 0 6px", borderTop: "1px solid " + T.lineSoft });
+      r.appendChild(el("span", { fontSize: "13px", fontWeight: "400", color: T.ink }, "Cliënten zijn aanwezig"));
+      var sch = schakelaar(aan, attr[0], "Cliënten zijn aanwezig", fn);
+      sch.setAttribute(attr[0], attr[1] || "");
+      r.appendChild(sch);
+      return r;
+    }
+    function reisInvoer(heen, terug, attrVan, zet) {
+      var r = el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
+      r.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Reistijd"));
+      [["heen", heen], ["terug", terug]].forEach(function(rv) {
+        var inp = inputEl("number", rv[1] ? String(rv[1]) : "", function(v) {
+          var nn = parseInt(v, 10);
+          zet(rv[0], nn > 0 ? Math.min(nn, 240) : 0);
+        });
+        inp.min = "0";
+        inp.max = "240";
+        inp.step = "5";
+        inp.placeholder = "0";
+        var a = attrVan(rv[0]);
+        inp.setAttribute(a[0], a[1]);
+        inp.setAttribute("aria-label", "Reistijd " + rv[0] + " in minuten");
+        Object.assign(inp.style, { width: "62px", flex: "0 0 62px", height: "30px", margin: "0" });
+        inp.addEventListener("change", straksTekenen);
+        r.appendChild(inp);
+        r.appendChild(el("span", { fontSize: "12px", color: T.inkSoft, marginRight: "4px" }, rv[0]));
+      });
+      r.appendChild(el("span", { fontSize: "12px", color: T.inkSoft }, "min"));
+      return r;
+    }
+    function labelRij(label, inhoud) {
+      var r = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
+      r.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, label));
+      r.appendChild(inhoud);
+      return r;
+    }
+    function kaartKnop(icoon, tekst, kleur, vol, fn) {
+      var b = el("button", {
+        flex: "1 1 0",
+        height: "30px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "6px",
+        borderRadius: "8px",
+        cursor: "pointer",
+        border: "1px solid " + (vol ? T.brand : T.line),
+        background: vol ? T.brand : "#fff",
+        color: vol ? "#fff" : kleur,
+        font: "600 12px " + FONT
+      });
+      b.type = "button";
+      b.appendChild(svgPath(icoon, 14));
+      b.appendChild(document.createTextNode(tekst));
+      focusRing(b);
+      b.addEventListener("click", fn);
+      return b;
     }
     function schakelaar(aan, attr, label, fn) {
       var b = el("button", {
@@ -4994,160 +5057,44 @@
         box.appendChild(sectieKop(n > 1 ? "Voor alle " + n + " afspraken" : "Afspraak"));
         var alle = kaartDoos();
         alle.setAttribute("data-maak-alle", "");
-        if (mk.modus === "dup") clientsLijst(mk, mk.clients, "dup", alle);
-        var typeRij = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderTop: mk.modus === "dup" ? "1px solid " + T.lineSoft : "0" });
-        typeRij.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Type"));
+        var losAlle = mk.modus === "los";
+        if (!losAlle) clientsLijst(mk, mk.clients, "dup", alle);
         var typeAlle = selectEl(["data-maak-type-alle", ""], mk.labels, mk.typeAlle || "", function(v) {
           zetTypeAlle(mk, v);
           renderPagina();
         }, "Geen afspraaktype");
-        typeRij.appendChild(typeAlle);
+        var typeRij = labelRij("Type", typeAlle);
+        if (losAlle) typeRij.style.borderTop = "0";
         alle.appendChild(typeRij);
-        var aanw = mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, mk.typeAlle);
-        var aanwRij = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "8px 0 6px", borderTop: "1px solid " + T.lineSoft });
-        aanwRij.appendChild(el("span", { fontSize: "12.5px", fontWeight: "600", color: T.ink }, "Cliënten zijn aanwezig"));
-        aanwRij.appendChild(schakelaar(aanw, "data-maak-aanwezig", "Cliënten zijn aanwezig", function() {
-          mk.aanwezig = !aanw;
-          renderPagina();
-        }));
-        alle.appendChild(aanwRij);
-        if (metReistijd(mk, mk.typeAlle)) {
-          var rr = mk.reisAlle || { heen: 0, terug: 0 };
-          var reisRijA = el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
-          reisRijA.setAttribute("data-maak-reis-alle", "");
-          reisRijA.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Reistijd"));
-          [["heen", "heen"], ["terug", "terug"]].forEach(function(rv) {
-            var inp = inputEl("number", rr[rv[0]] ? String(rr[rv[0]]) : "", function(v) {
-              var nn = parseInt(v, 10);
+        if (losAlle) alle.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft, padding: "0 0 6px" }, "Cliënten, type, aanwezig en reistijd stel je hieronder per afspraak in."));
+        else {
+          var aanw = mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, mk.typeAlle);
+          alle.appendChild(aanwezigRij(aanw, ["data-maak-aanwezig", ""], function() {
+            mk.aanwezig = !aanw;
+            mk.items.forEach(function(it) {
+              it.aanwezig = null;
+            });
+            renderPagina();
+          }));
+          if (metReistijd(mk, mk.typeAlle)) {
+            var rr = mk.reisAlle || { heen: 0, terug: 0 };
+            var reisA = reisInvoer(rr.heen, rr.terug, function(soort) {
+              return ["data-maak-reis-alle-" + soort, ""];
+            }, function(soort, w) {
               mk.reisAlle = Object.assign({ heen: 0, terug: 0 }, mk.reisAlle);
-              mk.reisAlle[rv[0]] = nn > 0 ? Math.min(nn, 240) : 0;
+              mk.reisAlle[soort] = w;
               pasReisAlleToe(mk);
             });
-            inp.min = "0";
-            inp.max = "240";
-            inp.step = "5";
-            inp.placeholder = "0";
-            inp.setAttribute("data-maak-reis-alle-" + rv[0], "");
-            inp.setAttribute("aria-label", "Reistijd " + rv[1] + " in minuten");
-            Object.assign(inp.style, { width: "62px", flex: "0 0 62px", height: "30px", margin: "0" });
-            inp.addEventListener("change", straksTekenen);
-            reisRijA.appendChild(inp);
-            reisRijA.appendChild(el("span", { fontSize: "12px", color: T.inkSoft, marginRight: "4px" }, rv[1]));
-          });
-          reisRijA.appendChild(el("span", { fontSize: "12px", color: T.inkSoft }, "min"));
-          alle.appendChild(reisRijA);
+            reisA.setAttribute("data-maak-reis-alle", "");
+            alle.appendChild(reisA);
+          }
         }
         box.appendChild(alle);
       }
-      box.appendChild(sectieKop(n > 1 ? "Afspraken" : "Moment"));
-      var lijst2 = kaartDoos();
+      box.appendChild(sectieKop(n > 1 ? n + " afspraken" : "Moment"));
+      var lijst2 = el("div");
       mk.items.forEach(function(it, k) {
-        var blok = el("div", { borderTop: k ? "1px solid " + T.lineSoft : "0", padding: "4px 0" });
-        blok.setAttribute("data-maak-afspraak", String(k));
-        var kop = el("button", { display: "flex", alignItems: "center", gap: "8px", width: "100%", border: "0", background: "transparent", padding: "6px 0", cursor: klaar ? "default" : "pointer", textAlign: "left", font: "inherit", color: T.ink });
-        var vast = klaar || !!mk.nietClient;
-        if (vast) kop.style.cursor = "default";
-        kop.type = "button";
-        kop.setAttribute("data-maak-regel", String(k));
-        kop.setAttribute("aria-expanded", !vast && mk.open[k] ? "true" : "false");
-        var wn = el("span", { flex: "0 0 100px", fontWeight: "700", fontSize: "12.5px" }, dagLang(it.date, true));
-        wn.appendChild(el("span", { display: "block", fontWeight: "400", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, hm(it.startMin) + " tot " + hm(it.startMin + it.minutes)));
-        kop.appendChild(wn);
-        var wat = el("span", { flex: "1 1 auto", minWidth: "0", fontSize: "12.5px" });
-        wat.appendChild(el("span", { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, mk.nietClient ? ncNaam(mk) || "Niet cliëntgebonden" : it.titelAangepast ? it.titel : typeNaamVan(mk, it.labelId) || "Afspraak"));
-        var namen = namenVan(mk, it);
-        if (namen) wat.appendChild(el("span", { display: "block", fontSize: "11px", color: T.inkSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, namen));
-        kop.appendChild(wat);
-        var u = mk.uitslag && mk.uitslag[k];
-        if (u) {
-          var st = el("span", { flex: "0 0 auto", fontWeight: "700", fontSize: "12px", color: u.ok ? T.ok : T.bad }, u.ok ? "✓ gemaakt" : "mislukt");
-          if (!u.ok && u.error) st.title = u.error;
-          st.setAttribute("data-maak-uitslag", u.ok ? "ok" : "fout");
-          kop.appendChild(st);
-        } else if (it.onsCl && it.onsCl.overlap === true) {
-          var ob = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: "#fdf3e2", color: T.warn }, "ONS: overlap");
-          ob.setAttribute("data-maak-ons-overlap", String(k));
-          ob.title = "ONS meldt overlap met de gekozen cliënt(en) op dit tijdstip.";
-          kop.appendChild(ob);
-        } else if (it.typeAangepast && it.labelId !== mk.typeAlle) {
-          var tg = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: T.brandWash, color: T.brand }, "Eigen type");
-          tg.setAttribute("data-eigen-type", String(k));
-          kop.appendChild(tg);
-        } else if (!vast) kop.appendChild(el("span", { flex: "0 0 auto", color: T.inkSoft }, mk.open[k] ? "▾" : "›"));
-        if (!vast) kop.addEventListener("click", function() {
-          mk.open[k] = !mk.open[k];
-          renderPagina();
-        });
-        if (klaar) blok.appendChild(kop);
-        else {
-          var kopRij = el("div", { display: "flex", alignItems: "center", gap: "4px" });
-          Object.assign(kop.style, { flex: "1 1 auto", minWidth: "0", width: "auto" });
-          kopRij.appendChild(kop);
-          var weg = wegKnop(function() {
-            var ok = false;
-            try {
-              ok = window.confirm("Weet je het zeker?");
-            } catch (e) {
-            }
-            if (ok) verwijderMoment(mk, k);
-          }, "Moment " + dagLang(it.date, true) + " " + hm(it.startMin) + " verwijderen");
-          weg.setAttribute("data-maak-weg", String(k));
-          weg.title = "Moment verwijderen";
-          kopRij.appendChild(weg);
-          blok.appendChild(kopRij);
-        }
-        if (!klaar && mk.modus === "los" && !mk.nietClient) {
-          var cl = el("div", { padding: "0 0 4px 0" });
-          clientsLijst(mk, it.clients, "los" + k + "-", cl);
-          blok.appendChild(cl);
-        }
-        if (!klaar && it.onsCl && it.onsCl.overlap === true) {
-          var on = noteBox("ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak.", "warn");
-          on.style.margin = "0 0 6px";
-          blok.appendChild(on);
-        }
-        if (!klaar) reisProblemen(mk, it).forEach(function(t) {
-          var rn = noteBox(t, "warn");
-          rn.style.margin = "0 0 6px";
-          rn.setAttribute("data-maak-reis-conflict", String(k));
-          blok.appendChild(rn);
-        });
-        if (!vast && mk.open[k]) {
-          var det = el("div", { display: "flex", flexDirection: "column", gap: "6px", padding: "2px 0 8px" });
-          var tSel = selectEl(["data-maak-type", String(k)], mk.labels, it.labelId, function(v) {
-            zetType(mk, k, v);
-            renderPagina();
-          }, "Geen afspraaktype");
-          det.appendChild(fieldLabel("Type (alleen deze)", tSel));
-          var titel = inputEl("text", titelVan(mk, it), function(v) {
-            it.titel = v;
-            it.titelAangepast = true;
-          });
-          titel.setAttribute("data-maak-titel", String(k));
-          det.appendChild(fieldLabel("Titel", titel));
-          if (reisVan(mk, it)) {
-            var reisRij = el("div", { display: "flex", gap: "8px" });
-            [["reisHeen", "Reistijd heen (min)", "heen"], ["reisTerug", "Reistijd terug (min)", "terug"]].forEach(function(rv) {
-              var inp = inputEl("number", it[rv[0]] ? String(it[rv[0]]) : "", function(v) {
-                var nn = parseInt(v, 10);
-                it[rv[0]] = nn > 0 ? Math.min(nn, 240) : 0;
-                it.reisAangepast = true;
-              });
-              inp.min = "0";
-              inp.max = "240";
-              inp.step = "5";
-              inp.placeholder = "0";
-              inp.setAttribute("data-maak-" + rv[2], String(k));
-              inp.addEventListener("change", straksTekenen);
-              reisRij.appendChild(fieldLabel(rv[1], inp));
-            });
-            det.appendChild(reisRij);
-          }
-          blok.appendChild(det);
-        } else if (!klaar && !mk.nietClient && reisVan(mk, it) && (it.reisHeen || it.reisTerug)) {
-          blok.appendChild(el("div", { fontSize: "11px", color: T.brand, fontWeight: "600", padding: "0 0 4px" }, "reistijd " + (it.reisHeen || 0) + " / " + (it.reisTerug || 0) + " min"));
-        }
-        lijst2.appendChild(blok);
+        lijst2.appendChild(afspraakKaart(mk, it, k, n, klaar));
       });
       box.appendChild(lijst2);
       if (!klaar && mk.nietClient && mk.error) box.appendChild(noteBox(mk.error, "bad"));
@@ -5178,6 +5125,148 @@
         if (mk.error) box.appendChild(noteBox(mk.error, "bad"));
       }
       return box;
+    }
+    var ICON_POTLOOD = "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z";
+    var ICON_PRULLENBAK = "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z";
+    function afspraakKaart(mk, it, k, n, klaar) {
+      var los = mk.modus === "los" && !mk.nietClient;
+      var open = !klaar && !mk.nietClient && !!mk.open[k];
+      var u = mk.uitslag && mk.uitslag[k];
+      var kaart2 = el("div", { border: "1px solid " + (open ? "#f0b6d6" : T.line), borderRadius: "12px", background: "#fff", marginBottom: "10px", overflow: "hidden", boxShadow: open ? "0 0 0 3px " + T.brandWash : "none" });
+      kaart2.setAttribute("data-maak-afspraak", String(k));
+      var kop = el("div", { display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: T.lineSoft, borderBottom: "1px solid " + T.line });
+      kop.setAttribute("data-maak-regel", String(k));
+      kop.appendChild(el("span", { width: "24px", height: "24px", borderRadius: "12px", background: T.brand, color: "#fff", fontWeight: "800", fontSize: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }, String(k + 1)));
+      var wanneer = el("span", { flex: "1 1 auto", minWidth: "0", lineHeight: "1.25" });
+      if (n > 1) wanneer.appendChild(el("span", { display: "block", fontSize: "10.5px", fontWeight: "600", color: T.inkSoft }, "Afspraak " + (k + 1) + " van " + n));
+      wanneer.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px" }, dagLang(it.date, true)));
+      wanneer.appendChild(el("span", { display: "block", fontSize: "12px", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, hm(it.startMin) + " tot " + hm(it.startMin + it.minutes)));
+      kop.appendChild(wanneer);
+      if (u) {
+        var st = el("span", { flex: "0 0 auto", fontWeight: "700", fontSize: "12px", color: u.ok ? T.ok : T.bad }, u.ok ? "✓ gemaakt" : "mislukt");
+        if (!u.ok && u.error) st.title = u.error;
+        st.setAttribute("data-maak-uitslag", u.ok ? "ok" : "fout");
+        kop.appendChild(st);
+      } else if (it.onsCl && it.onsCl.overlap === true) {
+        var ob = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: "#fdf3e2", color: T.warn }, "ONS: overlap");
+        ob.setAttribute("data-maak-ons-overlap", String(k));
+        ob.title = "ONS meldt overlap met de gekozen cliënt(en) op dit tijdstip.";
+        kop.appendChild(ob);
+      }
+      kaart2.appendChild(kop);
+      var body = el("div", { padding: "4px 12px 6px" });
+      var typeSel = function() {
+        return labelRij("Type", selectEl(["data-maak-type", String(k)], mk.labels, it.labelId, function(v) {
+          zetType(mk, k, v);
+          renderPagina();
+        }, "Geen afspraaktype"));
+      };
+      var aanwezigHier = function() {
+        return aanwezigRij(aanwezigVan(mk, it), ["data-maak-aanwezig-afspraak", String(k)], function() {
+          it.aanwezig = !aanwezigVan(mk, it);
+          renderPagina();
+        });
+      };
+      var reisHier = function() {
+        return reisInvoer(it.reisHeen, it.reisTerug, function(soort) {
+          return ["data-maak-" + soort, String(k)];
+        }, function(soort, w) {
+          if (soort === "heen") it.reisHeen = w;
+          else it.reisTerug = w;
+          it.reisAangepast = true;
+        });
+      };
+      var titelHier = function() {
+        var t = inputEl("text", titelVan(mk, it), function(v) {
+          it.titel = v;
+          it.titelAangepast = true;
+        });
+        t.setAttribute("data-maak-titel", String(k));
+        return labelRij("Titel", t);
+      };
+      if (mk.nietClient) body.appendChild(el("div", { fontWeight: "600", fontSize: "13px", padding: "6px 0" }, ncNaam(mk) || "Niet cliëntgebonden"));
+      else if (klaar) body.appendChild(el("div", { fontWeight: "600", fontSize: "13px", padding: "6px 0" }, titelVan(mk, it)));
+      else if (los) {
+        clientsLijst(mk, it.clients, "los" + k + "-", body);
+        body.appendChild(typeSel());
+        body.appendChild(aanwezigHier());
+        if (reisVan(mk, it)) body.appendChild(reisHier());
+        if (open) body.appendChild(titelHier());
+      } else if (open) {
+        body.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft, padding: "4px 0" }, "Alleen voor deze afspraak:"));
+        var tr = typeSel();
+        tr.style.borderTop = "0";
+        body.appendChild(tr);
+        body.appendChild(titelHier());
+        body.appendChild(aanwezigHier());
+        if (reisVan(mk, it)) body.appendChild(reisHier());
+      } else {
+        var sam = el("div", { padding: "4px 0 2px" });
+        sam.setAttribute("data-maak-samenvatting", String(k));
+        sam.appendChild(el("div", { fontWeight: "600", fontSize: "13px", padding: "2px 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, titelVan(mk, it)));
+        var chips = el("div", { display: "flex", flexWrap: "wrap", gap: "5px", padding: "0 0 4px" });
+        var chip = function(t, soort) {
+          var c = el("span", {
+            fontSize: "11px",
+            fontWeight: "600",
+            borderRadius: "6px",
+            padding: "1px 7px",
+            border: "1px solid " + (soort === "eigen" ? "#f0b6d6" : T.line),
+            background: soort === "eigen" ? T.brandWash : T.lineSoft,
+            color: soort === "eigen" ? T.brand : soort === "uit" ? T.inkSoft : T.ink
+          }, t);
+          chips.appendChild(c);
+          return c;
+        };
+        var aw = aanwezigVan(mk, it);
+        chip(aw ? "Cliënten aanwezig" : "Cliënten niet aanwezig", aw ? "" : "uit").setAttribute("data-maak-aanwezig-label", aw ? "ja" : "nee");
+        if (reisVan(mk, it) && (it.reisHeen || it.reisTerug)) chip("Reistijd " + (it.reisHeen || 0) + " min heen en " + (it.reisTerug || 0) + " min terug");
+        if (it.typeAangepast || it.aanwezig != null || it.reisAangepast || it.titelAangepast) {
+          var eig = chip("Eigen keuze", "eigen");
+          eig.setAttribute("data-eigen-keuze", String(k));
+          if (it.typeAangepast && it.labelId !== mk.typeAlle) eig.setAttribute("data-eigen-type", String(k));
+        }
+        sam.appendChild(chips);
+        body.appendChild(sam);
+      }
+      if (!klaar && it.onsCl && it.onsCl.overlap === true) {
+        var on = noteBox("ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak.", "warn");
+        on.style.margin = "4px 0 6px";
+        body.appendChild(on);
+      }
+      if (!klaar) reisProblemen(mk, it).forEach(function(t) {
+        var rn = noteBox(t, "warn");
+        rn.style.margin = "4px 0 6px";
+        rn.setAttribute("data-maak-reis-conflict", String(k));
+        body.appendChild(rn);
+      });
+      kaart2.appendChild(body);
+      if (!klaar) {
+        var voetK = el("div", { display: "flex", gap: "8px", padding: "8px 12px 10px", borderTop: "1px solid " + T.lineSoft });
+        if (!mk.nietClient) {
+          var aanp = kaartKnop(ICON_POTLOOD, open ? "Klaar" : "Aanpassen", T.ink, open, function() {
+            mk.open[k] = !mk.open[k];
+            renderPagina();
+          });
+          aanp.setAttribute("data-maak-aanpassen", String(k));
+          aanp.setAttribute("aria-expanded", open ? "true" : "false");
+          aanp.title = los ? "Titel van deze afspraak" : "Type, titel, aanwezig en reistijd van alleen deze afspraak";
+          voetK.appendChild(aanp);
+        }
+        var weg = kaartKnop(ICON_PRULLENBAK, "Verwijderen", T.bad, false, function() {
+          var ok = false;
+          try {
+            ok = window.confirm("Weet je het zeker?");
+          } catch (e) {
+          }
+          if (ok) verwijderMoment(mk, k);
+        });
+        weg.setAttribute("data-maak-weg", String(k));
+        weg.setAttribute("aria-label", "Afspraak " + (k + 1) + " verwijderen (" + dagLang(it.date, true) + " " + hm(it.startMin) + ")");
+        voetK.appendChild(weg);
+        kaart2.appendChild(voetK);
+      }
+      return kaart2;
     }
     function onsMetClienten(mk) {
       if (!actions.onSlotCheck) return;
