@@ -250,7 +250,9 @@ en oker).
   zoekt hij ook cliënten uit zorg, `out_of_care=true`, met het label 'Uit
   zorg'), daarna een compacte regel met initialen, naam,
   de labels 'Cl 106839' en de postcode, en rechts de uursoort (een rood !
-  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken, de
+  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken, daaronder
+  de **Titel** voor alle afspraken (standaard type en voornamen, 'Huisbezoek
+  Tamara en Bram'; leegmaken = weer automatisch), de
   schakelaar **Cliënten zijn aanwezig** (`client_present`; standaard volgens
   de kolom *Cliënt* bij Afspraaktypes in het beheerscherm, een type dat daar
   niet staat: aan; zelf omzetten kan, een ander type zet hem weer op de
@@ -267,8 +269,8 @@ en oker).
   de browsermelding 'Weet je het zeker?', ook uit de keuze in de planhulp;
   het laatste weg = terug naar de planhulp). Bij *Per afspraak anders* staat
   bovenin alleen het type voor alle afspraken, en in elke kaart de cliënten
-  (ook meerdere, '+ Cliënt'), het type, Cliënten zijn aanwezig en de reistijd
-  van die afspraak; Aanpassen geeft daar de titel. Onderin: 'n afspraken maken in ONS' (pas als elke
+  (ook meerdere, '+ Cliënt'), het type, de titel, Cliënten zijn aanwezig en
+  de reistijd van die afspraak; daar is geen Aanpassen nodig. Onderin: 'n afspraken maken in ONS' (pas als elke
   cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als
   terugval (zelfde cliënten: één formulier + kopieën; per afspraak anders:
   een eigen formulier per afspraak, cliënten al ingevuld via

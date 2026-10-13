@@ -1126,6 +1126,44 @@ test('zijpaneel: afspraak maken - van reistijd heen naar terug: de focus blijft 
   assert.equal(document.querySelector('[data-maak-reis-alle-heen]').value, '20');
 });
 
+test('zijpaneel: afspraak maken - titel onder type: bij Zelfde cliënt(en) voor alle afspraken, bij Per afspraak anders in elke kaart', async () => {
+  const { document, dom, verzonden } = paneelMetTypes();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  const alle = document.querySelector('[data-maak-alle]');
+  const labels = [...alle.querySelectorAll(':scope > div > span:first-child')].map((x) => x.textContent);
+  assert.deepEqual(labels.slice(-3), ['Type', 'Titel', 'Cliënten zijn aanwezig'], 'titel direct onder type');
+  const tl = document.querySelector('[data-maak-titel-alle]');
+  assert.equal(tl.value, 'Face to face Tamara', 'standaard type en voornaam');
+  const typeLabel = labels.indexOf('Type');
+  const lab = [...alle.querySelectorAll(':scope > div > span:first-child')];
+  assert.deepEqual([lab[typeLabel + 2].style.fontSize, lab[typeLabel + 2].style.fontWeight, lab[typeLabel + 2].style.color], [lab[typeLabel].style.fontSize, lab[typeLabel].style.fontWeight, lab[typeLabel].style.color], 'Cliënten zijn aanwezig in dezelfde letters als Type');
+  tl.value = 'Intake'; tl.dispatchEvent(new dom.window.Event('input')); tl.dispatchEvent(new dom.window.Event('change'));
+  await tick();
+  assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /^Intake/);
+  assert.match(document.querySelector('[data-maak-samenvatting="1"]').textContent, /^Intake/, 'geldt voor elke afspraak');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.name), ['Intake', 'Intake']);
+});
+
+test('zijpaneel: afspraak maken - per afspraak anders: titel standaard in de kaart, geen Aanpassen', async () => {
+  const { document, dom } = paneelMetTypes();
+  await tweeMomenten(document);
+  document.querySelector('[data-maak-modus="los"]').click();
+  await kiesClient(document, dom, 'los0-0', 'Tamara');
+  assert.ok(document.querySelector('[data-maak-titel="0"]'), 'titel zonder eerst te klikken');
+  assert.equal(document.querySelector('[data-maak-titel="0"]').value, 'Face to face Tamara');
+  const kaart = document.querySelector('[data-maak-afspraak="0"]');
+  const labels = [...kaart.querySelectorAll('div > span:first-child')].map((x) => x.textContent).filter((t) => ['Type', 'Titel', 'Cliënten zijn aanwezig'].includes(t));
+  assert.deepEqual(labels, ['Type', 'Titel', 'Cliënten zijn aanwezig'], 'titel onder type');
+  assert.equal(document.querySelector('[data-maak-aanpassen]'), null, 'geen Aanpassen nodig');
+  assert.ok(document.querySelector('[data-maak-weg="0"]'), 'Verwijderen blijft');
+  assert.equal(document.querySelector('[data-maak-titel-alle]'), null, 'geen titel voor alle afspraken');
+});
+
 test('zijpaneel: afspraak maken - reistijd telt niet bij een type zonder reistijd', async () => {
   const { document, dom, verzonden } = paneelMetTypes();
   await tweeMomenten(document);

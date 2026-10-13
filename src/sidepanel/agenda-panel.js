@@ -1567,10 +1567,10 @@ export function create(host, actions) {
     if (!mk.items.length) { BEWAARD.maak = null; BEWAARD.balkOpen = false; naarPagina('plan'); return; }
     renderPagina();
   }
-  // Regel 'Cliënten zijn aanwezig' met schakelaar (gewone letters).
+  // Regel 'Cliënten zijn aanwezig' met schakelaar; label zoals Type en Titel.
   function aanwezigRij(aan, attr, fn) {
     var r = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '8px 0 6px', borderTop: '1px solid ' + T.lineSoft });
-    r.appendChild(el('span', { fontSize: '13px', fontWeight: '400', color: T.ink }, 'Cliënten zijn aanwezig'));
+    r.appendChild(el('span', { fontSize: '12px', fontWeight: '600', color: T.inkSoft }, 'Cliënten zijn aanwezig'));
     var sch = schakelaar(aan, attr[0], 'Cliënten zijn aanwezig', fn);
     sch.setAttribute(attr[0], attr[1] || '');
     r.appendChild(sch);
@@ -1655,9 +1655,15 @@ export function create(host, actions) {
     b.addEventListener('click', function () { zetNietClient(mk, !mk.nietClient); });
     return b;
   }
+  // Titel: eigen titel van deze afspraak, anders (Zelfde cliënt(en)) de titel
+  // voor alle afspraken, anders type en voornamen.
   function titelVan(mk, it) {
-    if (it.titelAangepast) return it.titel;
-    // 'Huisbezoek Tamara', bij meer cliënten 'Huisbezoek Tamara en Bram'.
+    if (it.titelAangepast && String(it.titel || '').trim()) return it.titel;
+    if (mk.modus !== 'los' && String(mk.titelAlle || '').trim()) return mk.titelAlle;
+    return autoTitel(mk, it);
+  }
+  // 'Huisbezoek Tamara', bij meer cliënten 'Huisbezoek Tamara en Bram'.
+  function autoTitel(mk, it) {
     var namen = namenVan(mk, it);
     var t = typeNaamVan(mk, it.labelId);
     return t && namen ? t + ' ' + namen : (t || namen || 'Afspraak');
@@ -1833,6 +1839,11 @@ export function create(host, actions) {
       alle.appendChild(typeRij);
       if (losAlle) alle.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft, padding: '0 0 6px' }, 'Cliënten, type, aanwezig en reistijd stel je hieronder per afspraak in.'));
       else {
+        // Titel voor alle afspraken; leeg = type en voornamen.
+        var titelA = inputEl('text', String(mk.titelAlle || '').trim() ? mk.titelAlle : autoTitel(mk, { labelId: mk.typeAlle }), function (v) { mk.titelAlle = String(v || '').trim() ? v : ''; });
+        titelA.setAttribute('data-maak-titel-alle', '');
+        titelA.addEventListener('change', straksTekenen);
+        alle.appendChild(labelRij('Titel', titelA));
         // Cliënten zijn aanwezig: standaard volgens het afspraaktype (beheer);
         // omzetten geldt voor alle afspraken.
         var aanw = mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, mk.typeAlle);
@@ -1882,7 +1893,7 @@ export function create(host, actions) {
   var ICON_PRULLENBAK = 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z';
   function afspraakKaart(mk, it, k, n, klaar) {
     var los = mk.modus === 'los' && !mk.nietClient;
-    var open = !klaar && !mk.nietClient && !!mk.open[k];
+    var open = !klaar && !mk.nietClient && !los && !!mk.open[k];
     var u = mk.uitslag && mk.uitslag[k];
     var kaart = el('div', { border: '1px solid ' + (open ? '#f0b6d6' : T.line), borderRadius: '12px', background: '#fff', marginBottom: '10px', overflow: 'hidden', boxShadow: open ? '0 0 0 3px ' + T.brandWash : 'none' });
     kaart.setAttribute('data-maak-afspraak', String(k));
@@ -1916,7 +1927,7 @@ export function create(host, actions) {
       });
     };
     var titelHier = function () {
-      var t = inputEl('text', titelVan(mk, it), function (v) { it.titel = v; it.titelAangepast = true; });
+      var t = inputEl('text', titelVan(mk, it), function (v) { it.titel = v; it.titelAangepast = !!String(v || '').trim(); });
       t.setAttribute('data-maak-titel', String(k));
       return labelRij('Titel', t);
     };
@@ -1926,9 +1937,9 @@ export function create(host, actions) {
       // Per afspraak anders: alles van deze afspraak staat in de kaart.
       clientsLijst(mk, it.clients, 'los' + k + '-', body);
       body.appendChild(typeSel());
+      body.appendChild(titelHier());
       body.appendChild(aanwezigHier());
       if (reisVan(mk, it)) body.appendChild(reisHier());
-      if (open) body.appendChild(titelHier());
     } else if (open) {
       body.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft, padding: '4px 0' }, 'Alleen voor deze afspraak:'));
       var tr = typeSel(); tr.style.borderTop = '0';
@@ -1969,11 +1980,13 @@ export function create(host, actions) {
     kaart.appendChild(body);
     if (!klaar) {
       var voetK = el('div', { display: 'flex', gap: '8px', padding: '8px 12px 10px', borderTop: '1px solid ' + T.lineSoft });
-      if (!mk.nietClient) {
+      // Aanpassen alleen bij Zelfde cliënt(en); bij Per afspraak anders staat
+      // alles al in de kaart.
+      if (!mk.nietClient && !los) {
         var aanp = kaartKnop(ICON_POTLOOD, open ? 'Klaar' : 'Aanpassen', T.ink, open, function () { mk.open[k] = !mk.open[k]; renderPagina(); });
         aanp.setAttribute('data-maak-aanpassen', String(k));
         aanp.setAttribute('aria-expanded', open ? 'true' : 'false');
-        aanp.title = los ? 'Titel van deze afspraak' : 'Type, titel, aanwezig en reistijd van alleen deze afspraak';
+        aanp.title = 'Type, titel, aanwezig en reistijd van alleen deze afspraak';
         voetK.appendChild(aanp);
       }
       // Moment weghalen, na een bevestiging van de browser.
