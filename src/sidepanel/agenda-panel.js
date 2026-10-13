@@ -76,8 +76,16 @@ function el(tag, styles, text) {
   if (text != null) n.textContent = text;
   return n;
 }
-function focusRing(node, color) {
-  node.addEventListener('focus', function () { node.style.outline = '2px solid ' + (color || T.brand); node.style.outlineOffset = '2px'; });
+// Focusrand alleen bij toetsenbordfocus (:focus-visible), niet na een klik
+// met de muis. binnen: de rand binnen de knop (voor rijen in een kaart die
+// de rand anders afsnijdt tot een losse lijn).
+function focusRing(node, color, binnen) {
+  node.addEventListener('focus', function () {
+    var zichtbaar = true;
+    try { zichtbaar = node.matches(':focus-visible'); } catch (e) {}
+    if (!zichtbaar) return;
+    node.style.outline = '2px solid ' + (color || T.brand); node.style.outlineOffset = binnen ? '-2px' : '2px';
+  });
   node.addEventListener('blur', function () { node.style.outline = 'none'; });
 }
 function liftOnHover(card) {
@@ -316,7 +324,7 @@ function hulpRij(soort, icoon, titel, onClick, teller, eerste) {
   b.appendChild(pijl);
   b.addEventListener('mouseenter', function () { b.style.background = T.lineSoft; });
   b.addEventListener('mouseleave', function () { b.style.background = '#fff'; });
-  focusRing(b);
+  focusRing(b, null, true);
   b.addEventListener('click', onClick);
   return b;
 }
@@ -2754,7 +2762,7 @@ export function create(host, actions) {
       font: '700 11.5px ' + FONT, cursor: bezig ? 'default' : 'pointer', whiteSpace: 'nowrap' }, bezig ? 'Openen…' : 'Registreren');
     b.type = 'button';
     b.setAttribute('data-registreer', it.key);
-    b.title = 'Afspraak openen in ONS en registreren';
+    b.title = 'Registratie openen in ONS';
     focusRing(b);
     b.addEventListener('keydown', function (e) { e.stopPropagation(); });
     b.addEventListener('click', function (e) {
@@ -2762,11 +2770,14 @@ export function create(host, actions) {
       if (range.regBezig) return;
       range.regBezig = it.key; range.regFout = null;
       if (pagina === 'open') renderPagina();
+      // Met het occurrence-id gaat ONS meteen naar het registratieformulier;
+      // bij meerdere agenda's staat het id van de collega voor de sleutel.
+      var inv = /^(\d+):/.exec(String(it.key || ''));
       actions.onRegisterItem(id, date, function (res) {
         range.regBezig = null;
         if (!(res && res.ok)) range.regFout = { key: it.key, error: (res && res.error) || 'Openen mislukt.' };
         if (pagina === 'open') renderPagina();
-      });
+      }, { occurrenceId: it.occurrenceId || '', inviteeId: inv ? inv[1] : '' });
     });
     return b;
   }

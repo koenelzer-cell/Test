@@ -63,6 +63,9 @@ test('periode: telt per dag alleen afgelopen, niet-geregistreerde afspraken binn
   assert.equal(d.count, 2);
   assert.equal(d.lateCount, 2, 'meer dan 24 uur geleden');
   assert.deepEqual([...d.items.map((i) => i.uursoort)], ['JG Huisbezoek', 'JG Huisbezoek']);
+  assert.deepEqual([...d.items.map((i) => i.occurrenceId)], [null, null], 'zonder occurrence-id: null');
+  const metOcc = api.summarizeOpenRange([afspraak(1, '2026-10-05', '09:00', 60, { occurrenceId: '07eaa0c43ea6c' })], { from: '2026-09-30', to: '2026-10-07', now: NU });
+  assert.equal(metOcc.days[0].items[0].occurrenceId, '07eaa0c43ea6c', 'occurrence-id gaat mee voor de knop Registreren');
   assert.equal(r.totalMinutes, 90);
   assert.equal(r.totalCount, 2);
   // Geen namen of titels in het resultaat.
@@ -561,4 +564,33 @@ test('open registraties: Registreren opent de afspraak en klikt op de Registrere
   assert.match(weg.error, /niet \(meer\) in de agenda/);
   const raar = await api.registerOpenItem('1"]', '2026-10-05');
   assert.equal(raar.ok, false, 'geen vreemde id in een selector');
+});
+
+test('open registraties: Registreren gaat meteen naar de declareUrl uit de details van de afspraak', async () => {
+  const { api } = bootHelper();
+  const DETAILS = { event: { id: 4450924, occurrence_id: '07eaa0c43ea6c', date: '2026-10-12',
+    meta: { declareUrl: '/registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true', declareOptions: { doNotDeclareUrl: '/worksheet/registrations/from_event/07eaa0c43ea6c/mark_dont_declare' } } } };
+  const gevraagd = [], naar = [];
+  const opts = (antwoord) => ({ occurrenceId: '07eaa0c43ea6c', inviteeId: '42479', wachtDag: 100,
+    haal: (url) => { gevraagd.push(url); return typeof antwoord === 'function' ? antwoord() : Promise.resolve(antwoord); },
+    navigeer: (u) => naar.push(u) });
+  const r = await api.registerOpenItem('4450924', '2026-10-12', opts(DETAILS));
+  assert.deepEqual({ ...r }, { ok: true, direct: true });
+  assert.deepEqual(gevraagd, ['/calendar/invitee/42479/events/07eaa0c43ea6c/details'], 'details van precies deze afspraak');
+  assert.deepEqual(naar, ['/registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true'], 'meteen naar het registratieformulier, niet eerst naar de dag');
+  // Geen declareUrl, een vreemde link of een fout: niet rechtstreeks, maar via de agenda.
+  for (const antwoord of [{ event: { meta: { declareUrl: null } } }, { event: { meta: { declareUrl: 'https://elders.example/x' } } },
+    { event: { meta: { declareUrl: '//elders.example/x' } } }, () => Promise.reject(new Error('500'))]) {
+    naar.length = 0;
+    const t = await api.registerOpenItem('4450924', '2026-10-12', opts(antwoord));
+    assert.equal(t.ok, false, 'terugval: afspraak staat hier niet in de agenda');
+    assert.deepEqual(naar, [], 'nergens heen');
+  }
+  // Zonder (geldig) occurrence-id: geen details-call.
+  gevraagd.length = 0;
+  await api.registerOpenItem('4450924', '2026-10-12', { ...opts(DETAILS), occurrenceId: 'a/b' });
+  assert.deepEqual(gevraagd, []);
+  assert.equal(api.declareUrlUitDetails({ data: { meta: { declareUrl: '/registrations/x/edit' } } }), '/registrations/x/edit');
+  assert.equal(api.declareUrlUitDetails(null), null);
+  assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: '/\\\\elders' } } }), null);
 });

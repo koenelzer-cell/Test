@@ -2758,10 +2758,16 @@
     if (text != null) n.textContent = text;
     return n;
   }
-  function focusRing(node, color) {
+  function focusRing(node, color, binnen) {
     node.addEventListener("focus", function() {
+      var zichtbaar = true;
+      try {
+        zichtbaar = node.matches(":focus-visible");
+      } catch (e) {
+      }
+      if (!zichtbaar) return;
       node.style.outline = "2px solid " + (color || T.brand);
-      node.style.outlineOffset = "2px";
+      node.style.outlineOffset = binnen ? "-2px" : "2px";
     });
     node.addEventListener("blur", function() {
       node.style.outline = "none";
@@ -3115,7 +3121,7 @@
     b.addEventListener("mouseleave", function() {
       b.style.background = "#fff";
     });
-    focusRing(b);
+    focusRing(b, null, true);
     b.addEventListener("click", onClick);
     return b;
   }
@@ -6394,7 +6400,7 @@
       }, bezig ? "Openen…" : "Registreren");
       b.type = "button";
       b.setAttribute("data-registreer", it.key);
-      b.title = "Afspraak openen in ONS en registreren";
+      b.title = "Registratie openen in ONS";
       focusRing(b);
       b.addEventListener("keydown", function(e) {
         e.stopPropagation();
@@ -6406,11 +6412,12 @@
         range.regBezig = it.key;
         range.regFout = null;
         if (pagina === "open") renderPagina();
+        var inv = /^(\d+):/.exec(String(it.key || ""));
         actions.onRegisterItem(id, date, function(res) {
           range.regBezig = null;
           if (!(res && res.ok)) range.regFout = { key: it.key, error: res && res.error || "Openen mislukt." };
           if (pagina === "open") renderPagina();
-        });
+        }, { occurrenceId: it.occurrenceId || "", inviteeId: inv ? inv[1] : "" });
       });
       return b;
     }
@@ -7703,8 +7710,9 @@
       } catch (e) {
       }
     },
-    onRegisterItem: function(id, date, cb) {
-      vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id, date }, cb);
+    onRegisterItem: function(id, date, cb, extra) {
+      extra = extra || {};
+      vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id, date, occurrenceId: extra.occurrenceId || "", inviteeId: extra.inviteeId || "" }, cb);
     },
     onClientSearch: function(term, cb, outOfCare) {
       vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term, outOfCare: !!outOfCare }, cb);
@@ -7737,13 +7745,23 @@
     try {
       chrome.tabs.sendMessage(
         tabId,
-        { type: MSG.SIDEPANEL_STATE, open },
+        { type: MSG.SIDEPANEL_STATE, open, bron: "zijpaneel" },
         function() {
           void chrome.runtime.lastError;
         }
       );
     } catch (e) {
     }
+  }
+  var HARTSLAG_MS = 2e3;
+  setInterval(function() {
+    if (onsTabId != null) meldStand(onsTabId, true);
+  }, HARTSLAG_MS);
+  try {
+    window.addEventListener("pagehide", function() {
+      if (onsTabId != null) meldStand(onsTabId, false);
+    });
+  } catch (e) {
   }
   function vraagToestand(tabId) {
     if (onsTabId != null && onsTabId !== tabId) meldStand(onsTabId, false);

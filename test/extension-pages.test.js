@@ -855,10 +855,13 @@ function laadLipje(setup) {
   return { dom, document: dom.window.document, env };
 }
 
-test('randlipje: het vertrouwde smalle lipje, met een korte animatie bij verschijnen', () => {
+test('randlipje: het vertrouwde smalle lipje, met een korte animatie bij verschijnen', async () => {
   const { document } = laadLipje();
   const tab = document.getElementById('onsah-edge-tab');
   assert.ok(tab, 'het lipje staat in de pagina');
+  assert.equal(tab.style.display, 'none', 'eerst even wachten op het antwoord: geen opflitsen naast een open zijpaneel');
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(tab.style.display, 'flex');
   assert.equal(tab.style.width, '26px');
   assert.equal(tab.getAttribute('aria-label'), 'Zijpaneel openen');
   assert.ok(tab.classList.contains('onsah-in'), 'schuift uit de rand bij verschijnen');
@@ -871,20 +874,44 @@ test('randlipje: het vertrouwde smalle lipje, met een korte animatie bij verschi
 test('randlipje: wiebelt één keer per sessie', async () => {
   const { dom, document } = laadLipje();
   const tab = document.getElementById('onsah-edge-tab');
-  await new Promise((r) => setTimeout(r, 1300));
+  await new Promise((r) => setTimeout(r, 1700));
   assert.ok(tab.classList.contains('onsah-nudge'));
   assert.equal(dom.window.sessionStorage.getItem('onsHelper.edgeTabNudged'), '1');
 });
 
-test('randlipje: verdwijnt als het zijpaneel open is en komt terug met animatie', () => {
+test('randlipje: verdwijnt als het zijpaneel open is en komt terug met animatie', async () => {
   const { document, env } = laadLipje();
   const tab = document.getElementById('onsah-edge-tab');
+  await new Promise((r) => setTimeout(r, 450));
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', open: true }));
   assert.equal(tab.style.display, 'none');
   tab.classList.remove('onsah-in');
   env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', open: false }));
   assert.equal(tab.style.display, 'flex');
   assert.ok(tab.classList.contains('onsah-in'));
+});
+
+test('randlipje: het zijpaneel zelf is leidend; een dicht van de worker telt niet zolang het meldt dat het open is', async () => {
+  const { document, env } = laadLipje();
+  const tab = document.getElementById('onsah-edge-tab');
+  const stuur = (m) => env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', ...m }));
+  stuur({ open: true, bron: 'zijpaneel' });
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(tab.style.display, 'none', 'na het laden niet opgeflitst');
+  stuur({ open: false });   // de worker herstartte en weet even niets
+  assert.equal(tab.style.display, 'none', 'zijpaneel meldde net nog open: lipje blijft weg');
+  stuur({ open: false, bron: 'zijpaneel' });
+  assert.equal(tab.style.display, 'flex', 'het zijpaneel zegt zelf dat het dicht gaat: meteen terug');
+});
+
+test('randlipje: blijven de meldingen van het zijpaneel uit, dan komt het lipje vanzelf terug', { timeout: 10000 }, async () => {
+  const { document, env } = laadLipje();
+  const tab = document.getElementById('onsah-edge-tab');
+  env.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'sidepanel-state', open: true, bron: 'zijpaneel' }));
+  await new Promise((r) => setTimeout(r, 450));
+  assert.equal(tab.style.display, 'none');
+  await new Promise((r) => setTimeout(r, 5000));
+  assert.equal(tab.style.display, 'flex', 'na 5 seconden zonder melding weer zichtbaar');
 });
 
 // Twee momenten kiezen in de planhulp (ma 12 en di 13 okt, 10:00) en naar 'Afspraak maken'.
@@ -1437,7 +1464,7 @@ test('zijpaneel: startscherm - weekkaart met datums en label, hulpmiddelen met t
 test('zijpaneel: open registraties - knop Registreren per afspraak opent hem in ONS', async () => {
   let antwoord = (msg, cb) => cb({ ok: true });
   const { document, verzonden } = zijpaneelMetTools({
-    'ag-check-range': (msg, cb) => cb({ ok: true, result: RESULT([ITEM_A, ITEM_B, { ...ITEM_A, key: 'x|2026-10-05|9', start: ITEM_A.start + 3600000 }]) }),
+    'ag-check-range': (msg, cb) => cb({ ok: true, result: RESULT([{ ...ITEM_A, occurrenceId: '07eaa0c43ea6c' }, ITEM_B, { ...ITEM_A, key: 'x|2026-10-05|9', start: ITEM_A.start + 3600000 }]) }),
     'ag-register-item': (msg, cb) => antwoord(msg, cb),
   });
   await tick();
@@ -1449,7 +1476,7 @@ test('zijpaneel: open registraties - knop Registreren per afspraak opent hem in 
   const springen = verzonden.filter((m) => m.type === 'ag-jump-day').length;
   knoppen[0].click();
   await tick();
-  assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-register-item') }, { type: 'ag-register-item', id: 'a', date: '2026-10-05' });
+  assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-register-item') }, { type: 'ag-register-item', id: 'a', date: '2026-10-05', occurrenceId: '07eaa0c43ea6c', inviteeId: '' }, 'met occurrence-id: ONS gaat meteen naar het registratieformulier');
   assert.equal(verzonden.filter((m) => m.type === 'ag-jump-day').length, springen, 'niet ook naar de dag springen');
   // Mislukt: uitleg bij die afspraak.
   antwoord = (msg, cb) => cb({ ok: false, error: 'De afspraak staat niet (meer) in de agenda.' });

@@ -95,6 +95,10 @@
     var NUDGE_KEY = "onsHelper.edgeTabNudged";
     var tab = null, chev = null, labelEl = null, tipEl = null;
     var open = false;
+    var VERS_MS = 5e3;
+    var STARTWACHT_MS = 400;
+    var laatsteZijpaneel = 0;
+    var vervalTimer = null;
     function zorgVoorStijl() {
       if (document.getElementById(STIJL_ID)) return;
       var st = document.createElement("style");
@@ -261,20 +265,42 @@
       open = !!v;
       toon(!open);
     }
+    function zijpaneelVers() {
+      return laatsteZijpaneel > 0 && Date.now() - laatsteZijpaneel < VERS_MS;
+    }
+    function vanZijpaneel(v) {
+      clearTimeout(vervalTimer);
+      if (!v) {
+        laatsteZijpaneel = 0;
+        setOpen(false);
+        return;
+      }
+      laatsteZijpaneel = Date.now();
+      setOpen(true);
+      vervalTimer = setTimeout(function() {
+        if (!zijpaneelVers()) setOpen(false);
+      }, VERS_MS + 100);
+    }
+    function vanWorker(v) {
+      if (!v && zijpaneelVers()) return;
+      setOpen(v);
+    }
     try {
       chrome.runtime.onMessage.addListener(function(msg) {
-        if (msg && msg.type === MSG.SIDEPANEL_STATE) setOpen(!!msg.open);
+        if (!msg || msg.type !== MSG.SIDEPANEL_STATE) return;
+        if (msg.bron === "zijpaneel") vanZijpaneel(!!msg.open);
+        else vanWorker(!!msg.open);
       });
       chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function(r) {
         void chrome.runtime.lastError;
-        if (r && r.open) setOpen(true);
+        if (r && r.open) vanWorker(true);
       });
       document.addEventListener("visibilitychange", function() {
         if (document.visibilityState !== "visible") return;
         try {
           chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function(r) {
             void chrome.runtime.lastError;
-            if (r && typeof r.open === "boolean") setOpen(r.open);
+            if (r && typeof r.open === "boolean") vanWorker(r.open);
           });
         } catch (e) {
         }
@@ -284,8 +310,10 @@
     function start() {
       bouw();
       tab.style.display = "none";
-      toon(!open);
-      if (!open) misschienWiebelen();
+      setTimeout(function() {
+        toon(!open);
+        if (!open) misschienWiebelen();
+      }, STARTWACHT_MS);
     }
     if (document.body) start();
     else document.addEventListener("DOMContentLoaded", start, { once: true });

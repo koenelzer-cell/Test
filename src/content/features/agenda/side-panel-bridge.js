@@ -169,7 +169,7 @@ export function listenForSidePanelMessages() {
           });
           return;
         case MSG.AGENDA_REGISTER_ITEM:
-          registerOpenItem(msg.id, msg.date).then(function (r) {
+          registerOpenItem(msg.id, msg.date, { occurrenceId: msg.occurrenceId, inviteeId: msg.inviteeId }).then(function (r) {
             try { sendResponse(r); } catch (e) {}
           }, function () {
             try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {}

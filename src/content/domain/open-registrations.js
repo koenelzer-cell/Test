@@ -74,7 +74,7 @@ export function weekStartsBetween(fromYmd, toYmd) {
 // Alle opgehaalde afspraken van een periode samenvatten tot open tijd per dag.
 // Alleen dagen binnen [van, tot] en alleen afspraken die al afgelopen zijn.
 // Dubbele afspraken (zelfde id) tellen één keer.
-//   -> { days: [{ date, client, overig, count, lateCount, items: [{ start, minutes, client, uursoort }] }],
+//   -> { days: [{ date, client, overig, count, lateCount, items: [{ key, occurrenceId, start, minutes, client, late, uursoort }] }],
 //        totalMinutes, totalCount, lateCount }
 export function summarizeOpenRange(entries, opts) {
   opts = opts || {};
@@ -95,6 +95,8 @@ export function summarizeOpenRange(entries, opts) {
     day.items.push({
       // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
       key: (e.id != null ? String(e.id) : 'x') + '|' + c.date + '|' + c.startMs,
+      // Voor de knop Registreren: de details van deze afspraak (meta.declareUrl).
+      occurrenceId: e.occurrenceId ? String(e.occurrenceId) : null,
       start: c.startMs, minutes: c.minutes, client: c.cls === 'client', late: c.late,
       uursoort: (e.hourType && String(e.hourType).trim()) || ''
     });

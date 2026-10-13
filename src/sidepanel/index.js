@@ -81,7 +81,10 @@ const agendaActies = {
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },
   // Het ONS-tabblad zelf herladen (ook als het content-script niet meer antwoordt).
   onReloadTab: function () { if (onsTabId == null) return; try { chrome.tabs.reload(onsTabId); } catch (e) {} },
-  onRegisterItem: function (id, date, cb) { vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id: id, date: date }, cb); },
+  onRegisterItem: function (id, date, cb, extra) {
+    extra = extra || {};
+    vraagAanTab({ type: MSG.AGENDA_REGISTER_ITEM, id: id, date: date, occurrenceId: extra.occurrenceId || '', inviteeId: extra.inviteeId || '' }, cb);
+  },
   onClientSearch: function (term, cb, outOfCare) { vraagAanTab({ type: MSG.AGENDA_CLIENT_SEARCH, term: term, outOfCare: !!outOfCare }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
@@ -114,10 +117,19 @@ function toon(soort, state) {
 function meldStand(tabId, open) {
   if (tabId == null) return;
   try {
-    chrome.tabs.sendMessage(tabId, { type: MSG.SIDEPANEL_STATE, open: open },
+    chrome.tabs.sendMessage(tabId, { type: MSG.SIDEPANEL_STATE, open: open, bron: 'zijpaneel' },
       function () { void chrome.runtime.lastError; });
   } catch (e) {}
 }
+// Zolang het zijpaneel open is, zegt het dat elke paar seconden tegen zijn
+// tabblad. Een gemiste melding of een herstartte worker kan het randlipje dan
+// niet meer naast het open zijpaneel laten staan (het lipje rekent een
+// 'open' van het zijpaneel 5 seconden als geldig). Gaat het zijpaneel dicht,
+// dan meldt het dat nog; komt dat niet aan, dan stoppen de meldingen en komt
+// het lipje na die 5 seconden vanzelf terug.
+const HARTSLAG_MS = 2000;
+setInterval(function () { if (onsTabId != null) meldStand(onsTabId, true); }, HARTSLAG_MS);
+try { window.addEventListener('pagehide', function () { if (onsTabId != null) meldStand(onsTabId, false); }); } catch (e) {}
 
 function vraagToestand(tabId) {
   if (onsTabId != null && onsTabId !== tabId) meldStand(onsTabId, false);

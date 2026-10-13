@@ -15,6 +15,13 @@
    te openen dat al open is, is verwarrend. Sluit je het zijpaneel, dan komt het
    lipje vanzelf terug (de service worker meldt dat).
 
+   Het zijpaneel meldt zelf elke paar seconden dat het open is (bron
+   'zijpaneel'). Dat is leidend: een 'dicht' van de service worker telt niet
+   zolang die melding vers is (de worker herstart geregeld en weet dan even
+   niets). Blijft de melding uit, dan komt het lipje na een paar seconden
+   terug. Bij het laden van een pagina wacht het lipje heel even op het
+   antwoord, zodat het niet opflitst naast een open zijpaneel.
+
    LET OP — een grens van de browser: chrome.sidePanel.open() mag alleen vanuit
    een gebruikersgebaar op de BROWSER-UI. Een klik op een knop die wij in de
    pagina zetten telt daar formeel niet voor, en Chrome weigert het verzoek dan.
@@ -36,6 +43,10 @@ import { MSG } from '../shared/messages.js';
   var NUDGE_KEY = 'onsHelper.edgeTabNudged';  // sessionStorage: één keer per sessie wiebelen
   var tab = null, chev = null, labelEl = null, tipEl = null;
   var open = false;
+  var VERS_MS = 5000;        // zo lang telt een 'open' van het zijpaneel zelf
+  var STARTWACHT_MS = 400;   // bij laden even wachten op het antwoord
+  var laatsteZijpaneel = 0;  // tijd van de laatste 'open' van het zijpaneel
+  var vervalTimer = null;
 
   // Keyframes kunnen niet inline; één klein stijlblok. De transform houdt de
   // verticale centrering (-50%) vast, anders springt het lipje omhoog.
@@ -198,15 +209,31 @@ import { MSG } from '../shared/messages.js';
     open = !!v;
     toon(!open);   // staat het paneel open, dan hoeft het lipje er niet te zijn
   }
+  function zijpaneelVers() { return laatsteZijpaneel > 0 && Date.now() - laatsteZijpaneel < VERS_MS; }
+  // Melding van het zijpaneel zelf: 'open' herhaalt het zolang het open is.
+  function vanZijpaneel(v) {
+    clearTimeout(vervalTimer);
+    if (!v) { laatsteZijpaneel = 0; setOpen(false); return; }
+    laatsteZijpaneel = Date.now();
+    setOpen(true);
+    vervalTimer = setTimeout(function () { if (!zijpaneelVers()) setOpen(false); }, VERS_MS + 100);
+  }
+  // Melding of antwoord van de worker: een 'dicht' telt niet zolang het
+  // zijpaneel zelf net nog meldde dat het open is.
+  function vanWorker(v) {
+    if (!v && zijpaneelVers()) return;
+    setOpen(v);
+  }
 
-  // De worker meldt of het zijpaneel openstaat.
   try {
     chrome.runtime.onMessage.addListener(function (msg) {
-      if (msg && msg.type === MSG.SIDEPANEL_STATE) setOpen(!!msg.open);
+      if (!msg || msg.type !== MSG.SIDEPANEL_STATE) return;
+      if (msg.bron === 'zijpaneel') vanZijpaneel(!!msg.open);
+      else vanWorker(!!msg.open);
     });
     chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function (r) {
       void chrome.runtime.lastError;
-      if (r && r.open) setOpen(true);
+      if (r && r.open) vanWorker(true);
     });
     // Terug op dit tabblad: opnieuw vragen. Een gemiste melding (bijv. omdat de
     // worker herstartte) mag het lipje niet blijvend laten verdwijnen.
@@ -215,7 +242,7 @@ import { MSG } from '../shared/messages.js';
       try {
         chrome.runtime.sendMessage({ type: MSG.SIDEPANEL_QUERY }, function (r) {
           void chrome.runtime.lastError;
-          if (r && typeof r.open === 'boolean') setOpen(r.open);
+          if (r && typeof r.open === 'boolean') vanWorker(r.open);
         });
       } catch (e) {}
     });
@@ -224,8 +251,10 @@ import { MSG } from '../shared/messages.js';
   function start() {
     bouw();
     tab.style.display = 'none';
-    toon(!open);
-    if (!open) misschienWiebelen();
+    setTimeout(function () {
+      toon(!open);
+      if (!open) misschienWiebelen();
+    }, STARTWACHT_MS);
   }
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });

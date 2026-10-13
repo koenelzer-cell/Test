@@ -1658,6 +1658,8 @@
       day.items.push({
         // Sleutel om bij een nieuwe controle te zien of deze afspraak is afgewerkt.
         key: (e.id != null ? String(e.id) : "x") + "|" + c.date + "|" + c.startMs,
+        // Voor de knop Registreren: de details van deze afspraak (meta.declareUrl).
+        occurrenceId: e.occurrenceId ? String(e.occurrenceId) : null,
         start: c.startMs,
         minutes: c.minutes,
         client: c.cls === "client",
@@ -13187,10 +13189,40 @@
       })();
     });
   }
+  function declareUrlUitDetails(json) {
+    const body = json && typeof json === "object" ? json.event || json.data || json : null;
+    const url = body && body.meta && body.meta.declareUrl;
+    if (typeof url !== "string" || !/^\/(?![\/\\])/.test(url)) return null;
+    return url;
+  }
+  function haalDeclareUrl(occurrenceId, opts) {
+    const occ = String(occurrenceId || "");
+    if (!/^[\w-]+$/.test(occ)) return Promise.resolve(null);
+    const inv = /^\d+$/.test(String(opts.inviteeId || "")) ? String(opts.inviteeId) : resolveInviteeId();
+    if (inv == null) return Promise.resolve(null);
+    const haal = opts.haal || getJson;
+    return Promise.resolve().then(function() {
+      return haal(_apiUrl("eventDetails", { inviteeId: inv, occurrenceId: occ }));
+    }).then(declareUrlUitDetails, function() {
+      return null;
+    });
+  }
   function registerOpenItem(id, date, opts) {
     opts = opts || {};
     id = String(id || "");
     if (!/^[\w-]+$/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return Promise.resolve({ ok: false, error: "Deze afspraak is niet te openen." });
+    return haalDeclareUrl(opts.occurrenceId, opts).then(function(url) {
+      if (!url) return viaAgenda(id, date, opts);
+      const naar = opts.navigeer || function(u) {
+        setTimeout(function() {
+          spaNavigate(location.origin + u);
+        }, 0);
+      };
+      naar(url);
+      return { ok: true, direct: true };
+    });
+  }
+  function viaAgenda(id, date, opts) {
     let occ = vindAfspraak(id, date);
     const naarDag = occ ? Promise.resolve(occ) : function() {
       jumpToDay(date, true);
@@ -14279,7 +14311,7 @@
             });
             return;
           case MSG.AGENDA_REGISTER_ITEM:
-            registerOpenItem(msg.id, msg.date).then(function(r) {
+            registerOpenItem(msg.id, msg.date, { occurrenceId: msg.occurrenceId, inviteeId: msg.inviteeId }).then(function(r) {
               try {
                 sendResponse(r);
               } catch (e) {
@@ -15982,6 +16014,7 @@
       _forgetHolidays,
       parseHolidays,
       registerOpenItem,
+      declareUrlUitDetails,
       mergeOpenRangePerPersoon,
       cachedOpenRange,
       openAantal,
