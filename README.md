@@ -118,7 +118,13 @@ cliënttijd per collega, de verhouding per collega, een grafiek productieverloop
 per collega, en bij open registraties de naam bij elke afspraak.
 
 Het lipje aan de rechterrand opent het zijpaneel. In rust tikt de pijl af en toe
-even naar links; bij het verschijnen schuift het lipje uit de rand.
+even naar links; bij het verschijnen schuift het lipje uit de rand. Staat het
+zijpaneel open, dan is het lipje weg: het zijpaneel meldt elke 2 seconden zelf
+aan zijn tabblad dat het open is, en het lipje rekent dat 5 seconden als
+geldig (een 'dicht' van de service worker, die geregeld herstart, telt dan
+niet). Bij het laden van een pagina wacht het lipje even op dat antwoord, zodat
+het niet opflitst. De focusrand van knoppen in het zijpaneel verschijnt alleen
+bij toetsenbordgebruik, niet na een klik met de muis.
 
 De hoofdpagina toont het weekoverzicht en de hulpmiddelen. Het weekoverzicht is
 één kaart: 'Week 41' met de datums en het label geregistreerd of gepland, de
@@ -149,10 +155,15 @@ en oker).
   niet geregistreerd zijn. Dit is een afwerklijst: registreer je een afspraak of
   zet je hem op *niet registreren*, dan wordt hij vanzelf afgevinkt zodra de
   agenda dat laat zien. De lijst blijft bewaard zolang het zijpaneel open is.
-  Bij elke open afspraak een knop **Registreren**: de hulp gaat in ONS naar de
-  dag, opent de afspraak en klikt op de knop Registreren van ONS, zodat het
-  verder gaat zoals altijd (geen eigen weg naar het registratiescherm). Lukt
-  dat niet, dan staat er bij die afspraak wat er aan de hand is.
+  Bij elke open afspraak een knop **Registreren**: de hulp haalt de details
+  van de afspraak op (dezelfde call als de popup van ONS,
+  `/calendar/invitee/{id}/events/{occurrence}/details`) en gaat meteen naar
+  `meta.declareUrl`, het registratieformulier van ONS (bijvoorbeeld
+  `/registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true`; na opslaan
+  terug naar de agenda). Alleen een relatief pad op dezelfde site. Is er geen
+  declareUrl of lukt het ophalen niet, dan zoals vroeger: naar de dag, de
+  afspraak openen en op Registreren klikken. Lukt ook dat niet, dan staat er
+  bij die afspraak wat er aan de hand is.
 - **Route van de dag**: reageert ONS niet, dan geen technische melding maar
   "De agenda is even niet bereikbaar" met een knop **ONS-pagina herladen**; geen
   huisbezoeken op die dag geeft een rustige lege melding.
@@ -225,7 +236,12 @@ en oker).
   ONS-formulier de datum, begintijd en eindtijd (begintijd + gekozen duur) van
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel).
-- **Afspraak maken** (na de planhulp, meteen in ONS): bovenaan (bij meer
+- **Afspraak maken** (na de planhulp, meteen in ONS): helemaal bovenaan de
+  knop **Niet cliëntgebonden afspraak**. Staat die aan, dan vraagt de pagina
+  alleen de uursoort (uit `/product_selection/product_list?employee_ids[]=…`,
+  zonder cliënt); de afspraak krijgt die uursoort zelf (`hour_type_id`, geen
+  cliënten, `client_present: false`) en als naam de naam van de uursoort. Geen
+  cliënt, type, titel of Geavanceerd. Daaronder (bij meer
   momenten) *Zelfde cliënt(en)* of *Per afspraak anders*. Daaronder de kaart
   **Voor alle afspraken**: de cliënt(en) - zoeken op naam zoals in ONS (pas
   als je even stopt met typen; de keuzelijst toont ook cliëntnummer,

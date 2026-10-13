@@ -925,7 +925,8 @@ function maakPaneel(extra = {}, state = { ...AGENDA_STATE_TOOLS, routesProxy: { 
     ], visits: msg.visits ? { '2026-10-12': [{ startMin: 480, endMin: 540, pc: '5017AB', soort: 'client' }], '2026-10-13': [{ startMin: 480, endMin: 540, pc: '2613RR', soort: 'client' }] } : undefined } }),
     'ag-client-search': (msg, cb) => cb({ ok: true, clients: Object.keys(CLIENTEN).filter((k) => k.startsWith(msg.term)).map((k) => CLIENTEN[k]) }),
     'ag-event-options': (msg, cb) => cb({ ok: true, metaKnown: true, labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }, { id: 48, name: 'Beeldbellen' }],
-      hourTypes: Object.fromEntries((msg.clientIds || []).map((c) => [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }]])) }),
+      hourTypes: Object.fromEntries((msg.clientIds || []).map((c) => [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }]])),
+      ...(msg.medewerker ? { employeeHourTypes: [{ id: 77, name: 'Teamoverleg', recent: true }, { id: 78, name: 'Scholing', recent: false }] } : {}) }),
     'ag-create-events': (msg, cb) => cb({ ok: true, results: msg.events.map(() => ({ ok: true })) }),
     'ag-new-event': (msg, cb) => cb({ ok: true }),
     ...extra,
@@ -1010,6 +1011,49 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   assert.equal(ev[1].name, 'Beeldbellen Tamara en Bram');
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
   assert.ok(knop(document, 'Agenda verversen'));
+});
+
+test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uursoort', async () => {
+  const { document, dom, verzonden } = maakPaneel();
+  await tweeMomenten(document);
+  const nc = () => document.querySelector('[data-maak-niet-client]');
+  assert.ok(nc(), 'knop bovenin');
+  assert.equal(nc().textContent, 'Niet cliëntgebonden afspraak');
+  assert.equal(nc().getAttribute('aria-pressed'), 'false');
+  assert.equal(document.querySelector('[data-maak-alle]').previousSibling.previousSibling.previousSibling, nc(), 'boven de keuze voor cliënten');
+  nc().click();
+  await tick();
+  assert.equal(nc().getAttribute('aria-pressed'), 'true');
+  assert.ok(verzonden.some((m) => m.type === 'ag-event-options' && m.medewerker === true), 'uursoorten zonder cliënt opgehaald');
+  assert.equal(document.querySelector('[data-maak-modus]'), null, 'geen keuze zelfde of per afspraak');
+  assert.equal(document.querySelector('[data-maak-zoek]'), null, 'geen cliënt zoeken');
+  assert.equal(document.querySelector('[data-maak-type-alle]'), null, 'geen afspraaktype');
+  assert.equal(document.querySelector('[data-maak-geavanceerd]'), null, 'geen geavanceerd');
+  assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst een uursoort');
+  kies(document, dom, '[data-maak-nc-uursoort]', '77');
+  assert.match(document.querySelector('[data-maak-regel="0"]').textContent, /^Ma 12 oktober10:00 tot 11:00Teamoverleg$/, 'regel: moment en uursoort');
+  document.querySelector('[data-maak-regel="0"]').click();
+  assert.equal(document.querySelector('[data-maak-type="0"]'), null, 'niets uit te klappen');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev, [
+    { date: '2026-10-12', startMin: 600, minutes: 60, nietClient: true, hourTypeId: 77, name: 'Teamoverleg' },
+    { date: '2026-10-13', startMin: 600, minutes: 60, nietClient: true, hourTypeId: 77, name: 'Teamoverleg' },
+  ]);
+  assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
+});
+
+test('zijpaneel: afspraak maken - niet cliëntgebonden weer uit: terug naar cliënten', async () => {
+  const { document } = maakPaneel();
+  await tweeMomenten(document);
+  document.querySelector('[data-maak-niet-client]').click();
+  await tick();
+  document.querySelector('[data-maak-niet-client]').click();
+  await tick();
+  assert.ok(document.querySelector('[data-maak-modus="dup"]'));
+  assert.ok(document.querySelector('[data-maak-type-alle]'));
+  assert.equal(document.querySelector('[data-maak-nc-uursoort]'), null);
 });
 
 test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiënter indelen (Google Routes), overnemen, reistijd; ONS Afspraakformulier per cliënt', async () => {

@@ -1525,7 +1525,40 @@ export function create(host, actions) {
     mk.items[k].typeAangepast = v !== mk.typeAlle;
   }
   function typeNaamVan(mk, id) { var l = mk.labels.filter(function (x) { return String(x.id) === String(id); })[0]; return l ? l.name : ''; }
-  function clientsVan(mk, it) { return (mk.modus === 'dup' ? mk.clients : it.clients).filter(function (c) { return c.clientId; }); }
+  function clientsVan(mk, it) { return mk.nietClient ? [] : (mk.modus === 'dup' ? mk.clients : it.clients).filter(function (c) { return c.clientId; }); }
+  // Niet cliëntgebonden afspraak: alleen een uursoort (uit de lijst van de
+  // medewerker zonder cliënt); de naam van de afspraak is die uursoort.
+  function ncNaam(mk) { var t = (Array.isArray(mk.ncTypes) ? mk.ncTypes : []).filter(function (x) { return String(x.id) === String(mk.ncUursoort); })[0]; return t ? t.name : ''; }
+  function zetNietClient(mk, aan) {
+    mk.nietClient = !!aan; mk.eff = null; mk.error = '';
+    if (aan && mk.ncTypes == null && actions.onEventOptions) {
+      mk.ncTypes = 'laden';
+      actions.onEventOptions([], function (res) {
+        mk.ncTypes = res && res.ok ? (res.employeeHourTypes || []) : [];
+        if (!(res && res.ok)) mk.ncFout = (res && res.error) || 'Kon de uursoorten niet ophalen uit ONS.';
+        if (mk.ncTypes.length === 1) mk.ncUursoort = String(mk.ncTypes[0].id);
+        if (BEWAARD.maak === mk && pagina === 'maken') renderPagina();
+      }, { medewerker: true });
+    }
+    renderPagina();
+  }
+  function nietClientKnop(mk) {
+    var aan = !!mk.nietClient;
+    var b = el('button', { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', height: '36px', margin: '0 0 10px', boxSizing: 'border-box',
+      border: '1px solid ' + (aan ? T.brand : T.line), borderRadius: '10px', background: aan ? T.brand : '#fff', color: aan ? '#fff' : T.ink,
+      font: '600 12.5px ' + FONT, cursor: 'pointer' });
+    b.type = 'button';
+    b.setAttribute('data-maak-niet-client', '');
+    b.setAttribute('aria-pressed', aan ? 'true' : 'false');
+    var vak = el('span', { width: '14px', height: '14px', borderRadius: '4px', boxSizing: 'border-box', border: '1.5px solid ' + (aan ? '#fff' : '#cfc6c9'), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' });
+    if (aan) { var v = svgPath('M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z', 12); vak.appendChild(v); }
+    b.appendChild(vak);
+    b.appendChild(document.createTextNode('Niet cliëntgebonden afspraak'));
+    b.title = aan ? 'Terug naar een afspraak met cliënt' : 'Een afspraak zonder cliënt: je kiest alleen de uursoort';
+    focusRing(b);
+    b.addEventListener('click', function () { zetNietClient(mk, !mk.nietClient); });
+    return b;
+  }
   function titelVan(mk, it) {
     if (it.titelAangepast) return it.titel;
     // 'Huisbezoek Tamara', bij meer cliënten 'Huisbezoek Tamara en Bram'.
@@ -1654,8 +1687,9 @@ export function create(host, actions) {
       var misN = n - goed;
       box.appendChild(noteBox(misN ? goed + ' van ' + n + ' gemaakt. Niet gelukt: ' + mk.items.filter(function (_, k) { return !(mk.uitslag[k] && mk.uitslag[k].ok); }).map(function (it) { return dayLabel(it.date) + ' ' + hm(it.startMin); }).join(', ') + '.' : (n === 1 ? 'Afspraak gemaakt in ONS.' : n + ' afspraken gemaakt in ONS.'), misN ? 'warn' : 'ok'));
     }
+    if (!klaar) box.appendChild(nietClientKnop(mk));
     // Zelfde cliënt(en) of per afspraak anders.
-    if (n > 1 && !klaar) {
+    if (n > 1 && !klaar && !mk.nietClient) {
       var seg = el('div', { display: 'flex', background: T.lineSoft, borderRadius: '10px', padding: '3px', marginBottom: '2px' });
       [['dup', 'Zelfde cliënt(en)'], ['los', 'Per afspraak anders']].forEach(function (o) {
         var aan = mk.modus === o[0];
@@ -1669,7 +1703,27 @@ export function create(host, actions) {
     }
     if (n === 1) mk.modus = 'dup';
     // Voor alle afspraken: cliënt(en) met uursoort (zelfde) en het type.
-    if (!klaar) {
+    if (!klaar && mk.nietClient) {
+      box.appendChild(sectieKop(n > 1 ? 'Voor alle ' + n + ' afspraken' : 'Afspraak'));
+      var nc = kaartDoos();
+      nc.setAttribute('data-maak-alle', '');
+      var ncRij = el('div', { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' });
+      ncRij.appendChild(el('span', { flex: '0 0 74px', fontSize: '12px', fontWeight: '600', color: T.inkSoft }, 'Uursoort'));
+      if (mk.ncTypes === 'laden' || mk.ncTypes == null) ncRij.appendChild(el('span', { fontSize: '12px', color: T.inkSoft }, 'uursoorten…'));
+      else if (!mk.ncTypes.length) {
+        var gn = el('span', { fontSize: '12px', color: T.warn, fontWeight: '600' }, mk.ncFout || 'ONS geeft geen uursoorten zonder cliënt.');
+        gn.setAttribute('data-maak-nc-leeg', '');
+        ncRij.appendChild(gn);
+      } else {
+        var ncOpts = mk.ncTypes.map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Uursoorten' }; });
+        var ncSel = selectEl(['data-maak-nc-uursoort', ''], ncOpts, mk.ncUursoort || '', function (v) { mk.ncUursoort = v; renderPagina(); }, 'Kies een uursoort');
+        ncSel.setAttribute('aria-label', 'Uursoort');
+        ncRij.appendChild(ncSel);
+      }
+      nc.appendChild(ncRij);
+      box.appendChild(nc);
+    }
+    if (!klaar && !mk.nietClient) {
       box.appendChild(sectieKop(n > 1 ? 'Voor alle ' + n + ' afspraken' : 'Afspraak'));
       var alle = kaartDoos();
       alle.setAttribute('data-maak-alle', '');
@@ -1688,13 +1742,15 @@ export function create(host, actions) {
       var blok = el('div', { borderTop: k ? '1px solid ' + T.lineSoft : '0', padding: '4px 0' });
       blok.setAttribute('data-maak-afspraak', String(k));
       var kop = el('button', { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', border: '0', background: 'transparent', padding: '6px 0', cursor: klaar ? 'default' : 'pointer', textAlign: 'left', font: 'inherit', color: T.ink });
-      kop.type = 'button'; kop.setAttribute('data-maak-regel', String(k)); kop.setAttribute('aria-expanded', mk.open[k] ? 'true' : 'false');
+      var vast = klaar || !!mk.nietClient;   // niet cliëntgebonden: niets per afspraak in te stellen
+      if (vast) kop.style.cursor = 'default';
+      kop.type = 'button'; kop.setAttribute('data-maak-regel', String(k)); kop.setAttribute('aria-expanded', !vast && mk.open[k] ? 'true' : 'false');
       var wn = el('span', { flex: '0 0 100px', fontWeight: '700', fontSize: '12.5px' }, dagLang(it.date, true));
       wn.appendChild(el('span', { display: 'block', fontWeight: '400', color: T.inkSoft, fontVariantNumeric: 'tabular-nums' }, hm(it.startMin) + ' tot ' + hm(it.startMin + it.minutes)));
       kop.appendChild(wn);
       // Type (of de eigen titel) als hoofdregel, de cliënten eronder.
       var wat = el('span', { flex: '1 1 auto', minWidth: '0', fontSize: '12.5px' });
-      wat.appendChild(el('span', { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, it.titelAangepast ? it.titel : (typeNaamVan(mk, it.labelId) || 'Afspraak')));
+      wat.appendChild(el('span', { display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, mk.nietClient ? (ncNaam(mk) || 'Niet cliëntgebonden') : it.titelAangepast ? it.titel : (typeNaamVan(mk, it.labelId) || 'Afspraak')));
       var namen = namenVan(mk, it);
       if (namen) wat.appendChild(el('span', { display: 'block', fontSize: '11px', color: T.inkSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, namen));
       kop.appendChild(wat);
@@ -1713,11 +1769,11 @@ export function create(host, actions) {
         var tg = el('span', { flex: '0 0 auto', fontSize: '10.5px', fontWeight: '700', borderRadius: '6px', padding: '2px 6px', background: T.brandWash, color: T.brand }, 'Eigen type');
         tg.setAttribute('data-eigen-type', String(k));
         kop.appendChild(tg);
-      } else kop.appendChild(el('span', { flex: '0 0 auto', color: T.inkSoft }, mk.open[k] ? '▾' : '›'));
-      if (!klaar) kop.addEventListener('click', function () { mk.open[k] = !mk.open[k]; renderPagina(); });
+      } else if (!vast) kop.appendChild(el('span', { flex: '0 0 auto', color: T.inkSoft }, mk.open[k] ? '▾' : '›'));
+      if (!vast) kop.addEventListener('click', function () { mk.open[k] = !mk.open[k]; renderPagina(); });
       blok.appendChild(kop);
       // Per afspraak anders: de cliënt(en) van deze afspraak staan in de regel.
-      if (!klaar && mk.modus === 'los') {
+      if (!klaar && mk.modus === 'los' && !mk.nietClient) {
         var cl = el('div', { padding: '0 0 4px 0' });
         clientsLijst(mk, it.clients, 'los' + k + '-', cl);
         blok.appendChild(cl);
@@ -1729,7 +1785,7 @@ export function create(host, actions) {
       if (!klaar) reisProblemen(mk, it).forEach(function (t) {
         var rn = noteBox(t, 'warn'); rn.style.margin = '0 0 6px'; rn.setAttribute('data-maak-reis-conflict', String(k)); blok.appendChild(rn);
       });
-      if (!klaar && mk.open[k]) {
+      if (!vast && mk.open[k]) {
         var det = el('div', { display: 'flex', flexDirection: 'column', gap: '6px', padding: '2px 0 8px' });
         var tSel = selectEl(['data-maak-type', String(k)], mk.labels, it.labelId, function (v) { zetType(mk, k, v); renderPagina(); }, 'Geen afspraaktype');
         det.appendChild(fieldLabel('Type (alleen deze)', tSel));
@@ -1755,7 +1811,8 @@ export function create(host, actions) {
       lijst.appendChild(blok);
     });
     box.appendChild(lijst);
-    if (!klaar) {
+    if (!klaar && mk.nietClient && mk.error) box.appendChild(noteBox(mk.error, 'bad'));
+    if (!klaar && !mk.nietClient) {
       // Geavanceerd: reistijd per afspraak en Efficiënter indelen (Google Routes).
       var adv = el('label', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '12px', padding: '9px 12px', border: '1px dashed ' + T.line, borderRadius: '12px', color: T.inkSoft, fontWeight: '600', fontSize: '12.5px', cursor: 'pointer', userSelect: 'none' });
       var advT = el('span');
@@ -1833,14 +1890,14 @@ export function create(host, actions) {
       return balk;
     }
     if (mk.error && !mk.labels.length) { var f = primaryBtn('ONS Afspraakformulier', function () { viaFormulier(mk); }); f.style.marginTop = '0'; balk.appendChild(f); return balk; }
-    var compleet = mk.items.every(function (it) {
+    var compleet = mk.nietClient ? !!mk.ncUursoort : mk.items.every(function (it) {
       var cs = clientsVan(mk, it);
       return cs.length && cs.every(function (c) { return !!mk.uursoort[c.clientId]; });
     });
     var knop = primaryBtn(mk.busy ? 'Bezig met maken…' : (n === 1 ? 'Afspraak maken in ONS' : n + ' afspraken maken in ONS'), function () { maakInOns(mk); }, mk.busy || !compleet);
     knop.style.marginTop = '0';
     knop.setAttribute('data-maak-knop', '');
-    if (!compleet) knop.title = 'Kies eerst bij elke afspraak een cliënt en per cliënt de uursoort.';
+    if (!compleet) knop.title = mk.nietClient ? 'Kies eerst de uursoort.' : 'Kies eerst bij elke afspraak een cliënt en per cliënt de uursoort.';
     balk.appendChild(knop);
     balk.appendChild(link('ONS Afspraakformulier', function () { viaFormulier(mk); }, 'data-maak-ons'));
     return balk;
@@ -1848,6 +1905,7 @@ export function create(host, actions) {
   function maakInOns(mk) {
     mk.busy = true; mk.error = ''; renderPagina();
     var lijst = mk.items.map(function (it) {
+      if (mk.nietClient) return { date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' };
       return { date: it.date, startMin: it.startMin, minutes: it.minutes,
         clients: clientsVan(mk, it).map(function (c) { return { id: c.clientId, hourTypeId: Number(mk.uursoort[c.clientId]) }; }),
         labelId: it.labelId ? Number(it.labelId) : null, name: String(titelVan(mk, it) || '').trim() || 'Afspraak',

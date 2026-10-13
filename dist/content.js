@@ -1108,6 +1108,7 @@
     availableLabels: "/calendar/events/available_labels",
     createEvent: "/calendar/events",
     productOptions: "/product_selection/product_list?employee_ids%5B%5D={employeeId}&client_ids%5B%5D={clientId}",
+    employeeProductOptions: "/product_selection/product_list?employee_ids%5B%5D={employeeId}",
     productList: "/product_selection/product_list?date={date}&employee_ids[]={employeeId}&client_ids[]={clientId}",
     calendarVariables: "/calendar/calendar_variables?date={date}",
     unavailabilities: "/calendar/unavailabilities",
@@ -10911,10 +10912,16 @@
   }
 
   // src/content/domain/event-create.js
-  function parseProductOptions(json) {
+  function parseProductOptions(json, opts) {
     var groepen = json && Array.isArray(json.basic_list) ? json.basic_list : [];
     var uit = [], gezien = /* @__PURE__ */ Object.create(null);
-    ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"].forEach(function(cat) {
+    var BEKEND = ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"];
+    var cats = BEKEND.slice();
+    if (opts && opts.alleGroepen) groepen.forEach(function(g) {
+      var naam = Array.isArray(g) ? String(g[0] == null ? "" : g[0]) : "";
+      if (naam && cats.indexOf(naam) < 0 && !/^niet\b/i.test(naam)) cats.push(naam);
+    });
+    cats.forEach(function(cat) {
       groepen.forEach(function(g) {
         if (!Array.isArray(g) || g[0] !== cat || !Array.isArray(g[1])) return;
         g[1].forEach(function(item) {
@@ -10961,10 +10968,12 @@
     var emp = (spec.employeeIds || []).map(Number).filter(function(x) {
       return x > 0;
     });
+    var zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
     var cl = (spec.clients || []).filter(function(c) {
       return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0;
     });
-    if (!emp.length || !cl.length || cl.length !== (spec.clients || []).length) return null;
+    if (!emp.length) return null;
+    if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
     var info = {};
     cl.forEach(function(c) {
       info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
@@ -10977,7 +10986,7 @@
         return Number(c.id);
       }),
       client_information: info,
-      client_present: true,
+      client_present: !zonderClient,
       clients: [],
       comment: String(spec.comment || ""),
       custom_location: null,
@@ -10985,7 +10994,7 @@
       employees: [],
       group: null,
       groups: [],
-      hour_type_id: null,
+      hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
       label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
       labels: [],
       location: null,
@@ -11023,7 +11032,7 @@
       return null;
     }
   }
-  function eventOptions(clientIds) {
+  function eventOptions(clientIds, opts) {
     if (!directCreateEnabled()) return Promise.reject(new Error("Afspraken maken vanuit de planhulp staat uit (beheer)."));
     var ids = medewerkers();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
@@ -11041,9 +11050,16 @@
         }, function() {
           types[c] = [];
         });
-      }))
+      })),
+      opts && opts.medewerker ? getJson(_apiUrl("employeeProductOptions", { employeeId: ids[0] })).then(function(j) {
+        return parseProductOptions(j, { alleGroepen: true });
+      }, function() {
+        return [];
+      }) : null
     ]).then(function(r) {
-      return { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
+      var uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
+      if (r[2]) uit.employeeHourTypes = r[2];
+      return uit;
     });
   }
   async function createEvents(events, post) {
@@ -11058,8 +11074,10 @@
         startMin: e.startMin,
         minutes: e.minutes,
         employeeIds: ids,
-        // Eén of meer cliënten, elk met een eigen uursoort.
-        clients: Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }],
+        // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
+        // de uursoort op de afspraak zelf.
+        clients: e.nietClient === true ? [] : Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }],
+        hourTypeId: e.nietClient === true ? e.hourTypeId : null,
         labelId: e.labelId,
         name: e.name,
         travelBefore: e.travelBefore,
@@ -11224,7 +11242,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.263";
+      return "1.6.264";
     }
   }();
 
@@ -14384,7 +14402,7 @@
             });
             return true;
           case MSG.AGENDA_EVENT_OPTIONS:
-            eventOptions(msg.clientIds).then(function(r) {
+            eventOptions(msg.clientIds, { medewerker: !!msg.medewerker }).then(function(r) {
               try {
                 sendResponse(Object.assign({ ok: true }, r));
               } catch (e) {

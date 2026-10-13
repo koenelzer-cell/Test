@@ -466,6 +466,16 @@ test('afspraak maken zonder formulier: keuzes ophalen, meta leren van een opgesl
   const ev = post[0][2].event;
   assert.deepEqual([ev.employee_ids, ev.client_ids, ev.client_information, ev.label_ids, ev.start_time, ev.end_time, ev.meta],
     [[42479], [11142], { 11142: { hour_type_id: 5, care_order_external_id: null, activity_ids: [] } }, [47], '2026-10-27T17:20:00+01:00', '2026-10-27T18:20:00+01:00', { extended_workflow: true, time_distribution_enabled: true }]);
+  // Niet cliëntgebonden: uursoorten van alleen de medewerker, en een afspraak zonder cliënt.
+  gevraagd.length = 0;
+  const nc = await api.eventOptions([], { medewerker: true });
+  assert.ok(gevraagd.some((g) => g[0] === '/product_selection/product_list?employee_ids%5B%5D=42479'), 'product_list met alleen de medewerker');
+  assert.deepEqual(JSON.parse(JSON.stringify(nc.employeeHourTypes)), [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }]);
+  assert.equal((await api.eventOptions([])).employeeHourTypes, undefined, 'zonder vraag niet opgehaald');
+  const res2 = await api.createEvents([{ date: '2026-10-27', startMin: 600, minutes: 30, nietClient: true, hourTypeId: 5, clients: [{ id: 11142, hourTypeId: 5 }], name: 'Teamoverleg' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(res2)), [{ ok: true }]);
+  const ev2 = gevraagd.filter((g) => g[1] === 'POST').at(-1)[2].event;
+  assert.deepEqual([ev2.client_ids, ev2.client_present, ev2.hour_type_id, ev2.name], [[], false, 5, 'Teamoverleg'], 'cliënten genegeerd, uursoort op de afspraak');
 });
 
 test('na het maken van afspraken vergeet de planhulp de vrije tijd (opnieuw zoeken)', async () => {

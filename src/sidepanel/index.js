@@ -76,7 +76,9 @@ const agendaActies = {
     if (limit > 0) m.limit = limit;
     vraagAanTab(m, cb);
   },
-  onEventOptions: function (clientIds, cb) { vraagAanTab({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, cb); },
+  onEventOptions: function (clientIds, cb, opts) {
+    vraagAanTab(Object.assign({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, opts && opts.medewerker ? { medewerker: true } : {}), cb);
+  },
   onCreateEvents: function (events, cb) { vraagAanTab({ type: MSG.AGENDA_CREATE_EVENTS, events: events }, cb); },
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },
   // Het ONS-tabblad zelf herladen (ook als het content-script niet meer antwoordt).

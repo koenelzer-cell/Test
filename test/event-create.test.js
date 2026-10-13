@@ -52,3 +52,29 @@ test('verzoek zoals het formulier van ONS het verstuurt (uursoort per cliënt)',
   assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142 }] }), null, 'zonder uursoort niet');
   assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [], clients: [{ id: 11142, hourTypeId: 5 }] }), null, 'zonder medewerker niet');
 });
+
+test('niet cliëntgebonden: uursoort op de afspraak zelf, geen cliënt', (t) => {
+  const oud = process.env.TZ;
+  process.env.TZ = 'Europe/Amsterdam';
+  t.after(() => { if (oud === undefined) delete process.env.TZ; else process.env.TZ = oud; });
+  const p = buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [], hourTypeId: 77, name: 'Teamoverleg' });
+  assert.deepEqual([p.event.client_ids, p.event.client_information, p.event.client_present, p.event.hour_type_id, p.event.name, p.event.label_ids],
+    [[], {}, false, 77, 'Teamoverleg', []]);
+  assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [] }), null, 'zonder uursoort niet');
+  assert.equal(buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [], clients: [], hourTypeId: 77 }), null, 'zonder medewerker niet');
+  const metClient = buildEventPayload({ date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142, hourTypeId: 5 }], hourTypeId: 77 });
+  assert.deepEqual([metClient.event.hour_type_id, metClient.event.client_present], [null, true], 'met cliënt blijft de uursoort per cliënt');
+});
+
+test('uursoorten zonder cliënt: ook andere groepen, behalve groepen die met Niet beginnen', () => {
+  const json = { basic_list: [
+    ['Onlangs gebruikt', [['Teamoverleg', 77, []]]],
+    ['Indirect', [['Scholing', 78, []], ['Teamoverleg', 77, []]]],
+    ['Niet toegestaan', [['Verboden', 79, []]]],
+  ] };
+  assert.deepEqual(parseProductOptions(json, { alleGroepen: true }), [
+    { id: 77, name: 'Teamoverleg', recent: true },
+    { id: 78, name: 'Scholing', recent: false },
+  ]);
+  assert.deepEqual(parseProductOptions(json), [{ id: 77, name: 'Teamoverleg', recent: true }], 'met cliënt: alleen de bekende groepen');
+});

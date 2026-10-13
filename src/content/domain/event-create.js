@@ -12,10 +12,19 @@ import { isoLocalWithOffset } from './open-registrations.js';
 
 // product_list -> [{ id, name, recent }] (ontdubbeld op id, 'Onlangs gebruikt' eerst).
 // Een item is [naam, id, activiteiten, …].
-export function parseProductOptions(json) {
+// opts.alleGroepen: ook andere groepen dan de drie bekende (achteraan),
+// behalve groepen die met 'Niet' beginnen. Voor de lijst zonder cliënt
+// (alleen medewerker), waarvan de groepsnamen niet vastliggen.
+export function parseProductOptions(json, opts) {
   var groepen = json && Array.isArray(json.basic_list) ? json.basic_list : [];
   var uit = [], gezien = Object.create(null);
-  ['Onlangs gebruikt', 'Geadviseerd', 'Toegestaan'].forEach(function (cat) {
+  var BEKEND = ['Onlangs gebruikt', 'Geadviseerd', 'Toegestaan'];
+  var cats = BEKEND.slice();
+  if (opts && opts.alleGroepen) groepen.forEach(function (g) {
+    var naam = Array.isArray(g) ? String(g[0] == null ? '' : g[0]) : '';
+    if (naam && cats.indexOf(naam) < 0 && !/^niet\b/i.test(naam)) cats.push(naam);
+  });
+  cats.forEach(function (cat) {
     groepen.forEach(function (g) {
       if (!Array.isArray(g) || g[0] !== cat || !Array.isArray(g[1])) return;
       g[1].forEach(function (item) {
@@ -62,13 +71,17 @@ function reistijd(v) { var n = Math.round(Number(v)); return n > 0 ? Math.min(n,
 // spec: { date, startMin, minutes, employeeIds: [..], clients: [{ id, hourTypeId }],
 //         labelId, name, comment, travelBefore, travelAfter (minuten) }
 //   -> { event } of null als iets ontbreekt.
+// Niet cliëntgebonden: geen clients maar hourTypeId; de uursoort staat dan op
+// de afspraak zelf (hour_type_id) en client_present is false.
 export function buildEventPayload(spec, meta) {
   spec = spec || {};
   var start = spec.startMin, eind = start + spec.minutes;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(spec.date || '')) || !(start >= 0) || !(spec.minutes > 0) || eind >= 24 * 60) return null;
   var emp = (spec.employeeIds || []).map(Number).filter(function (x) { return x > 0; });
+  var zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
   var cl = (spec.clients || []).filter(function (c) { return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0; });
-  if (!emp.length || !cl.length || cl.length !== (spec.clients || []).length) return null;
+  if (!emp.length) return null;
+  if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
   var info = {};
   cl.forEach(function (c) { info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] }; });
   var ev = {
@@ -77,7 +90,7 @@ export function buildEventPayload(spec, meta) {
     end_time: isoLocalWithOffset(spec.date, eind),
     client_ids: cl.map(function (c) { return Number(c.id); }),
     client_information: info,
-    client_present: true,
+    client_present: !zonderClient,
     clients: [],
     comment: String(spec.comment || ''),
     custom_location: null,
@@ -85,7 +98,7 @@ export function buildEventPayload(spec, meta) {
     employees: [],
     group: null,
     groups: [],
-    hour_type_id: null,
+    hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
     label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
     labels: [],
     location: null,

@@ -35,7 +35,9 @@ function leesMeta() {
 }
 
 // clientIds -> Promise<{ labels, hourTypes: { id: [...] }, metaKnown }>
-export function eventOptions(clientIds) {
+// opts.medewerker: ook de uursoorten zonder cliënt (employeeHourTypes), voor
+// een niet cliëntgebonden afspraak.
+export function eventOptions(clientIds, opts) {
   if (!directCreateEnabled()) return Promise.reject(new Error('Afspraken maken vanuit de planhulp staat uit (beheer).'));
   var ids = medewerkers();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
@@ -45,12 +47,20 @@ export function eventOptions(clientIds) {
     getJson(_apiUrl('availableLabels')).then(parseLabels, function () { return []; }),
     Promise.all(uniek.map(function (c) {
       return getJson(_apiUrl('productOptions', { employeeId: ids[0], clientId: c })).then(function (j) { types[c] = parseProductOptions(j); }, function () { types[c] = []; });
-    }))
-  ]).then(function (r) { return { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() }; });
+    })),
+    opts && opts.medewerker
+      ? getJson(_apiUrl('employeeProductOptions', { employeeId: ids[0] })).then(function (j) { return parseProductOptions(j, { alleGroepen: true }); }, function () { return []; })
+      : null
+  ]).then(function (r) {
+    var uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
+    if (r[2]) uit.employeeHourTypes = r[2];
+    return uit;
+  });
 }
 
 // events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }] (of clientId +
 //           hourTypeId), labelId, name, travelBefore, travelAfter }]
+//   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name }.
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
   if (!directCreateEnabled()) throw new Error('Afspraken maken vanuit de planhulp staat uit (beheer).');
@@ -61,8 +71,10 @@ export async function createEvents(events, post) {
   for (const e of (events || []).slice(0, 20)) {
     var payload = buildEventPayload({
       date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids,
-      // Eén of meer cliënten, elk met een eigen uursoort.
-      clients: Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }], labelId: e.labelId, name: e.name,
+      // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
+      // de uursoort op de afspraak zelf.
+      clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),
+      hourTypeId: e.nietClient === true ? e.hourTypeId : null, labelId: e.labelId, name: e.name,
       travelBefore: e.travelBefore, travelAfter: e.travelAfter
     }, meta);
     if (!payload) { results.push({ ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }); continue; }

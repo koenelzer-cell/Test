@@ -209,7 +209,7 @@ export function listenForSidePanelMessages() {
           });
           return true;
         case MSG.AGENDA_EVENT_OPTIONS:
-          eventOptions(msg.clientIds).then(function (r) {
+          eventOptions(msg.clientIds, { medewerker: !!msg.medewerker }).then(function (r) {
             try { sendResponse(Object.assign({ ok: true }, r)); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Ophalen mislukt.' }); } catch (e2) {}
