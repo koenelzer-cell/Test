@@ -11244,7 +11244,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.267";
+      return "1.6.268";
     }
   }();
 
@@ -13731,7 +13731,7 @@
       return { status, overlap: o };
     });
   }
-  var MAX_ZOEK_DAGEN = 182;
+  var MAX_ZOEK_DAGEN = 366;
   var feestdagenBelofte = null;
   function holidays() {
     if (!feestdagenBelofte) {
@@ -13824,7 +13824,7 @@
       var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
       dagen = Math.round((eind - begin) / 864e5) + 1;
       if (dagen < 1) return Promise.reject(new Error("Kies een datum vanaf vandaag."));
-      if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error("Kies een datum binnen een half jaar."));
+      if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error("Kies een datum binnen een jaar."));
     }
     var laatste = new Date(vandaag);
     laatste.setDate(laatste.getDate() + dagen - 1);

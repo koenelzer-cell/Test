@@ -3130,7 +3130,7 @@
     if (d.getElementById("ons-agendapanel-stijl")) return;
     var st = d.createElement("style");
     st.id = "ons-agendapanel-stijl";
-    st.textContent = "@keyframes onsAhSchuif{0%{transform:translateX(-60%)}100%{transform:translateX(260%)}}@keyframes onsAhPuls{0%,100%{opacity:.55}50%{opacity:.9}}";
+    st.textContent = "@keyframes onsAhSchuif{0%{transform:translateX(-60%)}100%{transform:translateX(260%)}}@keyframes onsAhPuls{0%,100%{opacity:.55}50%{opacity:.9}}@keyframes onsAhDraai{to{transform:rotate(360deg)}}";
     (d.head || d.documentElement).appendChild(st);
   }
   function laadBalk() {
@@ -4187,6 +4187,9 @@
     var PLAN_STAP = 24;
     function startPlan(houd) {
       if (!actions.onFreeSlots) return;
+      var jaar = /* @__PURE__ */ new Date();
+      jaar.setDate(jaar.getDate() + 365);
+      if (plan.tot && plan.tot > ymdVan(jaar)) plan.tot = ymdVan(jaar);
       var mijn = ++planNr;
       plan.busy = true;
       plan.error = "";
@@ -4216,21 +4219,53 @@
         startPlan(true);
       }, 300);
     }
+    var MEER_MAX = 100;
     function meerLaden(res) {
+      if (!actions.onFreeSlots || !res) return;
+      var gaps = res.gaps || [];
+      var afgekapt = res.afgekapt != null ? res.afgekapt : gaps.length >= (plan.limit || PLAN_STAP);
+      var laatste = datumUitYmd(res.lastDate || res.to || ymdVan(/* @__PURE__ */ new Date()));
+      var tot = new Date(laatste);
+      tot.setDate(tot.getDate() + 7);
+      var van = afgekapt && gaps.length ? gaps[gaps.length - 1].date : ymdVan(new Date(laatste.getFullYear(), laatste.getMonth(), laatste.getDate() + 1));
+      var totYmd = ymdVan(tot);
+      var mijn = ++planNr, voor = plan;
       plan.meerBezig = true;
-      if (res.gaps.length >= (plan.limit || PLAN_STAP)) plan.limit = (plan.limit || PLAN_STAP) + PLAN_STAP;
-      else plan.tot = verderTot(res);
-      startPlan(true);
-    }
-    function verderTot(res) {
-      var laatste = res.lastDate || res.to;
-      if (!laatste) return "";
-      var d = datumUitYmd(laatste);
-      d.setDate(d.getDate() + 14);
-      var grens = /* @__PURE__ */ new Date();
-      grens.setHours(0, 0, 0, 0);
-      grens.setDate(grens.getDate() + 181);
-      return d > grens ? "" : ymdVan(d);
+      plan.error = "";
+      if (pagina === "plan") renderPagina();
+      actions.onFreeSlots(plan.minutes, plan.weeks, function(r) {
+        if (BEWAARD.plan !== voor || mijn !== planNr) return;
+        plan.meerBezig = false;
+        if (!(r && r.ok && r.result)) {
+          plan.error = r && r.error || "Meer laden mislukt.";
+          if (pagina === "plan") renderPagina();
+          return;
+        }
+        var bekend = {};
+        gaps.forEach(function(g) {
+          bekend[g.date + "|" + g.startMin] = true;
+        });
+        var nieuw = (r.result.gaps || []).filter(function(g) {
+          return !bekend[g.date + "|" + g.startMin];
+        });
+        var feest = (res.holidays || []).slice();
+        (r.result.holidays || []).forEach(function(h) {
+          if (!feest.some(function(x) {
+            return x.date === h.date;
+          })) feest.push(h);
+        });
+        plan.tot = totYmd;
+        plan.result = Object.assign({}, res, {
+          gaps: gaps.concat(nieuw),
+          holidays: feest,
+          to: totYmd,
+          lastDate: r.result.lastDate || totYmd,
+          afgekapt: (r.result.gaps || []).length >= MEER_MAX
+        });
+        if (pagina === "plan") setTimeout(function() {
+          if (pagina === "plan" && mijn === planNr) renderPagina();
+        }, 0);
+      }, totYmd, false, false, van, gekozenDagen(), MEER_MAX);
     }
     function opGekozenDag(date) {
       var a = gekozenDagen();
@@ -4243,9 +4278,6 @@
       }), holidays: (res.holidays || []).filter(function(h) {
         return opGekozenDag(h.date);
       }) });
-    }
-    function kanMeer(res) {
-      return res.gaps.length >= (plan.limit || PLAN_STAP) || !!verderTot(res);
     }
     function gekozenDagen() {
       return plan.dagen && plan.dagen.length && plan.dagen.length < 5 ? plan.dagen.slice() : null;
@@ -5861,21 +5893,43 @@
         if (!res.gaps.length) {
           if (feestdagenOpWerkdag(res).length) planBox.appendChild(planLijst(res));
           planBox.appendChild(noteBox("Geen vrij blok van " + fmtMin(res.minutes) + " gevonden " + (res.to ? "t/m " + dayLabel(res.to) : "in de komende " + (res.weeks === 1 ? "week" : res.weeks + " weken")) + ".", "warn"));
+          planBox.appendChild(meerKnop());
         } else {
           planBox.appendChild(planLijst(res));
-          if (kanMeer(plan.result)) {
-            var meerKnop = secondaryBtn(plan.meerBezig ? "Meer laden…" : "Meer laden", function() {
-              if (!plan.meerBezig) meerLaden(plan.result);
-            });
-            meerKnop.setAttribute("data-plan-meer", "");
-            meerKnop.disabled = !!plan.meerBezig;
-            meerKnop.style.marginTop = "12px";
-            planBox.appendChild(meerKnop);
-          }
+          planBox.appendChild(meerKnop());
           if (res.onsCheck === "unknown") planBox.appendChild(txt("help", "Open één keer een afspraak in ONS; daarna kijkt de planhulp gekozen tijden ook na met de overlapcontrole van ONS.", { margin: "10px 0 0", fontSize: "11.5px" }));
         }
       }
       return planBox;
+    }
+    function meerKnop() {
+      zorgVoorStijl();
+      var bezig = !!plan.meerBezig;
+      var b = secondaryBtn("", function() {
+        if (!plan.meerBezig) meerLaden(plan.result);
+      });
+      b.textContent = "";
+      Object.assign(b.style, { marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" });
+      if (bezig) {
+        var cirkel = el("span", {
+          width: "14px",
+          height: "14px",
+          borderRadius: "50%",
+          boxSizing: "border-box",
+          flex: "0 0 auto",
+          border: "2px solid #f0b6d6",
+          borderTopColor: T.brand,
+          animation: "onsAhDraai .8s linear infinite"
+        });
+        cirkel.setAttribute("data-laadcirkel", "");
+        b.appendChild(cirkel);
+      }
+      b.appendChild(document.createTextNode(bezig ? "Volgende week laden…" : "Meer laden"));
+      b.setAttribute("data-plan-meer", "");
+      b.setAttribute("aria-busy", bezig ? "true" : "false");
+      b.title = "Eén week verder zoeken";
+      b.disabled = bezig;
+      return b;
     }
     function tikMoment(date, m, duur) {
       var aan = momentIndex(date, m) < 0;

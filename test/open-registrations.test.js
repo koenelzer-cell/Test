@@ -326,7 +326,11 @@ test('planhulp: zoeken tot en met een datum', async () => {
   assert.equal(r.lastDate, ymd(tot));
   assert.ok(weken.size >= 9, 'alle weken tot die datum opgehaald (' + weken.size + ')');
   const teVer = new Date(vandaag); teVer.setDate(teVer.getDate() + 400);
-  await assert.rejects(api.findFreeSlots(60, 1, ymd(teVer)), /half jaar/);
+  await assert.rejects(api.findFreeSlots(60, 1, ymd(teVer)), /binnen een jaar/);
+  // Met van (Meer laden: een week verder) geen grens vanaf vandaag.
+  const verVan = new Date(vandaag); verVan.setDate(verVan.getDate() + 393);
+  const r2 = await api.findFreeSlots(60, 1, ymd(teVer), false, false, ymd(verVan));
+  assert.equal(r2.lastDate, ymd(teVer), 'ook ver weg één week ophalen');
   const gisteren = new Date(vandaag); gisteren.setDate(gisteren.getDate() - 1);
   await assert.rejects(api.findFreeSlots(60, 1, ymd(gisteren)), /vanaf vandaag/);
 });

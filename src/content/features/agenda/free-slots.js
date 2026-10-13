@@ -49,8 +49,9 @@ export function checkSlotWithOns(req) {
     .then(function (o) { return { status: status, overlap: o }; });
 }
 
-// Zoeken tot en met een datum: hooguit een half jaar vooruit.
-export const MAX_ZOEK_DAGEN = 182;
+// Zoeken tot en met een datum: hooguit een jaar vooruit in één keer. 'Meer
+// laden' gaat in stukjes van een week verder (met van) en heeft geen grens.
+export const MAX_ZOEK_DAGEN = 366;
 
 // Feestdagen uit ONS, één keer per pagina opgehaald. Mislukt het, dan zonder
 // (en de volgende zoekactie probeert het opnieuw).
@@ -151,7 +152,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
     var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
     dagen = Math.round((eind - begin) / 86400000) + 1;
     if (dagen < 1) return Promise.reject(new Error('Kies een datum vanaf vandaag.'));
-    if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een half jaar.'));
+    if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een jaar.'));
   }
   var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + dagen - 1);
   var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));

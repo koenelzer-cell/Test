@@ -193,8 +193,13 @@ en oker).
   standaard alle aan; uitvinken = op die dag geen vrije momenten, meteen
   zichtbaar, ook tijdens het laden; minstens één dag blijft aan). De
   weekplanning toont altijd de hele week. Onderaan
-  de lijst 'Meer laden': meer vrije blokken (per 24), of als de periode op is
-  twee weken verder (tot een half jaar); een wijziging
+  de lijst altijd 'Meer laden': elke klik zoekt één week verder, zonder grens,
+  en haalt alleen dat stuk op (de lijst groeit, de periode bij het kalendertje
+  schuift mee). Toonde de lijst nog niet alles van de periode, dan vult hij
+  eerst vanaf de dag van het laatste blok aan (geen gaten, niets dubbel).
+  Tijdens het laden draait een cirkel in de knop. Ook na 'Geen vrij blok
+  gevonden' staat de knop er. Opnieuw zoeken vanaf vandaag (na een wijziging)
+  gaat hooguit een jaar vooruit; een wijziging
   zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens

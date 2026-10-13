@@ -1526,12 +1526,22 @@ test('zijpaneel: planhulp - dagenfilter: meteen zichtbaar, vlot tijdens laden, n
   assert.equal(document.querySelector('[data-plan-dag="1"]').getAttribute('aria-pressed'), 'false', 'dagenfilter blijft voor de lijst');
 });
 
-test('zijpaneel: planhulp - Meer laden onderaan de lijst', async () => {
+test('zijpaneel: planhulp - Meer laden onderaan de lijst: elke klik een week verder, met laadcirkel', async () => {
+  let wacht = null;
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => {
-      const n = Math.min(msg.limit || 12, msg.to ? 60 : 30);
-      const gaps = Array.from({ length: n }, (_, i) => ({ date: '2026-10-' + String(12 + Math.floor(i / 6)).padStart(2, '0'), startMin: 480 + (i % 6) * 60, endMin: 540 + (i % 6) * 60, minutes: 60 }));
-      cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to, lastDate: msg.to || '2026-10-25', gaps } });
+      let gaps;
+      if (msg.from) {
+        // Een blok om 8:00 op elke werkdag van 'from' tot en met 'to' (de eerste dag stond er al).
+        gaps = [];
+        for (let d = new Date(msg.from + 'T00:00:00'); ymd(d) <= msg.to; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) gaps.push({ date: ymd(d), startMin: 480, endMin: 540, minutes: 60 });
+      } else {
+        const n = Math.min(msg.limit || 12, 30);
+        gaps = Array.from({ length: n }, (_, i) => ({ date: '2026-10-' + String(12 + Math.floor(i / 6)).padStart(2, '0'), startMin: 480 + (i % 6) * 60, endMin: 540 + (i % 6) * 60, minutes: 60 }));
+      }
+      const antwoord = () => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to, lastDate: msg.to || '2026-10-25', gaps } });
+      if (wacht) wacht.push(antwoord); else antwoord();
     },
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
@@ -1541,13 +1551,41 @@ test('zijpaneel: planhulp - Meer laden onderaan de lijst', async () => {
   assert.equal(zoek().at(-1).limit, 24, 'standaard 24 blokken');
   const meer = () => document.querySelector('[data-plan-meer]');
   assert.ok(meer(), 'knop Meer laden');
+  assert.equal(meer().textContent, 'Meer laden');
+  // De lijst was afgekapt: vanaf de dag van het laatste blok, tot een week na de periode.
+  wacht = [];
+  meer().click();
+  assert.ok(meer().querySelector('[data-laadcirkel]'), 'laadcirkel tijdens het laden');
+  assert.equal(meer().getAttribute('aria-busy'), 'true');
+  assert.equal(meer().disabled, true);
+  assert.match(meer().textContent, /laden…$/);
+  assert.deepEqual({ from: zoek().at(-1).from, to: zoek().at(-1).to }, { from: '2026-10-15', to: '2026-11-01' });
+  wacht.shift()(); wacht = null;
+  await tick(); await tick();
+  assert.equal(meer().querySelector('[data-laadcirkel]'), null, 'klaar: geen cirkel meer');
+  assert.equal(document.querySelectorAll('[data-dag="2026-10-15"][data-start="08:00"]').length, 1, 'geen dubbele blokken');
+  assert.ok(document.querySelector('[data-dag="2026-10-30"]'), 'nieuwe dagen onder de lijst');
+  assert.equal(document.querySelector('[data-plan-tot]').textContent, '1 nov', 'periode loopt nu tot en met 1 november');
+  // Niet meer afgekapt: precies één week verder, alleen dat stuk ophalen.
   meer().click(); await tick(); await tick();
-  assert.equal(zoek().at(-1).limit, 48, 'meer blokken');
-  // Nu minder dan gevraagd (periode op): twee weken verder zoeken.
-  meer().click(); await tick(); await tick();
-  assert.equal(zoek().at(-1).to, '2026-11-08', 'twee weken verder');
-  assert.equal(document.querySelector('[data-plan-tot]').textContent, '8 nov', 'gekozen datum kort naast het kalendertje');
+  assert.deepEqual({ from: zoek().at(-1).from, to: zoek().at(-1).to }, { from: '2026-11-02', to: '2026-11-08' }, 'één week verder');
+  assert.equal(document.querySelector('[data-plan-tot]').textContent, '8 nov');
   assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot en met 8 november');
+  assert.ok(meer(), 'altijd verder te laden');
+});
+
+test('zijpaneel: planhulp - ook na Geen vrij blok gevonden kun je een week verder laden', async () => {
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to, lastDate: msg.to || '2026-10-25', gaps: msg.from ? [{ date: '2026-10-27', startMin: 600, endMin: 720, minutes: 120 }] : [] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.match(document.body.textContent, /Geen vrij blok van 1 u gevonden/);
+  document.querySelector('[data-plan-meer]').click(); await tick(); await tick();
+  const vraag = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-10-26', to: '2026-11-01' });
+  assert.ok(document.querySelector('[data-dag="2026-10-27"]'), 'de gevonden tijd van die week staat er');
 });
 
 test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () => {
