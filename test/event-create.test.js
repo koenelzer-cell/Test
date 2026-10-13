@@ -78,3 +78,9 @@ test('uursoorten zonder cliënt: ook andere groepen, behalve groepen die met Nie
   ]);
   assert.deepEqual(parseProductOptions(json), [{ id: 77, name: 'Teamoverleg', recent: true }], 'met cliënt: alleen de bekende groepen');
 });
+
+test('cliënten niet aanwezig: client_present false, standaard true', () => {
+  const basis = { date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142, hourTypeId: 5 }] };
+  assert.equal(buildEventPayload(basis).event.client_present, true);
+  assert.equal(buildEventPayload({ ...basis, clientPresent: false }).event.client_present, false);
+});

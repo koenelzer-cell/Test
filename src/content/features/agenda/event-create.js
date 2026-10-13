@@ -59,7 +59,7 @@ export function eventOptions(clientIds, opts) {
 }
 
 // events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }] (of clientId +
-//           hourTypeId), labelId, name, travelBefore, travelAfter }]
+//           hourTypeId), labelId, name, clientPresent, travelBefore, travelAfter }]
 //   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name }.
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
@@ -75,6 +75,7 @@ export async function createEvents(events, post) {
       // de uursoort op de afspraak zelf.
       clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),
       hourTypeId: e.nietClient === true ? e.hourTypeId : null, labelId: e.labelId, name: e.name,
+      clientPresent: e.clientPresent !== false,
       travelBefore: e.travelBefore, travelAfter: e.travelAfter
     }, meta);
     if (!payload) { results.push({ ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }); continue; }

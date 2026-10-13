@@ -337,8 +337,9 @@
     <div class="kaart" style="margin-bottom:14px">
       <h2>Cliëntgebonden afspraaktypes <span class="badge actief">actief</span></h2>
       <p class="uitleg">Keuze in de hulp → ONS-label(s) en gedrag. Klik op <b>Labels in ONS</b> om één of meerdere labels aan het afspraaktype te koppelen. Via <b>⚙</b> stel je per type de standaardduur, stapduur, maximale tijd en het informatielabel in.</p>
+      <p class="uitleg">Ook voor <b>Afspraak maken</b> in het zijpaneel: <b>Cliënt</b> bepaalt of de schakelaar <i>Cliënten zijn aanwezig</i> bij dit type standaard aan staat, en bij <b>Reistijd</b> kun je daar reistijd heen en terug invullen. Een type dat hier niet staat: cliënten aanwezig, reistijd alleen bij een huisbezoek.</p>
       <table id="tblChoices"><thead><tr>
-        <th class="center" title="Volgorde: laag = bovenaan, leeg = onderaan">Volg</th><th>Keuze in hulp</th><th>Labels in ONS</th><th class="center" title="Cliënt aanwezig">Cliënt</th><th class="center" title="Uursoort per cliënt">Uursoort</th><th class="center" title="Reistijdvraag">Reistijd</th><th class="center">Overige</th><th>Relevant voor (teams)</th><th></th>
+        <th class="center" title="Volgorde: laag = bovenaan, leeg = onderaan">Volg</th><th>Keuze in hulp</th><th>Labels in ONS</th><th class="center" title="Cliënt aanwezig (ook de standaard van 'Cliënten zijn aanwezig' in het zijpaneel)">Cliënt</th><th class="center" title="Uursoort per cliënt">Uursoort</th><th class="center" title="Reistijdvraag (ook reistijd invullen bij Afspraak maken in het zijpaneel)">Reistijd</th><th class="center">Overige</th><th>Relevant voor (teams)</th><th></th>
       </tr></thead><tbody></tbody></table>
       <div class="rijknoppen"><button class="knop klein" onclick="addChoice()">+ Regel</button></div>
       <label class="beheer-veld" style="margin-top:14px;max-width:640px"><span>Extra bekende labels (komma-gescheiden)</span><input id="extraLabels" type="text" placeholder="bijv. JG Overig" onchange="markDirty()"></label>

@@ -1044,6 +1044,127 @@ test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uurs
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
 });
 
+const TYPES_BEHEER = [
+  { label: 'Huisbezoek', etiketten: ['JG Huisbezoek'], clientPresent: true, addTravelTime: true },
+  { label: 'MDO', etiketten: ['JG MDO'], clientPresent: false, addTravelTime: false },
+  { label: 'Digitaal', etiketten: ['Beeldbellen'], clientPresent: true, addTravelTime: false },
+];
+function paneelMetTypes() {
+  return maakPaneel({
+    'ag-event-options': (msg, cb) => cb({ ok: true, metaKnown: true, labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }, { id: 48, name: 'Beeldbellen' }, { id: 49, name: 'JG MDO' }],
+      hourTypes: Object.fromEntries((msg.clientIds || []).map((c) => [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }]])) }),
+  }, { ...AGENDA_STATE_TOOLS, afspraakTypes: TYPES_BEHEER });
+}
+
+test('zijpaneel: afspraak maken - Cliënten zijn aanwezig volgt het afspraaktype uit beheer en is om te zetten', async () => {
+  const { document, dom, verzonden } = paneelMetTypes();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  const sw = () => document.querySelector('[data-maak-aanwezig]');
+  assert.equal(sw().getAttribute('role'), 'switch');
+  assert.equal(sw().getAttribute('aria-label'), 'Cliënten zijn aanwezig');
+  assert.match(sw().parentNode.textContent, /^Cliënten zijn aanwezig/);
+  assert.equal(sw().getAttribute('aria-checked'), 'true', 'Face to face: niet in beheer, dus aanwezig');
+  kies(document, dom, '[data-maak-type-alle]', '49');
+  assert.equal(sw().getAttribute('aria-checked'), 'false', 'JG MDO: in beheer zonder cliënt');
+  sw().click();
+  assert.equal(sw().getAttribute('aria-checked'), 'true', 'zelf om te zetten');
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  assert.equal(sw().getAttribute('aria-checked'), 'true', 'ander type: weer de standaard van dat type');
+  kies(document, dom, '[data-maak-type-alle]', '49');
+  assert.equal(sw().getAttribute('aria-checked'), 'false');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.clientPresent), [false, false], 'meegestuurd naar ONS');
+});
+
+test('zijpaneel: afspraak maken - reistijd invullen bij een type met reistijd (beheer, zoals Huisbezoek)', async () => {
+  const { document, dom, verzonden } = paneelMetTypes();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  assert.equal(document.querySelector('[data-maak-reis-alle]'), null, 'Face to face: geen reistijd');
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  assert.ok(document.querySelector('[data-maak-reis-alle]'), 'Huisbezoek: reistijd zonder Geavanceerd');
+  const vul = async (sel, v) => { const i = document.querySelector(sel); i.value = v; i.dispatchEvent(new dom.window.Event('input')); i.dispatchEvent(new dom.window.Event('change')); await tick(); };
+  await vul('[data-maak-reis-alle-heen]', '20');
+  await vul('[data-maak-reis-alle-terug]', '15');
+  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /reistijd 20 \/ 15 min/);
+  // Per afspraak aan te passen in de details.
+  document.querySelector('[data-maak-regel="1"]').click();
+  await vul('[data-maak-heen="1"]', '30');
+  // Ander type zonder reistijd: niets mee; terug naar Huisbezoek: weer erbij.
+  kies(document, dom, '[data-maak-type-alle]', '48');
+  assert.equal(document.querySelector('[data-maak-reis-alle]'), null);
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.travelBefore, e.travelAfter]), [[20, 15], [30, 15]], 'voor alle afspraken, met de eigen aanpassing');
+});
+
+test('zijpaneel: afspraak maken - van reistijd heen naar terug: de focus blijft in het veld waar je naartoe ging', async () => {
+  const { document, dom } = paneelMetTypes();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  const heen = document.querySelector('[data-maak-reis-alle-heen]');
+  heen.focus(); heen.value = '20'; heen.dispatchEvent(new dom.window.Event('input'));
+  // Zoals de browser het doet: eerst change op het oude veld, dan focus naar het nieuwe.
+  heen.dispatchEvent(new dom.window.Event('change'));
+  document.querySelector('[data-maak-reis-alle-terug]').focus();
+  await tick();
+  assert.equal(document.activeElement, document.querySelector('[data-maak-reis-alle-terug]'), 'na het opnieuw tekenen staat de focus in terug');
+  assert.equal(document.querySelector('[data-maak-reis-alle-heen]').value, '20');
+});
+
+test('zijpaneel: afspraak maken - reistijd telt niet bij een type zonder reistijd', async () => {
+  const { document, dom, verzonden } = paneelMetTypes();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  kies(document, dom, '[data-maak-type-alle]', '46');
+  const i = document.querySelector('[data-maak-reis-alle-heen]'); i.value = '20'; i.dispatchEvent(new dom.window.Event('input')); i.dispatchEvent(new dom.window.Event('change'));
+  kies(document, dom, '[data-maak-type-alle]', '48');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.travelBefore, e.travelAfter]), [[0, 0], [0, 0]]);
+});
+
+test('zijpaneel: afspraak maken - moment verwijderen na Weet je het zeker?', async () => {
+  const { document, dom } = maakPaneel();
+  await tweeMomenten(document);
+  const gevraagd = [];
+  let antwoord = false;
+  dom.window.confirm = (t) => { gevraagd.push(t); return antwoord; };
+  const regels = () => [...document.querySelectorAll('[data-maak-regel]')];
+  assert.equal(regels().length, 2);
+  document.querySelector('[data-maak-weg="0"]').click();
+  assert.deepEqual(gevraagd, ['Weet je het zeker?'], 'browsermelding');
+  assert.equal(regels().length, 2, 'Annuleren: blijft staan');
+  antwoord = true;
+  document.querySelector('[data-maak-weg="0"]').click();
+  assert.equal(regels().length, 1, 'OK: weg');
+  assert.match(regels()[0].textContent, /^Di 13 oktober/, 'het andere moment blijft');
+  assert.equal(document.querySelector('[data-maak-modus]'), null, 'bij één moment geen keuze zelfde of per afspraak');
+  document.querySelector('[data-maak-weg="0"]').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'laatste weg: terug naar de planhulp');
+  await tick();
+  assert.ok(document.querySelectorAll('[data-dag][data-start]').length > 0, 'de lijst staat er weer');
+  assert.equal(document.querySelectorAll('[data-dag][data-start][aria-pressed="true"]').length, 0, 'ook niet meer gekozen in de planhulp');
+  assert.equal(document.querySelector('[data-selectie]'), null, 'geen balk met gekozen momenten');
+});
+
+test('zijpaneel: afspraak maken - + Cliënt in roze', async () => {
+  const { document, dom } = maakPaneel();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  assert.equal(document.querySelector('[data-maak-plus]').style.color, 'rgb(204, 8, 125)');
+});
+
 test('zijpaneel: afspraak maken - niet cliëntgebonden weer uit: terug naar cliënten', async () => {
   const { document } = maakPaneel();
   await tweeMomenten(document);
@@ -1155,9 +1276,11 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   document.querySelector('[data-maak-regel="0"]').click();
   const heen = document.querySelector('[data-maak-heen="0"]');
   heen.value = '90'; heen.dispatchEvent(new dom.window.Event('input')); heen.dispatchEvent(new dom.window.Event('change'));
+  await tick();
   assert.match(document.querySelector('[data-maak-reis-conflict="0"]').textContent, /Reistijd heen \(90 min\) past niet: er is 60 min vrij voor 10:00\./);
   const heen2 = document.querySelector('[data-maak-heen="0"]');
   heen2.value = '45'; heen2.dispatchEvent(new dom.window.Event('input')); heen2.dispatchEvent(new dom.window.Event('change'));
+  await tick();
   assert.equal(document.querySelector('[data-maak-reis-conflict="0"]'), null, '45 min past wel');
   // Maken; daarna zoekt de planhulp de vrije tijd opnieuw.
   kies(document, dom, '[data-maak-uursoort="222"]', '5');

@@ -69,7 +69,7 @@ export function defaultEventName(labelName, clientName) {
 function reistijd(v) { var n = Math.round(Number(v)); return n > 0 ? Math.min(n, 240) : 0; }
 
 // spec: { date, startMin, minutes, employeeIds: [..], clients: [{ id, hourTypeId }],
-//         labelId, name, comment, travelBefore, travelAfter (minuten) }
+//         labelId, name, comment, clientPresent, travelBefore, travelAfter (minuten) }
 //   -> { event } of null als iets ontbreekt.
 // Niet cliëntgebonden: geen clients maar hourTypeId; de uursoort staat dan op
 // de afspraak zelf (hour_type_id) en client_present is false.
@@ -90,7 +90,8 @@ export function buildEventPayload(spec, meta) {
     end_time: isoLocalWithOffset(spec.date, eind),
     client_ids: cl.map(function (c) { return Number(c.id); }),
     client_information: info,
-    client_present: !zonderClient,
+    // Cliënten aanwezig: standaard ja; de planhulp kiest per afspraaktype.
+    client_present: !zonderClient && spec.clientPresent !== false,
     clients: [],
     comment: String(spec.comment || ''),
     custom_location: null,

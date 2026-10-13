@@ -21,7 +21,7 @@ import { searchClientsForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
 import { checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
-import { APP_CONFIG } from '../../config/app-config.js';
+import { APP_CONFIG, choiceLabels, effectiveChoices } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
@@ -56,6 +56,16 @@ const VERSION = SCRIPT_VERSION;
 
 // Alles wat het paneel nodig heeft, als platte waarden: het gaat als bericht
 // de extensie door, dus er mogen geen DOM-elementen of functies in.
+// Afspraaktypes uit het beheerscherm, voor Afspraak maken in het zijpaneel:
+// per type de ONS-labels en of de cliënt standaard aanwezig is en of er
+// reistijd bij hoort. Alleen namen en ja/nee.
+function afspraakTypesVoorPaneel() {
+  try {
+    return effectiveChoices().map(function (c) {
+      return { label: String(c.label || ''), etiketten: choiceLabels(c), clientPresent: c.clientPresent !== false, addTravelTime: !!c.addTravelTime };
+    });
+  } catch (e) { return []; }
+}
 function agPanelState() {
   var res = (agendaPage._agLastEntries && agendaPage._agLastEntries.length) ? computeTotalsApi() : computeTotals();
   var view = currentCalendarView();
@@ -110,6 +120,7 @@ function agPanelState() {
     routeEnabled: routeEnabled(),
     // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
     features: panelFeatures(),
+    afspraakTypes: afspraakTypesVoorPaneel(),
     // Rijtijden-server (alleen https); leeg = niet ingesteld.
     routesProxy: routesProxyVoorPaneel(),
     // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.

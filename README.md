@@ -249,11 +249,20 @@ en oker).
   zoekt hij ook cliënten uit zorg, `out_of_care=true`, met het label 'Uit
   zorg'), daarna een compacte regel met initialen, naam,
   de labels 'Cl 106839' en de postcode, en rechts de uursoort (een rood !
-  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken. Dan
+  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken, de
+  schakelaar **Cliënten zijn aanwezig** (`client_present`; standaard volgens
+  de kolom *Cliënt* bij Afspraaktypes in het beheerscherm, een type dat daar
+  niet staat: aan; zelf omzetten kan, een ander type zet hem weer op de
+  standaard van dat type) en bij een type met reistijd (kolom *Reistijd* in
+  beheer; niet ingesteld: alleen een huisbezoek) **Reistijd** heen en terug
+  voor alle afspraken, per afspraak aan te passen. Dan
   **Afspraken**: per afspraak één regel met dag en tijd ('Do 8 oktober',
   '10:45 tot 11:45'), het type en de cliënten eronder ('Tamara en Bram'); tik
   om type (alleen deze afspraak; dan het label 'Eigen type'), titel en (bij
-  Geavanceerd) reistijd te wijzigen. De titel in ONS wordt bijvoorbeeld
+  Geavanceerd of een type met reistijd) reistijd te wijzigen. Het kruisje
+  achter een regel haalt dat moment weg, na de browsermelding 'Weet je het
+  zeker?' (ook uit de keuze in de planhulp; het laatste weg = terug naar de
+  planhulp). De titel in ONS wordt bijvoorbeeld
   'Huisbezoek Tamara en Bram'. Bij
   *Per afspraak anders* staan de cliënten (ook meerdere, '+ Cliënt') per
   afspraak in de regel. Onderin: 'n afspraken maken in ONS' (pas als elke

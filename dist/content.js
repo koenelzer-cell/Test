@@ -10986,7 +10986,8 @@
         return Number(c.id);
       }),
       client_information: info,
-      client_present: !zonderClient,
+      // Cliënten aanwezig: standaard ja; de planhulp kiest per afspraaktype.
+      client_present: !zonderClient && spec.clientPresent !== false,
       clients: [],
       comment: String(spec.comment || ""),
       custom_location: null,
@@ -11080,6 +11081,7 @@
         hourTypeId: e.nietClient === true ? e.hourTypeId : null,
         labelId: e.labelId,
         name: e.name,
+        clientPresent: e.clientPresent !== false,
         travelBefore: e.travelBefore,
         travelAfter: e.travelAfter
       }, meta);
@@ -11242,7 +11244,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.264";
+      return "1.6.265";
     }
   }();
 
@@ -14203,6 +14205,15 @@
     return uit;
   }
   var VERSION = SCRIPT_VERSION;
+  function afspraakTypesVoorPaneel() {
+    try {
+      return effectiveChoices().map(function(c) {
+        return { label: String(c.label || ""), etiketten: choiceLabels(c), clientPresent: c.clientPresent !== false, addTravelTime: !!c.addTravelTime };
+      });
+    } catch (e) {
+      return [];
+    }
+  }
   function agPanelState() {
     var res = agendaPage._agLastEntries && agendaPage._agLastEntries.length ? computeTotalsApi() : computeTotals();
     var view = currentCalendarView();
@@ -14259,6 +14270,7 @@
       routeEnabled: routeEnabled(),
       // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
       features: panelFeatures(),
+      afspraakTypes: afspraakTypesVoorPaneel(),
       // Rijtijden-server (alleen https); leeg = niet ingesteld.
       routesProxy: routesProxyVoorPaneel(),
       // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
