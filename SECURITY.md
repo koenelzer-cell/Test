@@ -169,9 +169,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   afspraak klaarzette, en alleen in velden die nog leeg zijn. Het script leest
   uit dat model niets anders (geen medewerkers of cliënten) en verstuurt niets;
   opslaan doet de medewerker zelf in het ONS-formulier.
-  Daarnaast zet het script op verzoek van de afspraakhulp de labels en de
-  uursoort per cliënt van het open afspraakformulier, via de functies die
-  ONS' Vue-formulier zelf voor die velden gebruikt. Het verzoek komt via
+  Daarnaast zet of wist het script op verzoek van de afspraakhulp de labels
+  en de uursoort per cliënt van het open afspraakformulier, via de functies
+  die ONS' Vue-formulier zelf voor die velden gebruikt. Vanuit de planhulp
+  staan daarvoor kort (hooguit twee minuten, in de sessie van het tabblad)
+  het interne cliënt-id, het uursoort-id en de naam van de uursoort klaar,
+  geen cliëntnaam. Het verzoek komt via
   `postMessage` en wordt alleen aangenomen van dezelfde origin en hetzelfde
   venster; het bevat alleen labelnamen, of een uursoort-id met de naam van de
   uursoort en een kenmerk van het veld. Het script leest alleen id en naam

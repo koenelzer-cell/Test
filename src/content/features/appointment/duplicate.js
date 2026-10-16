@@ -135,6 +135,7 @@ function volgendeEigen(eigen, bodyText) {
   if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
   // En het eigen afspraaktype.
   if (volgende.label) klaar.label = volgende.label;
+  if (volgende.uursoorten) klaar.uursoorten = volgende.uursoorten;
   storePendingAppointment(klaar);
   let ids = [];
   try { const ev = JSON.parse(String(bodyText || '')).event; ids = (ev && ev.employee_ids || []).map(String); } catch (e) {}

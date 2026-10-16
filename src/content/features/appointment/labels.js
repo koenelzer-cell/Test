@@ -14,7 +14,7 @@ import {
   uiText,
 } from '../../ons/form-controls.js';
 import { getEtiketTrigger, labelChips } from '../../ons/appointment-form.js';
-import { zetLabelsViaFormulier } from '../../ons/form-model.js';
+import { wisLabelsViaFormulier, zetLabelsViaFormulier } from '../../ons/form-model.js';
 import { clickEmptyModalSpot, rowForOptionText } from '../../ons/interaction.js';
 import { setStatus } from '../../screen/status.js';
 
@@ -58,6 +58,18 @@ export function clearKnownLabels(onDone, attempt = 0) {
   if (!trigger) { if (onDone) onDone(false); return; }
   const chips = labelChips(trigger);
   if (!chips.length) { if (onDone) onDone(true); return; }
+  // Eerst rechtstreeks in het formulier (geen chips aanklikken); staan er
+  // daarna nog chips, dan verder zoals vroeger.
+  if (attempt === 0) {
+    wisLabelsViaFormulier().then((ok) => {
+      if (!ok) { clearKnownLabels(onDone, 1); return; }
+      setTimeout(() => {
+        if (!labelChips(getEtiketTrigger() || trigger).length) { if (onDone) onDone(true); }
+        else clearKnownLabels(onDone, 1);
+      }, 120);
+    });
+    return;
+  }
   // Klik elke chip-verwijderknop één keer. NOOIT via de dropdown wissen: een klik
   // op een dropdown-optie ZET het label juist - dat was de bug waarbij 'Verwijder
   // instellingen' (na handmatig verwijderen) het label terugplaatste.

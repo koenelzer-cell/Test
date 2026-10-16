@@ -1297,6 +1297,11 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   assert.deepEqual(form.eigen.map((e) => e.label), [{ id: 46, name: 'Huisbezoek' }]);
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
+  // Nu ook de gekozen uursoorten per cliënt naar het formulier.
+  knop(document, 'ONS Afspraakformulier').click();
+  const form2 = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
+  assert.deepEqual(form2.uursoorten, [{ clientId: '222', hourTypeId: 5, name: 'JW BG H10 Individuele BG midde' }]);
+  assert.deepEqual(form2.eigen[0].uursoorten, [{ clientId: '11142', hourTypeId: 1135, name: 'Behandeling (GGZ 18+)' }, { clientId: '222', hourTypeId: 5, name: 'JW BG H10 Individuele BG midde' }]);
   document.querySelector('[data-maak-knop]').click();
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;

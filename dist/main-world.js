@@ -7,11 +7,11 @@
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
-    // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+    // { id, labels: ['JG Huisbezoek', …] } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten of wissen
     LABELS_SET: "labelsGezet",
     // { id, ok, reden? }
     SET_HOUR_TYPE: "zetUursoort",
-    // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+    // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet"
     // { id, ok, reden? }
   };
@@ -21,7 +21,7 @@
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
-    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel)
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
@@ -305,6 +305,16 @@
       }
     }
     installDetailsWatcher();
+    function diepZoekAlle(root, sel, uit) {
+      uit = uit || [];
+      root.querySelectorAll(sel).forEach(function(e) {
+        uit.push(e);
+      });
+      root.querySelectorAll("*").forEach(function(e) {
+        if (e.shadowRoot) diepZoekAlle(e.shadowRoot, sel, uit);
+      });
+      return uit;
+    }
     function diepZoek(root, sel) {
       var gevonden = root.querySelector(sel);
       if (gevonden) return gevonden;
@@ -354,6 +364,19 @@
       var v = vueVnodeVan(veld);
       if (!v) {
         klaar({ ok: false, reden: "geen Vue-koppeling" });
+        return;
+      }
+      if (!namen.length) {
+        try {
+          v.props["onUpdate:modelValue"]([]);
+        } catch (e) {
+          klaar({ ok: false, reden: "ONS weigerde de waarde" });
+          return;
+        }
+        setTimeout(function() {
+          var na = vueVnodeVan(veld), nu = na ? propVan(na, "model-value", "modelValue") : null;
+          klaar(Array.isArray(nu) && !nu.length ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
+        }, 80);
         return;
       }
       var beschikbaar = propVan(v, "available-labels", "availableLabels");
@@ -406,15 +429,38 @@
       }
       return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
     }
+    function uursoortVeldVoorClient(clientId) {
+      var velden = diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]');
+      for (var i = 0; i < velden.length; i++) {
+        var v = vueVnodeVan(velden[i]);
+        var cids = v ? propVan(v, "client-ids", "clientIds") : null;
+        if (Array.isArray(cids) && cids.map(Number).indexOf(Number(clientId)) >= 0) return velden[i];
+      }
+      return null;
+    }
     function zetUursoort(d, klaar) {
-      var doelNaam = String(d.doel || "");
+      var wis = d.wis === true;
       var id = Number(d.hourTypeId);
-      if (!/^[\w-]{1,60}$/.test(doelNaam) || !(id > 0)) {
+      if (!wis && !(id > 0)) {
         klaar({ ok: false, reden: "ongeldig verzoek" });
         return;
       }
-      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
-      var veld = doel ? uursoortVeldBij(doel) : null;
+      var veld = null;
+      if (d.clientId != null) {
+        if (!/^\d{1,12}$/.test(String(d.clientId))) {
+          klaar({ ok: false, reden: "ongeldig verzoek" });
+          return;
+        }
+        veld = uursoortVeldVoorClient(d.clientId);
+      } else {
+        var doelNaam = String(d.doel || "");
+        if (!/^[\w-]{1,60}$/.test(doelNaam)) {
+          klaar({ ok: false, reden: "ongeldig verzoek" });
+          return;
+        }
+        var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+        veld = doel ? uursoortVeldBij(doel) : null;
+      }
       if (!veld) {
         klaar({ ok: false, reden: "geen uursoortveld" });
         return;
@@ -425,7 +471,8 @@
         return;
       }
       try {
-        v.props["onUpdate:modelValue"](id, String(d.beschrijving == null ? "" : d.beschrijving).slice(0, 200));
+        if (wis) v.props["onUpdate:modelValue"](null, "");
+        else v.props["onUpdate:modelValue"](id, String(d.beschrijving == null ? "" : d.beschrijving).slice(0, 200));
       } catch (e) {
         klaar({ ok: false, reden: "ONS weigerde de waarde" });
         return;
@@ -433,7 +480,8 @@
       setTimeout(function() {
         var na = vueVnodeVan(veld);
         var nu = na ? propVan(na, "model-value", "modelValue") : null;
-        var ok = Number(nu && typeof nu === "object" ? nu.id : nu) === id;
+        var waarde = nu && typeof nu === "object" ? nu.id : nu;
+        var ok = wis ? waarde == null || waarde === "" : Number(waarde) === id;
         klaar(ok ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
       }, 80);
     }
@@ -447,7 +495,7 @@
           var namen = (Array.isArray(d.labels) ? d.labels : []).map(function(x) {
             return String(x == null ? "" : x).slice(0, 100);
           }).filter(Boolean).slice(0, 10);
-          if (!namen.length) {
+          if (!namen.length && d.wis !== true) {
             post(PAGE_COMMAND.LABELS_SET, { id, ok: false, reden: "geen labels" });
             return;
           }

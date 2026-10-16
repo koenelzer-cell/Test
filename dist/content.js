@@ -2293,7 +2293,7 @@
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
-    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel)
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
@@ -3432,11 +3432,11 @@
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
-    // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+    // { id, labels: ['JG Huisbezoek', …] } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten of wissen
     LABELS_SET: "labelsGezet",
     // { id, ok, reden? }
     SET_HOUR_TYPE: "zetUursoort",
-    // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+    // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet"
     // { id, ok, reden? }
   };
@@ -5784,6 +5784,9 @@
     if (!lijst.length) return Promise.resolve(false);
     return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst }, wachtMs);
   }
+  function wisLabelsViaFormulier(wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
+  }
   function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
     if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
     const doel = "u" + ++volgnummer + "-" + Date.now();
@@ -5804,6 +5807,31 @@
       }
       return ok;
     });
+  }
+  function wisUursoortViaFormulier(veld, wachtMs) {
+    if (!veld || !veld.setAttribute) return Promise.resolve(false);
+    const doel = "w" + ++volgnummer + "-" + Date.now();
+    try {
+      veld.setAttribute("data-onsah-doel", doel);
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+    return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel, wis: true }, wachtMs).then((ok) => {
+      try {
+        veld.removeAttribute("data-onsah-doel");
+      } catch (e) {
+      }
+      return ok;
+    });
+  }
+  function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
+    if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
+    return vraagMainWorld(
+      PAGE_COMMAND.SET_HOUR_TYPE,
+      PAGE_COMMAND.HOUR_TYPE_SET,
+      { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
+      wachtMs
+    );
   }
   function vraagMainWorld(type, antwoordType, velden, wachtMs) {
     return new Promise((klaar) => {
@@ -6182,6 +6210,20 @@
     const chips = labelChips(trigger);
     if (!chips.length) {
       if (onDone) onDone(true);
+      return;
+    }
+    if (attempt === 0) {
+      wisLabelsViaFormulier().then((ok) => {
+        if (!ok) {
+          clearKnownLabels(onDone, 1);
+          return;
+        }
+        setTimeout(() => {
+          if (!labelChips(getEtiketTrigger() || trigger).length) {
+            if (onDone) onDone(true);
+          } else clearKnownLabels(onDone, 1);
+        }, 120);
+      });
       return;
     }
     for (const chip of chips) clickOption(chip.el);
@@ -15148,6 +15190,13 @@
       if (onDone) onDone();
       return;
     }
+    wisUursoortViaFormulier(trigger).then((ok) => {
+      if (ok) {
+        if (onDone) onDone();
+      } else clearUursoortViaDropdown(onDone, trigger);
+    });
+  }
+  function clearUursoortViaDropdown(onDone, trigger) {
     const currentText = clean(uiText(trigger));
     const openedBy = openSelectCombobox(trigger) || trigger;
     setTimeout(() => {
@@ -15410,6 +15459,8 @@
     const klaar = { date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() };
     const model = modelVelden(req, minutes);
     if (model) klaar.model = model;
+    if (Array.isArray(req.uursoorten) && req.uursoorten.length) klaar.uursoorten = req.uursoorten;
+    if (req.uursoortAfspraak) klaar.uursoortAfspraak = req.uursoortAfspraak;
     try {
       sessionStorage.setItem(KEY2, JSON.stringify(klaar));
     } catch (e) {
@@ -15482,6 +15533,7 @@
     if (!p) return;
     _bezig = true;
     _geplandeDuur = p.minutes > 0 ? p.minutes : null;
+    vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
     const datum = onsDateText(p.date);
     let pogingen = 0;
     const tik = () => {
@@ -15510,6 +15562,26 @@
       }
     };
     setTimeout(tik, 300);
+  }
+  function vulUursoorten(perClient, opAfspraak) {
+    let rest = perClient.slice();
+    let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
+    if (!rest.length && !afspraak) return;
+    let pogingen = 0;
+    const stap = () => {
+      pogingen++;
+      const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => ok ? u : null));
+      if (afspraak) {
+        const veld = findNonClientUursoortTrigger();
+        werk.push(veld ? zetUursoortViaFormulier(veld, afspraak.hourTypeId, afspraak.name).then((ok) => ok ? "afspraak" : null) : Promise.resolve(null));
+      }
+      Promise.all(werk).then((gelukt) => {
+        rest = rest.filter((u) => gelukt.indexOf(u) < 0);
+        if (gelukt.indexOf("afspraak") >= 0) afspraak = null;
+        if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
+      });
+    };
+    setTimeout(stap, 500);
   }
 
   // src/content/features/appointment/duplicate.js
@@ -15651,6 +15723,7 @@
     var klaar = { date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) };
     if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
     if (volgende.label) klaar.label = volgende.label;
+    if (volgende.uursoorten) klaar.uursoorten = volgende.uursoorten;
     storePendingAppointment(klaar);
     let ids = [];
     try {
@@ -15944,7 +16017,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.275";
+      return "1.6.276";
     }
   }();
 
@@ -18789,7 +18862,24 @@
       var naam = String(l && l.name || "").trim();
       return l && Number(l.id) > 0 && naam ? { id: Number(l.id), name: naam.slice(0, 100) } : null;
     };
-    storePendingAppointment({ date: ymd3, time: hhmm, minutes, label: leesLabel(req.label) });
+    var leesUursoorten = function(l) {
+      return (Array.isArray(l) ? l : []).map(function(u) {
+        var cid = String(u && u.clientId || ""), id2 = Number(u && u.hourTypeId);
+        return /^\d{1,12}$/.test(cid) && id2 > 0 ? { clientId: cid, hourTypeId: id2, name: String(u && u.name || "").trim().slice(0, 200) } : null;
+      }).filter(Boolean).slice(0, 10);
+    };
+    var leesAfspraakUursoort = function(u) {
+      var id2 = Number(u && u.hourTypeId);
+      return id2 > 0 ? { hourTypeId: id2, name: String(u && u.name || "").trim().slice(0, 200) } : null;
+    };
+    storePendingAppointment({
+      date: ymd3,
+      time: hhmm,
+      minutes,
+      label: leesLabel(req.label),
+      uursoorten: leesUursoorten(req.uursoorten),
+      uursoortAfspraak: leesAfspraakUursoort(req.uursoortAfspraak)
+    });
     var clientLijst = function(l) {
       return (Array.isArray(l) ? l : []).map(String).filter(function(c) {
         return /^\d+$/.test(c);
@@ -18806,6 +18896,8 @@
         if (cl.length) uit.clientIds = cl;
         var lb = leesLabel(m.label);
         if (lb) uit.label = lb;
+        var us = leesUursoorten(m.uursoorten);
+        if (us.length) uit.uursoorten = us;
         return uit;
       }).filter(Boolean);
     };

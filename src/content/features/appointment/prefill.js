@@ -17,6 +17,8 @@ import { inputTextValue, typeIntoSearchField } from '../../ons/form-controls.js'
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { setAppointmentEndTimePlusMinutes } from './end-time.js';
 import { isoLocalWithOffset } from '../../domain/open-registrations.js';
+import { zetUursoortViaFormulier, zetUursoortVoorClient } from '../../ons/form-model.js';
+import { findNonClientUursoortTrigger } from './non-client.js';
 
 const KEY = PAGE_SESSION.PENDING_APPOINTMENT;
 const GELDIG_MS = 2 * 60 * 1000;   // een klaargezet tijdstip geldt twee minuten
@@ -30,6 +32,9 @@ export function storePendingAppointment(req) {
   const klaar = { date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() };
   const model = modelVelden(req, minutes);
   if (model) klaar.model = model;
+  // Gekozen uursoorten (alleen id's en de naam van de uursoort).
+  if (Array.isArray(req.uursoorten) && req.uursoorten.length) klaar.uursoorten = req.uursoorten;
+  if (req.uursoortAfspraak) klaar.uursoortAfspraak = req.uursoortAfspraak;
   try { sessionStorage.setItem(KEY, JSON.stringify(klaar)); } catch (e) {}
 }
 // Velden voor het lege afspraakmodel van ONS, in de vorm van ONS zelf:
@@ -92,6 +97,7 @@ export function applyPendingAppointment() {
   if (!p) return;
   _bezig = true;
   _geplandeDuur = p.minutes > 0 ? p.minutes : null;
+  vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
   const datum = onsDateText(p.date);
   let pogingen = 0;
   const tik = () => {
@@ -114,4 +120,29 @@ export function applyPendingAppointment() {
     else { clearPending(); _bezig = false; }
   };
   setTimeout(tik, 300);
+}
+
+// De uursoorten uit de planhulp in het formulier zetten, via de Vue-koppeling
+// van het uursoortveld (geen dropdown). De velden verschijnen pas als de
+// cliënten in het formulier staan: zo nodig een paar keer opnieuw proberen
+// (hooguit ~10 s). Wat niet lukt, vraagt de afspraakhulp zoals altijd.
+function vulUursoorten(perClient, opAfspraak) {
+  let rest = perClient.slice();
+  let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
+  if (!rest.length && !afspraak) return;
+  let pogingen = 0;
+  const stap = () => {
+    pogingen++;
+    const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => (ok ? u : null)));
+    if (afspraak) {
+      const veld = findNonClientUursoortTrigger();
+      werk.push(veld ? zetUursoortViaFormulier(veld, afspraak.hourTypeId, afspraak.name).then((ok) => (ok ? 'afspraak' : null)) : Promise.resolve(null));
+    }
+    Promise.all(werk).then((gelukt) => {
+      rest = rest.filter((u) => gelukt.indexOf(u) < 0);
+      if (gelukt.indexOf('afspraak') >= 0) afspraak = null;
+      if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
+    });
+  };
+  setTimeout(stap, 500);
 }

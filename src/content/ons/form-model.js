@@ -16,6 +16,11 @@ export function zetLabelsViaFormulier(namen, wachtMs) {
   return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst }, wachtMs);
 }
 
+// Alle labels weghalen (Verwijder instellingen). -> Promise<boolean>
+export function wisLabelsViaFormulier(wachtMs) {
+  return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
+}
+
 // De uursoort van één uursoortveld (per cliënt) zetten. veld: het
 // uursoortveld of een element erin/eromheen; het krijgt even een kenmerk
 // (data-onsah-doel) zodat de main-world precies dit veld vindt.
@@ -27,6 +32,23 @@ export function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs)
   return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
     { doel: doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs)
     .then((ok) => { try { veld.removeAttribute('data-onsah-doel'); } catch (e) {} return ok; });
+}
+
+// De uursoort van een uursoortveld weghalen. -> Promise<boolean>
+export function wisUursoortViaFormulier(veld, wachtMs) {
+  if (!veld || !veld.setAttribute) return Promise.resolve(false);
+  const doel = 'w' + (++volgnummer) + '-' + Date.now();
+  try { veld.setAttribute('data-onsah-doel', doel); } catch (e) { return Promise.resolve(false); }
+  return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel: doel, wis: true }, wachtMs)
+    .then((ok) => { try { veld.removeAttribute('data-onsah-doel'); } catch (e) {} return ok; });
+}
+
+// De uursoort van de cliënt met dit (interne) id, vanuit de planhulp: de
+// main-world vindt het veld zelf aan de cliënt. -> Promise<boolean>
+export function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
+  if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
+  return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
+    { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs);
 }
 
 function vraagMainWorld(type, antwoordType, velden, wachtMs) {

@@ -142,6 +142,10 @@ afspraakniveau (dat ONS alleen toont zolang er geen cliënt aan de afspraak
 hangt); het id komt dan uit de uursoorten van de medewerker zonder cliënt
 (`product_list?employee_ids[]=…`), met of zonder sterretje achter de naam.
 
+Ook weghalen gaat zo: 'Verwijder instellingen' en het wissen van een
+uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te
+klikken of de dropdown te openen.
+
 In het beheerscherm blijft alles op naam staan (afspraaktypes, labels,
 uursoorten): de hulp zoekt de id's zelf op in wat ONS het formulier geeft.
 Lukt het rechtstreeks zetten niet (onbekende naam, ander formulier na een
@@ -340,8 +344,11 @@ en oker).
   afspraakmodel waaruit ONS het formulier opbouwt (`GET
   /calendar/events/new`), in plaats van ze in de velden te typen en het label
   aan te klikken. Lukt dat niet, dan vult de hulp ze zoals vroeger in. De
-  uursoort kies je nog in het formulier: die hoort bij de cliënt en staat
-  niet in dat lege model. Instellingen van het formulier (`meta`, alleen ja/nee en
+  uursoort die je per cliënt koos (of bij een niet-cliëntgebonden afspraak
+  de uursoort van de afspraak) zet de hulp in het formulier zodra de
+  cliënten erin staan, via het uursoortveld van die cliënt (zonder
+  dropdown). Lukt dat niet, dan vraagt de afspraakhulp de uursoort zoals
+  altijd. Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat.
   Zodra de cliënt(en) gekozen zijn, kijkt de hulp elke afspraak opnieuw na
   met ONS' overlapcontrole, nu met de cliënt(en) erbij ('ONS: overlap' als de

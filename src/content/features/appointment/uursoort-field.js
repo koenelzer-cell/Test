@@ -24,7 +24,7 @@ import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { findNonClientUursoortTrigger } from './non-client.js';
 import { deepQueryAll } from '../../ons/dom.js';
-import { zetUursoortViaFormulier } from '../../ons/form-model.js';
+import { wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
 import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
 
 // Zet de uursoort op het afspraak-detailniveau (combobox "Zoek naar uursoorten")
@@ -145,6 +145,13 @@ function clearUursoortSearchInput(openedBy, trigger) {
 export function clearUursoort(onDone, triggerArg = null) {
   const trigger = triggerArg || getUursoortTrigger();
   if (!trigger) { if (onDone) onDone(); return; }
+  // Eerst rechtstreeks in het formulier (geen dropdown); lukt dat niet, dan
+  // zoals vroeger.
+  wisUursoortViaFormulier(trigger).then((ok) => {
+    if (ok) { if (onDone) onDone(); } else clearUursoortViaDropdown(onDone, trigger);
+  });
+}
+function clearUursoortViaDropdown(onDone, trigger) {
   const currentText = clean(uiText(trigger));
   const openedBy = openSelectCombobox(trigger) || trigger;
   setTimeout(() => {

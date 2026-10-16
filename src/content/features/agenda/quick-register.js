@@ -32,7 +32,20 @@ export function openNewEvent(req) {
     var naam = String((l && l.name) || '').trim();
     return l && Number(l.id) > 0 && naam ? { id: Number(l.id), name: naam.slice(0, 100) } : null;
   };
-  storePendingAppointment({ date: ymd, time: hhmm, minutes: minutes, label: leesLabel(req.label) });
+  // Uursoort per cliënt ({ clientId, hourTypeId, name }) en op afspraakniveau
+  // (niet cliëntgebonden): de hulp zet ze zodra het formulier open is.
+  var leesUursoorten = function (l) {
+    return (Array.isArray(l) ? l : []).map(function (u) {
+      var cid = String((u && u.clientId) || ''), id = Number(u && u.hourTypeId);
+      return /^\d{1,12}$/.test(cid) && id > 0 ? { clientId: cid, hourTypeId: id, name: String((u && u.name) || '').trim().slice(0, 200) } : null;
+    }).filter(Boolean).slice(0, 10);
+  };
+  var leesAfspraakUursoort = function (u) {
+    var id = Number(u && u.hourTypeId);
+    return id > 0 ? { hourTypeId: id, name: String((u && u.name) || '').trim().slice(0, 200) } : null;
+  };
+  storePendingAppointment({ date: ymd, time: hhmm, minutes: minutes, label: leesLabel(req.label),
+    uursoorten: leesUursoorten(req.uursoorten), uursoortAfspraak: leesAfspraakUursoort(req.uursoortAfspraak) });
   // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
   // Momenten met eigen instellingen krijgen daarna elk een nieuw formulier.
   // Cliënt(en) uit de planhulp (interne id's): komen meteen in het formulier.
@@ -49,6 +62,8 @@ export function openNewEvent(req) {
       if (cl.length) uit.clientIds = cl;
       var lb = leesLabel(m.label);
       if (lb) uit.label = lb;
+      var us = leesUursoorten(m.uursoorten);
+      if (us.length) uit.uursoorten = us;
       return uit;
     }).filter(Boolean);
   };

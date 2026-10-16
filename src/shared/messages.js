@@ -74,8 +74,8 @@ export const PAGE_BRIDGE = {
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
 // antwoord (dir FROM_MAIN, met hetzelfde id).
 export const PAGE_COMMAND = {
-  SET_LABELS: 'zetLabels',      // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+  SET_LABELS: 'zetLabels',      // { id, labels: ['JG Huisbezoek', …] } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten of wissen
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
-  SET_HOUR_TYPE: 'zetUursoort', // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+  SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
 };

@@ -7618,6 +7618,19 @@
       var metType = function(uit, it) {
         var naam = !mk.nietClient && it.labelId ? typeNaamVan(mk, it.labelId) : "";
         if (naam) uit.label = { id: Number(it.labelId), name: naam };
+        if (mk.nietClient) {
+          if (mk.ncUursoort) uit.uursoortAfspraak = { hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) };
+          return uit;
+        }
+        var us = clientsVan(mk, it).map(function(c) {
+          var id = mk.uursoort[c.clientId];
+          if (!id) return null;
+          var t = (Array.isArray(mk.hourTypes[c.clientId]) ? mk.hourTypes[c.clientId] : []).filter(function(x) {
+            return String(x.id) === String(id);
+          })[0];
+          return { clientId: String(c.clientId), hourTypeId: Number(id), name: t ? t.name : "" };
+        }).filter(Boolean);
+        if (us.length) uit.uursoorten = us;
         return uit;
       };
       var eerste = items[0];

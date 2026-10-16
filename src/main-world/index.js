@@ -307,6 +307,12 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      subTree, children, dynamicChildren, el en props.
      PRIVACY: we lezen alleen id en naam van de beschikbare labels.
      ---------------------------------------------------------------------- */
+  function diepZoekAlle(root, sel, uit) {
+    uit = uit || [];
+    root.querySelectorAll(sel).forEach(function (e) { uit.push(e); });
+    root.querySelectorAll('*').forEach(function (e) { if (e.shadowRoot) diepZoekAlle(e.shadowRoot, sel, uit); });
+    return uit;
+  }
   function diepZoek(root, sel) {
     var gevonden = root.querySelector(sel);
     if (gevonden) return gevonden;
@@ -341,11 +347,20 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   function labelId(x) { return x && typeof x === 'object' ? Number(x.id) : Number(x); }
   // namen -> { ok, reden? }. Zelfde herkenning als de chips: exact, anders
   // een label waarvan de naam het gevraagde bevat (alleen als dat er één is).
+  // namen leeg = alle labels weghalen (Verwijder instellingen).
   function zetLabels(namen, klaar) {
     var veld = diepZoek(document, '[data-qa="label_select"]');
     if (!veld) { klaar({ ok: false, reden: 'geen labelveld' }); return; }
     var v = vueVnodeVan(veld);
     if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
+    if (!namen.length) {
+      try { v.props['onUpdate:modelValue']([]); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
+      setTimeout(function () {
+        var na = vueVnodeVan(veld), nu = na ? propVan(na, 'model-value', 'modelValue') : null;
+        klaar(Array.isArray(nu) && !nu.length ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
+      }, 80);
+      return;
+    }
     var beschikbaar = propVan(v, 'available-labels', 'availableLabels');
     if (!Array.isArray(beschikbaar) || !beschikbaar.length) { klaar({ ok: false, reden: 'geen beschikbare labels' }); return; }
     var gekozen = [];
@@ -386,21 +401,44 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     }
     return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
   }
+  // Het uursoortveld van een cliënt (vanuit de planhulp): het veld waarvan
+  // de vnode die cliënt in client-ids heeft.
+  function uursoortVeldVoorClient(clientId) {
+    var velden = diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]');
+    for (var i = 0; i < velden.length; i++) {
+      var v = vueVnodeVan(velden[i]);
+      var cids = v ? propVan(v, 'client-ids', 'clientIds') : null;
+      if (Array.isArray(cids) && cids.map(Number).indexOf(Number(clientId)) >= 0) return velden[i];
+    }
+    return null;
+  }
+  // d: { doel | clientId, hourTypeId, beschrijving } of { doel, wis: true }.
   function zetUursoort(d, klaar) {
-    var doelNaam = String(d.doel || '');
+    var wis = d.wis === true;
     var id = Number(d.hourTypeId);
-    if (!/^[\w-]{1,60}$/.test(doelNaam) || !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-    var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
-    var veld = doel ? uursoortVeldBij(doel) : null;
+    if (!wis && !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+    var veld = null;
+    if (d.clientId != null) {
+      if (!/^\d{1,12}$/.test(String(d.clientId))) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+      veld = uursoortVeldVoorClient(d.clientId);
+    } else {
+      var doelNaam = String(d.doel || '');
+      if (!/^[\w-]{1,60}$/.test(doelNaam)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+      veld = doel ? uursoortVeldBij(doel) : null;
+    }
     if (!veld) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
     var v = vueVnodeVan(veld);
     if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
-    try { v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200)); }
-    catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
+    try {
+      if (wis) v.props['onUpdate:modelValue'](null, '');
+      else v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200));
+    } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
     setTimeout(function () {
       var na = vueVnodeVan(veld);
       var nu = na ? propVan(na, 'model-value', 'modelValue') : null;
-      var ok = Number(nu && typeof nu === 'object' ? nu.id : nu) === id;
+      var waarde = nu && typeof nu === 'object' ? nu.id : nu;
+      var ok = wis ? (waarde == null || waarde === '') : Number(waarde) === id;
       klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
     }, 80);
   }
@@ -412,7 +450,8 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       var id = String(d.id || '').slice(0, 60);
       if (d.type === PAGE_COMMAND.SET_LABELS) {
         var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
-        if (!namen.length) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
+        // Leeg mag alleen als bewust wissen (wis: true).
+        if (!namen.length && d.wis !== true) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
         zetLabels(namen, function (r) { post(PAGE_COMMAND.LABELS_SET, Object.assign({ id: id }, r)); });
       } else if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) {
         zetUursoort(d, function (r) { post(PAGE_COMMAND.HOUR_TYPE_SET, Object.assign({ id: id }, r)); });

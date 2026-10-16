@@ -232,3 +232,43 @@ test('niet-cliëntgebonden: het id bij de naam uit de uursoorten van de medewerk
   assert.ok(urls.every((u) => /product_list\?employee_ids%5B%5D=\d+$/.test(u)), 'de lijst zonder cliënt');
   assert.equal(urls.length, 1, 'één keer opgehaald, daarna uit het geheugen');
 });
+
+test('main-world: uursoort op cliënt-id (planhulp), zonder kenmerk in de pagina', async () => {
+  const { kaal, vraag } = await formulierMetUursoort();
+  assert.equal((await vraag({ clientId: '2', hourTypeId: 5, beschrijving: 'JW BG H10' })).ok, true);
+  assert.deepEqual(kaal(), [['B', 5, 'JW BG H10']], 'het veld met client-ids [2]');
+  assert.equal((await vraag({ clientId: '9', hourTypeId: 5 })).ok, false, 'onbekende cliënt');
+  assert.equal((await vraag({ clientId: '2 or 1', hourTypeId: 5 })).ok, false, 'alleen cijfers');
+  assert.equal(kaal().length, 1);
+});
+
+test('main-world: wissen van uursoort en labels via het formulier', async () => {
+  const u = await formulierMetUursoort();
+  u.veldA.setAttribute('data-onsah-doel', 'u9');
+  assert.equal((await u.vraag({ doel: 'u9', hourTypeId: 5, beschrijving: 'x' })).ok, true);
+  assert.equal((await u.vraag({ doel: 'u9', wis: true })).ok, true);
+  assert.deepEqual(u.kaal().at(-1), ['A', null, ''], 'leeg gemaakt');
+  const l = await formulier({ beginWaarde: [46, 29] });
+  const leeg = await new Promise((klaar) => {
+    l.w.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'labelsGezet' && ev.data.id === 'wis') klaar(ev.data); });
+    l.w.dispatchEvent(new l.w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'zetLabels', id: 'wis', labels: [], wis: true }, origin: l.w.location.origin, source: l.w }));
+  });
+  assert.equal(leeg.ok, true);
+  assert.deepEqual(l.kaal(), [[]]);
+  assert.equal((await l.vraag([])).ok, false, 'leeg zonder wis: niets');
+});
+
+test('planhulp zet de uursoorten klaar voor het formulier (per cliënt en voor eigen formulieren)', () => {
+  const { api, window } = bootHelper();
+  window.HTMLAnchorElement.prototype.click = function () {};
+  api.openNewEvent({ date: '2026-10-20', time: '10:00', minutes: 60, clientIds: ['222'], multi: true,
+    uursoorten: [{ clientId: '222', hourTypeId: 5, name: 'JW BG H10' }, { clientId: 'x', hourTypeId: 1 }, { clientId: '11', hourTypeId: 0 }],
+    eigen: [{ date: '2026-10-21', time: '09:00', minutes: 60, clientIds: ['11142'], uursoorten: [{ clientId: '11142', hourTypeId: 1135, name: 'Behandeling' }] }] });
+  const klaar = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
+  assert.deepEqual(klaar.uursoorten, [{ clientId: '222', hourTypeId: 5, name: 'JW BG H10' }], 'alleen geldige');
+  assert.equal(klaar.uursoortAfspraak, undefined);
+  const dup = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingDuplicates'));
+  assert.deepEqual(dup.eigen[0].uursoorten, [{ clientId: '11142', hourTypeId: 1135, name: 'Behandeling' }]);
+  api.openNewEvent({ date: '2026-10-20', time: '10:00', minutes: 60, uursoortAfspraak: { hourTypeId: 77, name: 'Teamoverleg' } });
+  assert.deepEqual(JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')).uursoortAfspraak, { hourTypeId: 77, name: 'Teamoverleg' });
+});
