@@ -16048,7 +16048,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.278";
+      return "1.6.279";
     }
   }();
 
@@ -16503,13 +16503,31 @@
     if (inp && setAppointmentTitleText(titel)) return;
     if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
   }
+  function kaartVoornamen() {
+    invalidateClientEntries();
+    const namen = [];
+    for (const e of findClientEntries()) {
+      const f = e.firstName || firstNameFromName(e.name || "");
+      if (f && !namen.some((n) => clean(n) === clean(f))) namen.push(f);
+    }
+    return namen;
+  }
   function voegVoornamenToe(keuze) {
     const inp = getTitleInputSafe();
     if (!inp) return;
     const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
     const delen = t.split(" - ").map(clean);
-    const erbij = findClientFirstNames().filter((n) => n && delen.indexOf(clean(n)) < 0 && clean(t).indexOf(clean(n)) < 0);
+    const erbij = kaartVoornamen().filter((n) => delen.indexOf(clean(n)) < 0);
     if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(" - "));
+  }
+  function wachtOpClientkaarten(verder, poging = 0) {
+    ensureClientExpanded(() => {
+      invalidateClientEntries();
+      const kaarten = findClientEntries();
+      const klaar = kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
+      if (klaar || poging >= 8) verder();
+      else setTimeout(() => wachtOpClientkaarten(verder, poging + 1), 300);
+    });
   }
   function startVanuitPlanhulp() {
     let keuze = null, nietClient = null, titel = "", clientLater = false;
@@ -16538,24 +16556,35 @@
       if (!hasClientInAppointment()) {
         appointmentFlow.planhulpVerder = () => {
           clientLater = true;
-          voegVoornamenToe(keuze);
-          afronden();
+          appointmentFlow.planhulpVullenSinds = Date.now();
+          wachtOpClientkaarten(() => {
+            voegVoornamenToe(keuze);
+            afronden();
+          });
         };
         showAppointmentNeedsPrereqs();
         return;
       }
-      appointmentFlow.appointmentTypeApplied = true;
       const labels = choiceLabels(keuze);
       const naarOpslaan = () => {
+        appointmentFlow.planhulpVullenSinds = 0;
+        appointmentFlow.appointmentTypeApplied = true;
         if (titel && !clientLater) zetTitel(titel);
         showAppointmentReadyToSave();
       };
-      setLabelsExclusive(labels, () => {
-        if (appointmentReadyToSave() || hasUursoortSelected() || !keuze.pickUursoort) {
-          naarOpslaan();
-          return;
-        }
-        showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+      appointmentFlow.planhulpVullenSinds = Date.now();
+      wachtOpClientkaarten(() => {
+        setLabelsExclusive(labels, () => {
+          invalidateClientEntries();
+          const kaarten = findClientEntries();
+          const missen = keuze.pickUursoort ? kaarten.length ? clientsMissingUursoortEntries() : [null] : [];
+          if (!missen.length) {
+            naarOpslaan();
+            return;
+          }
+          appointmentFlow.planhulpVullenSinds = 0;
+          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+        });
       });
     }
   }
@@ -20764,6 +20793,7 @@
       zetUursoortViaFormulier,
       nietClientUursoortMetId,
       keuzeVoorLabel,
+      kaartVoornamen,
       CONFIG,
       nietClientOptieVoorUursoort,
       entryUursoortIsSet,

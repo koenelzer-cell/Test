@@ -9,17 +9,15 @@
 import { MSG } from '../../shared/messages.js';
 import { choiceLabels, CONFIG, nonClientCategoriesActive } from '../config/app-config.js';
 import { clean } from '../ons/dom.js';
-import { getTitleInputSafe } from '../ons/appointment-form.js';
+import { findClientEntries, firstNameFromName, getTitleInputSafe, invalidateClientEntries } from '../ons/appointment-form.js';
 import { appointmentFlow } from '../state.js';
 import { applyPendingAppointment } from '../features/appointment/prefill.js';
-import { appointmentReadyToSave, setAppointmentTitleText } from '../features/appointment/fields.js';
+import { setAppointmentTitleText } from '../features/appointment/fields.js';
 import { setLabelsExclusive } from '../features/appointment/labels.js';
 import { showAppointmentReadyToSave } from '../features/appointment/save.js';
-import { showUursoortQueue } from '../features/appointment/uursoort-queue.js';
-import { hasClientInAppointment } from '../features/appointment/clients.js';
-import { hasUursoortSelected } from '../features/appointment/uursoort-field.js';
+import { clientsMissingUursoortEntries, showUursoortQueue } from '../features/appointment/uursoort-queue.js';
+import { ensureClientExpanded, hasClientInAppointment } from '../features/appointment/clients.js';
 import { handleNonClientOption } from '../features/appointment/non-client.js';
-import { findClientFirstNames } from '../features/appointment/client-name.js';
 import { showAppointmentNeedsPrereqs } from '../features/appointment/prereqs.js';
 import { inputTextValue } from '../ons/form-controls.js';
 
@@ -68,13 +66,35 @@ function zetTitel(titel, pogingen = 0) {
 // Voornamen van cliënten die er in het formulier bij kwamen, achter de titel
 // zoals de afspraakhulp ze schrijft ('Titel - Voornaam'; zo kan hij een
 // voornaam ook weer weghalen als je een cliënt verwijdert).
+// Alleen namen uit de cliëntkaarten van dit formulier, nooit uit andere
+// tekst op de pagina.
+export function kaartVoornamen() {
+  invalidateClientEntries();
+  const namen = [];
+  for (const e of findClientEntries()) {
+    const f = e.firstName || firstNameFromName(e.name || '');
+    if (f && !namen.some((n) => clean(n) === clean(f))) namen.push(f);
+  }
+  return namen;
+}
 function voegVoornamenToe(keuze) {
   const inp = getTitleInputSafe();
   if (!inp) return;
   const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
   const delen = t.split(' - ').map(clean);
-  const erbij = findClientFirstNames().filter((n) => n && delen.indexOf(clean(n)) < 0 && clean(t).indexOf(clean(n)) < 0);
+  const erbij = kaartVoornamen().filter((n) => delen.indexOf(clean(n)) < 0);
   if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(' - '));
+}
+// Wachten tot elke cliëntkaart open staat met naam en uursoortveld (zoals de
+// afspraakhulp dat ook doet voordat hij verder gaat). Hooguit ~4 s.
+function wachtOpClientkaarten(verder, poging = 0) {
+  ensureClientExpanded(() => {
+    invalidateClientEntries();
+    const kaarten = findClientEntries();
+    const klaar = kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
+    if (klaar || poging >= 8) verder();
+    else setTimeout(() => wachtOpClientkaarten(verder, poging + 1), 300);
+  });
 }
 
 // Aanroepen zodra de afspraakhulp op /events/new start (helper/routing.js).
@@ -105,23 +125,39 @@ export function startVanuitPlanhulp() {
     // gekozen): alleen daarom vragen; zodra er een cliënt is, gaat het
     // hieronder verder (via choices.js).
     if (!hasClientInAppointment()) {
-      appointmentFlow.planhulpVerder = () => { clientLater = true; voegVoornamenToe(keuze); afronden(); };
+      appointmentFlow.planhulpVerder = () => {
+        clientLater = true;
+        // Tot de kaart van de nieuwe cliënt er helemaal staat: laadmelding.
+        appointmentFlow.planhulpVullenSinds = Date.now();
+        wachtOpClientkaarten(() => { voegVoornamenToe(keuze); afronden(); });
+      };
       showAppointmentNeedsPrereqs();
       return;
     }
-    appointmentFlow.appointmentTypeApplied = true;
     const labels = choiceLabels(keuze);
     const naarOpslaan = () => {
+      appointmentFlow.planhulpVullenSinds = 0;
+      // Pas nu geldt het type als toegepast (zoals na een klik in de hulp).
+      appointmentFlow.appointmentTypeApplied = true;
       if (titel && !clientLater) zetTitel(titel);
       showAppointmentReadyToSave();
     };
-    // ONS kan bij een uursoort zelf een label koppelen: daarna precies de
-    // labels van dit type, zoals de afspraakhulp altijd doet.
-    setLabelsExclusive(labels, () => {
-      // Een type zonder uursoortkeuze vraagt er ook niet om.
-      if (appointmentReadyToSave() || hasUursoortSelected() || !keuze.pickUursoort) { naarOpslaan(); return; }
-      // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
-      showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+    appointmentFlow.planhulpVullenSinds = Date.now();
+    wachtOpClientkaarten(() => {
+      // ONS kan bij een uursoort zelf een label koppelen: daarna precies de
+      // labels van dit type, zoals de afspraakhulp altijd doet.
+      setLabelsExclusive(labels, () => {
+        // Per cliëntkaart kijken wat ontbreekt. Een type zonder
+        // uursoortkeuze vraagt er niet om; zonder gevonden kaart nooit
+        // 'klaar' aannemen.
+        invalidateClientEntries();
+        const kaarten = findClientEntries();
+        const missen = keuze.pickUursoort ? (kaarten.length ? clientsMissingUursoortEntries() : [null]) : [];
+        if (!missen.length) { naarOpslaan(); return; }
+        // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
+        appointmentFlow.planhulpVullenSinds = 0;
+        showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+      });
     });
   }
 }

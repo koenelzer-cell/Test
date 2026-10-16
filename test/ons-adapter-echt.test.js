@@ -79,3 +79,15 @@ test('de zelftest meldt per cliënt geen ontbrekend veld als ze er allemaal zijn
   assert.ok(!gemist.some((n) => /uursoortveld/.test(n)),
     'alle drie de uursoort-velden zijn aanwezig; er hoort er dus geen gemeld te worden');
 });
+
+test('planhulp: voornamen voor de titel komen alleen uit de cliëntkaarten (geen andere tekst op de pagina)', () => {
+  const { api, window } = echt();
+  // Tekst die op een naam lijkt, buiten de cliëntkaarten (zoals een afspraak in de agenda erachter).
+  const ander = window.document.createElement('div');
+  ander.innerHTML = '<span>Cliënt</span><strong>Test4 Andere</strong>';
+  window.document.body.appendChild(ander);
+  const namen = Array.from(api.kaartVoornamen());
+  assert.deepEqual(namen.slice(0, 2), ['Tinus', 'Tamara']);
+  assert.ok(!namen.includes('Test4'), 'niets van buiten de kaarten');
+  assert.equal(namen.length, 3);
+});

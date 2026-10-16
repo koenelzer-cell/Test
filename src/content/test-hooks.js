@@ -91,7 +91,7 @@ import {
 import { enforceAppointmentEndTime } from './features/appointment/end-time.js';
 import { zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
 import { nietClientUursoortMetId } from './features/appointment/uursoort-source.js';
-import { keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
+import { kaartVoornamen, keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
 import {
   clearAppointmentSnapshot,
   clearSettings,
@@ -212,6 +212,7 @@ export function exposeTestApi() {
     zetUursoortViaFormulier,
     nietClientUursoortMetId,
     keuzeVoorLabel,
+    kaartVoornamen,
     CONFIG,
     nietClientOptieVoorUursoort,
     entryUursoortIsSet,

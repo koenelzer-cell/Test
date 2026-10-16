@@ -355,9 +355,11 @@ en oker).
   afspraakhulp er niet opnieuw naar en laat hij alleen zien wat nog
   ontbreekt: eerst 'Afspraak uit de planhulp invullen...', daarna meteen de
   opslaanpagina. Koos je in de planhulp geen cliënt, dan vraagt hij alleen om
-  een cliënt; voeg je er een toe in het formulier, dan zet hij de voornaam
-  achter de titel ('Titel - Voornaam'), vraagt hij alleen de uursoort en gaat
-  hij naar de opslaanpagina (geen typekeuze, duur- of reistijdvraag). Mist er
+  een cliënt; voeg je er een toe in het formulier, dan wacht hij tot de
+  cliëntkaart er helemaal staat, zet hij de voornaam (alleen uit de
+  cliëntkaarten) achter de titel ('Titel - Voornaam'), vraagt hij alleen de
+  uursoort en gaat hij naar de opslaanpagina (geen typekeuze, duur- of
+  reistijdvraag). Het type geldt pas als toegepast op de opslaanpagina. Mist er
   een uursoort, dan vraagt hij alleen die. Bij een niet-cliëntgebonden afspraak
   zoekt hij de optie bij de uursoort en rondt hij die af zoals na een keuze in
   de afspraakhulp. Instellingen van het formulier (`meta`, alleen ja/nee en
