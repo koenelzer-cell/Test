@@ -156,9 +156,11 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   }
   var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + dagen - 1);
   var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
-  var limiet = createLimiter(4);
+  // Hooguit 4 verzoeken tegelijk naar ONS. (Niet 'limiet' noemen: dat is
+  // het aantal blokken dat het zijpaneel vraagt.)
+  var wachtrij = createLimiter(4);
   var haal = function (sjabloon, laag, start, id) {
-    return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
+    return wachtrij(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
       .then(function (j) { return weekEntries(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
   };
   var zonder = function () { return []; };

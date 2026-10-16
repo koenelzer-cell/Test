@@ -335,6 +335,18 @@ test('planhulp: zoeken tot en met een datum', async () => {
   await assert.rejects(api.findFreeSlots(60, 1, ymd(gisteren)), /vanaf vandaag/);
 });
 
+test('planhulp: het gevraagde aantal blokken telt (lijst en Meer laden)', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  const vandaag = new Date();
+  const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  const tot = new Date(vandaag); tot.setDate(tot.getDate() + 90);
+  // Een lege agenda: elke werkdag is één vrij blok, ruim meer dan 40.
+  assert.equal((await api.findFreeSlots(60, 1, ymd(tot), false, false, '', null, 5)).gaps.length, 5);
+  assert.ok((await api.findFreeSlots(60, 1, ymd(tot), false, false, '', null, 100)).gaps.length > 40, 'meer dan de standaard 40');
+  assert.equal((await api.findFreeSlots(60, 1, ymd(tot))).gaps.length, 40, 'zonder aantal de standaard');
+});
+
 test('reistijd van een afspraak staat in minuten (echt voorbeeld uit ONS)', (t) => {
   const oudeTz = process.env.TZ;
   process.env.TZ = 'Europe/Amsterdam';

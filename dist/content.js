@@ -15776,7 +15776,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.269";
+      return "1.6.270";
     }
   }();
 
@@ -18359,9 +18359,9 @@
     var laatste = new Date(vandaag);
     laatste.setDate(laatste.getDate() + dagen - 1);
     var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
-    var limiet = createLimiter(4);
+    var wachtrij = createLimiter(4);
     var haal = function(sjabloon, laag, start, id) {
-      return limiet(function() {
+      return wachtrij(function() {
         return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start }));
       }).then(function(j) {
         return weekEntries(j).map(function(e) {
