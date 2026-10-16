@@ -9,6 +9,7 @@ import { clean } from '../../ons/dom.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
 import { controleerOns } from './formaat.js';
+import { parseProductOptions } from '../../domain/event-create.js';
 
 // Parse de product_selection/basic_list-respons naar een platte, ontdubbelde lijst
 // uursoortnamen uit 'Onlangs gebruikt', 'Geadviseerd' én 'Toegestaan'.
@@ -39,21 +40,28 @@ const productListCache = Object.create(null);
 
 // De toegestane uursoortnamen. Gooit een fout bij een HTTP-fout of een
 // onverwachte respons; een geldige respons met een lege lijst is GEEN fout.
-export async function fetchProductList({ date, employeeId, clientIds }) {
+function productUrl({ date, employeeId, clientIds }) {
   // Sjabloon met de eerste cliënt; extra cliënten worden erachter geplakt (multi-cliënt).
   let url = _apiUrl('productList', { date: date, employeeId: employeeId, clientId: clientIds[0] });
   for (let k = 1; k < clientIds.length; k++) {
     url += '&client_ids%5B%5D=' + encodeURIComponent(clientIds[k]);
   }
-
+  return url;
+}
+// Het antwoord van ONS, even onthouden (alleen als er uursoorten in staan).
+async function productJson(req) {
+  const url = productUrl(req);
   const cached = productListCache[url];
-  if (cached && (Date.now() - cached.ts) < PRODUCT_LIST_TTL_MS && cached.list && cached.list.length) {
-    return cached.list.slice();
-  }
-
+  if (cached && (Date.now() - cached.ts) < PRODUCT_LIST_TTL_MS) return cached.json;
   const json = controleerOns('productlijst', await getJson(url));
-
-  const list = parseProductList(json);
-  if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() }; // alleen niet-lege lijsten cachen
-  return list;
+  if (parseProductList(json).length) productListCache[url] = { ts: Date.now(), json: json };
+  return json;
+}
+export async function fetchProductList(req) {
+  return parseProductList(await productJson(req));
+}
+// Dezelfde uursoorten met hun id (= hour_type_id in ONS): [{ id, name, recent }].
+// Voor het rechtstreeks zetten in het formulier (features/appointment/uursoort-field.js).
+export async function fetchProductOptions(req) {
+  return parseProductOptions(await productJson(req));
 }

@@ -18,7 +18,7 @@ import { clickEmptyModalSpot, dismissOpenDropdowns } from '../../ons/interaction
 import { scanClientUursoortOptions } from '../../ons/uursoort-options.js';
 import { findClientIdByName } from '../../services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../services/ons-api/employee.js';
-import { fetchProductList } from '../../services/ons-api/products.js';
+import { fetchProductList, fetchProductOptions } from '../../services/ons-api/products.js';
 
 /* ── Cliënt-id's bij een uursoortveld ─────────────────────────────────── */
 
@@ -89,6 +89,17 @@ export async function fetchClientUursoortOptionsApi(context, trigger) {
   if (!employeeId) throw new Error('geen employee-id gevonden');
   if (!clientIds || clientIds.length === 0) throw new Error('geen client-id gevonden');
   return fetchProductList({ date: agendaYmd(new Date()), employeeId: employeeId, clientIds: clientIds });
+}
+
+// De uursoort met deze naam, met zijn id (uit dezelfde productlijst, meestal al
+// in het geheugen): { id, name } of null.
+export async function uursoortMetId(naam, context, trigger) {
+  const employeeId = await getEmployeeIdAsync();
+  const clientIds = await getClientIdsAsync(context, trigger);
+  if (!employeeId || !clientIds || !clientIds.length) return null;
+  const opties = await fetchProductOptions({ date: agendaYmd(new Date()), employeeId: employeeId, clientIds: clientIds });
+  const w = clean(naam);
+  return opties.filter((o) => clean(o.name) === w)[0] || null;
 }
 
 // Warmt de cache alvast op, zodat de keuzelijst later direct gevuld is.

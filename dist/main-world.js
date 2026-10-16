@@ -8,7 +8,11 @@
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
     // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
-    LABELS_SET: "labelsGezet"
+    LABELS_SET: "labelsGezet",
+    // { id, ok, reden? }
+    SET_HOUR_TYPE: "zetUursoort",
+    // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+    HOUR_TYPE_SET: "uursoortGezet"
     // { id, ok, reden? }
   };
 
@@ -393,22 +397,68 @@
         klaar(ok ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
       }, 80);
     }
+    function isUursoortVeld(e) {
+      return !!(e && e.tagName === "UC-SELECT" && e.getAttribute("data-qa") === "hour_type_select");
+    }
+    function uursoortVeldBij(doel) {
+      for (var e = doel, n = 0; e && n < 30; e = e.parentElement || e.getRootNode && e.getRootNode().host || null, n++) {
+        if (isUursoortVeld(e)) return e;
+      }
+      return diepZoek(doel, 'uc-select[data-qa="hour_type_select"]');
+    }
+    function zetUursoort(d, klaar) {
+      var doelNaam = String(d.doel || "");
+      var id = Number(d.hourTypeId);
+      if (!/^[\w-]{1,60}$/.test(doelNaam) || !(id > 0)) {
+        klaar({ ok: false, reden: "ongeldig verzoek" });
+        return;
+      }
+      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+      var veld = doel ? uursoortVeldBij(doel) : null;
+      if (!veld) {
+        klaar({ ok: false, reden: "geen uursoortveld" });
+        return;
+      }
+      var v = vueVnodeVan(veld);
+      if (!v) {
+        klaar({ ok: false, reden: "geen Vue-koppeling" });
+        return;
+      }
+      try {
+        v.props["onUpdate:modelValue"](id, String(d.beschrijving == null ? "" : d.beschrijving).slice(0, 200));
+      } catch (e) {
+        klaar({ ok: false, reden: "ONS weigerde de waarde" });
+        return;
+      }
+      setTimeout(function() {
+        var na = vueVnodeVan(veld);
+        var nu = na ? propVan(na, "model-value", "modelValue") : null;
+        var ok = Number(nu && typeof nu === "object" ? nu.id : nu) === id;
+        klaar(ok ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
+      }, 80);
+    }
     window.addEventListener("message", function(ev) {
       try {
         if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
         var d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN || d.type !== PAGE_COMMAND.SET_LABELS) return;
-        var namen = (Array.isArray(d.labels) ? d.labels : []).map(function(x) {
-          return String(x == null ? "" : x).slice(0, 100);
-        }).filter(Boolean).slice(0, 10);
-        var id = String(d.id || "").slice(0, 40);
-        if (!namen.length) {
-          post(PAGE_COMMAND.LABELS_SET, { id, ok: false, reden: "geen labels" });
-          return;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
+        var id = String(d.id || "").slice(0, 60);
+        if (d.type === PAGE_COMMAND.SET_LABELS) {
+          var namen = (Array.isArray(d.labels) ? d.labels : []).map(function(x) {
+            return String(x == null ? "" : x).slice(0, 100);
+          }).filter(Boolean).slice(0, 10);
+          if (!namen.length) {
+            post(PAGE_COMMAND.LABELS_SET, { id, ok: false, reden: "geen labels" });
+            return;
+          }
+          zetLabels(namen, function(r) {
+            post(PAGE_COMMAND.LABELS_SET, Object.assign({ id }, r));
+          });
+        } else if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) {
+          zetUursoort(d, function(r) {
+            post(PAGE_COMMAND.HOUR_TYPE_SET, Object.assign({ id }, r));
+          });
         }
-        zetLabels(namen, function(r) {
-          post(PAGE_COMMAND.LABELS_SET, Object.assign({ id }, r));
-        });
       } catch (e) {
       }
     });

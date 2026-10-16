@@ -24,6 +24,8 @@ import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { findNonClientUursoortTrigger } from './non-client.js';
 import { deepQueryAll } from '../../ons/dom.js';
+import { zetUursoortViaFormulier } from '../../ons/form-model.js';
+import { uursoortMetId } from './uursoort-source.js';
 
 // Zet de uursoort op het afspraak-detailniveau (combobox "Zoek naar uursoorten")
 // door de exacte naam (incl. sterretje) te zoeken en aan te klikken.
@@ -157,11 +159,25 @@ export function clearUursoort(onDone, triggerArg = null) {
     }, 90);
   }, 120);
 }
-export function chooseUursoort(text, onResult, triggerArg = null) {
-  openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
+// context (optioneel): de cliënt uit de uursoortwachtrij, voor het juiste id.
+export function chooseUursoort(text, onResult, triggerArg = null, context = null) {
+  const viaDropdown = () => openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
     if (ok) setTimeout(clickEmptyModalSpot, 90);
     onResult(ok);
   });
+  // Eerst rechtstreeks in het formulier van ONS (geen dropdown); lukt dat niet,
+  // dan zoals vroeger via de dropdown.
+  uursoortViaFormulier(text, triggerArg || getUursoortTrigger(), context).then((ok) => {
+    if (ok) onResult(true); else viaDropdown();
+  });
+}
+async function uursoortViaFormulier(text, trigger, context) {
+  try {
+    if (!trigger) return false;
+    const optie = await uursoortMetId(text, context, trigger);
+    if (!optie) return false;
+    return await zetUursoortViaFormulier(trigger, optie.id, optie.name);
+  } catch (e) { return false; }
 }
 export function anyUursoortPresent() {
   const entries = findClientEntries();

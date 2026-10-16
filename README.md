@@ -123,7 +123,7 @@ zijn de standaardomschrijving, het AFAS-adres, de maximale duur van een
 herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 `features.leaveRequest: false` zet de knop uit.
 
-### Afspraakhulp: het label zetten
+### Afspraakhulp: label en uursoort zetten
 
 Kies je in de afspraakhulp een afspraaktype, dan zet de hulp het bijbehorende
 label (of de labels) rechtstreeks in het afspraakformulier van ONS, zonder de
@@ -131,8 +131,17 @@ labeldropdown te openen. Het formulier is een Vue-app; het labelveld krijgt
 de id's van de labels via ONS' eigen koppeling (`onUpdate:modelValue`, bij
 ONS `label_ids`), precies zoals na een klik in de dropdown. De gekozen set
 vervangt wat er stond. Daarna kijkt de hulp of de labels als chip in het veld
-staan. Lukt het niet (onbekend label, ander formulier na een ONS-update), dan
-opent hij de dropdown en klikt hij zoals vroeger.
+staan.
+
+Kies je in de afspraakhulp de uursoort van een cliënt, dan gaat die op
+dezelfde manier in het uursoortveld van precies die cliënt (`hour_type_id`
+en de omschrijving), zonder de dropdown. Het id komt uit ONS' eigen lijst
+met toegestane uursoorten voor die cliënt, die de hulp toch al ophaalt.
+
+In het beheerscherm blijft alles op naam staan (afspraaktypes, labels,
+uursoorten): de hulp zoekt de id's zelf op in wat ONS het formulier geeft.
+Lukt het rechtstreeks zetten niet (onbekende naam, ander formulier na een
+ONS-update), dan opent de hulp de dropdown en klikt hij zoals vroeger.
 
 ### Zijpaneel
 

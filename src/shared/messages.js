@@ -76,4 +76,6 @@ export const PAGE_BRIDGE = {
 export const PAGE_COMMAND = {
   SET_LABELS: 'zetLabels',      // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
+  SET_HOUR_TYPE: 'zetUursoort', // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+  HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
 };

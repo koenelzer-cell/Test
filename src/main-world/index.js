@@ -13,8 +13,9 @@
      5) Leeg afspraakmodel aanvullen: alleen als de planhulp een afspraak heeft
         klaargezet, datum, tijden en afspraaktype in het model zetten waaruit
         ONS het nieuwe afspraakformulier opbouwt.
-     6) Labels van het open afspraakformulier zetten op verzoek van de
-        afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de dropdown.
+     6) Labels en uursoort van het open afspraakformulier zetten op verzoek
+        van de afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de
+        dropdown.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -371,15 +372,49 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
     }, 80);
   }
+  /* Uursoort per cliënt: het veld uc-select[data-qa=hour_type_select] meldt
+     een keuze via onUpdate:modelValue(id, omschrijving) (bij ONS:
+     emit('update:invitation', { hour_type_id, hour_type_description })). Het
+     content-script geeft het veld van de juiste cliënt even het kenmerk
+     data-onsah-doel en stuurt id en naam uit ONS' eigen productlijst mee. */
+  function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && e.getAttribute('data-qa') === 'hour_type_select'); }
+  function uursoortVeldBij(doel) {
+    for (var e = doel, n = 0; e && n < 30; e = e.parentElement || (e.getRootNode && e.getRootNode().host) || null, n++) {
+      if (isUursoortVeld(e)) return e;
+    }
+    return diepZoek(doel, 'uc-select[data-qa="hour_type_select"]');
+  }
+  function zetUursoort(d, klaar) {
+    var doelNaam = String(d.doel || '');
+    var id = Number(d.hourTypeId);
+    if (!/^[\w-]{1,60}$/.test(doelNaam) || !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+    var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+    var veld = doel ? uursoortVeldBij(doel) : null;
+    if (!veld) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
+    var v = vueVnodeVan(veld);
+    if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
+    try { v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200)); }
+    catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
+    setTimeout(function () {
+      var na = vueVnodeVan(veld);
+      var nu = na ? propVan(na, 'model-value', 'modelValue') : null;
+      var ok = Number(nu && typeof nu === 'object' ? nu.id : nu) === id;
+      klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
+    }, 80);
+  }
   window.addEventListener('message', function (ev) {
     try {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
       var d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN || d.type !== PAGE_COMMAND.SET_LABELS) return;
-      var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
-      var id = String(d.id || '').slice(0, 40);
-      if (!namen.length) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
-      zetLabels(namen, function (r) { post(PAGE_COMMAND.LABELS_SET, Object.assign({ id: id }, r)); });
+      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
+      var id = String(d.id || '').slice(0, 60);
+      if (d.type === PAGE_COMMAND.SET_LABELS) {
+        var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
+        if (!namen.length) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
+        zetLabels(namen, function (r) { post(PAGE_COMMAND.LABELS_SET, Object.assign({ id: id }, r)); });
+      } else if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) {
+        zetUursoort(d, function (r) { post(PAGE_COMMAND.HOUR_TYPE_SET, Object.assign({ id: id }, r)); });
+      }
     } catch (e) {}
   });
 

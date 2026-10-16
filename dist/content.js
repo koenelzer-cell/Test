@@ -3433,7 +3433,11 @@
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
     // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
-    LABELS_SET: "labelsGezet"
+    LABELS_SET: "labelsGezet",
+    // { id, ok, reden? }
+    SET_HOUR_TYPE: "zetUursoort",
+    // { id, doel, hourTypeId, beschrijving }  uursoort van het veld met data-onsah-doel=doel
+    HOUR_TYPE_SET: "uursoortGezet"
     // { id, ok, reden? }
   };
 
@@ -5778,13 +5782,37 @@
   function zetLabelsViaFormulier(namen, wachtMs) {
     const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
     if (!lijst.length) return Promise.resolve(false);
+    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst }, wachtMs);
+  }
+  function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
+    if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
+    const doel = "u" + ++volgnummer + "-" + Date.now();
+    try {
+      veld.setAttribute("data-onsah-doel", doel);
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+    return vraagMainWorld(
+      PAGE_COMMAND.SET_HOUR_TYPE,
+      PAGE_COMMAND.HOUR_TYPE_SET,
+      { doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
+      wachtMs
+    ).then((ok) => {
+      try {
+        veld.removeAttribute("data-onsah-doel");
+      } catch (e) {
+      }
+      return ok;
+    });
+  }
+  function vraagMainWorld(type, antwoordType, velden, wachtMs) {
     return new Promise((klaar) => {
-      const id = "labels-" + ++volgnummer + "-" + Date.now();
+      const id = type + "-" + ++volgnummer + "-" + Date.now();
       let gemeld = false;
       const luister = (ev) => {
         if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
         const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== PAGE_COMMAND.LABELS_SET || d.id !== id) return;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
         einde(d.ok === true);
       };
       const timer = setTimeout(() => einde(false), wachtMs || 1500);
@@ -5797,7 +5825,7 @@
       }
       window.addEventListener("message", luister);
       try {
-        window.postMessage({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type: PAGE_COMMAND.SET_LABELS, id, labels: lijst }, location.origin);
+        window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type, id }, velden), location.origin);
       } catch (e) {
         einde(false);
       }
@@ -9509,6 +9537,107 @@
     return mapAgendaWeekResponse(controleerOns("weekagenda", json));
   }
 
+  // src/content/domain/event-create.js
+  function parseProductOptions(json, opts) {
+    var groepen = json && Array.isArray(json.basic_list) ? json.basic_list : [];
+    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
+    var BEKEND = ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"];
+    var cats = BEKEND.slice();
+    if (opts && opts.alleGroepen) groepen.forEach(function(g) {
+      var naam = Array.isArray(g) ? String(g[0] == null ? "" : g[0]) : "";
+      if (naam && cats.indexOf(naam) < 0 && !/^niet\b/i.test(naam)) cats.push(naam);
+    });
+    cats.forEach(function(cat) {
+      groepen.forEach(function(g) {
+        if (!Array.isArray(g) || g[0] !== cat || !Array.isArray(g[1])) return;
+        g[1].forEach(function(item) {
+          if (!Array.isArray(item)) return;
+          var naam = String(item[0] == null ? "" : item[0]).trim(), id = item[1];
+          if (!naam || !(typeof id === "number" || /^\d+$/.test(String(id)))) return;
+          id = Number(id);
+          if (gezien[id]) return;
+          gezien[id] = true;
+          uit.push({ id, name: naam, recent: cat === "Onlangs gebruikt" });
+        });
+      });
+    });
+    return uit;
+  }
+  function parseLabels(json) {
+    return (Array.isArray(json) ? json : []).filter(function(l) {
+      return l && l.id != null && l.name;
+    }).map(function(l) {
+      return { id: Number(l.id), name: String(l.name) };
+    });
+  }
+  function learnEventMeta(meta) {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+    var uit = {}, n = 0;
+    Object.keys(meta).forEach(function(k) {
+      var v = meta[k];
+      if (!/^[a-z_]{1,60}$/.test(k)) return;
+      if (typeof v === "boolean" || v === null || typeof v === "number" && isFinite(v)) {
+        uit[k] = v;
+        n++;
+      }
+    });
+    return n ? uit : null;
+  }
+  function reistijd(v) {
+    var n = Math.round(Number(v));
+    return n > 0 ? Math.min(n, 240) : 0;
+  }
+  function buildEventPayload(spec, meta) {
+    spec = spec || {};
+    var start = spec.startMin, eind = start + spec.minutes;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(spec.date || "")) || !(start >= 0) || !(spec.minutes > 0) || eind >= 24 * 60) return null;
+    var emp = (spec.employeeIds || []).map(Number).filter(function(x) {
+      return x > 0;
+    });
+    var zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
+    var cl = (spec.clients || []).filter(function(c) {
+      return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0;
+    });
+    if (!emp.length) return null;
+    if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
+    var info = {};
+    cl.forEach(function(c) {
+      info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
+    });
+    var ev = {
+      valid_from: spec.date,
+      start_time: isoLocalWithOffset(spec.date, start),
+      end_time: isoLocalWithOffset(spec.date, eind),
+      client_ids: cl.map(function(c) {
+        return Number(c.id);
+      }),
+      client_information: info,
+      // Cliënten aanwezig: standaard ja; de planhulp kiest per afspraaktype.
+      client_present: !zonderClient && spec.clientPresent !== false,
+      clients: [],
+      comment: String(spec.comment || ""),
+      custom_location: null,
+      employee_ids: emp,
+      employees: [],
+      group: null,
+      groups: [],
+      hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
+      label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
+      labels: [],
+      location: null,
+      location_id: null,
+      name: String(spec.name || "Afspraak").slice(0, 200),
+      team_ids: [],
+      teams: [],
+      // Reistijd in MINUTEN, zoals ONS hem in de agenda teruggeeft.
+      travel_time_after: reistijd(spec.travelAfter),
+      travel_time_before: reistijd(spec.travelBefore)
+    };
+    var m = learnEventMeta(meta);
+    if (m) ev.meta = m;
+    return { event: ev };
+  }
+
   // src/content/services/ons-api/products.js
   function parseProductList(json) {
     if (!json || !Array.isArray(json.basic_list)) return [];
@@ -9530,19 +9659,26 @@
   }
   var PRODUCT_LIST_TTL_MS = 5 * 60 * 1e3;
   var productListCache = /* @__PURE__ */ Object.create(null);
-  async function fetchProductList({ date, employeeId, clientIds }) {
+  function productUrl({ date, employeeId, clientIds }) {
     let url = _apiUrl("productList", { date, employeeId, clientId: clientIds[0] });
     for (let k = 1; k < clientIds.length; k++) {
       url += "&client_ids%5B%5D=" + encodeURIComponent(clientIds[k]);
     }
+    return url;
+  }
+  async function productJson(req) {
+    const url = productUrl(req);
     const cached = productListCache[url];
-    if (cached && Date.now() - cached.ts < PRODUCT_LIST_TTL_MS && cached.list && cached.list.length) {
-      return cached.list.slice();
-    }
+    if (cached && Date.now() - cached.ts < PRODUCT_LIST_TTL_MS) return cached.json;
     const json = controleerOns("productlijst", await getJson(url));
-    const list = parseProductList(json);
-    if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() };
-    return list;
+    if (parseProductList(json).length) productListCache[url] = { ts: Date.now(), json };
+    return json;
+  }
+  async function fetchProductList(req) {
+    return parseProductList(await productJson(req));
+  }
+  async function fetchProductOptions(req) {
+    return parseProductOptions(await productJson(req));
   }
 
   // src/content/features/appointment/uursoort-source.js
@@ -9601,6 +9737,14 @@
     if (!employeeId) throw new Error("geen employee-id gevonden");
     if (!clientIds || clientIds.length === 0) throw new Error("geen client-id gevonden");
     return fetchProductList({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
+  }
+  async function uursoortMetId(naam, context2, trigger) {
+    const employeeId = await getEmployeeIdAsync();
+    const clientIds = await getClientIdsAsync(context2, trigger);
+    if (!employeeId || !clientIds || !clientIds.length) return null;
+    const opties = await fetchProductOptions({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
+    const w = clean(naam);
+    return opties.filter((o) => clean(o.name) === w)[0] || null;
   }
   function prefetchClientUursoorten(context2, trigger) {
     try {
@@ -12721,7 +12865,7 @@
             };
             if (afterPick) afterPick(done);
             else done();
-          }, freshTrigger || null);
+          }, freshTrigger || null, clientContext || null);
         });
       }
     });
@@ -15003,11 +15147,25 @@
       }, 90);
     }, 120);
   }
-  function chooseUursoort(text2, onResult, triggerArg = null) {
-    openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
+  function chooseUursoort(text2, onResult, triggerArg = null, context2 = null) {
+    const viaDropdown = () => openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
       if (ok) setTimeout(clickEmptyModalSpot, 90);
       onResult(ok);
     });
+    uursoortViaFormulier(text2, triggerArg || getUursoortTrigger(), context2).then((ok) => {
+      if (ok) onResult(true);
+      else viaDropdown();
+    });
+  }
+  async function uursoortViaFormulier(text2, trigger, context2) {
+    try {
+      if (!trigger) return false;
+      const optie = await uursoortMetId(text2, context2, trigger);
+      if (!optie) return false;
+      return await zetUursoortViaFormulier(trigger, optie.id, optie.name);
+    } catch (e) {
+      return false;
+    }
   }
   function anyUursoortPresent() {
     const entries2 = findClientEntries();
@@ -15518,107 +15676,6 @@
     }
   }
 
-  // src/content/domain/event-create.js
-  function parseProductOptions(json, opts) {
-    var groepen = json && Array.isArray(json.basic_list) ? json.basic_list : [];
-    var uit = [], gezien = /* @__PURE__ */ Object.create(null);
-    var BEKEND = ["Onlangs gebruikt", "Geadviseerd", "Toegestaan"];
-    var cats = BEKEND.slice();
-    if (opts && opts.alleGroepen) groepen.forEach(function(g) {
-      var naam = Array.isArray(g) ? String(g[0] == null ? "" : g[0]) : "";
-      if (naam && cats.indexOf(naam) < 0 && !/^niet\b/i.test(naam)) cats.push(naam);
-    });
-    cats.forEach(function(cat) {
-      groepen.forEach(function(g) {
-        if (!Array.isArray(g) || g[0] !== cat || !Array.isArray(g[1])) return;
-        g[1].forEach(function(item) {
-          if (!Array.isArray(item)) return;
-          var naam = String(item[0] == null ? "" : item[0]).trim(), id = item[1];
-          if (!naam || !(typeof id === "number" || /^\d+$/.test(String(id)))) return;
-          id = Number(id);
-          if (gezien[id]) return;
-          gezien[id] = true;
-          uit.push({ id, name: naam, recent: cat === "Onlangs gebruikt" });
-        });
-      });
-    });
-    return uit;
-  }
-  function parseLabels(json) {
-    return (Array.isArray(json) ? json : []).filter(function(l) {
-      return l && l.id != null && l.name;
-    }).map(function(l) {
-      return { id: Number(l.id), name: String(l.name) };
-    });
-  }
-  function learnEventMeta(meta) {
-    if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
-    var uit = {}, n = 0;
-    Object.keys(meta).forEach(function(k) {
-      var v = meta[k];
-      if (!/^[a-z_]{1,60}$/.test(k)) return;
-      if (typeof v === "boolean" || v === null || typeof v === "number" && isFinite(v)) {
-        uit[k] = v;
-        n++;
-      }
-    });
-    return n ? uit : null;
-  }
-  function reistijd(v) {
-    var n = Math.round(Number(v));
-    return n > 0 ? Math.min(n, 240) : 0;
-  }
-  function buildEventPayload(spec, meta) {
-    spec = spec || {};
-    var start = spec.startMin, eind = start + spec.minutes;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(spec.date || "")) || !(start >= 0) || !(spec.minutes > 0) || eind >= 24 * 60) return null;
-    var emp = (spec.employeeIds || []).map(Number).filter(function(x) {
-      return x > 0;
-    });
-    var zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
-    var cl = (spec.clients || []).filter(function(c) {
-      return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0;
-    });
-    if (!emp.length) return null;
-    if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
-    var info = {};
-    cl.forEach(function(c) {
-      info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
-    });
-    var ev = {
-      valid_from: spec.date,
-      start_time: isoLocalWithOffset(spec.date, start),
-      end_time: isoLocalWithOffset(spec.date, eind),
-      client_ids: cl.map(function(c) {
-        return Number(c.id);
-      }),
-      client_information: info,
-      // Cliënten aanwezig: standaard ja; de planhulp kiest per afspraaktype.
-      client_present: !zonderClient && spec.clientPresent !== false,
-      clients: [],
-      comment: String(spec.comment || ""),
-      custom_location: null,
-      employee_ids: emp,
-      employees: [],
-      group: null,
-      groups: [],
-      hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
-      label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
-      labels: [],
-      location: null,
-      location_id: null,
-      name: String(spec.name || "Afspraak").slice(0, 200),
-      team_ids: [],
-      teams: [],
-      // Reistijd in MINUTEN, zoals ONS hem in de agenda teruggeeft.
-      travel_time_after: reistijd(spec.travelAfter),
-      travel_time_before: reistijd(spec.travelBefore)
-    };
-    var m = learnEventMeta(meta);
-    if (m) ev.meta = m;
-    return { event: ev };
-  }
-
   // src/content/features/agenda/event-create.js
   var META_KEY = PAGE_LOCAL.EVENT_META_TEMPLATE;
   function directCreateEnabled() {
@@ -15854,7 +15911,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.273";
+      return "1.6.274";
     }
   }();
 
@@ -20445,6 +20502,7 @@
       choiceLabels,
       setLabelsExclusive,
       zetLabelsViaFormulier,
+      zetUursoortViaFormulier,
       entryUursoortIsSet,
       // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
       // meerdere-cliënten-flow en de schermherkenning.

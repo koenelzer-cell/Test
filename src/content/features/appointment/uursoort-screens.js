@@ -109,7 +109,7 @@ export function showUursoort(options, afterPick, clientContext = null) {
           // overgeslagen. De wachtrij herbekijkt zelf wie nog een uursoort mist.
           if (afterPick) afterPick(done);
           else done();
-        }, freshTrigger || null);
+        }, freshTrigger || null, clientContext || null);
       });
     },
   });
