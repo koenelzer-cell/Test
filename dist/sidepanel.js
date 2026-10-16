@@ -5346,7 +5346,8 @@
     return uitYmd(s);
   }
   function datumTekst(s) {
-    return uitYmd(s) ? dagKort(s, true) : "";
+    var d = uitYmd(s);
+    return d ? dagKort(s, d.getFullYear() !== (/* @__PURE__ */ new Date()).getFullYear()) : "";
   }
   function chipKnop(tekst, gekozen, onClick, extra) {
     var b = document.createElement("button");

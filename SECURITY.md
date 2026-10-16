@@ -170,12 +170,15 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - **HTML-injectie (`innerHTML`) en sanitizing:** de meeste `innerHTML`-toewijzingen
   maken alleen eigen UI leeg (`= ''`). Waar wél opmaak wordt getoond, gaat die
   door een allowlist-sanitizer:
-  - Beheerbare rich-text (`texts[].html`) → `managedRichHtml`
-    (`src/content/ui/managed-text.js`) en
-    `sanitizeManagedHtml` (beheerscherm): verwijdert `script/style/iframe/...`,
-    strookt álle attributen, staat alleen `https?/mailto/#`-hrefs toe en
-    valideert stijlwaarden via de browser-CSS-parser (geen `javascript:`, geen
-    `on*`, geen `url()`).
+  - Beheerbare rich-text (`texts[].html`) en vragenlijstmeldingen →
+    `veiligeHtml` (`src/shared/veilige-html.js`, DOMPurify): alleen een vaste
+    lijst opmaaktags, geen scripts, event-attributen, SVG/MathML of
+    `javascript:`; links alleen `https?/mailto/#` (nieuw tabblad,
+    `noopener`); van de inline-stijl blijven alleen kleur, achtergrond, vet,
+    cursief en onderstreping over (geen `url()`). Het beheerscherm doet
+    hetzelfde met `sanitizeManagedHtml`.
+  - HTML die de hulp zelf opbouwt (registratieoverzicht, UI-inspector) gaat
+    ook door DOMPurify (`zetHtml`).
   - Het meldingenkanaal tekent uitsluitend met `textContent` (tekst of
     `{ title, items }`); HTML uit een module is daar niet mogelijk.
   - Geïmporteerde vragenlijst-XML komt uitsluitend in `<input>`-velden
@@ -196,6 +199,14 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   (de content-scripts benaderen het gewoon via `chrome.runtime.getURL`).
 - Defensieve `try/catch` rond DOM-bewerkingen, zodat een fout de ONS-pagina niet
   blokkeert.
+- **Antwoorden van ONS** worden voor gebruik op vorm gecontroleerd (valibot,
+  `services/ons-api/formaat.js`); een onverwachte vorm geeft een duidelijke
+  fout in plaats van een verkeerde uitkomst.
+- **Meegebundelde bibliotheken** (lokaal in `dist/`, niets van een CDN):
+  React, `valibot`, `dompurify`, `date-fns` en `qrcode-generator`, alle met
+  een MIT-licentie (DOMPurify ook Apache 2.0). Geen van deze doet zelf
+  netwerkverkeer. Playwright is alleen een ontwikkelafhankelijkheid voor
+  `npm run test:e2e` en zit niet in de extensie.
 
 ## Centrale beheerschakelaars (beleid)
 IT kan de extensie per functie centraal aan/uit zetten via

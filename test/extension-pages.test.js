@@ -344,7 +344,8 @@ test('zijpaneel: open registraties is een eigen pagina met terug-knop', async ()
   assert.equal(zichtbaar(knop(document, 'Verlof aanvragen')), false);
   const datums = [...document.querySelectorAll('[data-datum]')].map((i) => i.getAttribute('data-datum'));
   assert.deepEqual(datums, ['2026-08-10', '2026-10-07'], 'standaard: begin aanpasvenster t/m vandaag');
-  assert.match(document.body.textContent, /ma 10 aug 2026/, 'datum voluit in het veld');
+  // Het jaar alleen buiten dit jaar, zodat twee velden naast elkaar passen.
+  assert.equal(document.querySelector('[data-datum="2026-08-10"]').textContent.trim(), new Date().getFullYear() === 2026 ? 'ma 10 aug' : 'ma 10 aug 2026', 'datum in het veld');
   assert.equal(document.querySelectorAll('input[type="date"]').length, 0, 'geen keuzevenster van de browser');
   // De controle start vanzelf bij het openen (vooraf geladen = meteen klaar).
   const vraag = verzonden.find((m) => m.type === 'ag-check-range');
@@ -511,7 +512,8 @@ test('zijpaneel: datumkiezer in de stijl van de hulp', async () => {
   document.querySelector('[aria-label="Volgende maand"]').click();
   assert.match(document.body.textContent, /september 2026/);
   document.querySelector('[data-ymd="2026-09-14"]').click();
-  assert.match(document.body.textContent, /ma 14 sep 2026/);
+  // Het jaar staat er alleen bij als het niet dit jaar is.
+  assert.equal(veld.textContent.trim(), new Date().getFullYear() === 2026 ? 'ma 14 sep' : 'ma 14 sep 2026');
   assert.equal(document.querySelector('[role="dialog"]'), null, 'kiezer sluit na kiezen');
   knop(document, 'Controleren').click();
   assert.equal(gevraagd.from, '2026-09-14');

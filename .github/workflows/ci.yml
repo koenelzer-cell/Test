@@ -1,7 +1,7 @@
 name: CI
 
-# Bouwt de extensie, controleert syntax/manifest en draait de test-suite
-# (jsdom + node:test) bij elke push en pull request.
+# Bouwt de extensie, controleert syntax/manifest, draait de test-suite
+# (jsdom + node:test) en het zijpaneel in Chromium bij elke push en pull request.
 on:
   push:
     branches: ['**']
@@ -36,3 +36,19 @@ jobs:
 
       - name: Tests draaien (jsdom + fixtures)
         run: node --test --test-force-exit test/*.test.js
+
+      # Het zijpaneel in een echte Chromium: lay-out op een smal en breed
+      # paneel. De schermafdrukken staan in het rapport (artefact).
+      - name: Chromium voor Playwright installeren
+        run: npx playwright install --with-deps chromium
+
+      - name: Zijpaneel in Chromium (Playwright)
+        run: npx playwright test
+
+      - name: Playwright-rapport bewaren
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

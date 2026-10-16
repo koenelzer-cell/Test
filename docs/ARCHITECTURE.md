@@ -18,7 +18,8 @@ manifest.json ──┬─ service worker ........ dist/background.js     ← sr
                    ├─ ONS-pagina's (MAIN)       dist/main-world.js    ← src/main-world/
                    └─ ioservice.net             dist/io-planning-block.js ← src/io-planning-block/
 
-src/shared/   constanten die alle onderdelen delen (berichten, opslagsleutels, hosts, versie)
+src/shared/   wat alle onderdelen delen: berichten, opslagsleutels, hosts, versie,
+              datums (datum.js, date-fns) en veilige HTML (veilige-html.js, DOMPurify)
 admin/        beheerscherm (losse HTML-pagina, niet door de extensie geladen)
 config.json   gebundelde configuratie (gemaakt met het beheerscherm)
 ```
@@ -161,7 +162,11 @@ Alle aanroepen gaan via `services/ons-api/http.js` (`getJson`, en `postJson`
 voor het enige schrijvende verzoek, met het CSRF-token van de pagina): relatief pad,
 same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 `endpoints.js`, overschrijfbaar via `config.apiEndpoints`, alleen paden die met
-`/` beginnen):
+`/` beginnen). Wat terugkomt wordt voor gebruik nagekeken met valibot
+(`services/ons-api/formaat.js`, `controleerOns`): klopt de vorm van de
+weekagenda, de uursoortenlijst, de afspraaktypes of de cliëntzoekresultaten
+niet meer, dan meldt de hulp 'ONS geeft … in een andere vorm terug' in plaats
+van stil een lege of verkeerde uitkomst te tonen:
 
 | Endpoint | Waarvoor | Module | Terugval |
 |---|---|---|---|
@@ -280,7 +285,8 @@ eenmalige start).
   niet opgeslagen. De vragenlijst stuurt alleen vraagteksten en statussen.
 - Geen `console`-logging in het content-script; de vragenlijstcontrole logt
   alleen een vaste omschrijving + foutmelding (`src/survey/log.js`).
-- HTML uit de beheerconfig gaat door een allowlist (`ui/managed-text.js`);
+- HTML uit de beheerconfig gaat door DOMPurify met een allowlist
+  (`src/shared/veilige-html.js`, via `ui/managed-text.js`);
   het meldingenkanaal tekent uitsluitend met `textContent`.
 
 ## Een functie toevoegen

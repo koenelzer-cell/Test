@@ -373,8 +373,9 @@ function voortgang(done, total) {
    Eén kiezer tegelijk per groep. */
 function ymdVan(d) { return ymdNl(d); }
 function datumUitYmd(s) { return uitYmd(s); }
-// 'do 8 okt 2026'
-function datumTekst(s) { return uitYmd(s) ? dagKort(s, true) : ''; }
+// 'do 8 okt', in een ander jaar 'do 8 okt 2025'. Met het jaar erbij past de
+// datum niet in een smal paneel (twee velden naast elkaar).
+function datumTekst(s) { var d = uitYmd(s); return d ? dagKort(s, d.getFullYear() !== new Date().getFullYear()) : ''; }
 function chipKnop(tekst, gekozen, onClick, extra) {
   var b = document.createElement('button');
   b.type = 'button';

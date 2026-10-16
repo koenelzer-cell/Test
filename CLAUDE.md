@@ -14,6 +14,7 @@ npm run build        # src/ -> dist/ (esbuild) plus the React test bundle (test/
 npm run dev          # build and watch
 npm run check        # manifest/syntax, imports between components, content-script layer rules
 npm test             # build, then all tests (node:test + jsdom, no browser or ONS needed)
+npm run test:e2e     # build, then the side panel in real Chromium (Playwright, e2e/)
 npm run release      # bump patch version, build, check, test, zip -> ONSAgendahulp-x.y.z.zip
 npm run release -- --minor | --major | --dry
 ```
@@ -26,6 +27,7 @@ Single test file or test: build first (tests load `dist/`), then
 - **`dist/` is committed.** The browser loads only `dist/` (plus `manifest.json`, `config.json`, `pages/`, `icons/`, `assets/`). After changing `src/`, rebuild and commit `dist/` too; CI fails on `git diff --exit-code -- dist/`.
 - **Components share code only via `src/shared/`.** Each entry is bundled separately; `scripts/check-imports.mjs` enforces this.
 - **Content-script layers** (`src/content/`): a module imports only from its own layer or lower (shared → core → platform → config → storage → state → ons → domain → services → ui → screen → features → helper → entry). `scripts/deps.mjs --strict` enforces it. ONS DOM knowledge belongs in `ons/`, pure logic in `domain/`, network in `services/ons-api/`.
+- **Libraries:** dates via `src/shared/datum.js` (date-fns, `nl`), HTML via `src/shared/veilige-html.js` (DOMPurify), ONS response shapes via `services/ons-api/formaat.js` (valibot `controleerOns`; extend `SOORTEN` for a new endpoint).
 - **Network:** ONS API only via `services/ons-api/http.js` with relative same-origin paths; endpoint templates in `services/ons-api/endpoints.js` (overridable via `config.apiEndpoints`). Navigating to a URL ONS hands back (e.g. `meta.declareUrl`) only if it is a relative path. The only external calls are Google Routes/Maps from the side panel (postcodes only).
 - **Privacy:** never store client names, numbers or birth dates; API responses are reduced to neutral fields (`mapAgendaEntry` etc.). No API keys in code: they are entered by an admin in the admin page.
 - **Inline styles only** (`element.style`), no injected class stylesheets: ONS's CSS/CSP ignores them. Keyframes go in the single small style block in `zorgVoorStijl()` (side panel) or the edge tab.
@@ -39,7 +41,7 @@ Single test file or test: build first (tests load `dist/`), then
 - React components in `src/react/components/` (week overview, ratio, breakdown) are exposed via `window.__onsahReact`.
 - The content side answers every `ag-*` message in `src/content/features/agenda/side-panel-bridge.js`; `preload.js` caches results for a few minutes (`onthouden`, `forgetFreeSlots`).
 - Tests (`test/extension-pages.test.js`) load `pages/sidepanel.html` plus `dist/sidepanel.js` in jsdom with a fake `chrome` (`fakeChrome`, `zijpaneelMetTools`) and drive the UI through `data-*` attributes. Keep those attributes stable and add new ones for new controls. Content-script logic is tested through `test/helpers/harness.mjs` (`bootHelper`), which exposes functions from `src/content/test-hooks.js` as `api`.
-- Screenshots of the real panel: open `pages/sidepanel.html` in Playwright, add `dist/react-bundle.js`, stub `window.chrome` like the tests do, then add `dist/sidepanel.js`.
+- `e2e/zijpaneel.spec.mjs` runs every panel page at 340 and 420 px in Chromium with `e2e/nep-chrome.js` (fixed ONS answers, dates relative to today). It fails on horizontal overflow, content past the right edge, overflowing button text, truncated date fields and "·" or dashes; screenshots go in the HTML report. The preinstalled browser in cloud sessions does not match Playwright's revision: run with `PW_CHROMIUM=/opt/pw-browsers/chromium`. Extend it when adding a page.
 
 ## UI conventions (agreed with the user)
 

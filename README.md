@@ -29,7 +29,26 @@ npm run dev     # bouwen + meekijken
 npm run build   # eenmalig bouwen (ook de testbundel)
 npm run check   # manifest, syntax, imports en laagindeling controleren
 npm test        # bouwen + testsuite (jsdom, geen browser of ONS nodig)
+npm run test:e2e # bouwen + het zijpaneel in een echte Chromium (Playwright)
 ```
+
+`npm run test:e2e` opent het zijpaneel in Chromium met nep-antwoorden van ONS
+(`e2e/nep-chrome.js`) en loopt elke pagina langs op 340 en 420 pixels breed:
+startscherm, Open registraties, Planhulp (lijst, Meer laden, kalender,
+weekplanning), Afspraak maken (zelfde cliënten, per afspraak anders, niet
+cliëntgebonden, moment verwijderen), Snel registreren, Route, Verhouding en
+Info. Per pagina controleert het dat niets zijwaarts scrolt of rechts buiten
+beeld valt, dat knopteksten en datums in hun veld passen en dat er geen '·' of
+streepjes in de tekst staan. De schermafdrukken staan in het rapport
+(`npx playwright show-report`). De eerste keer: `npx playwright install
+chromium`. Een eigen Chromium gebruiken kan met `PW_CHROMIUM=/pad/naar/chrome`.
+
+Bibliotheken die in de extensie worden meegebundeld: React (schermen),
+`valibot` (controleert of ONS-antwoorden de verwachte vorm hebben, zie
+`src/content/services/ons-api/formaat.js`), `dompurify` (alle HTML uit de
+beheerconfig, `src/shared/veilige-html.js`), `date-fns` (datums, weeknummers en
+de Nederlandse notatie, `src/shared/datum.js`) en `qrcode-generator`.
+Playwright is alleen voor het testen en zit niet in de extensie.
 
 `npm run check` controleert:
 
@@ -71,12 +90,13 @@ configuratie). Gaat er iets mis, dan wordt er niets ingepakt.
 | `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel |
 | `src/main-world/`, `src/edge-tab/`, `src/io-planning-block/` | kleine content-scripts |
 | `src/react/` | React-schermen → `dist/react-bundle.js` |
-| `src/shared/` | berichttypes, opslagsleutels, ONS-hosts, versie |
+| `src/shared/` | berichttypes, opslagsleutels, ONS-hosts, versie, datums (`datum.js`), veilige HTML (`veilige-html.js`) |
 | `admin/` | beheerscherm: stelt `config.json` samen (open `admin/beheer_u.html` lokaal) |
 | `config.json` | afspraaktypes, registratievormen, teksten, kleuren, teams |
 | `managed_schema.json` | instellingen die via bedrijfsbeleid gezet kunnen worden |
 | `scripts/` | bouwen, controleren, uitbrengen |
-| `test/` | testsuite |
+| `test/` | testsuite (jsdom) |
+| `e2e/` | het zijpaneel in een echte Chromium (Playwright) |
 | `docs/` | architectuur en het verslag van de herstructurering |
 
 ## Instellingen
@@ -170,7 +190,9 @@ en oker).
   huisbezoeken op die dag geeft een rustige lege melding.
 - Datums en tijden kies je met een eigen kalender en tijdkiezer in de stijl van
   de hulp (tijd: twee scrollbare kolommen, uren en minuten), niet met het
-  keuzevenster van de browser.
+  keuzevenster van de browser. Een datumveld toont 'vr 16 okt'; het jaar
+  staat er alleen bij als het niet dit jaar is, zodat twee velden naast
+  elkaar ook in een smal paneel passen.
 - **Rondleidingen**: bij de eerste keer openen een korte rondleiding door het
   zijpaneel (aan/uit, weekoverzicht, open registraties, planhulp, route,
   verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (lijst
