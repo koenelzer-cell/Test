@@ -3,7 +3,8 @@
 // zelf in (features/appointment/prefill.js); de titel komt uit het geheugen
 // van het zijpaneel. Is het afspraaktype bekend, dan vraagt de afspraakhulp
 // er niet opnieuw naar, maar gaat hij na het invullen meteen naar de
-// opslaanpagina. Ontbreekt er nog een uursoort, dan vraagt hij alleen die.
+// opslaanpagina. Hij laat alleen zien wat nog ontbreekt: geen cliënt, dan
+// alleen 'voeg een cliënt toe'; geen uursoort, dan alleen die vraag.
 
 import { MSG } from '../../shared/messages.js';
 import { choiceLabels, CONFIG, nonClientCategoriesActive } from '../config/app-config.js';
@@ -14,11 +15,12 @@ import { applyPendingAppointment } from '../features/appointment/prefill.js';
 import { appointmentReadyToSave, setAppointmentTitleText } from '../features/appointment/fields.js';
 import { setLabelsExclusive } from '../features/appointment/labels.js';
 import { showAppointmentReadyToSave } from '../features/appointment/save.js';
-import { showChoices } from '../features/appointment/choices.js';
 import { showUursoortQueue } from '../features/appointment/uursoort-queue.js';
 import { hasClientInAppointment } from '../features/appointment/clients.js';
 import { hasUursoortSelected } from '../features/appointment/uursoort-field.js';
 import { handleNonClientOption } from '../features/appointment/non-client.js';
+import { findClientFirstNames } from '../features/appointment/client-name.js';
+import { showAppointmentNeedsPrereqs } from '../features/appointment/prereqs.js';
 import { inputTextValue } from '../ons/form-controls.js';
 
 // Het afspraaktype uit de beheerlijst waar dit label bij hoort.
@@ -63,9 +65,22 @@ function zetTitel(titel, pogingen = 0) {
   if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
 }
 
+// Voornamen van cliënten die er in het formulier bij kwamen, achter de titel
+// zoals de afspraakhulp ze schrijft ('Titel - Voornaam'; zo kan hij een
+// voornaam ook weer weghalen als je een cliënt verwijdert).
+function voegVoornamenToe(keuze) {
+  const inp = getTitleInputSafe();
+  if (!inp) return;
+  const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
+  const delen = t.split(' - ').map(clean);
+  const erbij = findClientFirstNames().filter((n) => n && delen.indexOf(clean(n)) < 0 && clean(t).indexOf(clean(n)) < 0);
+  if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(' - '));
+}
+
 // Aanroepen zodra de afspraakhulp op /events/new start (helper/routing.js).
 export function startVanuitPlanhulp() {
-  let keuze = null, nietClient = null, titel = '';
+  let keuze = null, nietClient = null, titel = '', clientLater = false;
+  appointmentFlow.planhulpVerder = null;   // nieuw formulier: niets meer van een vorig
   const p = applyPendingAppointment(() => afronden());
   if (!p) return;
   const label = p.model && Array.isArray(p.model.labels) && p.model.labels[0] ? p.model.labels[0].name : '';
@@ -86,21 +101,27 @@ export function startVanuitPlanhulp() {
       handleNonClientOption(nietClient);
       return;
     }
+    // Alleen tonen wat nog ontbreekt. Geen cliënt (in de planhulp niet
+    // gekozen): alleen daarom vragen; zodra er een cliënt is, gaat het
+    // hieronder verder (via choices.js).
+    if (!hasClientInAppointment()) {
+      appointmentFlow.planhulpVerder = () => { clientLater = true; voegVoornamenToe(keuze); afronden(); };
+      showAppointmentNeedsPrereqs();
+      return;
+    }
     appointmentFlow.appointmentTypeApplied = true;
     const labels = choiceLabels(keuze);
     const naarOpslaan = () => {
-      if (titel) zetTitel(titel);
+      if (titel && !clientLater) zetTitel(titel);
       showAppointmentReadyToSave();
     };
     // ONS kan bij een uursoort zelf een label koppelen: daarna precies de
     // labels van dit type, zoals de afspraakhulp altijd doet.
     setLabelsExclusive(labels, () => {
-      if (appointmentReadyToSave()) { naarOpslaan(); return; }
-      if (hasClientInAppointment() && !hasUursoortSelected()) {
-        showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
-        return;
-      }
-      showChoices();
+      // Een type zonder uursoortkeuze vraagt er ook niet om.
+      if (appointmentReadyToSave() || hasUursoortSelected() || !keuze.pickUursoort) { naarOpslaan(); return; }
+      // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
+      showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
     });
   }
 }

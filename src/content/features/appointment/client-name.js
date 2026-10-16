@@ -32,7 +32,7 @@ export function findClientFirstName() {
   }
   return best ? firstNameFromName(best) : '';
 }
-function findClientFirstNames() {
+export function findClientFirstNames() {
   const names = [];
   const seen = new Set();
   for (const entry of findClientEntries()) {

@@ -70,6 +70,7 @@ export function restoreAppointmentSnapshot(onDone) {
 }
 export function clearSettings() {
   appointmentFlow.appointmentClearingSettings = true;
+  appointmentFlow.planhulpVerder = null; // na wissen kies je zelf weer een type
   appointmentFlow.appointmentAwaitingManualUursoort = false;
   // Breek een eventueel lopende uursoort-wachtrij af en geef de guard-flags vrij.
   // Anders blijft 'uursoortQueueActive' op true hangen en loopt de vólgende

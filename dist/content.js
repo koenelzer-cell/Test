@@ -2365,6 +2365,8 @@
     // gekozen afspraaktype (choice) in behandeling
     planhulpVullenSinds: 0,
     // > 0: het formulier uit de planhulp wordt nog ingevuld (tijdstip)
+    planhulpVerder: null,
+    // formulier uit de planhulp wacht op een cliënt: deze functie gaat verder zodra die er is
     clientWaitTimer: null,
     activeAppointmentDurationMinutes: null,
     activeAppointmentStartTimeText: "",
@@ -9930,6 +9932,7 @@
   }
   function clearSettings() {
     appointmentFlow.appointmentClearingSettings = true;
+    appointmentFlow.planhulpVerder = null;
     appointmentFlow.appointmentAwaitingManualUursoort = false;
     appointmentFlow.uursoortQueueGen++;
     appointmentFlow.uursoortQueueActive = false;
@@ -13609,6 +13612,12 @@
       showAvailabilityWarning();
       return;
     }
+    const planhulpVerder = appointmentFlow.planhulpVerder;
+    if (planhulpVerder && !forceChoice) {
+      appointmentFlow.planhulpVerder = null;
+      planhulpVerder();
+      return;
+    }
     if (!forceChoice && appointmentReadyToSave()) {
       showAppointmentReadyToSave();
       return;
@@ -16039,7 +16048,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.277";
+      return "1.6.278";
     }
   }();
 
@@ -16494,8 +16503,17 @@
     if (inp && setAppointmentTitleText(titel)) return;
     if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
   }
+  function voegVoornamenToe(keuze) {
+    const inp = getTitleInputSafe();
+    if (!inp) return;
+    const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
+    const delen = t.split(" - ").map(clean);
+    const erbij = findClientFirstNames().filter((n) => n && delen.indexOf(clean(n)) < 0 && clean(t).indexOf(clean(n)) < 0);
+    if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(" - "));
+  }
   function startVanuitPlanhulp() {
-    let keuze = null, nietClient = null, titel = "";
+    let keuze = null, nietClient = null, titel = "", clientLater = false;
+    appointmentFlow.planhulpVerder = null;
     const p = applyPendingAppointment(() => afronden());
     if (!p) return;
     const label = p.model && Array.isArray(p.model.labels) && p.model.labels[0] ? p.model.labels[0].name : "";
@@ -16517,22 +16535,27 @@
         handleNonClientOption(nietClient);
         return;
       }
+      if (!hasClientInAppointment()) {
+        appointmentFlow.planhulpVerder = () => {
+          clientLater = true;
+          voegVoornamenToe(keuze);
+          afronden();
+        };
+        showAppointmentNeedsPrereqs();
+        return;
+      }
       appointmentFlow.appointmentTypeApplied = true;
       const labels = choiceLabels(keuze);
       const naarOpslaan = () => {
-        if (titel) zetTitel(titel);
+        if (titel && !clientLater) zetTitel(titel);
         showAppointmentReadyToSave();
       };
       setLabelsExclusive(labels, () => {
-        if (appointmentReadyToSave()) {
+        if (appointmentReadyToSave() || hasUursoortSelected() || !keuze.pickUursoort) {
           naarOpslaan();
           return;
         }
-        if (hasClientInAppointment() && !hasUursoortSelected()) {
-          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
-          return;
-        }
-        showChoices();
+        showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
       });
     }
   }

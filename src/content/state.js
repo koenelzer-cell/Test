@@ -41,6 +41,7 @@ export const helperPanel = {
 export const appointmentFlow = {
   pendingChoice: null,        // gekozen afspraaktype (choice) in behandeling
   planhulpVullenSinds: 0,     // > 0: het formulier uit de planhulp wordt nog ingevuld (tijdstip)
+  planhulpVerder: null,       // formulier uit de planhulp wacht op een cliënt: deze functie gaat verder zodra die er is
   clientWaitTimer: null,
   activeAppointmentDurationMinutes: null,
   activeAppointmentStartTimeText: '',

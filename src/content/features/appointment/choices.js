@@ -67,6 +67,14 @@ export function showChoices() {
     showAvailabilityWarning();
     return;
   }
+  // Formulier uit de planhulp zonder cliënt: nu er een cliënt is, verder
+  // met wat er nog ontbreekt (helper/planner-form.js), niet met de typekeuze.
+  const planhulpVerder = appointmentFlow.planhulpVerder;
+  if (planhulpVerder && !forceChoice) {
+    appointmentFlow.planhulpVerder = null;
+    planhulpVerder();
+    return;
+  }
   if (!forceChoice && appointmentReadyToSave()) {
     showAppointmentReadyToSave();
     return;

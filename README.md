@@ -352,9 +352,13 @@ en oker).
   formulier vraagt hem bij het zijpaneel op zodra het open is (de titel kan
   een voornaam bevatten en wordt daarom nergens opgeslagen; is het zijpaneel
   dicht, dan geen titel). Omdat het afspraaktype al bekend is, vraagt de
-  afspraakhulp er niet opnieuw naar: hij toont 'Afspraak uit de planhulp
-  invullen...' en gaat daarna meteen naar de opslaanpagina. Mist er nog een
-  uursoort, dan vraagt hij alleen die. Bij een niet-cliëntgebonden afspraak
+  afspraakhulp er niet opnieuw naar en laat hij alleen zien wat nog
+  ontbreekt: eerst 'Afspraak uit de planhulp invullen...', daarna meteen de
+  opslaanpagina. Koos je in de planhulp geen cliënt, dan vraagt hij alleen om
+  een cliënt; voeg je er een toe in het formulier, dan zet hij de voornaam
+  achter de titel ('Titel - Voornaam'), vraagt hij alleen de uursoort en gaat
+  hij naar de opslaanpagina (geen typekeuze, duur- of reistijdvraag). Mist er
+  een uursoort, dan vraagt hij alleen die. Bij een niet-cliëntgebonden afspraak
   zoekt hij de optie bij de uursoort en rondt hij die af zoals na een keuze in
   de afspraakhulp. Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat.
