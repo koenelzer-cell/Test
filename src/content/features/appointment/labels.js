@@ -14,6 +14,7 @@ import {
   uiText,
 } from '../../ons/form-controls.js';
 import { getEtiketTrigger, labelChips } from '../../ons/appointment-form.js';
+import { zetLabelsViaFormulier } from '../../ons/form-model.js';
 import { clickEmptyModalSpot, rowForOptionText } from '../../ons/interaction.js';
 import { setStatus } from '../../screen/status.js';
 
@@ -191,6 +192,19 @@ function setLabelExclusive(text, onDone, attempt = 0) {
 export function setLabelsExclusive(texts, onDone, attempt = 0) {
   const wanted = (Array.isArray(texts) ? texts : [texts]).map((t) => clean(t)).filter(Boolean);
   if (!wanted.length) { if (onDone) onDone(true); return; }
+  // Eerst rechtstreeks in het formulier van ONS (geen dropdown). Staan de
+  // labels daarna goed, dan klaar; anders verder met klikken zoals vroeger.
+  if (attempt === 0) {
+    const namen = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? '' : t).trim()).filter(Boolean);
+    zetLabelsViaFormulier(namen).then((ok) => {
+      if (!ok) { setLabelsExclusive(texts, onDone, 1); return; }
+      setTimeout(() => {
+        if (labelsKloppen(wanted)) { if (onDone) onDone(true); }
+        else setLabelsExclusive(texts, onDone, 1);
+      }, 120);
+    });
+    return;
+  }
   if (wanted.length === 1) { setLabelExclusive(wanted[0], onDone, attempt); return; }
   const trigger = getEtiketTrigger();
   if (!trigger) { if (onDone) onDone(false); return; }
@@ -216,6 +230,14 @@ export function setLabelsExclusive(texts, onDone, attempt = 0) {
   }
   // Fase 2: het eerste ontbrekende label toevoegen, daarna opnieuw evalueren.
   addLabelExact(missing[0], () => setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 150));
+}
+// Staan precies de gewenste labels als chip in het veld?
+function labelsKloppen(wanted) {
+  const trigger = getEtiketTrigger();
+  if (!trigger) return false;
+  const chips = selectedAllLabelChipTexts(trigger);
+  const hoort = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
+  return chips.length > 0 && chips.every(hoort) && wanted.every((w) => chips.some((l) => l === w || l.indexOf(w) !== -1));
 }
 export function selectLabel(text, onResult, attempt = 0) {
   const trigger = getEtiketTrigger();

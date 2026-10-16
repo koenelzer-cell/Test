@@ -1,7 +1,7 @@
 /* ============================================================================
    main-world — draait in de PAGINA-context van ONS (manifest: "world": "MAIN").
 
-   Vijf taken:
+   Zes taken:
      1) Context melden: omgeving (uit de hostnaam) en gebruikers-ID, voor de
         gefaseerde uitrol in het meldingenkanaal (content/platform/module-host.js).
      2) Details-watcher: de afspraaklabels uit ONS' eigen details-call
@@ -13,6 +13,8 @@
      5) Leeg afspraakmodel aanvullen: alleen als de planhulp een afspraak heeft
         klaargezet, datum, tijden en afspraaktype in het model zetten waaruit
         ONS het nieuwe afspraakformulier opbouwt.
+     6) Labels van het open afspraakformulier zetten op verzoek van de
+        afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de dropdown.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -21,7 +23,7 @@
    lezen — set-select, set-input, read-value. Niemand gebruikte die; ze zijn
    verwijderd.)
    ========================================================================== */
-import { PAGE_BRIDGE } from '../shared/messages.js';
+import { PAGE_BRIDGE, PAGE_COMMAND } from '../shared/messages.js';
 import { PAGE_SESSION } from '../shared/storage-keys.js';
 
 (function onsAgendahulpMainWorld() {
@@ -289,6 +291,97 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     } catch (e) {}
   }
   installDetailsWatcher();
+
+  /* ---- labels zetten via het formulier zelf ------------------------------
+     Het afspraakformulier van ONS is een Vue-app. Het labelveld
+     (uc-combo-box, data-qa="label_select") krijgt zijn waarde als
+     model-value, met de keuzes in available-labels, en meldt een keuze via
+     onUpdate:modelValue (bij ONS: e.onChange(t, 'label_ids')). Die functie
+     roepen we hier aan met de id's van de gevraagde labels: precies wat de
+     dropdown doet na een klik, maar zonder dat hij opengaat. De gevraagde set
+     vervangt wat er stond (net als de afspraakhulp altijd deed). Daarna kijken
+     we of het veld de nieuwe waarde heeft; zo niet, dan meldt het antwoord
+     ok: false en klikt het content-script zoals vroeger.
+     Alleen Vue-interne velden die al jaren vastliggen: _vnode, component,
+     subTree, children, dynamicChildren, el en props.
+     PRIVACY: we lezen alleen id en naam van de beschikbare labels.
+     ---------------------------------------------------------------------- */
+  function diepZoek(root, sel) {
+    var gevonden = root.querySelector(sel);
+    if (gevonden) return gevonden;
+    var alle = root.querySelectorAll('*');
+    for (var i = 0; i < alle.length; i++) {
+      if (alle[i].shadowRoot) { var r = diepZoek(alle[i].shadowRoot, sel); if (r) return r; }
+    }
+    return null;
+  }
+  function vueVnodeVan(el) {
+    var h = el;
+    while (h && !h.__vue_app__) h = h.parentElement || (h.getRootNode && h.getRootNode().host) || null;
+    if (!h || !h._vnode) return null;
+    var stapel = [h._vnode], gezien = new WeakSet(), n = 0;
+    while (stapel.length && n < 200000) {
+      var v = stapel.pop();
+      if (!v || typeof v !== 'object' || gezien.has(v)) continue;
+      gezien.add(v); n++;
+      if (v.el === el && v.props && typeof v.props['onUpdate:modelValue'] === 'function') return v;
+      if (v.component) stapel.push(v.component.subTree);
+      if (v.suspense && v.suspense.activeBranch) stapel.push(v.suspense.activeBranch);
+      var i;
+      if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
+      if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
+    }
+    return null;
+  }
+  function norm(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+  function propVan(v, a, b) { return v.props[a] !== undefined ? v.props[a] : v.props[b]; }
+  function labelId(x) { return x && typeof x === 'object' ? Number(x.id) : Number(x); }
+  // namen -> { ok, reden? }. Zelfde herkenning als de chips: exact, anders
+  // een label waarvan de naam het gevraagde bevat (alleen als dat er één is).
+  function zetLabels(namen, klaar) {
+    var veld = diepZoek(document, '[data-qa="label_select"]');
+    if (!veld) { klaar({ ok: false, reden: 'geen labelveld' }); return; }
+    var v = vueVnodeVan(veld);
+    if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
+    var beschikbaar = propVan(v, 'available-labels', 'availableLabels');
+    if (!Array.isArray(beschikbaar) || !beschikbaar.length) { klaar({ ok: false, reden: 'geen beschikbare labels' }); return; }
+    var gekozen = [];
+    for (var i = 0; i < namen.length; i++) {
+      var w = norm(namen[i]);
+      var exact = beschikbaar.filter(function (l) { return l && norm(l.name) === w; });
+      var bevat = exact.length ? exact : beschikbaar.filter(function (l) { return l && norm(l.name).indexOf(w) !== -1; });
+      if (bevat.length !== 1 || !(Number(bevat[0].id) > 0)) { klaar({ ok: false, reden: 'label niet gevonden' }); return; }
+      if (gekozen.indexOf(bevat[0]) < 0) gekozen.push(bevat[0]);
+    }
+    var huidig = propVan(v, 'model-value', 'modelValue');
+    // De waarde in dezelfde vorm als ONS hem in het veld zet: id's, of de
+    // labelobjecten als het veld die al bevat.
+    var objecten = Array.isArray(huidig) && huidig.length > 0 && typeof huidig[0] === 'object';
+    var ids = gekozen.map(function (l) { return Number(l.id); });
+    try { v.props['onUpdate:modelValue'](objecten ? gekozen.slice() : ids.slice()); }
+    catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
+    // Na de volgende tekenronde nakijken.
+    setTimeout(function () {
+      var na = vueVnodeVan(veld);
+      var nu = na ? propVan(na, 'model-value', 'modelValue') : null;
+      var nuIds = Array.isArray(nu) ? nu.map(labelId).sort() : [];
+      var ok = nuIds.length === ids.length && ids.slice().sort().every(function (id, k) { return id === nuIds[k]; });
+      klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
+    }, 80);
+  }
+  window.addEventListener('message', function (ev) {
+    try {
+      if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
+      var d = ev.data;
+      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN || d.type !== PAGE_COMMAND.SET_LABELS) return;
+      var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
+      var id = String(d.id || '').slice(0, 40);
+      if (!namen.length) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
+      zetLabels(namen, function (r) { post(PAGE_COMMAND.LABELS_SET, Object.assign({ id: id }, r)); });
+    } catch (e) {}
+  });
 
   // Context proactief melden zodra ONS geladen is (kort pollen, dan stoppen).
   var CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;

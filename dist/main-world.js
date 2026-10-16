@@ -5,6 +5,12 @@
     TO_MAIN: "to-main",
     FROM_MAIN: "from-main"
   };
+  var PAGE_COMMAND = {
+    SET_LABELS: "zetLabels",
+    // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+    LABELS_SET: "labelsGezet"
+    // { id, ok, reden? }
+  };
 
   // src/shared/storage-keys.js
   var PAGE_SESSION = {
@@ -295,6 +301,117 @@
       }
     }
     installDetailsWatcher();
+    function diepZoek(root, sel) {
+      var gevonden = root.querySelector(sel);
+      if (gevonden) return gevonden;
+      var alle = root.querySelectorAll("*");
+      for (var i = 0; i < alle.length; i++) {
+        if (alle[i].shadowRoot) {
+          var r = diepZoek(alle[i].shadowRoot, sel);
+          if (r) return r;
+        }
+      }
+      return null;
+    }
+    function vueVnodeVan(el) {
+      var h = el;
+      while (h && !h.__vue_app__) h = h.parentElement || h.getRootNode && h.getRootNode().host || null;
+      if (!h || !h._vnode) return null;
+      var stapel = [h._vnode], gezien = /* @__PURE__ */ new WeakSet(), n = 0;
+      while (stapel.length && n < 2e5) {
+        var v = stapel.pop();
+        if (!v || typeof v !== "object" || gezien.has(v)) continue;
+        gezien.add(v);
+        n++;
+        if (v.el === el && v.props && typeof v.props["onUpdate:modelValue"] === "function") return v;
+        if (v.component) stapel.push(v.component.subTree);
+        if (v.suspense && v.suspense.activeBranch) stapel.push(v.suspense.activeBranch);
+        var i;
+        if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
+        if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
+      }
+      return null;
+    }
+    function norm(s) {
+      return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    }
+    function propVan(v, a, b) {
+      return v.props[a] !== void 0 ? v.props[a] : v.props[b];
+    }
+    function labelId(x) {
+      return x && typeof x === "object" ? Number(x.id) : Number(x);
+    }
+    function zetLabels(namen, klaar) {
+      var veld = diepZoek(document, '[data-qa="label_select"]');
+      if (!veld) {
+        klaar({ ok: false, reden: "geen labelveld" });
+        return;
+      }
+      var v = vueVnodeVan(veld);
+      if (!v) {
+        klaar({ ok: false, reden: "geen Vue-koppeling" });
+        return;
+      }
+      var beschikbaar = propVan(v, "available-labels", "availableLabels");
+      if (!Array.isArray(beschikbaar) || !beschikbaar.length) {
+        klaar({ ok: false, reden: "geen beschikbare labels" });
+        return;
+      }
+      var gekozen = [];
+      for (var i = 0; i < namen.length; i++) {
+        var w = norm(namen[i]);
+        var exact = beschikbaar.filter(function(l) {
+          return l && norm(l.name) === w;
+        });
+        var bevat = exact.length ? exact : beschikbaar.filter(function(l) {
+          return l && norm(l.name).indexOf(w) !== -1;
+        });
+        if (bevat.length !== 1 || !(Number(bevat[0].id) > 0)) {
+          klaar({ ok: false, reden: "label niet gevonden" });
+          return;
+        }
+        if (gekozen.indexOf(bevat[0]) < 0) gekozen.push(bevat[0]);
+      }
+      var huidig = propVan(v, "model-value", "modelValue");
+      var objecten = Array.isArray(huidig) && huidig.length > 0 && typeof huidig[0] === "object";
+      var ids = gekozen.map(function(l) {
+        return Number(l.id);
+      });
+      try {
+        v.props["onUpdate:modelValue"](objecten ? gekozen.slice() : ids.slice());
+      } catch (e) {
+        klaar({ ok: false, reden: "ONS weigerde de waarde" });
+        return;
+      }
+      setTimeout(function() {
+        var na = vueVnodeVan(veld);
+        var nu = na ? propVan(na, "model-value", "modelValue") : null;
+        var nuIds = Array.isArray(nu) ? nu.map(labelId).sort() : [];
+        var ok = nuIds.length === ids.length && ids.slice().sort().every(function(id, k) {
+          return id === nuIds[k];
+        });
+        klaar(ok ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
+      }, 80);
+    }
+    window.addEventListener("message", function(ev) {
+      try {
+        if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
+        var d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN || d.type !== PAGE_COMMAND.SET_LABELS) return;
+        var namen = (Array.isArray(d.labels) ? d.labels : []).map(function(x) {
+          return String(x == null ? "" : x).slice(0, 100);
+        }).filter(Boolean).slice(0, 10);
+        var id = String(d.id || "").slice(0, 40);
+        if (!namen.length) {
+          post(PAGE_COMMAND.LABELS_SET, { id, ok: false, reden: "geen labels" });
+          return;
+        }
+        zetLabels(namen, function(r) {
+          post(PAGE_COMMAND.LABELS_SET, Object.assign({ id }, r));
+        });
+      } catch (e) {
+      }
+    });
     var CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;
     var tries = 0;
     var timer = setInterval(function() {

@@ -123,6 +123,17 @@ zijn de standaardomschrijving, het AFAS-adres, de maximale duur van een
 herhaling en de ONS-waarden voor `recurrence_type` in te stellen;
 `features.leaveRequest: false` zet de knop uit.
 
+### Afspraakhulp: het label zetten
+
+Kies je in de afspraakhulp een afspraaktype, dan zet de hulp het bijbehorende
+label (of de labels) rechtstreeks in het afspraakformulier van ONS, zonder de
+labeldropdown te openen. Het formulier is een Vue-app; het labelveld krijgt
+de id's van de labels via ONS' eigen koppeling (`onUpdate:modelValue`, bij
+ONS `label_ids`), precies zoals na een klik in de dropdown. De gekozen set
+vervangt wat er stond. Daarna kijkt de hulp of de labels als chip in het veld
+staan. Lukt het niet (onbekend label, ander formulier na een ONS-update), dan
+opent hij de dropdown en klikt hij zoals vroeger.
+
 ### Zijpaneel
 
 Terwijl de agenda open staat, laadt de extensie op de achtergrond al wat het

@@ -44,7 +44,7 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
 | `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, herinnering aan/uit, meldlink |
 | `sidepanel/` | zijpaneel | toont de Agendahulp of de vragenlijst-checklist van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda of vragenlijst |
-| `main-world/` | pagina-context van ONS | context (gebruiker) melden; de afspraaklabels uit ONS' eigen details-call doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette |
+| `main-world/` | pagina-context van ONS | context (gebruiker) melden; de afspraaklabels uit ONS' eigen details-call doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek de labels van het open formulier zetten via Vue |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
 | `react/` | apart script vóór `content` en `sidepanel` | de schermen van de wizard en het weekoverzicht (React), via `window.__onsahReact` |
@@ -255,6 +255,7 @@ Deze keuzes zien er vreemd uit maar hebben een reden. Ze staan ook bij de code.
 | Afspraaklabels uit de details-API (via `main-world`) i.p.v. uit de popup-opmaak | ONS herbouwt de popup regelmatig; het API-veld is stabiel | `src/main-world/`, `services/ons-api/event-details.js` |
 | Shadow-DOM-bewust zoeken met 500 ms cache | ONS-componenten (`uc-*`) gebruiken open shadow roots | `ons/dom.js` |
 | Vertragingen en pogingen bij dropdowns | ONS bouwt opties asynchroon op | `ons/form-controls.js`, `features/appointment/uursoort-source.js` |
+| Labels zetten via de Vue-koppeling van het formulier i.p.v. de dropdown | Het afspraakformulier is Vue 3 met `uc-*`-webcomponenten (Lit). Het labelveld (`uc-combo-box[data-qa=label_select]`) heeft in zijn vnode `model-value`, `available-labels` en `onUpdate:modelValue` (→ `onChange(t, 'label_ids')`). Alleen de main-world kan daarbij: hij zoekt de vnode vanaf de app-houder (`__vue_app__`, `_vnode`) en roept de functie aan met de id's; het content-script vraagt het via `PAGE_COMMAND.SET_LABELS` en klikt als het mislukt | `src/main-world/`, `ons/form-model.js`, `features/appointment/labels.js` |
 | "+ Toevoegen"-bewaking | een synthetische klik (dropdown sluiten) opende soms de zoek-genodigden-modal | `features/appointment/invitee-guard.js` |
 | Popover / top layer voor meldingen en UI-inspector | anders vallen ze achter de ONS-modal | `platform/module-host.js`, `features/ui-inspector.js` |
 | Wachten tot de pagina "rustig" is voor herstel na refresh | het registratieformulier laadt in stappen | `features/registration/prereqs.js` |

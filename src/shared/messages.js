@@ -71,3 +71,9 @@ export const PAGE_BRIDGE = {
   TO_MAIN: 'to-main',
   FROM_MAIN: 'from-main',
 };
+// Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
+// antwoord (dir FROM_MAIN, met hetzelfde id).
+export const PAGE_COMMAND = {
+  SET_LABELS: 'zetLabels',      // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+  LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
+};

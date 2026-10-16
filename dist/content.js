@@ -3430,6 +3430,12 @@
     TO_MAIN: "to-main",
     FROM_MAIN: "from-main"
   };
+  var PAGE_COMMAND = {
+    SET_LABELS: "zetLabels",
+    // { id, labels: ['JG Huisbezoek', …] }  labels van het open afspraakformulier zetten
+    LABELS_SET: "labelsGezet"
+    // { id, ok, reden? }
+  };
 
   // src/content/services/ons-api/event-details.js
   function _detailsBody(json) {
@@ -5767,6 +5773,37 @@
     next();
   }
 
+  // src/content/ons/form-model.js
+  var volgnummer = 0;
+  function zetLabelsViaFormulier(namen, wachtMs) {
+    const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
+    if (!lijst.length) return Promise.resolve(false);
+    return new Promise((klaar) => {
+      const id = "labels-" + ++volgnummer + "-" + Date.now();
+      let gemeld = false;
+      const luister = (ev) => {
+        if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
+        const d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== PAGE_COMMAND.LABELS_SET || d.id !== id) return;
+        einde(d.ok === true);
+      };
+      const timer = setTimeout(() => einde(false), wachtMs || 1500);
+      function einde(ok) {
+        if (gemeld) return;
+        gemeld = true;
+        clearTimeout(timer);
+        window.removeEventListener("message", luister);
+        klaar(ok);
+      }
+      window.addEventListener("message", luister);
+      try {
+        window.postMessage({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type: PAGE_COMMAND.SET_LABELS, id, labels: lijst }, location.origin);
+      } catch (e) {
+        einde(false);
+      }
+    });
+  }
+
   // src/content/ui/theme.js
   var ONSAH_TOKENS = {
     ink: "#201d1f",
@@ -6257,6 +6294,21 @@
       if (onDone) onDone(true);
       return;
     }
+    if (attempt === 0) {
+      const namen = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? "" : t).trim()).filter(Boolean);
+      zetLabelsViaFormulier(namen).then((ok) => {
+        if (!ok) {
+          setLabelsExclusive(texts, onDone, 1);
+          return;
+        }
+        setTimeout(() => {
+          if (labelsKloppen(wanted)) {
+            if (onDone) onDone(true);
+          } else setLabelsExclusive(texts, onDone, 1);
+        }, 120);
+      });
+      return;
+    }
     if (wanted.length === 1) {
       setLabelExclusive(wanted[0], onDone, attempt);
       return;
@@ -6288,6 +6340,13 @@
       return;
     }
     addLabelExact(missing[0], () => setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 150));
+  }
+  function labelsKloppen(wanted) {
+    const trigger = getEtiketTrigger();
+    if (!trigger) return false;
+    const chips = selectedAllLabelChipTexts(trigger);
+    const hoort = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
+    return chips.length > 0 && chips.every(hoort) && wanted.every((w) => chips.some((l) => l === w || l.indexOf(w) !== -1));
   }
   function selectLabel(text2, onResult, attempt = 0) {
     const trigger = getEtiketTrigger();
@@ -15795,7 +15854,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.272";
+      return "1.6.273";
     }
   }();
 
@@ -20385,6 +20444,7 @@
       allKnownLabels,
       choiceLabels,
       setLabelsExclusive,
+      zetLabelsViaFormulier,
       entryUursoortIsSet,
       // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
       // meerdere-cliënten-flow en de schermherkenning.
