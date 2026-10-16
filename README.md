@@ -311,7 +311,13 @@ en oker).
   cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als
   terugval (zelfde cliënten: één formulier + kopieën; per afspraak anders:
   een eigen formulier per afspraak, cliënten al ingevuld via
-  `invitee_ids[]`). Instellingen van het formulier (`meta`, alleen ja/nee en
+  `invitee_ids[]`). Het formulier opent meteen met de datum, de begin- en
+  eindtijd en het gekozen afspraaktype: de hulp zet die in het lege
+  afspraakmodel waaruit ONS het formulier opbouwt (`GET
+  /calendar/events/new`), in plaats van ze in de velden te typen en het label
+  aan te klikken. Lukt dat niet, dan vult de hulp ze zoals vroeger in. De
+  uursoort kies je nog in het formulier: die hoort bij de cliënt en staat
+  niet in dat lege model. Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat.
   Zodra de cliënt(en) gekozen zijn, kijkt de hulp elke afspraak opnieuw na
   met ONS' overlapcontrole, nu met de cliënt(en) erbij ('ONS: overlap' als de

@@ -2089,9 +2089,15 @@ export function create(host, actions) {
     if (!items.length || !actions.onNewEvent) return;
     var ids = function (it) { return clientsVan(mk, it).map(function (c) { return c.clientId; }); };
     var tijd = function (it) { return { date: it.date, time: hm(it.startMin) }; };
+    // Het afspraaktype gaat mee: het formulier opent er meteen mee.
+    var metType = function (uit, it) {
+      var naam = !mk.nietClient && it.labelId ? typeNaamVan(mk, it.labelId) : '';
+      if (naam) uit.label = { id: Number(it.labelId), name: naam };
+      return uit;
+    };
     var eerste = items[0];
-    var req = { date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] };
-    if (mk.modus === 'los') { req.multi = true; req.eigen = items.slice(1).map(function (it) { return Object.assign(tijd(it), { minutes: it.minutes, clientIds: ids(it) }); }); }
+    var req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
+    if (mk.modus === 'los') { req.multi = true; req.eigen = items.slice(1).map(function (it) { return metType(Object.assign(tijd(it), { minutes: it.minutes, clientIds: ids(it) }), it); }); }
     else req.extra = items.slice(1).map(tijd);
     actions.onNewEvent(req, function (r) { if (!(r && r.ok)) { mk.error = (r && r.error) || 'Openen mislukt.'; renderPagina(); } });
   }

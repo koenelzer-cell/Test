@@ -133,6 +133,8 @@ function volgendeEigen(eigen, bodyText) {
   var klaar = { date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) };
   // Met een eigen duur (meerdere afspraken plannen) staat de eindtijd ook klaar.
   if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
+  // En het eigen afspraaktype.
+  if (volgende.label) klaar.label = volgende.label;
   storePendingAppointment(klaar);
   let ids = [];
   try { const ev = JSON.parse(String(bodyText || '')).event; ids = (ev && ev.employee_ids || []).map(String); } catch (e) {}

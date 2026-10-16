@@ -11,7 +11,7 @@
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
-    // afspraak vanuit de planhulp (datum, begintijd)
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
@@ -96,6 +96,89 @@
       }
     }
     var CREATE_PATH = "/calendar/events";
+    var NIEUW_PATH = "/calendar/events/new";
+    var MODEL_GELDIG_MS = 2 * 60 * 1e3;
+    var YMD = /^\d{4}-\d{2}-\d{2}$/, ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+    function klaargezetModel() {
+      try {
+        var p = JSON.parse(sessionStorage.getItem(PAGE_SESSION.PENDING_APPOINTMENT) || "null");
+        if (!p || !p.model || !(Date.now() - p.ts <= MODEL_GELDIG_MS)) return null;
+        return p.model;
+      } catch (e) {
+        return null;
+      }
+    }
+    function isNieuwModel(url, method) {
+      if (String(method || "GET").toUpperCase() !== "GET") return false;
+      try {
+        var abs = new URL(String(url || ""), location.href);
+        return abs.origin === location.origin && abs.pathname.replace(/\/$/, "") === NIEUW_PATH;
+      } catch (e) {
+        return false;
+      }
+    }
+    function vulModel(json, k) {
+      var ev = json && typeof json === "object" ? json.event && typeof json.event === "object" ? json.event : json : null;
+      if (!ev || !ev.meta || ev.meta.new_record !== true || ev.meta.create_url !== CREATE_PATH) return false;
+      var gedaan = false;
+      if (ev.valid_from == null && YMD.test(String(k.valid_from || ""))) {
+        ev.valid_from = k.valid_from;
+        gedaan = true;
+      }
+      if (ev.start_time == null && ISO.test(String(k.start_time || ""))) {
+        ev.start_time = k.start_time;
+        gedaan = true;
+      }
+      if (ev.end_time == null && ISO.test(String(k.end_time || ""))) {
+        ev.end_time = k.end_time;
+        gedaan = true;
+      }
+      var l = Array.isArray(k.labels) ? k.labels.filter(function(x) {
+        return x && Number(x.id) > 0 && typeof x.name === "string";
+      }) : [];
+      if (l.length && Array.isArray(ev.labels) && !ev.labels.length) {
+        ev.labels = l.map(function(x) {
+          return { id: Number(x.id), name: String(x.name) };
+        });
+        gedaan = true;
+      }
+      return gedaan;
+    }
+    function vulTekst(tekst) {
+      var k = klaargezetModel();
+      if (!k) return tekst;
+      try {
+        var j = JSON.parse(tekst);
+        return vulModel(j, k) ? JSON.stringify(j) : tekst;
+      } catch (e) {
+        return tekst;
+      }
+    }
+    function vulXhr(xhr, proto) {
+      try {
+        var rt = Object.getOwnPropertyDescriptor(proto, "responseText");
+        var r = Object.getOwnPropertyDescriptor(proto, "response");
+        var klaar = null;
+        var tekst = function() {
+          if (klaar === null) klaar = vulTekst(rt.get.call(xhr));
+          return klaar;
+        };
+        if (rt && rt.get) Object.defineProperty(xhr, "responseText", { configurable: true, get: function() {
+          return xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300 ? tekst() : rt.get.call(xhr);
+        } });
+        if (r && r.get) Object.defineProperty(xhr, "response", { configurable: true, get: function() {
+          var v = r.get.call(xhr);
+          if (!(xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300)) return v;
+          if (typeof v === "string") return tekst();
+          if (v && typeof v === "object" && xhr.responseType === "json") {
+            var k = klaargezetModel();
+            if (k) vulModel(v, k);
+          }
+          return v;
+        } });
+      } catch (e) {
+      }
+    }
     function kopieenKlaar() {
       try {
         return sessionStorage.getItem(PAGE_SESSION.PENDING_DUPLICATES) || "";
@@ -142,6 +225,20 @@
             var body = init && init.body;
             var p = origFetch.apply(this, arguments);
             try {
+              if (isNieuwModel(url, method) && klaargezetModel()) {
+                return p.then(function(res) {
+                  if (!res || !res.ok || !res.clone) return res;
+                  return res.clone().text().then(function(t) {
+                    var n = vulTekst(t);
+                    return n === t ? res : new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                  }, function() {
+                    return res;
+                  });
+                });
+              }
+            } catch (e) {
+            }
+            try {
               var melder = melderVoor(url, method);
               if (melder) {
                 p.then(function(res) {
@@ -179,6 +276,7 @@
           XHR.prototype.send = function(body) {
             try {
               var xhr = this;
+              if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
               var melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
               if (melder) {
                 xhr.addEventListener("load", function() {

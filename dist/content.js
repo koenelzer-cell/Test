@@ -2293,7 +2293,7 @@
     PENDING_REGISTRATION: "onsHelper.pendingReg",
     // registratie vanuit een afspraak (label, vorm, tijden)
     PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
-    // afspraak vanuit de planhulp (datum, begintijd)
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
     PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
@@ -15157,10 +15157,24 @@
   var GELDIG_MS = 2 * 60 * 1e3;
   function storePendingAppointment(req) {
     const minutes = parseInt(req.minutes, 10);
+    const klaar = { date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() };
+    const model = modelVelden(req, minutes);
+    if (model) klaar.model = model;
     try {
-      sessionStorage.setItem(KEY2, JSON.stringify({ date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() }));
+      sessionStorage.setItem(KEY2, JSON.stringify(klaar));
     } catch (e) {
     }
+  }
+  function modelVelden(req, minutes) {
+    const t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(req && req.time || ""));
+    if (!t || !/^\d{4}-\d{2}-\d{2}$/.test(String(req.date || ""))) return null;
+    const start = +t[1] * 60 + +t[2];
+    const m = { valid_from: req.date, start_time: isoLocalWithOffset(req.date, start) };
+    if (minutes > 0 && start + minutes < 24 * 60) m.end_time = isoLocalWithOffset(req.date, start + minutes);
+    const l = req.label;
+    const naam = String(l && l.name || "").trim();
+    if (l && Number(l.id) > 0 && naam) m.labels = [{ id: Number(l.id), name: naam.slice(0, 100) }];
+    return m;
   }
   var _geplandeDuur = null;
   function plannedAppointmentMinutes() {
@@ -15386,6 +15400,7 @@
     storePendingDuplicates([], eigen.slice(1));
     var klaar = { date: volgende.date, time: ("0" + Math.floor(volgende.startMin / 60)).slice(-2) + ":" + ("0" + volgende.startMin % 60).slice(-2) };
     if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
+    if (volgende.label) klaar.label = volgende.label;
     storePendingAppointment(klaar);
     let ids = [];
     try {
@@ -15780,7 +15795,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.271";
+      return "1.6.272";
     }
   }();
 
@@ -18621,7 +18636,11 @@
       if (id != null) ids = [String(id)];
     }
     if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
-    storePendingAppointment({ date: ymd3, time: hhmm, minutes });
+    var leesLabel = function(l) {
+      var naam = String(l && l.name || "").trim();
+      return l && Number(l.id) > 0 && naam ? { id: Number(l.id), name: naam.slice(0, 100) } : null;
+    };
+    storePendingAppointment({ date: ymd3, time: hhmm, minutes, label: leesLabel(req.label) });
     var clientLijst = function(l) {
       return (Array.isArray(l) ? l : []).map(String).filter(function(c) {
         return /^\d+$/.test(c);
@@ -18636,6 +18655,8 @@
         if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
         var cl = clientLijst(m.clientIds);
         if (cl.length) uit.clientIds = cl;
+        var lb = leesLabel(m.label);
+        if (lb) uit.label = lb;
         return uit;
       }).filter(Boolean);
     };

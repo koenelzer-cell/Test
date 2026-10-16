@@ -162,7 +162,13 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   script (`src/main-world/`) meldt de gebruikerscontext en geeft de
   afspraaklabels uit ONS' eigen details-aanroep door. Het zet of leest geen
   formuliervelden (de ongebruikte opdrachten daarvoor zijn in 1.6.202
-  verwijderd).
+  verwijderd). Eén antwoord van ONS vult het wel aan: het lege afspraakmodel
+  (`GET /calendar/events/new`, alleen same-origin, alleen met
+  `meta.new_record: true`) krijgt datum, begin- en eindtijd en afspraaktype,
+  maar alleen als de planhulp in dat tabblad hooguit twee minuten eerder een
+  afspraak klaarzette, en alleen in velden die nog leeg zijn. Het script leest
+  uit dat model niets anders (geen medewerkers of cliënten) en verstuurt niets;
+  opslaan doet de medewerker zelf in het ONS-formulier.
 - **Geen** `eval`, `new Function`, of uitvoering van op afstand geladen code.
   Alle assets zijn lokaal; er zijn geen CDN- of externe scriptbronnen.
 - Expliciete Content Security Policy voor extensiepagina's

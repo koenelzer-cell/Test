@@ -44,7 +44,7 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
 | `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, herinnering aan/uit, meldlink |
 | `sidepanel/` | zijpaneel | toont de Agendahulp of de vragenlijst-checklist van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda of vragenlijst |
-| `main-world/` | pagina-context van ONS | context (gebruiker) melden; de afspraaklabels uit ONS' eigen details-call doorgeven |
+| `main-world/` | pagina-context van ONS | context (gebruiker) melden; de afspraaklabels uit ONS' eigen details-call doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
 | `react/` | apart script vóór `content` en `sidepanel` | de schermen van de wizard en het weekoverzicht (React), via `window.__onsahReact` |
@@ -188,6 +188,7 @@ van stil een lege of verkeerde uitkomst te tonen:
 | `routes.googleapis.com` computeRouteMatrix / computeRoutes (direct vanuit het zijpaneel met `routesKey`, optionele toestemming) | afspraak maken (geavanceerd): rijtijden voor efficiënter indelen; route: kortste volgorde | `sidepanel/geo.js` | geen efficiënter indelen; reistijd zelf invullen |
 | eigen routes-proxy `POST /matrix`, `/optimize` (vanuit het zijpaneel, CORS) | idem, met de sleutel op de eigen server | `sidepanel/geo.js`, `server/routes-proxy/index.mjs` | geen efficiënter indelen; reistijd zelf invullen |
 | `google.com/maps/embed/v1/directions` (iframe, na klik) | kaart op Route van de dag | `sidepanel/geo.js` | geen kaart |
+| `GET /calendar/events/new?invitee_ids[]=…` (ONS zelf, bij een nieuw formulier) | planhulp naar het ONS-formulier: `main-world` zet datum, tijden en afspraaktype (`labels: [{ id, name }]`) in het lege model, uit `onsHelper.pendingAppointment.model` (`features/appointment/prefill.js`) | `src/main-world/` | velden typen en het label aanklikken zoals vroeger |
 | `POST /calendar/events` | planhulp: kopieën van een net opgeslagen afspraak op de andere gekozen momenten | `features/appointment/duplicate.js`, `domain/event-duplicate.js` | — (mislukte kopieën worden gemeld; zelf aanmaken) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
 | `/invitees/{id}/registrations/new?declaration[…]` | snel registreren: ONS-formulier vooraf ingevuld (paginaroute, geen API) | `features/agenda/quick-register.js` | — |

@@ -1292,6 +1292,9 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   assert.equal(form.multi, true);
   assert.deepEqual(form.clientIds, ['222']);
   assert.deepEqual(form.eigen.map((e) => e.clientIds), [['11142', '222']]);
+  // Het afspraaktype gaat mee, zodat het formulier er meteen mee opent.
+  assert.deepEqual(form.label, { id: 46, name: 'Huisbezoek' });
+  assert.deepEqual(form.eigen.map((e) => e.label), [{ id: 46, name: 'Huisbezoek' }]);
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
   document.querySelector('[data-maak-knop]').click();

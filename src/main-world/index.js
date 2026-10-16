@@ -1,7 +1,7 @@
 /* ============================================================================
    main-world — draait in de PAGINA-context van ONS (manifest: "world": "MAIN").
 
-   Vier taken:
+   Vijf taken:
      1) Context melden: omgeving (uit de hostnaam) en gebruikers-ID, voor de
         gefaseerde uitrol in het meldingenkanaal (content/platform/module-host.js).
      2) Details-watcher: de afspraaklabels uit ONS' eigen details-call
@@ -10,6 +10,9 @@
         doorgeven, zodat de planhulp die controle kan nadoen.
      4) Afspraak-watcher: alleen als de planhulp kopieën heeft klaargezet, het
         verzoek doorgeven waarmee ONS een nieuwe afspraak opslaat.
+     5) Leeg afspraakmodel aanvullen: alleen als de planhulp een afspraak heeft
+        klaargezet, datum, tijden en afspraaktype in het model zetten waaruit
+        ONS het nieuwe afspraakformulier opbouwt.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -120,6 +123,81 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      (content/features/agenda/event-create.js). Geen cliëntgegevens.
      ---------------------------------------------------------------------- */
   var CREATE_PATH = '/calendar/events';
+  /* ---- leeg afspraakmodel aanvullen ------------------------------------
+     Een nieuw afspraakformulier bouwt ONS op uit
+       GET /calendar/events/new?invitee_ids[]=…
+     een leeg model (new_record: true, labels: [], tijden null). Heeft de
+     planhulp in dit tabblad een afspraak klaargezet (sessionStorage, hooguit
+     twee minuten oud), dan zetten we daarin wat de medewerker daar al koos:
+     valid_from, start_time, end_time en labels. Alleen velden die nog leeg
+     zijn; de rest van het antwoord blijft precies zoals ONS het stuurde. Lukt
+     het niet, dan vult het content-script de velden zoals vroeger in.
+     PRIVACY: we lezen uit het model alleen meta.new_record en
+     meta.create_url; medewerkers en cliënten raken we niet aan.
+     ---------------------------------------------------------------------- */
+  var NIEUW_PATH = '/calendar/events/new';
+  var MODEL_GELDIG_MS = 2 * 60 * 1000;
+  var YMD = /^\d{4}-\d{2}-\d{2}$/, ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+  function klaargezetModel() {
+    try {
+      var p = JSON.parse(sessionStorage.getItem(PAGE_SESSION.PENDING_APPOINTMENT) || 'null');
+      if (!p || !p.model || !(Date.now() - p.ts <= MODEL_GELDIG_MS)) return null;
+      return p.model;
+    } catch (e) { return null; }
+  }
+  function isNieuwModel(url, method) {
+    if (String(method || 'GET').toUpperCase() !== 'GET') return false;
+    try {
+      var abs = new URL(String(url || ''), location.href);
+      return abs.origin === location.origin && abs.pathname.replace(/\/$/, '') === NIEUW_PATH;
+    } catch (e) { return false; }
+  }
+  // Model (object) aanvullen; geeft true als er iets is ingevuld.
+  function vulModel(json, k) {
+    var ev = json && typeof json === 'object' ? (json.event && typeof json.event === 'object' ? json.event : json) : null;
+    if (!ev || !ev.meta || ev.meta.new_record !== true || ev.meta.create_url !== CREATE_PATH) return false;
+    var gedaan = false;
+    if (ev.valid_from == null && YMD.test(String(k.valid_from || ''))) { ev.valid_from = k.valid_from; gedaan = true; }
+    if (ev.start_time == null && ISO.test(String(k.start_time || ''))) { ev.start_time = k.start_time; gedaan = true; }
+    if (ev.end_time == null && ISO.test(String(k.end_time || ''))) { ev.end_time = k.end_time; gedaan = true; }
+    var l = Array.isArray(k.labels) ? k.labels.filter(function (x) { return x && Number(x.id) > 0 && typeof x.name === 'string'; }) : [];
+    if (l.length && Array.isArray(ev.labels) && !ev.labels.length) {
+      ev.labels = l.map(function (x) { return { id: Number(x.id), name: String(x.name) }; });
+      gedaan = true;
+    }
+    return gedaan;
+  }
+  function vulTekst(tekst) {
+    var k = klaargezetModel();
+    if (!k) return tekst;
+    try {
+      var j = JSON.parse(tekst);
+      return vulModel(j, k) ? JSON.stringify(j) : tekst;
+    } catch (e) { return tekst; }
+  }
+  // XHR: het antwoord van DIT verzoek aangevuld teruggeven, hoe ONS het ook
+  // leest (responseText, of response als tekst of als JSON).
+  function vulXhr(xhr, proto) {
+    try {
+      var rt = Object.getOwnPropertyDescriptor(proto, 'responseText');
+      var r = Object.getOwnPropertyDescriptor(proto, 'response');
+      var klaar = null;
+      var tekst = function () {
+        if (klaar === null) klaar = vulTekst(rt.get.call(xhr));
+        return klaar;
+      };
+      if (rt && rt.get) Object.defineProperty(xhr, 'responseText', { configurable: true, get: function () {
+        return xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300 ? tekst() : rt.get.call(xhr);
+      } });
+      if (r && r.get) Object.defineProperty(xhr, 'response', { configurable: true, get: function () {
+        var v = r.get.call(xhr);
+        if (!(xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300)) return v;
+        if (typeof v === 'string') return tekst();
+        if (v && typeof v === 'object' && xhr.responseType === 'json') { var k = klaargezetModel(); if (k) vulModel(v, k); }
+        return v;
+      } });
+    } catch (e) {}
+  }
   function kopieenKlaar() {
     try { return sessionStorage.getItem(PAGE_SESSION.PENDING_DUPLICATES) || ''; } catch (e) { return ''; }
   }
@@ -160,6 +238,17 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           var method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
           var body = init && init.body;
           var p = origFetch.apply(this, arguments);
+          try {
+            if (isNieuwModel(url, method) && klaargezetModel()) {
+              return p.then(function (res) {
+                if (!res || !res.ok || !res.clone) return res;
+                return res.clone().text().then(function (t) {
+                  var n = vulTekst(t);
+                  return n === t ? res : new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                }, function () { return res; });
+              });
+            }
+          } catch (e) {}
           // .clone() zodat de pagina zelf de body ongestoord kan lezen.
           try {
             var melder = melderVoor(url, method);
@@ -186,6 +275,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
         XHR.prototype.send = function (body) {
           try {
             var xhr = this;
+            if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
             var melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
             if (melder) {
               xhr.addEventListener('load', function () {
