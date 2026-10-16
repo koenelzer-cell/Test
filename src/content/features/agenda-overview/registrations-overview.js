@@ -9,12 +9,13 @@ import { RUNTIME_CONFIG } from '../../config/loader.js';
 import { ONSAH_TOKENS, onsahFocusRing } from '../../ui/theme.js';
 import { onsahEmptyState } from '../../ui/controls.js';
 import { svgCloseIcon } from '../../ui/icons.js';
+import { zetHtml } from '../../../shared/veilige-html.js';
 
 // Kleine gekleurde chip (label + waarde).
 function _agChip(label, value, bg, fg) {
   var c = document.createElement('span');
   c.style.cssText = 'display:inline-flex;align-items:baseline;gap:4px;background:' + bg + ';color:' + fg + ';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap';
-  c.innerHTML = '<span style="font-weight:600;opacity:.8">' + label + '</span> ' + value;
+  zetHtml(c, '<span style="font-weight:600;opacity:.8">' + label + '</span> ' + value);
   return c;
 }
 // Sectie 'Afgerond (geregistreerd)' — de ECHTE directe/indirecte/reistijd uit de
@@ -22,7 +23,7 @@ function _agChip(label, value, bg, fg) {
 export function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
   var wrap = document.createElement('div'); wrap.style.cssText = 'margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px';
   var h = document.createElement('div');
-  h.innerHTML = 'Afgerond · geregistreerd' + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">· ' + dateLabel + '</span>' : '');
+  zetHtml(h, 'Afgerond en geregistreerd' + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">' + dateLabel + '</span>' : ''));
   h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';margin-bottom:5px';
   wrap.appendChild(h);
   if (!rs || !rs.count) {
@@ -32,8 +33,8 @@ export function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
   // Declarabiliteit uit de ECHTE geregistreerde tijd (profielafhankelijk), in u:m.
   var dec = declarabiliteitPct(rs, profile);
   var hero = document.createElement('div');
-  hero.innerHTML = '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span>' +
-    ' <span style="font-size:10px;color:#999">· ' + dec.baseLabel + '</span>';
+  zetHtml(hero, '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span>' +
+    ' <span style="font-size:10px;color:#999">' + dec.baseLabel + '</span>');
   hero.style.cssText = 'margin-bottom:5px'; wrap.appendChild(hero);
   var chips = document.createElement('div'); chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px';
   chips.append(

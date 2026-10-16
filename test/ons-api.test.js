@@ -50,7 +50,25 @@ test('de product-API levert de uursoorten en cachet een niet-lege lijst', async 
 
 test('een onverwachte product-respons is een fout (dan valt de hulp terug op de dropdown)', async () => {
   const { api } = metFetch(() => json({ iets: 'anders' }));
-  await assert.rejects(() => api.fetchProductList({ date: '2026-09-01', employeeId: '7', clientIds: ['99'] }), /ongeldige product_selection/);
+  await assert.rejects(() => api.fetchProductList({ date: '2026-09-01', employeeId: '7', clientIds: ['99'] }), /ONS geeft de lijst met uursoorten in een andere vorm terug/);
+});
+
+test('valibot: ONS-antwoorden in een andere vorm geven een duidelijke fout, met waar het misging', () => {
+  const { api } = bootHelper();
+  assert.deepEqual({ ...api.controleerOns('weekagenda', { data: [{ id: 1 }] }) }, { data: [{ id: 1 }] }, 'goede vorm: ongewijzigd terug');
+  assert.ok(api.controleerOns('weekagenda', []), 'ook direct een lijst');
+  assert.ok(api.controleerOns('clienten', { clients: [] }));
+  assert.throws(() => api.controleerOns('weekagenda', { entries: [] }), (e) => e.name === 'OnsFormaatFout' && /ONS geeft de weekagenda in een andere vorm terug dan de hulp kent/.test(e.message) && /Meld probleem/.test(e.message));
+  let fout = null;
+  try { api.controleerOns('productlijst', { basic_list: [['Toegestaan', 'geen lijst'], 'kapot'] }); } catch (e) { fout = e; }
+  assert.equal(fout && fout.soort, 'productlijst');
+  assert.match(fout.pad, /^basic_list\.1/, 'waar het eerst misging, zonder inhoud');
+  assert.throws(() => api.controleerOns('afspraaktypes', { labels: [] }), /afspraaktypes/);
+});
+
+test('valibot: cliënten zoeken en afspraaktypes ophalen melden een andere vorm hardop', async () => {
+  const { api } = metFetch((url) => (/available_labels/.test(url) ? json({ labels: [] }) : /search_panel/.test(url) ? json({ resultaten: [] }) : json({ basic_list: [] })));
+  await assert.rejects(() => api.searchClientsForPlan('Tamara'), /ONS geeft de gevonden cliënten in een andere vorm terug/);
 });
 
 test('de medewerker-id komt uit calendar_variables als URL en pagina niets geven', async () => {
@@ -68,4 +86,23 @@ test('het zoeken naar de medewerker-id blijft nooit hangen', async () => {
   const id = await api.getEmployeeIdAsync();
   assert.equal(id, null);
   assert.ok(Date.now() - t0 < 5000, 'hoort binnen enkele seconden op te geven');
+});
+
+test('DOMPurify: beheerbare tekst houdt alleen veilige opmaak over', () => {
+  const { api, window } = bootHelper();
+  const doc = window.document;
+  const div = doc.createElement('div');
+  div.appendChild(api.managedRichHtml('<b>Let op</b> <img src=x onerror="alert(1)"><a href="javascript:alert(2)">klik</a> <a href="https://impegno.nl" onclick="x()">site</a><script>alert(3)</script><span style="color:red;position:fixed">rood</span><svg><script>alert(4)</script></svg>'));
+  const html = div.innerHTML;
+  assert.doesNotMatch(html, /onerror|onclick|javascript:|<script|<img|<svg|alert/, 'niets dat code kan uitvoeren');
+  assert.match(html, /<b>Let op<\/b>/, 'opmaak blijft');
+  const links = [...div.querySelectorAll('a')];
+  assert.equal(links[0].getAttribute('href'), null, 'javascript-link zonder href');
+  assert.equal(links[1].getAttribute('href'), 'https://impegno.nl');
+  assert.equal(links[1].getAttribute('target'), '_blank');
+  assert.equal(links[1].getAttribute('rel'), 'noopener noreferrer');
+  assert.equal(links[1].style.color, 'rgb(204, 8, 125)', 'link in de merkkleur');
+  const span = div.querySelector('span');
+  assert.equal(span.style.color, 'red', 'kleur blijft');
+  assert.equal(span.style.position, '', 'andere stijlen gaan eruit');
 });

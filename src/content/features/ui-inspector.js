@@ -1,5 +1,6 @@
 
 import { LOCAL } from '../../shared/storage-keys.js';
+import { zetHtml } from '../../shared/veilige-html.js';
 
 /* ============================================================================
    UI-inspector — toon ALLE DOM-hooks die de hulp nodig heeft (groen=gevonden,
@@ -494,7 +495,7 @@ export function startUiInspector() {
     let found = 0, total = 0;
     rowUpdaters.forEach((fn) => { total++; if (fn()) found++; });
     const sum = panel.querySelector('.__sum');
-    if (sum) sum.innerHTML = '<span style="color:' + (found === total ? C.ok : '#b9770e') + '">' + found + ' van ' + total + '</span> hooks gevonden op dit scherm.';
+    if (sum) zetHtml(sum, '<span style="color:' + (found === total ? C.ok : '#b9770e') + '">' + found + ' van ' + total + '</span> hooks gevonden op dit scherm.');
   }
 
   function openPanel() {
@@ -536,13 +537,13 @@ export function startUiInspector() {
     let found = 0, total = 0; HOOKS.forEach((h) => { total++; if (visEls(h).length) found++; });
     // header
     const head = css(document.createElement('div'), { position: 'sticky', top: '0', zIndex: '1', background: '#262229', color: '#fff', padding: '11px 13px', display: 'flex', alignItems: 'center', gap: '8px' });
-    const title = document.createElement('div'); title.innerHTML = '<b>UI-inspector</b>'; title.style.flex = '1';
+    const title = document.createElement('div'); zetHtml(title, '<b>UI-inspector</b>'); title.style.flex = '1';
     const x = mini('Sluiten', closePanel); css(x, { border: '1px solid #fff6', background: 'transparent', color: '#fff' });
     head.append(title, x); panel.appendChild(head);
     // body
     const body = css(document.createElement('div'), { padding: '11px 13px' });
     const sum = css(document.createElement('div'), { fontSize: '13px', fontWeight: '700', margin: '0 0 4px' }); sum.className = '__sum';
-    sum.innerHTML = '<span style="color:' + (found === total ? C.ok : '#b9770e') + '">' + found + ' van ' + total + '</span> hooks gevonden op dit scherm.';
+    zetHtml(sum, '<span style="color:' + (found === total ? C.ok : '#b9770e') + '">' + found + ' van ' + total + '</span> hooks gevonden op dit scherm.');
     body.appendChild(sum);
     const live = css(document.createElement('div'), { fontSize: '10px', color: '#999', margin: '0 0 6px' }); live.textContent = '↻ ververst automatisch elke 0,5 s'; body.appendChild(live);
     const st = css(document.createElement('div'), { fontSize: '11px', color: '#666', minHeight: '14px', margin: '0 0 8px' }); st.className = '__st';
@@ -552,7 +553,7 @@ export function startUiInspector() {
     if (pendingPick) {
       const h = pendingPick.hook;
       const pk = css(document.createElement('div'), { border: '2px solid ' + C.pick, background: '#fff0f8', borderRadius: '8px', padding: '9px', margin: '0 0 10px' });
-      const hd = document.createElement('div'); hd.innerHTML = '<b>Herstel bevestigen: ' + h[1] + '</b>'; hd.style.margin = '0 0 6px'; pk.appendChild(hd);
+      const hd = document.createElement('div'); zetHtml(hd, '<b>Herstel bevestigen: ' + h[1] + '</b>'); hd.style.margin = '0 0 6px'; pk.appendChild(hd);
       const inp = document.createElement('input'); inp.value = pendingPick.selector;
       css(inp, { width: '100%', boxSizing: 'border-box', font: '11px Consolas, monospace', padding: '5px 6px', border: '1px solid #ccc', borderRadius: '5px', margin: '0 0 6px' });
       pk.appendChild(inp);
@@ -607,7 +608,7 @@ export function startUiInspector() {
     if (ovKeys.length) {
       const box = css(document.createElement('div'), { border: '1px solid #e7c9dd', background: '#faf3f8', borderRadius: '8px', padding: '8px 9px', margin: '0 0 10px' });
       const bh = css(document.createElement('div'), { display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 6px' });
-      const bt = document.createElement('div'); bt.innerHTML = '<b>Actieve herstellingen (' + ovKeys.length + ')</b>'; bt.style.flex = '1'; bt.style.fontSize = '12px';
+      const bt = document.createElement('div'); zetHtml(bt, '<b>Actieve herstellingen (' + ovKeys.length + ')</b>'); bt.style.flex = '1'; bt.style.fontSize = '12px';
       bh.append(bt, mini('Alles wissen', () => { ovKeys.forEach((k) => clearOverride(k)); drawHighlights(); renderPanel(); }));
       box.appendChild(bh);
       ovKeys.forEach((k) => {
@@ -620,7 +621,7 @@ export function startUiInspector() {
         const broken = !!(hook && selectorInfo(overrides[k], null).count === 0 && defaultEls(hook).length > 0);
         const flag = broken ? ' <span style="color:#d98a0b;font-weight:700">⚠ werkt niet meer</span>' : '';
         const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        lab.innerHTML = '<b>' + esc(name) + '</b>' + flag + '<br><span style="color:#8a5a76;word-break:break-all">' + esc(overrides[k]) + '</span>';
+        zetHtml(lab, '<b>' + esc(name) + '</b>' + flag + '<br><span style="color:#8a5a76;word-break:break-all">' + esc(overrides[k]) + '</span>');
         r.append(lab, mini('Verwijder', () => { clearOverride(k); drawHighlights(); renderPanel(); }));
         box.appendChild(r);
       });

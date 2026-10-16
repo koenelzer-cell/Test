@@ -173,6 +173,8 @@ import {
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
 import { openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
 import { createEvents, eventOptions } from './features/agenda/event-create.js';
+import { controleerOns } from './services/ons-api/formaat.js';
+import { searchClientsForPlan } from './features/agenda/client-lookup.js';
 import { newEventUrl } from './features/agenda/navigation.js';
 import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from './domain/free-slots.js';
@@ -360,6 +362,8 @@ export function exposeTestApi() {
     openNewEvent,
     createEvents,
     eventOptions,
+    controleerOns,
+    searchClientsForPlan,
     onsDateText,
     findFreeGaps, reservationBlocks, reservationsOverlapping,
     findFreeSlots,

@@ -7,11 +7,11 @@
 
 import { inviteeName, viewedInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
-import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { addressFromDetails, isAtClient, routeUrls } from '../../domain/route.js';
 import { officeForLocation } from '../../domain/offices.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
+import { weekEntries } from '../../services/ons-api/formaat.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 
@@ -34,7 +34,7 @@ export function dayRoute(date, origin) {
   var limiet = createLimiter(3);
   return Promise.all(ids.map(function (id) {
     return getJson(_apiUrl('weekEvents', { inviteeId: id, date: date })).then(function (json) {
-      var bezoeken = mapAgendaWeekResponse(json).filter(function (e) {
+      var bezoeken = weekEntries(json).filter(function (e) {
         return e && e.date === date && !e.allDay && e.startMs != null && isAtClient(e, !!officeForLocation(e.locationName));
       }).sort(function (a, b) { return a.startMs - b.startMs; });
       return Promise.all(bezoeken.map(function (e) {

@@ -482,6 +482,25 @@ test('afspraak maken zonder formulier: keuzes ophalen, meta leren van een opgesl
   assert.deepEqual([ev2.client_ids, ev2.client_present, ev2.hour_type_id, ev2.name], [[], false, 5, 'Teamoverleg'], 'cliënten genegeerd, uursoort op de afspraak');
 });
 
+test('valibot: weekagenda in een andere vorm: planhulp en open registraties melden het, zonder te blijven hangen', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  window.fetch = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(/layer=events/.test(url) ? { entries: [] } : { data: [] }) });
+  await assert.rejects(api.findFreeSlots(60, 1), /ONS geeft de weekagenda in een andere vorm terug/);
+  await assert.rejects(api.cachedOpenRange('2026-10-01', '2026-10-02', null, true), /ONS geeft de weekagenda in een andere vorm terug/);
+});
+
+test('valibot: afspraaktypes of uursoorten in een andere vorm bij Afspraak maken: duidelijke fout', async () => {
+  const { api, window } = bootHelper({ url: 'https://impegno.onsagenda.nl/invitees/42479/calendar/day?date=2026-10-27' });
+  window.fetch = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(/available_labels/.test(url) ? { labels: [] } : { basic_list: [] }) });
+  await assert.rejects(api.eventOptions(['11142']), /ONS geeft de afspraaktypes in een andere vorm terug/);
+  window.fetch = (url) => Promise.resolve({ ok: true, json: () => Promise.resolve(/available_labels/.test(url) ? [] : { lijst: [] }) });
+  await assert.rejects(api.eventOptions(['11142']), /ONS geeft de lijst met uursoorten in een andere vorm terug/);
+  // Lukt het ophalen zelf niet (HTTP-fout), dan zoals vroeger: zonder.
+  window.fetch = () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve(null) });
+  const r = await api.eventOptions(['11142']);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.labels)), []);
+});
+
 test('na het maken van afspraken vergeet de planhulp de vrije tijd (opnieuw zoeken)', async () => {
   const { api, window } = bootHelper({ url: MEER });
   window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });

@@ -1033,10 +1033,10 @@
     var directMin = min * directPct / 100;
     return { directMin, indirectMin: min - directMin, unknownMin: 0, travelMin: travel };
   }
-  function summarizeAgendaWeek(entries, forms, choices) {
+  function summarizeAgendaWeek(entries2, forms, choices) {
     forms = forms || (typeof APP_CONFIG !== "undefined" && APP_CONFIG && APP_CONFIG.registrationForms || []);
     choices = choices || (typeof APP_CONFIG !== "undefined" && APP_CONFIG && APP_CONFIG.choices || []);
-    var list = Array.isArray(entries) ? entries : [];
+    var list = Array.isArray(entries2) ? entries2 : [];
     var totalMin = 0, clientMin = 0, nonClientMin = 0, directMin = 0, indirectMin = 0, unknownMin = 0, travelMin = 0, typeMap = {}, dateMap = {};
     list.forEach(function(e) {
       var min = _entryMinutes(e);
@@ -1636,13 +1636,13 @@
     }
     return out;
   }
-  function summarizeOpenRange(entries, opts) {
+  function summarizeOpenRange(entries2, opts) {
     opts = opts || {};
     var now = opts.now != null ? opts.now : Date.now();
     var lateMs = (opts.lateHours > 0 ? opts.lateHours : 24) * 36e5;
     var from = opts.from || "0000-00-00", to = opts.to || "9999-99-99";
     var byDay = /* @__PURE__ */ Object.create(null), seen = /* @__PURE__ */ Object.create(null);
-    (entries || []).forEach(function(e) {
+    (entries2 || []).forEach(function(e) {
       if (!e) return;
       if (e.id != null) {
         var k = String(e.id) + "|" + (e.date || "");
@@ -2490,8 +2490,8 @@
         if (r.top < lr.bottom - 4 || r.top - lr.bottom > 100) continue;
         const aligned = Math.abs(r.left - lr.left) < 80 || r.left <= lr.left + 20 && r.right >= lr.left + 80;
         if (!aligned) continue;
-        const text = clean(uiText(box));
-        const textBonus = wantedDisplay.some((w) => text.includes(w)) ? -1e3 : 0;
+        const text2 = clean(uiText(box));
+        const textBonus = wantedDisplay.some((w) => text2.includes(w)) ? -1e3 : 0;
         const score = (r.top - lr.bottom) * 20 + Math.abs(r.left - lr.left) + area(box) / 1e3 + textBonus;
         if (score < bestScore) {
           best = box;
@@ -2687,18 +2687,18 @@
     }
     return target;
   }
-  function setInputText(inp, text) {
+  function setInputText(inp, text2) {
     if (isProtectedAppointmentStartInput(inp)) return false;
     const proto = inp instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, "value") && Object.getOwnPropertyDescriptor(proto, "value").set;
-    if (setter) setter.call(inp, text);
-    else inp.value = text;
+    if (setter) setter.call(inp, text2);
+    else inp.value = text2;
     inp.dispatchEvent(new Event("input", { bubbles: true }));
     inp.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
-  function setInputTextComposed(inp, text) {
-    if (!setInputText(inp, text)) return false;
+  function setInputTextComposed(inp, text2) {
+    if (!setInputText(inp, text2)) return false;
     inp.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
     inp.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
     return true;
@@ -2706,7 +2706,7 @@
   function inputTextValue(inp) {
     return String((inp && "value" in inp ? inp.value : "") || inp && inp.getAttribute && inp.getAttribute("value") || "").trim();
   }
-  function setInputTextOns(inp, text) {
+  function setInputTextOns(inp, text2) {
     if (!inp) return false;
     if (isProtectedAppointmentStartInput(inp)) return false;
     try {
@@ -2721,13 +2721,13 @@
       inp.select && inp.select();
     } catch (e) {
     }
-    setInputTextComposed(inp, text);
+    setInputTextComposed(inp, text2);
     try {
-      inp.setAttribute && inp.setAttribute("value", text);
+      inp.setAttribute && inp.setAttribute("value", text2);
     } catch (e) {
     }
     try {
-      inp.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, inputType: "insertText", data: String(text) }));
+      inp.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, inputType: "insertText", data: String(text2) }));
     } catch (e) {
     }
     inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
@@ -2737,27 +2737,27 @@
     }
     return true;
   }
-  function setInputTextQuiet(inp, text) {
+  function setInputTextQuiet(inp, text2) {
     if (isProtectedAppointmentStartInput(inp)) return false;
-    if (!inp || inputTextValue(inp) === String(text)) return !!inp;
-    setInputTextComposed(inp, text);
+    if (!inp || inputTextValue(inp) === String(text2)) return !!inp;
+    setInputTextComposed(inp, text2);
     try {
-      inp.setAttribute && inp.setAttribute("value", text);
+      inp.setAttribute && inp.setAttribute("value", text2);
     } catch (e) {
     }
     return true;
   }
-  function setInputTextOnsVerified(inp, text, attempts = 4) {
+  function setInputTextOnsVerified(inp, text2, attempts = 4) {
     if (!inp) return false;
-    const apply = (left) => {
-      setInputTextOns(inp, text);
+    const apply3 = (left) => {
+      setInputTextOns(inp, text2);
       if (left > 0) {
         setTimeout(() => {
-          if (inputTextValue(inp) !== String(text)) apply(left - 1);
+          if (inputTextValue(inp) !== String(text2)) apply3(left - 1);
         }, left === attempts ? 120 : 220);
       }
     };
-    apply(attempts);
+    apply3(attempts);
     return true;
   }
   function deepContains(host, el) {
@@ -2802,15 +2802,15 @@
       return inputBelongsToTrigger(inp, tr, trigger);
     }) || null;
   }
-  function openTypePick(getTrigger, text, onResult) {
+  function openTypePick(getTrigger, text2, onResult) {
     const trigger = getTrigger();
     if (!trigger) {
       onResult(false, "veld niet gevonden");
       return;
     }
-    selectDropdownLikeLabel(trigger, text, (ok) => onResult(ok, ok ? "" : "optie niet gevonden"));
+    selectDropdownLikeLabel(trigger, text2, (ok) => onResult(ok, ok ? "" : "optie niet gevonden"));
   }
-  function selectDropdownLikeLabel(trigger, text, onResult, attempt = 0) {
+  function selectDropdownLikeLabel(trigger, text2, onResult, attempt = 0) {
     if (!trigger) {
       onResult(false);
       return;
@@ -2818,7 +2818,7 @@
     const openedBy = openSelectCombobox(trigger) || trigger;
     setTimeout(() => {
       const input2 = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
-      const searchText = String(text || "").replace(/[*#]+$/, "").trim();
+      const searchText = String(text2 || "").replace(/[*#]+$/, "").trim();
       if (input2) {
         try {
           input2.focus();
@@ -2828,7 +2828,7 @@
       } else if (trigger.tagName === "INPUT" || trigger.tagName === "TEXTAREA") {
         setInputText(trigger, searchText);
       }
-      const wanted = [text, String(text || "").replace(/\*+$/, "").trim()].filter(Boolean);
+      const wanted = [text2, String(text2 || "").replace(/\*+$/, "").trim()].filter(Boolean);
       pollFor(
         () => findExactDropdownOption(openedBy, wanted) || findExactDropdownOption(trigger, wanted),
         (best) => {
@@ -2842,7 +2842,7 @@
           }
           if (attempt < 3) {
             clickEmptyModalSpot();
-            setTimeout(() => selectDropdownLikeLabel(trigger, text, onResult, attempt + 1), 200);
+            setTimeout(() => selectDropdownLikeLabel(trigger, text2, onResult, attempt + 1), 200);
             return;
           }
           setTimeout(() => {
@@ -2860,7 +2860,7 @@
     }
     return null;
   }
-  function typeIntoSearchField(input2, text) {
+  function typeIntoSearchField(input2, text2) {
     if (!input2) return false;
     try {
       input2.focus();
@@ -2890,7 +2890,7 @@
     setVal("");
     fireInput("", "deleteContentBackward");
     let acc = "";
-    for (const ch of String(text)) {
+    for (const ch of String(text2)) {
       acc += ch;
       try {
         input2.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true, cancelable: true, composed: true }));
@@ -2905,9 +2905,9 @@
     }
     input2.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
     setTimeout(() => {
-      if (inputTextValue(input2) !== String(text)) {
-        setVal(String(text));
-        fireInput(String(text), "insertText");
+      if (inputTextValue(input2) !== String(text2)) {
+        setVal(String(text2));
+        fireInput(String(text2), "insertText");
         input2.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
       }
     }, 60);
@@ -3027,14 +3027,14 @@
     if (best) return best;
     const byAttr = deepQueryAll("input,textarea").find((inp) => {
       if (!visible(inp) || isOwnPopup(inp)) return false;
-      const text = clean([
+      const text2 = clean([
         inp.getAttribute("aria-label"),
         inp.getAttribute("placeholder"),
         inp.getAttribute("name"),
         inp.getAttribute("id"),
         inp.getAttribute("title")
       ].filter(Boolean).join(" "));
-      return /\btitel\b/.test(text);
+      return /\btitel\b/.test(text2);
     });
     if (byAttr) return byAttr;
     const details = deepQueryAll("h1,h2,h3,div,span,p").find((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent) === "afspraakdetails");
@@ -3308,8 +3308,8 @@
           if (br.top < lr.bottom - 8 || br.top - lr.bottom > 95 || br.top > upper) continue;
           if (Math.abs(br.left - lr.left) > 110) continue;
           if (!insideCard(br)) continue;
-          const text = clean(uiText(box));
-          if (/toeslag|verwijder uit selectie|niet beschikbaar|clienten zijn aanwezig|toevoegen/.test(text)) continue;
+          const text2 = clean(uiText(box));
+          if (/toeslag|verwijder uit selectie|niet beschikbaar|clienten zijn aanwezig|toevoegen/.test(text2)) continue;
           const score = (br.top - lr.bottom) * 25 + Math.abs(br.left - lr.left) + area(box) / 1e3;
           if (score < bestScore) {
             best = box;
@@ -3344,7 +3344,7 @@
   function findClientEntriesFromModalStructure() {
     const ovRows = overrideAll("afsClientList");
     const rows = ovRows && ovRows.length ? ovRows : deepQueryAll('ul[class*="_selected-clients_"] > li, ul[data-qa="selected_clients"] > li').filter((row) => visible(row) && !isOwnPopup(row));
-    const entries = [];
+    const entries2 = [];
     const seen = /* @__PURE__ */ new Set();
     for (const row of rows) {
       const nameEl = deepQueryAll(UI_OVERRIDES.afsClientName || 'span[class*="_invitee-name_"], [class*="_invitee-name_"]', row).find((el) => visible(el) && !isOwnPopup(el) && (el.textContent || "").trim());
@@ -3367,9 +3367,9 @@
         uursoortTrigger
       };
       if (!entry.uursoortTrigger) entry.uursoortTrigger = findUursoortTriggerForClient(entry, Infinity);
-      entries.push(entry);
+      entries2.push(entry);
     }
-    return entries;
+    return entries2;
   }
   function entryUursoortText(entry) {
     if (!entry || !entry.card) return "";
@@ -3447,14 +3447,14 @@
   }
 
   // src/content/ons/uursoort-options.js
-  function splitUursoortCategoryText(text) {
-    let raw = String(text || "").replace(/\s+/g, " ").trim();
+  function splitUursoortCategoryText(text2) {
+    let raw = String(text2 || "").replace(/\s+/g, " ").trim();
     if (!raw) return [];
     raw = raw.replace(/&nbsp;|\u00a0/gi, " ").replace(/(Onlangs gebruikt|Geadviseerd|Toegestaan)\s*/gi, "\n").replace(/\*\s*(?=[A-ZÀ-ÖØ-Þ])/g, "*\n").replace(/\)\s+(?=[A-ZÀ-ÖØ-Þ])/g, ")\n").replace(/#\s*(?=[A-ZÀ-ÖØ-Þ])/g, "#\n");
     return raw.split(/\n+/).map((part) => part.replace(/\s+/g, " ").trim()).filter((part) => !!part && !/^(?:#|\*|&?nbsp;?)$/i.test(part));
   }
-  function pushUniqueText(out, seen, text, validator) {
-    for (const part of splitUursoortCategoryText(text)) {
+  function pushUniqueText(out, seen, text2, validator) {
+    for (const part of splitUursoortCategoryText(text2)) {
       if (validator && !validator(part)) continue;
       const key = clean(part);
       if (!key || seen.has(key)) continue;
@@ -3462,8 +3462,8 @@
       out.push(part);
     }
   }
-  function invalidUursoortOption(text) {
-    const c = clean(text);
+  function invalidUursoortOption(text2) {
+    const c = clean(text2);
     if (!c || c.length < 2) return true;
     if (/^(onlangs gebruikt|geadviseerd|toegestaan)$/.test(c)) return true;
     if (c === "uursoort" || c === "uursoorten" || c === "toeslag" || c === "titel" || c === "labels" || c === "locatie" || c === "notities") return true;
@@ -3474,16 +3474,16 @@
     if (/j\s*&\s*g\s+(kracht|zoetermeer)|\bjg\s+(kracht|zoetermeer)\b/.test(c)) return true;
     return false;
   }
-  function looksLikeUursoortOption(text) {
-    const c = clean(text);
-    if (invalidUursoortOption(text)) return false;
+  function looksLikeUursoortOption(text2) {
+    const c = clean(text2);
+    if (invalidUursoortOption(text2)) return false;
     if (allNonClientHourTypes().some((name) => {
       const wanted = clean(name);
       const loose = clean(String(name || "").replace(/\*+$/, ""));
       return c === wanted || !!loose && c === loose;
     })) return true;
     if (/\b(ggz|ambulant|hbo|mbo|behandeling|diagnostiek|verslaglegging|zorgcoordinatie|no show|factuur|mdo|huisbezoek|digitaal|telefonisch|mail)\b/.test(c)) return true;
-    if (/[#]/.test(text)) return true;
+    if (/[#]/.test(text2)) return true;
     return false;
   }
   function optionCandidates(root) {
@@ -3542,10 +3542,10 @@
       for (const node of nodes) {
         if (hasNestedOptionNode(node, '[role="option"], li, [data-value]')) continue;
         if (containsSeparateActionText(node)) continue;
-        const text = optionText(node).replace(/\s+/g, " ").trim();
+        const text2 = optionText(node).replace(/\s+/g, " ").trim();
         const r = rect(node);
         if (r.width < 60 || r.height < 16 || r.height > 100) continue;
-        for (const part of splitUursoortCategoryText(text)) {
+        for (const part of splitUursoortCategoryText(text2)) {
           if (invalidUursoortOption(part)) continue;
           const key = clean(part);
           if (!key || seen.has(key)) continue;
@@ -3555,8 +3555,8 @@
       }
     }
     if (out.length) return out;
-    collectUursoortOptionTexts(trigger).forEach((text) => {
-      for (const part of splitUursoortCategoryText(text)) {
+    collectUursoortOptionTexts(trigger).forEach((text2) => {
+      for (const part of splitUursoortCategoryText(text2)) {
         const key = clean(part);
         if (key && !seen.has(key)) {
           seen.add(key);
@@ -3570,11 +3570,11 @@
     const found = [];
     const seen = /* @__PURE__ */ new Set();
     const collect = () => {
-      collectClientUursoortOptionTexts(trigger).forEach((text) => {
-        const key = clean(text);
+      collectClientUursoortOptionTexts(trigger).forEach((text2) => {
+        const key = clean(text2);
         if (key && !seen.has(key)) {
           seen.add(key);
-          found.push(text);
+          found.push(text2);
         }
       });
     };
@@ -3641,15 +3641,15 @@
   // src/content/ui/icons.js
   function svgInfoIcon() {
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 14 14");
-    svg.setAttribute("width", "14");
-    svg.setAttribute("height", "14");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.6");
-    svg.setAttribute("stroke-linecap", "round");
+    const svg2 = document.createElementNS(svgNS, "svg");
+    svg2.setAttribute("viewBox", "0 0 14 14");
+    svg2.setAttribute("width", "14");
+    svg2.setAttribute("height", "14");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "1.6");
+    svg2.setAttribute("stroke-linecap", "round");
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", "7");
     line.setAttribute("y1", "6.2");
@@ -3661,21 +3661,21 @@
     dot.setAttribute("r", ".9");
     dot.setAttribute("fill", "currentColor");
     dot.setAttribute("stroke", "none");
-    svg.appendChild(line);
-    svg.appendChild(dot);
-    return svg;
+    svg2.appendChild(line);
+    svg2.appendChild(dot);
+    return svg2;
   }
   function svgCloseIcon() {
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 14 14");
-    svg.setAttribute("width", "13");
-    svg.setAttribute("height", "13");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.8");
-    svg.setAttribute("stroke-linecap", "round");
+    const svg2 = document.createElementNS(svgNS, "svg");
+    svg2.setAttribute("viewBox", "0 0 14 14");
+    svg2.setAttribute("width", "13");
+    svg2.setAttribute("height", "13");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "1.8");
+    svg2.setAttribute("stroke-linecap", "round");
     const l1 = document.createElementNS(svgNS, "line");
     l1.setAttribute("x1", "3");
     l1.setAttribute("y1", "3");
@@ -3686,38 +3686,38 @@
     l2.setAttribute("y1", "3");
     l2.setAttribute("x2", "3");
     l2.setAttribute("y2", "11");
-    svg.appendChild(l1);
-    svg.appendChild(l2);
-    return svg;
+    svg2.appendChild(l1);
+    svg2.appendChild(l2);
+    return svg2;
   }
   function svgSpineCheck() {
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 14 14");
-    svg.setAttribute("width", "11");
-    svg.setAttribute("height", "11");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.8");
-    svg.setAttribute("stroke-linecap", "round");
-    svg.setAttribute("stroke-linejoin", "round");
+    const svg2 = document.createElementNS(svgNS, "svg");
+    svg2.setAttribute("viewBox", "0 0 14 14");
+    svg2.setAttribute("width", "11");
+    svg2.setAttribute("height", "11");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "1.8");
+    svg2.setAttribute("stroke-linecap", "round");
+    svg2.setAttribute("stroke-linejoin", "round");
     const path = document.createElementNS(svgNS, "path");
     path.setAttribute("d", "M3 7.2l2.6 2.6L11 4");
-    svg.appendChild(path);
-    return svg;
+    svg2.appendChild(path);
+    return svg2;
   }
   function svgSpinePause() {
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 14 14");
-    svg.setAttribute("width", "11");
-    svg.setAttribute("height", "11");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.8");
-    svg.setAttribute("stroke-linecap", "round");
+    const svg2 = document.createElementNS(svgNS, "svg");
+    svg2.setAttribute("viewBox", "0 0 14 14");
+    svg2.setAttribute("width", "11");
+    svg2.setAttribute("height", "11");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "1.8");
+    svg2.setAttribute("stroke-linecap", "round");
     const l1 = document.createElementNS(svgNS, "line");
     l1.setAttribute("x1", "5");
     l1.setAttribute("y1", "3.5");
@@ -3728,20 +3728,20 @@
     l2.setAttribute("y1", "3.5");
     l2.setAttribute("x2", "9");
     l2.setAttribute("y2", "10.5");
-    svg.appendChild(l1);
-    svg.appendChild(l2);
-    return svg;
+    svg2.appendChild(l1);
+    svg2.appendChild(l2);
+    return svg2;
   }
   function svgEmptyIcon() {
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "22");
-    svg.setAttribute("height", "22");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.4");
+    const svg2 = document.createElementNS(svgNS, "svg");
+    svg2.setAttribute("viewBox", "0 0 24 24");
+    svg2.setAttribute("width", "22");
+    svg2.setAttribute("height", "22");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", "currentColor");
+    svg2.setAttribute("stroke-width", "1.4");
     const rect2 = document.createElementNS(svgNS, "rect");
     rect2.setAttribute("x", "3");
     rect2.setAttribute("y", "5");
@@ -3750,21 +3750,21 @@
     rect2.setAttribute("rx", "2");
     const p = document.createElementNS(svgNS, "path");
     p.setAttribute("d", "M3 10h18M8 3v4M16 3v4");
-    svg.appendChild(rect2);
-    svg.appendChild(p);
-    return svg;
+    svg2.appendChild(rect2);
+    svg2.appendChild(p);
+    return svg2;
   }
   function svgIcon(pathD) {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "18");
-    svg.setAttribute("height", "18");
-    svg.setAttribute("aria-hidden", "true");
+    const svg2 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg2.setAttribute("viewBox", "0 0 24 24");
+    svg2.setAttribute("width", "18");
+    svg2.setAttribute("height", "18");
+    svg2.setAttribute("aria-hidden", "true");
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("fill", "currentColor");
     path.setAttribute("d", pathD);
-    svg.appendChild(path);
-    return svg;
+    svg2.appendChild(path);
+    return svg2;
   }
   function setChevronIcon(button, collapsed) {
     if (!button) return;
@@ -3807,21 +3807,21 @@
       return;
     }
     const body = $body();
-    const text = clean(body && body.textContent || "");
+    const text2 = clean(body && body.textContent || "");
     let phase = 1;
-    if (/als de instellingen kloppen|voeg eventueel nog een locatie|klaar om (in te dienen|op te slaan)|schrijf nu je rapportage|richtlijn rapporteren|^indienen$|indienen /.test(text)) phase = 3;
-    else if (appointmentFlow.pendingChoice || registrationFlow.activeRegistrationChoice || / duur[: ]|totale reistijd|tijd aanwezig in deze registratie/.test(text)) phase = 2;
+    if (/als de instellingen kloppen|voeg eventueel nog een locatie|klaar om (in te dienen|op te slaan)|schrijf nu je rapportage|richtlijn rapporteren|^indienen$|indienen /.test(text2)) phase = 3;
+    else if (appointmentFlow.pendingChoice || registrationFlow.activeRegistrationChoice || / duur[: ]|totale reistijd|tijd aanwezig in deze registratie/.test(text2)) phase = 2;
     dots.forEach((dot, i) => {
       dot.style.background = i < phase ? "#fff" : "rgba(255,255,255,.35)";
     });
   }
-  function setStatus(text, ok) {
+  function setStatus(text2, ok) {
     if (!helperPanel.popupEl) return;
     safe(updateSpineProgress);
     const s = helperPanel.popupEl.querySelector("[data-status]");
     if (!s) return;
     s.innerHTML = "";
-    if (!text) return;
+    if (!text2) return;
     const bad = ok === false;
     const chip = document.createElement("div");
     Object.assign(chip.style, {
@@ -3847,11 +3847,11 @@
     chip.appendChild(icon);
     const lbl = document.createElement("span");
     Object.assign(lbl.style, { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
-    lbl.textContent = text;
+    lbl.textContent = text2;
     chip.appendChild(lbl);
     s.appendChild(chip);
   }
-  function showLoadingState(text) {
+  function showLoadingState(text2) {
     const body = $body();
     if (!body) return;
     resetBody(body);
@@ -3895,11 +3895,11 @@
       }
     }, 3e4);
     const label = document.createElement("span");
-    label.textContent = text || "Bezig...";
+    label.textContent = text2 || "Bezig...";
     wrap.appendChild(dotsWrap);
     wrap.appendChild(label);
     body.appendChild(wrap);
-    setStatus(text || "Bezig...");
+    setStatus(text2 || "Bezig...");
   }
   function showDisabledState() {
     const body = $body();
@@ -3981,19 +3981,19 @@
       clearKnownLabels(onDone, attempt + 1);
     }, 150);
   }
-  function setLabel(text, onResult) {
-    if (!text) {
+  function setLabel(text2, onResult) {
+    if (!text2) {
       onResult(true);
       return;
     }
     const trigger = getEtiketTrigger();
     const selected = trigger ? selectedKnownLabels(trigger, allKnownLabels()) : [];
-    const wanted = clean(text);
+    const wanted = clean(text2);
     if (selected.length === 1 && selected[0] === wanted) {
       onResult(true);
       return;
     }
-    clearKnownLabels(() => setTimeout(() => selectLabel(text, onResult), 60));
+    clearKnownLabels(() => setTimeout(() => selectLabel(text2, onResult), 60));
   }
   function selectedAllLabelChipTexts(trigger) {
     return labelChips(trigger).map((c) => c.name);
@@ -4032,19 +4032,19 @@
     }
     return null;
   }
-  function addLabelExact(text, onResult) {
+  function addLabelExact(text2, onResult) {
     const trigger = getEtiketTrigger();
     if (!trigger) {
       onResult(false);
       return;
     }
-    const wanted = clean(text);
+    const wanted = clean(text2);
     clickElementCenter(trigger);
     setTimeout(() => {
       const input2 = searchInputForTrigger(trigger);
       if (input2) {
         input2.focus();
-        setInputText(input2, text);
+        setInputText(input2, text2);
       }
       pollFor(
         () => findExactLabelOption(trigger, wanted),
@@ -4064,8 +4064,8 @@
       );
     }, 140);
   }
-  function setLabelExclusive(text, onDone, attempt = 0) {
-    if (!text) {
+  function setLabelExclusive(text2, onDone, attempt = 0) {
+    if (!text2) {
       if (onDone) onDone(true);
       return;
     }
@@ -4074,7 +4074,7 @@
       if (onDone) onDone(false);
       return;
     }
-    const wanted = clean(text);
+    const wanted = clean(text2);
     const isTarget = (l) => l === wanted || l.indexOf(wanted) !== -1;
     const chips = selectedAllLabelChipTexts(trigger);
     const extras = chips.filter((l) => !isTarget(l));
@@ -4091,10 +4091,10 @@
     }
     if (extras.length) {
       removeLabelChipsByText(trigger, extras, wanted);
-      setTimeout(() => setLabelExclusive(text, onDone, attempt + 1), 160);
+      setTimeout(() => setLabelExclusive(text2, onDone, attempt + 1), 160);
       return;
     }
-    addLabelExact(text, () => {
+    addLabelExact(text2, () => {
       if (onDone) onDone(true);
     });
   }
@@ -4136,7 +4136,7 @@
     }
     addLabelExact(missing[0], () => setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 150));
   }
-  function selectLabel(text, onResult, attempt = 0) {
+  function selectLabel(text2, onResult, attempt = 0) {
     const trigger = getEtiketTrigger();
     if (!trigger) {
       onResult(false);
@@ -4147,10 +4147,10 @@
       const input2 = searchInputForTrigger(trigger);
       if (input2) {
         input2.focus();
-        setInputText(input2, text);
+        setInputText(input2, text2);
       }
       pollFor(
-        () => findExactDropdownOption(trigger, [text]),
+        () => findExactDropdownOption(trigger, [text2]),
         (best) => {
           if (best) {
             clickOption(best);
@@ -4161,7 +4161,7 @@
             return;
           }
           if (attempt < 3) {
-            setTimeout(() => selectLabel(text, onResult, attempt + 1), 180);
+            setTimeout(() => selectLabel(text2, onResult, attempt + 1), 180);
             return;
           }
           setTimeout(() => {
@@ -4274,11 +4274,11 @@
   }
   function computeAppointmentUursoortState() {
     invalidateClientEntries();
-    const entries = findClientEntries();
-    if (!entries.length) return "NEEDS_PREREQS";
-    const setCount = entries.filter(entryUursoortIsSet).length;
+    const entries2 = findClientEntries();
+    if (!entries2.length) return "NEEDS_PREREQS";
+    const setCount = entries2.filter(entryUursoortIsSet).length;
     if (setCount === 0) return "CHOICE";
-    if (setCount === entries.length) return "READY_TO_SAVE";
+    if (setCount === entries2.length) return "READY_TO_SAVE";
     return "MIXED";
   }
   function findClientExpandButton() {
@@ -4370,16 +4370,16 @@
   }
   function ensureClientExpanded(onResult, attempt = 0) {
     invalidateClientEntries();
-    const entries = findClientEntries();
-    const allOpen = entries.length && entries.every((entry) => !!entry.uursoortTrigger || inviteeToggleExpanded(entry.toggle) === true);
+    const entries2 = findClientEntries();
+    const allOpen = entries2.length && entries2.every((entry) => !!entry.uursoortTrigger || inviteeToggleExpanded(entry.toggle) === true);
     if (allOpen) {
       onResult(true);
       return;
     }
-    const closed = entries.filter((entry) => !entry.uursoortTrigger && entry.toggle && inviteeToggleExpanded(entry.toggle) === false);
+    const closed = entries2.filter((entry) => !entry.uursoortTrigger && entry.toggle && inviteeToggleExpanded(entry.toggle) === false);
     if (attempt % 2 === 0) {
       if (closed.length) closed.forEach((entry) => clickInviteeToggle(entry.toggle));
-      else if (!entries.length) {
+      else if (!entries2.length) {
         const btn = findClientExpandButton();
         if (btn) clickInviteeToggle(btn);
         else clickClientRowChevronFallback();
@@ -4392,49 +4392,2116 @@
     }
   }
 
+  // node_modules/dompurify/dist/purify.es.mjs
+  function _OverloadYield(e, d) {
+    this.v = e, this.k = d;
+  }
+  function _arrayLikeToArray(r, a) {
+    (null == a || a > r.length) && (a = r.length);
+    for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+    return n;
+  }
+  function _arrayWithHoles(r) {
+    if (Array.isArray(r)) return r;
+  }
+  function _iterableToArrayLimit(r, l) {
+    var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+    if (null != t) {
+      var e, n, i, u, a = [], f = true, o = false;
+      try {
+        if (i = (t = t.call(r)).next, 0 === l) {
+          if (Object(t) !== t) return;
+          f = false;
+        } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = true) ;
+      } catch (r2) {
+        o = true, n = r2;
+      } finally {
+        try {
+          if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return;
+        } finally {
+          if (o) throw n;
+        }
+      }
+      return a;
+    }
+  }
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+  function _slicedToArray(r, e) {
+    return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest();
+  }
+  function _unsupportedIterableToArray(r, a) {
+    if (r) {
+      if ("string" == typeof r) return _arrayLikeToArray(r, a);
+      var t = {}.toString.call(r).slice(8, -1);
+      return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
+    }
+  }
+  function AsyncGenerator(e) {
+    var t, n;
+    function resume(t2, n2) {
+      try {
+        var r = e[t2](n2), o = r.value, u = o instanceof _OverloadYield;
+        Promise.resolve(u ? o.v : o).then(function(n3) {
+          if (u) {
+            var i = "return" === t2 && o.k ? t2 : "next";
+            if (!o.k || n3.done) return resume(i, n3);
+            n3 = e[i](n3).value;
+          }
+          settle(!!r.done, n3);
+        }, function(e2) {
+          resume("throw", e2);
+        });
+      } catch (e2) {
+        settle(2, e2);
+      }
+    }
+    function settle(e2, r) {
+      2 === e2 ? t.reject(r) : t.resolve({
+        value: r,
+        done: e2
+      }), (t = t.next) ? resume(t.key, t.arg) : n = null;
+    }
+    this._invoke = function(e2, r) {
+      return new Promise(function(o, u) {
+        var i = {
+          key: e2,
+          arg: r,
+          resolve: o,
+          reject: u,
+          next: null
+        };
+        n ? n = n.next = i : (t = n = i, resume(e2, r));
+      });
+    }, "function" != typeof e.return && (this.return = void 0);
+  }
+  AsyncGenerator.prototype["function" == typeof Symbol && Symbol.asyncIterator || "@@asyncIterator"] = function() {
+    return this;
+  }, AsyncGenerator.prototype.next = function(e) {
+    return this._invoke("next", e);
+  }, AsyncGenerator.prototype.throw = function(e) {
+    return this._invoke("throw", e);
+  }, AsyncGenerator.prototype.return = function(e) {
+    return this._invoke("return", e);
+  };
+  var entries = Object.entries;
+  var setPrototypeOf = Object.setPrototypeOf;
+  var isFrozen = Object.isFrozen;
+  var getPrototypeOf = Object.getPrototypeOf;
+  var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  var freeze = Object.freeze;
+  var seal = Object.seal;
+  var create = Object.create;
+  var _ref = typeof Reflect !== "undefined" && Reflect;
+  var apply = _ref.apply;
+  var construct = _ref.construct;
+  if (!freeze) freeze = function freeze2(x) {
+    return x;
+  };
+  if (!seal) seal = function seal2(x) {
+    return x;
+  };
+  if (!apply) apply = function apply2(func, thisArg) {
+    for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) args[_key - 2] = arguments[_key];
+    return func.apply(thisArg, args);
+  };
+  if (!construct) construct = function construct2(Func) {
+    for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) args[_key2 - 1] = arguments[_key2];
+    return new Func(...args);
+  };
+  var arrayForEach = unapply(Array.prototype.forEach);
+  Array.prototype.indexOf;
+  var arrayLastIndexOf = unapply(Array.prototype.lastIndexOf);
+  var arrayPop = unapply(Array.prototype.pop);
+  var arrayPush = unapply(Array.prototype.push);
+  var arraySlice = unapply(Array.prototype.slice);
+  var arraySplice = unapply(Array.prototype.splice);
+  var arrayIsArray = Array.isArray;
+  var setCreate = unconstruct(Set);
+  var setAdd = unapply(Set.prototype.add);
+  var setHas = unapply(Set.prototype.has);
+  var stringToLowerCase = unapply(String.prototype.toLowerCase);
+  var stringToString = unapply(String.prototype.toString);
+  var stringMatch = unapply(String.prototype.match);
+  var stringReplace = unapply(String.prototype.replace);
+  var stringIndexOf = unapply(String.prototype.indexOf);
+  var stringTrim = unapply(String.prototype.trim);
+  var numberToString = unapply(Number.prototype.toString);
+  var booleanToString = unapply(Boolean.prototype.toString);
+  var bigintToString = typeof BigInt === "undefined" ? null : unapply(BigInt.prototype.toString);
+  var symbolToString = typeof Symbol === "undefined" ? null : unapply(Symbol.prototype.toString);
+  var objectHasOwnProperty = unapply(Object.prototype.hasOwnProperty);
+  var objectToString = unapply(Object.prototype.toString);
+  var regExpTest = unapply(RegExp.prototype.test);
+  var typeErrorCreate = unconstruct(TypeError);
+  function unapply(func) {
+    return function(thisArg) {
+      if (thisArg instanceof RegExp) thisArg.lastIndex = 0;
+      for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) args[_key3 - 1] = arguments[_key3];
+      return apply(func, thisArg, args);
+    };
+  }
+  function unconstruct(Func) {
+    return function() {
+      for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) args[_key4] = arguments[_key4];
+      return construct(Func, args);
+    };
+  }
+  function addToSet(set, array2) {
+    let transformCaseFunc = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : stringToLowerCase;
+    if (setPrototypeOf) setPrototypeOf(set, null);
+    if (!arrayIsArray(array2)) return set;
+    let l = array2.length;
+    while (l--) {
+      let element = array2[l];
+      if (typeof element === "string") {
+        const lcElement = transformCaseFunc(element);
+        if (lcElement !== element) {
+          if (!isFrozen(array2)) array2[l] = lcElement;
+          element = lcElement;
+        }
+      }
+      set[element] = true;
+    }
+    return set;
+  }
+  function cleanArray(array2) {
+    for (let index = 0; index < array2.length; index++) if (!objectHasOwnProperty(array2, index)) array2[index] = null;
+    return array2;
+  }
+  function clone(object) {
+    const newObject = create(null);
+    for (const _ref2 of entries(object)) {
+      var _ref3 = _slicedToArray(_ref2, 2);
+      const property = _ref3[0];
+      const value = _ref3[1];
+      if (objectHasOwnProperty(object, property)) {
+        if (arrayIsArray(value)) newObject[property] = cleanArray(value);
+        else if (value && typeof value === "object" && value.constructor === Object) newObject[property] = clone(value);
+        else newObject[property] = value;
+      }
+    }
+    return newObject;
+  }
+  function stringifyValue(value) {
+    switch (typeof value) {
+      case "string":
+        return value;
+      case "number":
+        return numberToString(value);
+      case "boolean":
+        return booleanToString(value);
+      case "bigint":
+        return bigintToString ? bigintToString(value) : "0";
+      case "symbol":
+        return symbolToString ? symbolToString(value) : "Symbol()";
+      case "undefined":
+        return objectToString(value);
+      case "function":
+      case "object": {
+        if (value === null) return objectToString(value);
+        const valueAsRecord = value;
+        const valueToString = lookupGetter(valueAsRecord, "toString");
+        if (typeof valueToString === "function") {
+          const stringified = valueToString(valueAsRecord);
+          return typeof stringified === "string" ? stringified : objectToString(stringified);
+        }
+        return objectToString(value);
+      }
+      default:
+        return objectToString(value);
+    }
+  }
+  function lookupGetter(object, prop) {
+    while (object !== null) {
+      const desc = getOwnPropertyDescriptor(object, prop);
+      if (desc) {
+        if (desc.get) return unapply(desc.get);
+        if (typeof desc.value === "function") return unapply(desc.value);
+      }
+      object = getPrototypeOf(object);
+    }
+    function fallbackValue() {
+      return null;
+    }
+    return fallbackValue;
+  }
+  function lookupAccessor(object, prop) {
+    while (object !== null) {
+      const desc = getOwnPropertyDescriptor(object, prop);
+      if (desc) return desc.get ? unapply(desc.get) : null;
+      object = getPrototypeOf(object);
+    }
+    return null;
+  }
+  function isRegex(value) {
+    try {
+      regExpTest(value, "");
+      return true;
+    } catch (_unused) {
+      return false;
+    }
+  }
+  var html$1 = freeze([
+    "a",
+    "abbr",
+    "acronym",
+    "address",
+    "area",
+    "article",
+    "aside",
+    "audio",
+    "b",
+    "bdi",
+    "bdo",
+    "big",
+    "blink",
+    "blockquote",
+    "body",
+    "br",
+    "button",
+    "canvas",
+    "caption",
+    "center",
+    "cite",
+    "code",
+    "col",
+    "colgroup",
+    "content",
+    "data",
+    "datalist",
+    "dd",
+    "decorator",
+    "del",
+    "details",
+    "dfn",
+    "dialog",
+    "dir",
+    "div",
+    "dl",
+    "dt",
+    "element",
+    "em",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "font",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "head",
+    "header",
+    "hgroup",
+    "hr",
+    "html",
+    "i",
+    "img",
+    "input",
+    "ins",
+    "kbd",
+    "label",
+    "legend",
+    "li",
+    "main",
+    "map",
+    "mark",
+    "marquee",
+    "menu",
+    "menuitem",
+    "meter",
+    "nav",
+    "nobr",
+    "ol",
+    "optgroup",
+    "option",
+    "output",
+    "p",
+    "picture",
+    "pre",
+    "progress",
+    "q",
+    "rp",
+    "rt",
+    "ruby",
+    "s",
+    "samp",
+    "search",
+    "section",
+    "select",
+    "shadow",
+    "slot",
+    "small",
+    "source",
+    "spacer",
+    "span",
+    "strike",
+    "strong",
+    "style",
+    "sub",
+    "summary",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "template",
+    "textarea",
+    "tfoot",
+    "th",
+    "thead",
+    "time",
+    "tr",
+    "track",
+    "tt",
+    "u",
+    "ul",
+    "var",
+    "video",
+    "wbr"
+  ]);
+  var svg$1 = freeze([
+    "svg",
+    "a",
+    "altglyph",
+    "altglyphdef",
+    "altglyphitem",
+    "animatecolor",
+    "animatemotion",
+    "animatetransform",
+    "circle",
+    "clippath",
+    "defs",
+    "desc",
+    "ellipse",
+    "enterkeyhint",
+    "exportparts",
+    "filter",
+    "font",
+    "g",
+    "glyph",
+    "glyphref",
+    "hkern",
+    "image",
+    "inputmode",
+    "line",
+    "lineargradient",
+    "marker",
+    "mask",
+    "metadata",
+    "mpath",
+    "part",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialgradient",
+    "rect",
+    "stop",
+    "style",
+    "switch",
+    "symbol",
+    "text",
+    "textpath",
+    "title",
+    "tref",
+    "tspan",
+    "view",
+    "vkern"
+  ]);
+  var svgFilters = freeze([
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feDropShadow",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence"
+  ]);
+  var svgDisallowed = freeze([
+    "animate",
+    "color-profile",
+    "cursor",
+    "discard",
+    "font-face",
+    "font-face-format",
+    "font-face-name",
+    "font-face-src",
+    "font-face-uri",
+    "foreignobject",
+    "hatch",
+    "hatchpath",
+    "mesh",
+    "meshgradient",
+    "meshpatch",
+    "meshrow",
+    "missing-glyph",
+    "script",
+    "set",
+    "solidcolor",
+    "unknown",
+    "use"
+  ]);
+  var mathMl$1 = freeze([
+    "math",
+    "menclose",
+    "merror",
+    "mfenced",
+    "mfrac",
+    "mglyph",
+    "mi",
+    "mlabeledtr",
+    "mmultiscripts",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mroot",
+    "mrow",
+    "ms",
+    "mspace",
+    "msqrt",
+    "mstyle",
+    "msub",
+    "msup",
+    "msubsup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "mprescripts"
+  ]);
+  var mathMlDisallowed = freeze([
+    "maction",
+    "maligngroup",
+    "malignmark",
+    "mlongdiv",
+    "mscarries",
+    "mscarry",
+    "msgroup",
+    "mstack",
+    "msline",
+    "msrow",
+    "semantics",
+    "annotation",
+    "annotation-xml",
+    "mprescripts",
+    "none"
+  ]);
+  var text = freeze(["#text"]);
+  var html = freeze([
+    "accept",
+    "action",
+    "align",
+    "alt",
+    "autocapitalize",
+    "autocomplete",
+    "autopictureinpicture",
+    "autoplay",
+    "background",
+    "bgcolor",
+    "border",
+    "capture",
+    "cellpadding",
+    "cellspacing",
+    "checked",
+    "cite",
+    "class",
+    "clear",
+    "color",
+    "cols",
+    "colspan",
+    "command",
+    "commandfor",
+    "controls",
+    "controlslist",
+    "coords",
+    "crossorigin",
+    "datetime",
+    "decoding",
+    "default",
+    "dir",
+    "disabled",
+    "disablepictureinpicture",
+    "disableremoteplayback",
+    "download",
+    "draggable",
+    "enctype",
+    "enterkeyhint",
+    "exportparts",
+    "face",
+    "for",
+    "headers",
+    "height",
+    "hidden",
+    "high",
+    "href",
+    "hreflang",
+    "id",
+    "inert",
+    "inputmode",
+    "integrity",
+    "ismap",
+    "kind",
+    "label",
+    "lang",
+    "list",
+    "loading",
+    "loop",
+    "low",
+    "max",
+    "maxlength",
+    "media",
+    "method",
+    "min",
+    "minlength",
+    "multiple",
+    "muted",
+    "name",
+    "nonce",
+    "noshade",
+    "novalidate",
+    "nowrap",
+    "open",
+    "optimum",
+    "part",
+    "pattern",
+    "placeholder",
+    "playsinline",
+    "popover",
+    "popovertarget",
+    "popovertargetaction",
+    "poster",
+    "preload",
+    "pubdate",
+    "radiogroup",
+    "readonly",
+    "rel",
+    "required",
+    "rev",
+    "reversed",
+    "role",
+    "rows",
+    "rowspan",
+    "spellcheck",
+    "scope",
+    "selected",
+    "shape",
+    "size",
+    "sizes",
+    "slot",
+    "span",
+    "srclang",
+    "start",
+    "src",
+    "srcset",
+    "step",
+    "style",
+    "summary",
+    "tabindex",
+    "title",
+    "translate",
+    "type",
+    "usemap",
+    "valign",
+    "value",
+    "width",
+    "wrap",
+    "xmlns"
+  ]);
+  var svg = freeze([
+    "accent-height",
+    "accumulate",
+    "additive",
+    "alignment-baseline",
+    "amplitude",
+    "ascent",
+    "attributename",
+    "attributetype",
+    "azimuth",
+    "basefrequency",
+    "baseline-shift",
+    "begin",
+    "bias",
+    "by",
+    "class",
+    "clip",
+    "clippathunits",
+    "clip-path",
+    "clip-rule",
+    "color",
+    "color-interpolation",
+    "color-interpolation-filters",
+    "color-profile",
+    "color-rendering",
+    "cx",
+    "cy",
+    "d",
+    "dx",
+    "dy",
+    "diffuseconstant",
+    "direction",
+    "display",
+    "divisor",
+    "dominant-baseline",
+    "dur",
+    "edgemode",
+    "elevation",
+    "end",
+    "exponent",
+    "fill",
+    "fill-opacity",
+    "fill-rule",
+    "filter",
+    "filterunits",
+    "flood-color",
+    "flood-opacity",
+    "font-family",
+    "font-size",
+    "font-size-adjust",
+    "font-stretch",
+    "font-style",
+    "font-variant",
+    "font-weight",
+    "fx",
+    "fy",
+    "g1",
+    "g2",
+    "glyph-name",
+    "glyphref",
+    "gradientunits",
+    "gradienttransform",
+    "height",
+    "href",
+    "id",
+    "image-rendering",
+    "in",
+    "in2",
+    "intercept",
+    "k",
+    "k1",
+    "k2",
+    "k3",
+    "k4",
+    "kerning",
+    "keypoints",
+    "keysplines",
+    "keytimes",
+    "lang",
+    "lengthadjust",
+    "letter-spacing",
+    "kernelmatrix",
+    "kernelunitlength",
+    "lighting-color",
+    "local",
+    "marker-end",
+    "marker-mid",
+    "marker-start",
+    "markerheight",
+    "markerunits",
+    "markerwidth",
+    "maskcontentunits",
+    "maskunits",
+    "max",
+    "mask",
+    "mask-type",
+    "media",
+    "method",
+    "mode",
+    "min",
+    "name",
+    "numoctaves",
+    "offset",
+    "operator",
+    "opacity",
+    "order",
+    "orient",
+    "orientation",
+    "origin",
+    "overflow",
+    "paint-order",
+    "path",
+    "pathlength",
+    "patterncontentunits",
+    "patterntransform",
+    "patternunits",
+    "pointer-events",
+    "points",
+    "preservealpha",
+    "preserveaspectratio",
+    "primitiveunits",
+    "r",
+    "rx",
+    "ry",
+    "radius",
+    "refx",
+    "refy",
+    "repeatcount",
+    "repeatdur",
+    "restart",
+    "result",
+    "rotate",
+    "scale",
+    "seed",
+    "shape-rendering",
+    "slope",
+    "specularconstant",
+    "specularexponent",
+    "spreadmethod",
+    "startoffset",
+    "stddeviation",
+    "stitchtiles",
+    "stop-color",
+    "stop-opacity",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-miterlimit",
+    "stroke-opacity",
+    "stroke",
+    "stroke-width",
+    "style",
+    "surfacescale",
+    "systemlanguage",
+    "tabindex",
+    "tablevalues",
+    "targetx",
+    "targety",
+    "transform",
+    "transform-origin",
+    "text-anchor",
+    "text-decoration",
+    "text-orientation",
+    "text-rendering",
+    "textlength",
+    "type",
+    "u1",
+    "u2",
+    "unicode",
+    "values",
+    "vector-effect",
+    "viewbox",
+    "visibility",
+    "version",
+    "vert-adv-y",
+    "vert-origin-x",
+    "vert-origin-y",
+    "width",
+    "word-spacing",
+    "wrap",
+    "writing-mode",
+    "xchannelselector",
+    "ychannelselector",
+    "x",
+    "x1",
+    "x2",
+    "xmlns",
+    "y",
+    "y1",
+    "y2",
+    "z",
+    "zoomandpan"
+  ]);
+  var mathMl = freeze([
+    "accent",
+    "accentunder",
+    "align",
+    "bevelled",
+    "close",
+    "columnalign",
+    "columnlines",
+    "columnspacing",
+    "columnspan",
+    "denomalign",
+    "depth",
+    "dir",
+    "display",
+    "displaystyle",
+    "encoding",
+    "fence",
+    "frame",
+    "height",
+    "href",
+    "id",
+    "largeop",
+    "length",
+    "linethickness",
+    "lquote",
+    "lspace",
+    "mathbackground",
+    "mathcolor",
+    "mathsize",
+    "mathvariant",
+    "maxsize",
+    "minsize",
+    "movablelimits",
+    "notation",
+    "numalign",
+    "open",
+    "rowalign",
+    "rowlines",
+    "rowspacing",
+    "rowspan",
+    "rspace",
+    "rquote",
+    "scriptlevel",
+    "scriptminsize",
+    "scriptsizemultiplier",
+    "selection",
+    "separator",
+    "separators",
+    "stretchy",
+    "subscriptshift",
+    "supscriptshift",
+    "symmetric",
+    "voffset",
+    "width",
+    "xmlns"
+  ]);
+  var xml = freeze([
+    "xlink:href",
+    "xml:id",
+    "xlink:title",
+    "xml:space",
+    "xmlns:xlink"
+  ]);
+  var MUSTACHE_EXPR = seal(/{{[\w\W]*|^[\w\W]*}}/g);
+  var ERB_EXPR = seal(/<%[\w\W]*|^[\w\W]*%>/g);
+  var TMPLIT_EXPR = seal(/\${[\w\W]*/g);
+  var DATA_ATTR = seal(/^data-[\-\w.\u00B7-\uFFFF]+$/);
+  var ARIA_ATTR = seal(/^aria-[\-\w]+$/);
+  var IS_ALLOWED_URI = seal(/^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i);
+  var IS_SCRIPT_OR_DATA = seal(/^(?:\w+script|data):/i);
+  var ATTR_WHITESPACE = seal(/[\u0000-\u0020\u00A0\u1680\u180E\u2000-\u2029\u205F\u3000]/g);
+  var DOCTYPE_NAME = seal(/^html$/i);
+  var CUSTOM_ELEMENT = seal(/^[a-z][.\w]*(-[.\w]+)+$/i);
+  var ELEMENT_MARKUP_PROBE = seal(/<[/\w!]/g);
+  var COMMENT_MARKUP_PROBE = seal(/<[/\w]/g);
+  var FALLBACK_TAG_CLOSE = seal(/<\/no(script|embed|frames)/i);
+  var SELF_CLOSING_TAG = seal(/\/>/i);
+  var NODE_TYPE = {
+    element: 1,
+    attribute: 2,
+    text: 3,
+    cdataSection: 4,
+    entityReference: 5,
+    entityNode: 6,
+    processingInstruction: 7,
+    comment: 8,
+    document: 9,
+    documentType: 10,
+    documentFragment: 11,
+    notation: 12
+  };
+  var LITERAL_TEXT_ELEMENTS = freeze(addToSet({}, [
+    "style",
+    "script",
+    "xmp",
+    "iframe",
+    "noembed",
+    "noframes",
+    "plaintext",
+    "noscript"
+  ]));
+  var getGlobal = function getGlobal2() {
+    return typeof window === "undefined" ? null : window;
+  };
+  var _createTrustedTypesPolicy = function _createTrustedTypesPolicy2(trustedTypes, purifyHostElement) {
+    if (typeof trustedTypes !== "object" || typeof trustedTypes.createPolicy !== "function") return null;
+    let suffix = null;
+    const ATTR_NAME = "data-tt-policy-suffix";
+    if (purifyHostElement && purifyHostElement.hasAttribute(ATTR_NAME)) suffix = purifyHostElement.getAttribute(ATTR_NAME);
+    const policyName = "dompurify" + (suffix ? "#" + suffix : "");
+    try {
+      return trustedTypes.createPolicy(policyName, {
+        createHTML(html2) {
+          return html2;
+        },
+        createScriptURL(scriptUrl) {
+          return scriptUrl;
+        }
+      });
+    } catch (_) {
+      console.warn("TrustedTypes policy " + policyName + " could not be created.");
+      return null;
+    }
+  };
+  var _createHooksMap = function _createHooksMap2() {
+    return {
+      afterSanitizeAttributes: [],
+      afterSanitizeElements: [],
+      afterSanitizeShadowDOM: [],
+      beforeSanitizeAttributes: [],
+      beforeSanitizeElements: [],
+      beforeSanitizeShadowDOM: [],
+      uponSanitizeAttribute: [],
+      uponSanitizeElement: [],
+      uponSanitizeShadowNode: []
+    };
+  };
+  var _resolveSetOption = function _resolveSetOption2(cfg, key, fallback, options) {
+    return objectHasOwnProperty(cfg, key) && arrayIsArray(cfg[key]) ? addToSet(options.base ? clone(options.base) : {}, cfg[key], options.transform) : fallback;
+  };
+  var _resolveObjectOption = function _resolveObjectOption2(cfg, key, makeFallback) {
+    const value = objectHasOwnProperty(cfg, key) ? cfg[key] : void 0;
+    return value && typeof value === "object" ? clone(value) : makeFallback();
+  };
+  function createDOMPurify() {
+    let window2 = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : getGlobal();
+    const DOMPurify = (root) => createDOMPurify(root);
+    DOMPurify.version = "3.4.17";
+    DOMPurify.removed = [];
+    if (!window2 || !window2.document || window2.document.nodeType !== NODE_TYPE.document || !window2.Element) {
+      DOMPurify.isSupported = false;
+      return DOMPurify;
+    }
+    let document2 = window2.document;
+    const originalDocument = document2;
+    const currentScript = originalDocument.currentScript;
+    window2.DocumentFragment;
+    const HTMLTemplateElement = window2.HTMLTemplateElement, Node = window2.Node, Element = window2.Element, NodeFilter = window2.NodeFilter;
+    window2.NamedNodeMap === void 0 && (window2.NamedNodeMap || window2.MozNamedAttrMap);
+    window2.HTMLFormElement;
+    const DOMParser = window2.DOMParser, trustedTypes = window2.trustedTypes;
+    const ElementPrototype = Element.prototype;
+    const cloneNode = lookupGetter(ElementPrototype, "cloneNode");
+    const remove = lookupGetter(ElementPrototype, "remove");
+    const removeAttributeNode = lookupGetter(ElementPrototype, "removeAttributeNode");
+    const getNextSibling = lookupGetter(ElementPrototype, "nextSibling");
+    const getChildNodes = lookupGetter(ElementPrototype, "childNodes");
+    const getParentNode = lookupGetter(ElementPrototype, "parentNode");
+    const getShadowRoot = lookupGetter(ElementPrototype, "shadowRoot");
+    const getAttributes = lookupGetter(ElementPrototype, "attributes");
+    const getNodeType = Node && Node.prototype ? lookupGetter(Node.prototype, "nodeType") : null;
+    const getNodeName = Node && Node.prototype ? lookupGetter(Node.prototype, "nodeName") : null;
+    const getOwnerDocument = Node && Node.prototype ? lookupGetter(Node.prototype, "ownerDocument") : null;
+    const _readNodeType = function _readNodeType2(node) {
+      return getNodeType ? getNodeType(node) : node.nodeType;
+    };
+    const _readNodeName = function _readNodeName2(node) {
+      return getNodeName ? getNodeName(node) : node.nodeName;
+    };
+    const getNamespaceURI = lookupAccessor(ElementPrototype, "namespaceURI");
+    const _readNamespaceURI = function _readNamespaceURI2(element) {
+      return getNamespaceURI ? getNamespaceURI(element) : element.namespaceURI;
+    };
+    if (typeof HTMLTemplateElement === "function") {
+      const template = document2.createElement("template");
+      if (template.content && template.content.ownerDocument) document2 = template.content.ownerDocument;
+    }
+    let trustedTypesPolicy;
+    let emptyHTML = "";
+    let defaultTrustedTypesPolicy;
+    let defaultTrustedTypesPolicyResolved = false;
+    let IN_TRUSTED_TYPES_POLICY = 0;
+    const _assertNotInTrustedTypesPolicy = function _assertNotInTrustedTypesPolicy2() {
+      if (IN_TRUSTED_TYPES_POLICY > 0) throw typeErrorCreate('A configured TRUSTED_TYPES_POLICY callback (createHTML or createScriptURL) must not call DOMPurify.sanitize, as that causes infinite recursion. Do not pass a policy whose callbacks wrap DOMPurify as TRUSTED_TYPES_POLICY; see the "DOMPurify and Trusted Types" section of the README.');
+    };
+    const _createTrustedHTML = function _createTrustedHTML2(html2) {
+      _assertNotInTrustedTypesPolicy();
+      IN_TRUSTED_TYPES_POLICY++;
+      try {
+        return trustedTypesPolicy.createHTML(html2);
+      } finally {
+        IN_TRUSTED_TYPES_POLICY--;
+      }
+    };
+    const _createTrustedScriptURL = function _createTrustedScriptURL2(scriptUrl) {
+      _assertNotInTrustedTypesPolicy();
+      IN_TRUSTED_TYPES_POLICY++;
+      try {
+        return trustedTypesPolicy.createScriptURL(scriptUrl);
+      } finally {
+        IN_TRUSTED_TYPES_POLICY--;
+      }
+    };
+    const _getDefaultTrustedTypesPolicy = function _getDefaultTrustedTypesPolicy2() {
+      if (!defaultTrustedTypesPolicyResolved) {
+        defaultTrustedTypesPolicy = _createTrustedTypesPolicy(trustedTypes, currentScript);
+        defaultTrustedTypesPolicyResolved = true;
+      }
+      return defaultTrustedTypesPolicy;
+    };
+    const _document = document2, implementation = _document.implementation, createNodeIterator = _document.createNodeIterator, createDocumentFragment = _document.createDocumentFragment, getElementsByTagName = _document.getElementsByTagName;
+    const importNode = originalDocument.importNode;
+    let hooks2 = _createHooksMap();
+    DOMPurify.isSupported = typeof entries === "function" && typeof getParentNode === "function" && implementation && implementation.createHTMLDocument !== void 0;
+    const MUSTACHE_EXPR$1 = MUSTACHE_EXPR, ERB_EXPR$1 = ERB_EXPR, TMPLIT_EXPR$1 = TMPLIT_EXPR, DATA_ATTR$1 = DATA_ATTR, ARIA_ATTR$1 = ARIA_ATTR, IS_SCRIPT_OR_DATA$1 = IS_SCRIPT_OR_DATA, ATTR_WHITESPACE$1 = ATTR_WHITESPACE, CUSTOM_ELEMENT$1 = CUSTOM_ELEMENT;
+    let IS_ALLOWED_URI$1 = IS_ALLOWED_URI;
+    let ALLOWED_TAGS = null;
+    const DEFAULT_ALLOWED_TAGS = addToSet({}, [
+      ...html$1,
+      ...svg$1,
+      ...svgFilters,
+      ...mathMl$1,
+      ...text
+    ]);
+    let ALLOWED_ATTR = null;
+    const DEFAULT_ALLOWED_ATTR = addToSet({}, [
+      ...html,
+      ...svg,
+      ...mathMl,
+      ...xml
+    ]);
+    let CUSTOM_ELEMENT_HANDLING = Object.seal(create(null, {
+      tagNameCheck: {
+        writable: true,
+        configurable: false,
+        enumerable: true,
+        value: null
+      },
+      attributeNameCheck: {
+        writable: true,
+        configurable: false,
+        enumerable: true,
+        value: null
+      },
+      allowCustomizedBuiltInElements: {
+        writable: true,
+        configurable: false,
+        enumerable: true,
+        value: false
+      }
+    }));
+    let FORBID_TAGS = null;
+    let FORBID_ATTR = null;
+    const EXTRA_ELEMENT_HANDLING = Object.seal(create(null, {
+      tagCheck: {
+        writable: true,
+        configurable: false,
+        enumerable: true,
+        value: null
+      },
+      attributeCheck: {
+        writable: true,
+        configurable: false,
+        enumerable: true,
+        value: null
+      }
+    }));
+    let ALLOW_ARIA_ATTR = true;
+    let ALLOW_DATA_ATTR = true;
+    let ALLOW_UNKNOWN_PROTOCOLS = false;
+    let ALLOW_SELF_CLOSE_IN_ATTR = true;
+    let SAFE_FOR_TEMPLATES = false;
+    let SAFE_FOR_XML = true;
+    let WHOLE_DOCUMENT = false;
+    let SET_CONFIG = false;
+    let SET_CONFIG_ALLOWED_TAGS = null;
+    let SET_CONFIG_ALLOWED_ATTR = null;
+    let FORCE_BODY = false;
+    let RETURN_DOM = false;
+    let RETURN_DOM_FRAGMENT = false;
+    let RETURN_TRUSTED_TYPE = false;
+    let SANITIZE_DOM = true;
+    let SANITIZE_NAMED_PROPS = false;
+    const SANITIZE_NAMED_PROPS_PREFIX = "user-content-";
+    let KEEP_CONTENT = true;
+    let IN_PLACE = false;
+    let IN_PLACE_VISITED = null;
+    let USE_PROFILES = {};
+    let FORBID_CONTENTS = null;
+    const DEFAULT_FORBID_CONTENTS = addToSet({}, [
+      "annotation-xml",
+      "audio",
+      "colgroup",
+      "desc",
+      "foreignobject",
+      "head",
+      "iframe",
+      "math",
+      "mi",
+      "mn",
+      "mo",
+      "ms",
+      "mtext",
+      "noembed",
+      "noframes",
+      "noscript",
+      "plaintext",
+      "script",
+      "selectedcontent",
+      "style",
+      "svg",
+      "template",
+      "thead",
+      "title",
+      "video",
+      "xmp"
+    ]);
+    let DATA_URI_TAGS = null;
+    const DEFAULT_DATA_URI_TAGS = addToSet({}, [
+      "audio",
+      "video",
+      "img",
+      "source",
+      "image",
+      "track"
+    ]);
+    let URI_SAFE_ATTRIBUTES = null;
+    const DEFAULT_URI_SAFE_ATTRIBUTES = addToSet({}, [
+      "alt",
+      "class",
+      "for",
+      "id",
+      "label",
+      "name",
+      "pattern",
+      "placeholder",
+      "role",
+      "summary",
+      "title",
+      "value",
+      "style",
+      "xmlns"
+    ]);
+    const MATHML_NAMESPACE = "http://www.w3.org/1998/Math/MathML";
+    const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+    const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
+    let NAMESPACE = HTML_NAMESPACE;
+    let IS_EMPTY_INPUT = false;
+    let ALLOWED_NAMESPACES = null;
+    const DEFAULT_ALLOWED_NAMESPACES = addToSet({}, [
+      MATHML_NAMESPACE,
+      SVG_NAMESPACE,
+      HTML_NAMESPACE
+    ], stringToString);
+    const DEFAULT_MATHML_TEXT_INTEGRATION_POINTS = freeze([
+      "mi",
+      "mo",
+      "mn",
+      "ms",
+      "mtext"
+    ]);
+    let MATHML_TEXT_INTEGRATION_POINTS = addToSet({}, DEFAULT_MATHML_TEXT_INTEGRATION_POINTS);
+    const DEFAULT_HTML_INTEGRATION_POINTS = freeze(["annotation-xml"]);
+    let HTML_INTEGRATION_POINTS = addToSet({}, DEFAULT_HTML_INTEGRATION_POINTS);
+    const COMMON_SVG_AND_HTML_ELEMENTS = addToSet({}, [
+      "title",
+      "style",
+      "font",
+      "a",
+      "script"
+    ]);
+    let PARSER_MEDIA_TYPE = null;
+    const SUPPORTED_PARSER_MEDIA_TYPES = ["application/xhtml+xml", "text/html"];
+    const DEFAULT_PARSER_MEDIA_TYPE = "text/html";
+    let transformCaseFunc = null;
+    let CONFIG2 = null;
+    const formElement = document2.createElement("form");
+    const isRegexOrFunction = function isRegexOrFunction2(testValue) {
+      return testValue instanceof RegExp || testValue instanceof Function;
+    };
+    const _parseConfig = function _parseConfig2() {
+      let cfg = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : {};
+      if (CONFIG2 && CONFIG2 === cfg) return;
+      if (!cfg || typeof cfg !== "object") cfg = {};
+      cfg = clone(cfg);
+      PARSER_MEDIA_TYPE = SUPPORTED_PARSER_MEDIA_TYPES.indexOf(cfg.PARSER_MEDIA_TYPE) === -1 ? DEFAULT_PARSER_MEDIA_TYPE : cfg.PARSER_MEDIA_TYPE;
+      transformCaseFunc = PARSER_MEDIA_TYPE === "application/xhtml+xml" ? stringToString : stringToLowerCase;
+      ALLOWED_TAGS = _resolveSetOption(cfg, "ALLOWED_TAGS", DEFAULT_ALLOWED_TAGS, { transform: transformCaseFunc });
+      ALLOWED_ATTR = _resolveSetOption(cfg, "ALLOWED_ATTR", DEFAULT_ALLOWED_ATTR, { transform: transformCaseFunc });
+      ALLOWED_NAMESPACES = _resolveSetOption(cfg, "ALLOWED_NAMESPACES", DEFAULT_ALLOWED_NAMESPACES, { transform: stringToString });
+      URI_SAFE_ATTRIBUTES = _resolveSetOption(cfg, "ADD_URI_SAFE_ATTR", DEFAULT_URI_SAFE_ATTRIBUTES, {
+        transform: transformCaseFunc,
+        base: DEFAULT_URI_SAFE_ATTRIBUTES
+      });
+      DATA_URI_TAGS = _resolveSetOption(cfg, "ADD_DATA_URI_TAGS", DEFAULT_DATA_URI_TAGS, {
+        transform: transformCaseFunc,
+        base: DEFAULT_DATA_URI_TAGS
+      });
+      FORBID_CONTENTS = _resolveSetOption(cfg, "FORBID_CONTENTS", DEFAULT_FORBID_CONTENTS, { transform: transformCaseFunc });
+      FORBID_TAGS = _resolveSetOption(cfg, "FORBID_TAGS", clone({}), { transform: transformCaseFunc });
+      FORBID_ATTR = _resolveSetOption(cfg, "FORBID_ATTR", clone({}), { transform: transformCaseFunc });
+      USE_PROFILES = objectHasOwnProperty(cfg, "USE_PROFILES") ? cfg.USE_PROFILES && typeof cfg.USE_PROFILES === "object" ? clone(cfg.USE_PROFILES) : cfg.USE_PROFILES : false;
+      ALLOW_ARIA_ATTR = cfg.ALLOW_ARIA_ATTR !== false;
+      ALLOW_DATA_ATTR = cfg.ALLOW_DATA_ATTR !== false;
+      ALLOW_UNKNOWN_PROTOCOLS = cfg.ALLOW_UNKNOWN_PROTOCOLS || false;
+      ALLOW_SELF_CLOSE_IN_ATTR = cfg.ALLOW_SELF_CLOSE_IN_ATTR !== false;
+      SAFE_FOR_TEMPLATES = cfg.SAFE_FOR_TEMPLATES || false;
+      SAFE_FOR_XML = cfg.SAFE_FOR_XML !== false;
+      WHOLE_DOCUMENT = cfg.WHOLE_DOCUMENT || false;
+      RETURN_DOM = cfg.RETURN_DOM || false;
+      RETURN_DOM_FRAGMENT = cfg.RETURN_DOM_FRAGMENT || false;
+      RETURN_TRUSTED_TYPE = cfg.RETURN_TRUSTED_TYPE || false;
+      FORCE_BODY = cfg.FORCE_BODY || false;
+      SANITIZE_DOM = cfg.SANITIZE_DOM !== false;
+      SANITIZE_NAMED_PROPS = cfg.SANITIZE_NAMED_PROPS || false;
+      KEEP_CONTENT = cfg.KEEP_CONTENT !== false;
+      IN_PLACE = cfg.IN_PLACE || false;
+      IS_ALLOWED_URI$1 = isRegex(cfg.ALLOWED_URI_REGEXP) ? cfg.ALLOWED_URI_REGEXP : IS_ALLOWED_URI;
+      NAMESPACE = typeof cfg.NAMESPACE === "string" ? cfg.NAMESPACE : HTML_NAMESPACE;
+      MATHML_TEXT_INTEGRATION_POINTS = _resolveObjectOption(cfg, "MATHML_TEXT_INTEGRATION_POINTS", () => addToSet({}, DEFAULT_MATHML_TEXT_INTEGRATION_POINTS));
+      HTML_INTEGRATION_POINTS = _resolveObjectOption(cfg, "HTML_INTEGRATION_POINTS", () => addToSet({}, DEFAULT_HTML_INTEGRATION_POINTS));
+      const customElementHandling = _resolveObjectOption(cfg, "CUSTOM_ELEMENT_HANDLING", () => create(null));
+      CUSTOM_ELEMENT_HANDLING = create(null);
+      if (objectHasOwnProperty(customElementHandling, "tagNameCheck") && isRegexOrFunction(customElementHandling.tagNameCheck)) CUSTOM_ELEMENT_HANDLING.tagNameCheck = customElementHandling.tagNameCheck;
+      if (objectHasOwnProperty(customElementHandling, "attributeNameCheck") && isRegexOrFunction(customElementHandling.attributeNameCheck)) CUSTOM_ELEMENT_HANDLING.attributeNameCheck = customElementHandling.attributeNameCheck;
+      if (objectHasOwnProperty(customElementHandling, "allowCustomizedBuiltInElements") && typeof customElementHandling.allowCustomizedBuiltInElements === "boolean") CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements = customElementHandling.allowCustomizedBuiltInElements;
+      seal(CUSTOM_ELEMENT_HANDLING);
+      if (SAFE_FOR_TEMPLATES) ALLOW_DATA_ATTR = false;
+      if (RETURN_DOM_FRAGMENT) RETURN_DOM = true;
+      if (USE_PROFILES) {
+        ALLOWED_TAGS = addToSet({}, text);
+        ALLOWED_ATTR = create(null);
+        if (USE_PROFILES.html === true) {
+          addToSet(ALLOWED_TAGS, html$1);
+          addToSet(ALLOWED_ATTR, html);
+        }
+        if (USE_PROFILES.svg === true) {
+          addToSet(ALLOWED_TAGS, svg$1);
+          addToSet(ALLOWED_ATTR, svg);
+          addToSet(ALLOWED_ATTR, xml);
+        }
+        if (USE_PROFILES.svgFilters === true) {
+          addToSet(ALLOWED_TAGS, svgFilters);
+          addToSet(ALLOWED_ATTR, svg);
+          addToSet(ALLOWED_ATTR, xml);
+        }
+        if (USE_PROFILES.mathMl === true) {
+          addToSet(ALLOWED_TAGS, mathMl$1);
+          addToSet(ALLOWED_ATTR, mathMl);
+          addToSet(ALLOWED_ATTR, xml);
+        }
+      }
+      EXTRA_ELEMENT_HANDLING.tagCheck = null;
+      EXTRA_ELEMENT_HANDLING.attributeCheck = null;
+      if (objectHasOwnProperty(cfg, "ADD_TAGS")) {
+        if (typeof cfg.ADD_TAGS === "function") EXTRA_ELEMENT_HANDLING.tagCheck = cfg.ADD_TAGS;
+        else if (arrayIsArray(cfg.ADD_TAGS)) {
+          if (ALLOWED_TAGS === DEFAULT_ALLOWED_TAGS) ALLOWED_TAGS = clone(ALLOWED_TAGS);
+          addToSet(ALLOWED_TAGS, cfg.ADD_TAGS, transformCaseFunc);
+        }
+      }
+      if (objectHasOwnProperty(cfg, "ADD_ATTR")) {
+        if (typeof cfg.ADD_ATTR === "function") EXTRA_ELEMENT_HANDLING.attributeCheck = cfg.ADD_ATTR;
+        else if (arrayIsArray(cfg.ADD_ATTR)) {
+          if (ALLOWED_ATTR === DEFAULT_ALLOWED_ATTR) ALLOWED_ATTR = clone(ALLOWED_ATTR);
+          addToSet(ALLOWED_ATTR, cfg.ADD_ATTR, transformCaseFunc);
+        }
+      }
+      if (objectHasOwnProperty(cfg, "ADD_FORBID_CONTENTS") && arrayIsArray(cfg.ADD_FORBID_CONTENTS)) {
+        if (FORBID_CONTENTS === DEFAULT_FORBID_CONTENTS) FORBID_CONTENTS = clone(FORBID_CONTENTS);
+        addToSet(FORBID_CONTENTS, cfg.ADD_FORBID_CONTENTS, transformCaseFunc);
+      }
+      if (KEEP_CONTENT) ALLOWED_TAGS["#text"] = true;
+      if (WHOLE_DOCUMENT) addToSet(ALLOWED_TAGS, [
+        "html",
+        "head",
+        "body"
+      ]);
+      if (ALLOWED_TAGS.table) {
+        addToSet(ALLOWED_TAGS, ["tbody"]);
+        delete FORBID_TAGS.tbody;
+      }
+      if (cfg.TRUSTED_TYPES_POLICY) {
+        if (typeof cfg.TRUSTED_TYPES_POLICY.createHTML !== "function") throw typeErrorCreate('TRUSTED_TYPES_POLICY configuration option must provide a "createHTML" hook.');
+        if (typeof cfg.TRUSTED_TYPES_POLICY.createScriptURL !== "function") throw typeErrorCreate('TRUSTED_TYPES_POLICY configuration option must provide a "createScriptURL" hook.');
+        const previousTrustedTypesPolicy = trustedTypesPolicy;
+        trustedTypesPolicy = cfg.TRUSTED_TYPES_POLICY;
+        try {
+          emptyHTML = _createTrustedHTML("");
+        } catch (error) {
+          trustedTypesPolicy = previousTrustedTypesPolicy;
+          throw error;
+        }
+      } else if (cfg.TRUSTED_TYPES_POLICY === null) {
+        trustedTypesPolicy = void 0;
+        emptyHTML = "";
+      } else {
+        if (trustedTypesPolicy === void 0) trustedTypesPolicy = _getDefaultTrustedTypesPolicy();
+        if (trustedTypesPolicy && typeof emptyHTML === "string") emptyHTML = _createTrustedHTML("");
+      }
+      if (freeze) freeze(cfg);
+      CONFIG2 = cfg;
+    };
+    const ALL_SVG_TAGS = addToSet({}, [
+      ...svg$1,
+      ...svgFilters,
+      ...svgDisallowed
+    ]);
+    const ALL_MATHML_TAGS = addToSet({}, [...mathMl$1, ...mathMlDisallowed]);
+    const _checkSvgNamespace = function _checkSvgNamespace2(tagName, parent, parentTagName) {
+      if (parent.namespaceURI === HTML_NAMESPACE) return tagName === "svg";
+      if (parent.namespaceURI === MATHML_NAMESPACE) return tagName === "svg" && (parentTagName === "annotation-xml" || MATHML_TEXT_INTEGRATION_POINTS[parentTagName]);
+      return Boolean(ALL_SVG_TAGS[tagName]);
+    };
+    const _checkMathMlNamespace = function _checkMathMlNamespace2(tagName, parent, parentTagName) {
+      if (parent.namespaceURI === HTML_NAMESPACE) return tagName === "math";
+      if (parent.namespaceURI === SVG_NAMESPACE) return tagName === "math" && HTML_INTEGRATION_POINTS[parentTagName];
+      return Boolean(ALL_MATHML_TAGS[tagName]);
+    };
+    const _checkHtmlNamespace = function _checkHtmlNamespace2(tagName, parent, parentTagName) {
+      if (parent.namespaceURI === SVG_NAMESPACE && !HTML_INTEGRATION_POINTS[parentTagName]) return false;
+      if (parent.namespaceURI === MATHML_NAMESPACE && !MATHML_TEXT_INTEGRATION_POINTS[parentTagName]) return false;
+      return !ALL_MATHML_TAGS[tagName] && (COMMON_SVG_AND_HTML_ELEMENTS[tagName] || !ALL_SVG_TAGS[tagName]);
+    };
+    const _checkValidNamespace = function _checkValidNamespace2(element) {
+      const elementNamespace = _readNamespaceURI(element);
+      const tagName = stringToLowerCase(_readNodeName(element));
+      const parentNode = getParentNode(element);
+      let parent;
+      let parentTagName;
+      if (parentNode && _readNodeType(parentNode) === NODE_TYPE.element) {
+        parent = { namespaceURI: _readNamespaceURI(parentNode) };
+        parentTagName = stringToLowerCase(_readNodeName(parentNode));
+      } else {
+        parent = { namespaceURI: NAMESPACE };
+        parentTagName = "template";
+      }
+      if (!ALLOWED_NAMESPACES[elementNamespace]) return false;
+      if (elementNamespace === SVG_NAMESPACE) return _checkSvgNamespace(tagName, parent, parentTagName);
+      if (elementNamespace === MATHML_NAMESPACE) return _checkMathMlNamespace(tagName, parent, parentTagName);
+      if (elementNamespace === HTML_NAMESPACE) return _checkHtmlNamespace(tagName, parent, parentTagName);
+      if (PARSER_MEDIA_TYPE === "application/xhtml+xml" && ALLOWED_NAMESPACES[elementNamespace]) return true;
+      return false;
+    };
+    const _forceRemove = function _forceRemove2(node) {
+      arrayPush(DOMPurify.removed, { element: node });
+      try {
+        getParentNode(node).removeChild(node);
+      } catch (_) {
+        remove(node);
+        if (!getParentNode(node)) throw typeErrorCreate("a node selected for removal could not be detached from its tree and cannot be safely returned; refusing to sanitize in place");
+      }
+    };
+    const _stripAttributeNode = function _stripAttributeNode2(element, attribute, name) {
+      try {
+        removeAttributeNode(element, attribute);
+      } catch (_) {
+        try {
+          element.removeAttribute(name);
+        } catch (_2) {
+        }
+      }
+    };
+    const _neutralizeRoot = function _neutralizeRoot2(root) {
+      _neutralizeSubtree(root);
+      const childNodes = getChildNodes(root);
+      if (childNodes) arrayForEach(arraySlice(childNodes), (child) => {
+        try {
+          remove(child);
+        } catch (_) {
+        }
+      });
+      const attributes = _readNodeType(root) === NODE_TYPE.element ? getAttributes(root) : null;
+      if (attributes) for (let i = attributes.length - 1; i >= 0; --i) {
+        const attribute = attributes[i];
+        const name = attribute && attribute.name;
+        if (typeof name === "string") _stripAttributeNode(root, attribute, name);
+      }
+    };
+    const _removeAttribute = function _removeAttribute2(name, element, attr) {
+      if (!attr) try {
+        attr = element.getAttributeNode(name);
+      } catch (_) {
+        attr = null;
+      }
+      arrayPush(DOMPurify.removed, {
+        attribute: attr || null,
+        from: element
+      });
+      try {
+        if (attr) removeAttributeNode(element, attr);
+        else element.removeAttribute(name);
+      } catch (_) {
+        try {
+          element.removeAttribute(name);
+        } catch (_2) {
+        }
+      }
+      if (name === "is") {
+        if (RETURN_DOM || RETURN_DOM_FRAGMENT) try {
+          _forceRemove(element);
+        } catch (_) {
+        }
+        else try {
+          element.setAttribute(name, "");
+        } catch (_) {
+        }
+      }
+    };
+    const _stripDisallowedAttributes = function _stripDisallowedAttributes2(element) {
+      const attributes = getAttributes(element);
+      if (!attributes) return;
+      for (let i = attributes.length - 1; i >= 0; --i) {
+        const attribute = attributes[i];
+        const name = attribute && attribute.name;
+        if (typeof name !== "string" || ALLOWED_ATTR[transformCaseFunc(name)]) continue;
+        _stripAttributeNode(element, attribute, name);
+      }
+    };
+    const _walkTree = function _walkTree2(root, visit) {
+      let intoShadow = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : false;
+      const stack = [root];
+      while (stack.length > 0) {
+        const node = stack.pop();
+        if (visit(node) === false) continue;
+        if (intoShadow && _readNodeType(node) === NODE_TYPE.element) {
+          const shadowRoot = getShadowRoot(node);
+          if (_isDocumentFragment(shadowRoot)) stack.push(shadowRoot);
+        }
+        const childNodes = getChildNodes(node);
+        if (childNodes) for (let i = childNodes.length - 1; i >= 0; --i) stack.push(childNodes[i]);
+      }
+    };
+    const _neutralizeSubtree = function _neutralizeSubtree2(root) {
+      _walkTree(root, (node) => {
+        if (_readNodeType(node) === NODE_TYPE.element) _stripDisallowedAttributes(node);
+      });
+    };
+    const _collectLiveNodes = function _collectLiveNodes2(root) {
+      const nodes = [];
+      _walkTree(root, (node) => {
+        nodes.push(node);
+      }, true);
+      return nodes;
+    };
+    const _neutralizeEscapedElements = function _neutralizeEscapedElements2(root, before) {
+      const reachable = setCreate();
+      arrayForEach(_collectLiveNodes(root), (node) => {
+        if (_readNodeType(node) === NODE_TYPE.element) setAdd(reachable, node);
+      });
+      arrayForEach(before, (node) => {
+        if (_readNodeType(node) === NODE_TYPE.element && !setHas(reachable, node)) _stripDisallowedAttributes(node);
+      });
+    };
+    const _neutralizeDiscarded = function _neutralizeDiscarded2(root, before) {
+      let rootRemoved = false;
+      arrayForEach(DOMPurify.removed, (entry) => {
+        if (entry.element) {
+          rootRemoved = rootRemoved || entry.element === root;
+          _neutralizeSubtree(entry.element);
+        }
+      });
+      _neutralizeEscapedElements(root, before);
+      return rootRemoved;
+    };
+    const MAX_UNVISITED_ROUNDS = 8;
+    const _sanitizeUnvisitedNodes = function _sanitizeUnvisitedNodes2(root, before) {
+      const visited = IN_PLACE_VISITED;
+      let original = null;
+      const getOriginal = () => {
+        if (!original) {
+          original = setCreate();
+          arrayForEach(before, (beforeNode) => {
+            setAdd(original, beforeNode);
+          });
+        }
+        return original;
+      };
+      for (let round2 = 0; ; round2++) {
+        const live = _collectLiveNodes(root);
+        const containers = [root];
+        let pending = false;
+        arrayForEach(live, (node) => {
+          if (_readNodeType(node) === NODE_TYPE.documentFragment) arrayPush(containers, node);
+          else if (!pending && !setHas(visited, node)) pending = setHas(getOriginal(), node);
+        });
+        if (!pending) return;
+        if (round2 >= MAX_UNVISITED_ROUNDS) throw typeErrorCreate("the tree kept changing during in-place sanitization; refusing to return it");
+        arrayForEach(containers, (container, index) => {
+          _sanitizeUnvisitedIn(container, index > 0, root, getOriginal());
+        });
+      }
+    };
+    const _sanitizeUnvisitedIn = function _sanitizeUnvisitedIn2(container, inShadow, root, original) {
+      const iterator = _createNodeIterator(container);
+      let node;
+      while (node = iterator.nextNode()) {
+        if (!setHas(original, node) || setHas(IN_PLACE_VISITED, node)) continue;
+        if (inShadow) _executeHooks(hooks2.uponSanitizeShadowNode, node, null);
+        _sanitizeElements(node, root);
+        _sanitizeAttributes(node, root);
+        if (_isDocumentFragment(node.content)) _sanitizeShadowDOM2(node.content);
+      }
+    };
+    const _markVisited = function _markVisited2(node) {
+      if (IN_PLACE_VISITED) setAdd(IN_PLACE_VISITED, node);
+    };
+    const _isPatchLinkageAttribute = function _isPatchLinkageAttribute2(lcName, lcTag) {
+      if (!SAFE_FOR_XML) return false;
+      if (lcName === "patchsrc") return true;
+      return lcName === "for" && lcTag !== "label" && lcTag !== "output";
+    };
+    const _neutralizePatchLinkage = function _neutralizePatchLinkage2(root) {
+      if (!SAFE_FOR_XML) return;
+      _walkTree(root, (node) => {
+        const nodeType = _readNodeType(node);
+        if (nodeType === NODE_TYPE.processingInstruction || nodeType === NODE_TYPE.comment && regExpTest(COMMENT_MARKUP_PROBE, node.data)) {
+          try {
+            remove(node);
+          } catch (_) {
+          }
+          return false;
+        }
+        if (nodeType === NODE_TYPE.element) {
+          const element = node;
+          const lcTag = transformCaseFunc(_readNodeName(node));
+          try {
+            if (element.hasAttribute && element.hasAttribute("patchsrc")) element.removeAttribute("patchsrc");
+            if (element.hasAttribute && element.hasAttribute("for") && _isPatchLinkageAttribute("for", lcTag)) element.removeAttribute("for");
+          } catch (_) {
+          }
+        }
+        return true;
+      });
+    };
+    const _initDocument = function _initDocument2(dirty) {
+      let doc = null;
+      let leadingWhitespace = null;
+      if (FORCE_BODY) dirty = "<remove></remove>" + dirty;
+      else {
+        const matches = stringMatch(dirty, /^[\r\n\t ]+/);
+        leadingWhitespace = matches && matches[0];
+      }
+      if (PARSER_MEDIA_TYPE === "application/xhtml+xml" && NAMESPACE === HTML_NAMESPACE) dirty = '<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body>' + dirty + "</body></html>";
+      const dirtyPayload = trustedTypesPolicy ? _createTrustedHTML(dirty) : dirty;
+      if (NAMESPACE === HTML_NAMESPACE) try {
+        doc = new DOMParser().parseFromString(dirtyPayload, PARSER_MEDIA_TYPE);
+      } catch (_) {
+      }
+      if (!doc || !doc.documentElement) {
+        doc = implementation.createDocument(NAMESPACE, "template", null);
+        try {
+          doc.documentElement.innerHTML = IS_EMPTY_INPUT ? emptyHTML : dirtyPayload;
+        } catch (_) {
+        }
+      }
+      const body = doc.body || doc.documentElement;
+      if (dirty && leadingWhitespace) body.insertBefore(document2.createTextNode(leadingWhitespace), body.childNodes[0] || null);
+      if (NAMESPACE === HTML_NAMESPACE) return getElementsByTagName.call(doc, WHOLE_DOCUMENT ? "html" : "body")[0];
+      return WHOLE_DOCUMENT ? doc.documentElement : body;
+    };
+    const _createNodeIterator = function _createNodeIterator2(root) {
+      const doc = getOwnerDocument ? getOwnerDocument(root) : root.ownerDocument;
+      return createNodeIterator.call(doc || root, root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_TEXT | NodeFilter.SHOW_PROCESSING_INSTRUCTION | NodeFilter.SHOW_CDATA_SECTION, null);
+    };
+    const _stripTemplateExpressions = function _stripTemplateExpressions2(value) {
+      value = stringReplace(value, MUSTACHE_EXPR$1, " ");
+      value = stringReplace(value, ERB_EXPR$1, " ");
+      value = stringReplace(value, TMPLIT_EXPR$1, " ");
+      return value;
+    };
+    const _scrubTemplateExpressions2 = function _scrubTemplateExpressions(node) {
+      var _node$querySelectorAl;
+      _scrubOwnCharacterData(node);
+      const templates = (_node$querySelectorAl = node.querySelectorAll) === null || _node$querySelectorAl === void 0 ? void 0 : _node$querySelectorAl.call(node, "template");
+      if (templates) arrayForEach(templates, (tmpl) => {
+        if (_isDocumentFragment(tmpl.content)) _scrubTemplateExpressions2(tmpl.content);
+      });
+    };
+    const _scrubOwnCharacterData = function _scrubOwnCharacterData2(node) {
+      node.normalize();
+      const doc = getOwnerDocument ? getOwnerDocument(node) : node.ownerDocument;
+      const walker = createNodeIterator.call(doc || node, node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_CDATA_SECTION | NodeFilter.SHOW_PROCESSING_INSTRUCTION, null);
+      let currentNode = walker.nextNode();
+      while (currentNode) {
+        currentNode.data = _stripTemplateExpressions(currentNode.data);
+        currentNode = walker.nextNode();
+      }
+    };
+    const _isClobbered = function _isClobbered2(element) {
+      const realTagName = getNodeName ? getNodeName(element) : null;
+      if (typeof realTagName !== "string") return false;
+      if (transformCaseFunc(realTagName) !== "form") return false;
+      return typeof element.nodeName !== "string" || typeof element.textContent !== "string" || typeof element.removeChild !== "function" || element.attributes !== getAttributes(element) || typeof element.removeAttribute !== "function" || typeof element.removeAttributeNode !== "function" || typeof element.getAttributeNode !== "function" || typeof element.setAttribute !== "function" || typeof element.namespaceURI !== "string" || typeof element.insertBefore !== "function" || typeof element.hasChildNodes !== "function" || element.nodeType !== getNodeType(element) || element.childNodes !== getChildNodes(element);
+    };
+    const _isDocumentFragment = function _isDocumentFragment2(value) {
+      if (!getNodeType || typeof value !== "object" || value === null) return false;
+      try {
+        return getNodeType(value) === NODE_TYPE.documentFragment;
+      } catch (_) {
+        return false;
+      }
+    };
+    const _isNode = function _isNode2(value) {
+      if (!getNodeType || typeof value !== "object" || value === null) return false;
+      try {
+        return typeof getNodeType(value) === "number";
+      } catch (_) {
+        return false;
+      }
+    };
+    function _executeHooks(hooks3, currentNode, data) {
+      if (hooks3.length === 0) return;
+      arrayForEach(hooks3, (hook) => {
+        hook.call(DOMPurify, currentNode, data, CONFIG2);
+      });
+    }
+    const _isUnsafeNode = function _isUnsafeNode2(currentNode, tagName) {
+      if (SAFE_FOR_XML && currentNode.hasChildNodes() && !_isNode(currentNode.firstElementChild) && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.textContent) && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.innerHTML)) return true;
+      if (SAFE_FOR_XML && LITERAL_TEXT_ELEMENTS[tagName] && _readNodeType(currentNode) === NODE_TYPE.element && _readNamespaceURI(currentNode) === HTML_NAMESPACE && (_isNode(currentNode.firstElementChild) || typeof currentNode.textContent === "string" && regExpTest(ELEMENT_MARKUP_PROBE, currentNode.textContent))) return true;
+      if (currentNode.nodeType === NODE_TYPE.processingInstruction) return true;
+      if (SAFE_FOR_XML && currentNode.nodeType === NODE_TYPE.comment && regExpTest(COMMENT_MARKUP_PROBE, currentNode.data)) return true;
+      return false;
+    };
+    const _matchesNameCheck = function _matchesNameCheck2(check, name) {
+      if (check instanceof RegExp) return regExpTest(check, name);
+      if (check instanceof Function) {
+        for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) args[_key - 2] = arguments[_key];
+        return Boolean(check(name, ...args));
+      }
+      return false;
+    };
+    const _sanitizeDisallowedNode = function _sanitizeDisallowedNode2(currentNode, tagName, root) {
+      if (!FORBID_TAGS[tagName] && _isBasicCustomElement(tagName) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, tagName)) return false;
+      if (KEEP_CONTENT && !FORBID_CONTENTS[tagName] && !FORBID_CONTENTS[stringToLowerCase(tagName)]) {
+        const parentNode = getParentNode(currentNode);
+        const childNodes = getChildNodes(currentNode);
+        if (childNodes && parentNode) {
+          const childCount = childNodes.length;
+          for (let i = childCount - 1; i >= 0; --i) {
+            const hoisted = currentNode === root ? cloneNode(childNodes[i], true) : childNodes[i];
+            parentNode.insertBefore(hoisted, getNextSibling(currentNode));
+          }
+        }
+      }
+      _forceRemove(currentNode);
+      return true;
+    };
+    const _forkSharedAllowlist = function _forkSharedAllowlist2(hookList, set, defaultSet, setConfigSet) {
+      if (hookList.length === 0) return set;
+      return set === defaultSet || set === setConfigSet ? clone(set) : set;
+    };
+    const _handleHookDetachedNode = function _handleHookDetachedNode2(currentNode, root) {
+      if (currentNode === root || getParentNode(currentNode) !== null) return false;
+      if (IN_PLACE) _neutralizeSubtree(currentNode);
+      return true;
+    };
+    const _sanitizeElements = function _sanitizeElements2(currentNode, root) {
+      _markVisited(currentNode);
+      _executeHooks(hooks2.beforeSanitizeElements, currentNode, null);
+      if (_handleHookDetachedNode(currentNode, root)) return true;
+      if (_isClobbered(currentNode)) {
+        _forceRemove(currentNode);
+        return true;
+      }
+      const tagName = transformCaseFunc(_readNodeName(currentNode));
+      ALLOWED_TAGS = _forkSharedAllowlist(hooks2.uponSanitizeElement, ALLOWED_TAGS, DEFAULT_ALLOWED_TAGS, SET_CONFIG_ALLOWED_TAGS);
+      _executeHooks(hooks2.uponSanitizeElement, currentNode, {
+        tagName,
+        allowedTags: ALLOWED_TAGS
+      });
+      if (_handleHookDetachedNode(currentNode, root)) return true;
+      if (_isUnsafeNode(currentNode, tagName)) {
+        _forceRemove(currentNode);
+        return true;
+      }
+      if (FORBID_TAGS[tagName] || !(EXTRA_ELEMENT_HANDLING.tagCheck instanceof Function && EXTRA_ELEMENT_HANDLING.tagCheck(tagName)) && !ALLOWED_TAGS[tagName]) {
+        const removed = _sanitizeDisallowedNode(currentNode, tagName, root);
+        if (removed === false) {
+          _executeHooks(hooks2.afterSanitizeElements, currentNode, null);
+          if (_handleHookDetachedNode(currentNode, root)) return true;
+        }
+        return removed;
+      }
+      if (_readNodeType(currentNode) === NODE_TYPE.element && !_checkValidNamespace(currentNode)) {
+        _forceRemove(currentNode);
+        return true;
+      }
+      if ((tagName === "noscript" || tagName === "noembed" || tagName === "noframes") && regExpTest(FALLBACK_TAG_CLOSE, currentNode.innerHTML)) {
+        _forceRemove(currentNode);
+        return true;
+      }
+      if (SAFE_FOR_TEMPLATES && currentNode.nodeType === NODE_TYPE.text) {
+        const content = _stripTemplateExpressions(currentNode.textContent);
+        if (currentNode.textContent !== content) {
+          arrayPush(DOMPurify.removed, { element: currentNode.cloneNode() });
+          currentNode.textContent = content;
+        }
+      }
+      _executeHooks(hooks2.afterSanitizeElements, currentNode, null);
+      return _handleHookDetachedNode(currentNode, root);
+    };
+    const _isValidAttribute = function _isValidAttribute2(lcTag, lcName, value) {
+      if (FORBID_ATTR[lcName]) return false;
+      if (_isPatchLinkageAttribute(lcName, lcTag)) return false;
+      if (SANITIZE_DOM && (lcName === "id" || lcName === "name") && (value in document2 || value in formElement)) return false;
+      const nameIsPermitted = ALLOWED_ATTR[lcName] || EXTRA_ELEMENT_HANDLING.attributeCheck instanceof Function && EXTRA_ELEMENT_HANDLING.attributeCheck(lcName, lcTag);
+      if (ALLOW_DATA_ATTR && regExpTest(DATA_ATTR$1, lcName)) return true;
+      if (ALLOW_ARIA_ATTR && regExpTest(ARIA_ATTR$1, lcName)) return true;
+      if (!nameIsPermitted) return _isBasicCustomElement(lcTag) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, lcTag) && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.attributeNameCheck, lcName, lcTag) || lcName === "is" && CUSTOM_ELEMENT_HANDLING.allowCustomizedBuiltInElements && _matchesNameCheck(CUSTOM_ELEMENT_HANDLING.tagNameCheck, value);
+      if (URI_SAFE_ATTRIBUTES[lcName]) return true;
+      if (regExpTest(IS_ALLOWED_URI$1, stringReplace(value, ATTR_WHITESPACE$1, ""))) return true;
+      if ((lcName === "src" || lcName === "xlink:href" || lcName === "href") && lcTag !== "script" && stringIndexOf(value, "data:") === 0 && DATA_URI_TAGS[lcTag]) return true;
+      if (ALLOW_UNKNOWN_PROTOCOLS && !regExpTest(IS_SCRIPT_OR_DATA$1, stringReplace(value, ATTR_WHITESPACE$1, ""))) return true;
+      return !value;
+    };
+    const RESERVED_CUSTOM_ELEMENT_NAMES = addToSet({}, [
+      "annotation-xml",
+      "color-profile",
+      "font-face",
+      "font-face-format",
+      "font-face-name",
+      "font-face-src",
+      "font-face-uri",
+      "missing-glyph"
+    ]);
+    const _isBasicCustomElement = function _isBasicCustomElement2(tagName) {
+      return !RESERVED_CUSTOM_ELEMENT_NAMES[stringToLowerCase(tagName)] && regExpTest(CUSTOM_ELEMENT$1, tagName);
+    };
+    const _applyTrustedTypesToAttribute = function _applyTrustedTypesToAttribute2(lcTag, lcName, namespaceURI, value) {
+      if (trustedTypesPolicy && typeof trustedTypes === "object" && typeof trustedTypes.getAttributeType === "function" && !namespaceURI) switch (trustedTypes.getAttributeType(lcTag, lcName)) {
+        case "TrustedHTML":
+          return _createTrustedHTML(value);
+        case "TrustedScriptURL":
+          return _createTrustedScriptURL(value);
+      }
+      return value;
+    };
+    const _setAttributeValue = function _setAttributeValue2(currentNode, name, namespaceURI, value) {
+      try {
+        if (namespaceURI) currentNode.setAttributeNS(namespaceURI, name, value);
+        else currentNode.setAttribute(name, value);
+        if (_isClobbered(currentNode)) {
+          _forceRemove(currentNode);
+          return false;
+        }
+        return true;
+      } catch (_) {
+        _removeAttribute(name, currentNode);
+        return false;
+      }
+    };
+    const _isUnsafeAttributeValue = function _isUnsafeAttributeValue2(name, value) {
+      if (SAFE_FOR_XML && regExpTest(/((--!?|])>)|<\/(style|script|title|xmp|textarea|noscript|iframe|noembed|noframes)/i, value)) return true;
+      return stringToLowerCase(name) === "attributename" && stringMatch(value, "href") !== null;
+    };
+    const _sanitizeAttributes = function _sanitizeAttributes2(currentNode, root) {
+      _executeHooks(hooks2.beforeSanitizeAttributes, currentNode, null);
+      if (_handleHookDetachedNode(currentNode, root)) return;
+      const attributes = currentNode.attributes;
+      if (!attributes || _isClobbered(currentNode)) return;
+      ALLOWED_ATTR = _forkSharedAllowlist(hooks2.uponSanitizeAttribute, ALLOWED_ATTR, DEFAULT_ALLOWED_ATTR, SET_CONFIG_ALLOWED_ATTR);
+      const hookEvent = {
+        attrName: "",
+        attrValue: "",
+        keepAttr: true,
+        allowedAttributes: ALLOWED_ATTR,
+        forceKeepAttr: void 0
+      };
+      let l = attributes.length;
+      const lcTag = transformCaseFunc(currentNode.nodeName);
+      while (l--) {
+        const attr = attributes[l];
+        const name = attr.name, namespaceURI = attr.namespaceURI, attrValue = attr.value;
+        const lcName = transformCaseFunc(name);
+        const initValue = attrValue;
+        let value = name === "value" ? initValue : stringTrim(initValue);
+        let recreatedNamedProp = false;
+        hookEvent.attrName = lcName;
+        hookEvent.attrValue = value;
+        hookEvent.keepAttr = true;
+        hookEvent.forceKeepAttr = void 0;
+        _executeHooks(hooks2.uponSanitizeAttribute, currentNode, hookEvent);
+        value = hookEvent.attrValue;
+        if (SANITIZE_NAMED_PROPS && (lcName === "id" || lcName === "name") && stringIndexOf(value, SANITIZE_NAMED_PROPS_PREFIX) !== 0) {
+          _removeAttribute(name, currentNode, attr);
+          value = SANITIZE_NAMED_PROPS_PREFIX + value;
+          recreatedNamedProp = true;
+        }
+        if (_isUnsafeAttributeValue(name, value)) {
+          _removeAttribute(name, currentNode, attr);
+          continue;
+        }
+        if (hookEvent.forceKeepAttr) continue;
+        if (!hookEvent.keepAttr) {
+          _removeAttribute(name, currentNode, attr);
+          continue;
+        }
+        if (!ALLOW_SELF_CLOSE_IN_ATTR && regExpTest(SELF_CLOSING_TAG, value)) {
+          _removeAttribute(name, currentNode, attr);
+          continue;
+        }
+        if (SAFE_FOR_TEMPLATES) value = _stripTemplateExpressions(value);
+        if (!_isValidAttribute(lcTag, lcName, value)) {
+          _removeAttribute(name, currentNode, attr);
+          continue;
+        }
+        value = _applyTrustedTypesToAttribute(lcTag, lcName, namespaceURI, value);
+        if (value !== initValue) {
+          if (_setAttributeValue(currentNode, name, namespaceURI, value) && recreatedNamedProp) arrayPop(DOMPurify.removed);
+        }
+      }
+      _executeHooks(hooks2.afterSanitizeAttributes, currentNode, null);
+      _handleHookDetachedNode(currentNode, root);
+    };
+    const _sanitizeShadowDOM2 = function _sanitizeShadowDOM(fragment) {
+      let shadowNode = null;
+      const shadowIterator = _createNodeIterator(fragment);
+      _executeHooks(hooks2.beforeSanitizeShadowDOM, fragment, null);
+      while (shadowNode = shadowIterator.nextNode()) {
+        _executeHooks(hooks2.uponSanitizeShadowNode, shadowNode, null);
+        _sanitizeElements(shadowNode, fragment);
+        _sanitizeAttributes(shadowNode, fragment);
+        if (_isDocumentFragment(shadowNode.content)) _sanitizeShadowDOM2(shadowNode.content);
+        if (_readNodeType(shadowNode) === NODE_TYPE.element) {
+          const innerSr = getShadowRoot(shadowNode);
+          if (_isDocumentFragment(innerSr)) {
+            _sanitizeAttachedShadowRoots(innerSr);
+            _sanitizeShadowDOM2(innerSr);
+          }
+        }
+      }
+      if (SAFE_FOR_TEMPLATES) _scrubOwnCharacterData(fragment);
+      _executeHooks(hooks2.afterSanitizeShadowDOM, fragment, null);
+    };
+    const _sanitizeAttachedShadowRoots = function _sanitizeAttachedShadowRoots2(root) {
+      const stack = [{
+        node: root,
+        shadow: null
+      }];
+      while (stack.length > 0) {
+        const item = stack.pop();
+        if (item.shadow) {
+          _sanitizeShadowDOM2(item.shadow);
+          continue;
+        }
+        const node = item.node;
+        const isElement = _readNodeType(node) === NODE_TYPE.element;
+        const childNodes = getChildNodes(node);
+        if (childNodes) for (let i = childNodes.length - 1; i >= 0; --i) stack.push({
+          node: childNodes[i],
+          shadow: null
+        });
+        if (isElement) {
+          const rootName = getNodeName ? getNodeName(node) : null;
+          if (typeof rootName === "string" && transformCaseFunc(rootName) === "template") {
+            const content = node.content;
+            if (_isDocumentFragment(content)) stack.push({
+              node: content,
+              shadow: null
+            });
+          }
+        }
+        if (isElement) {
+          const sr = getShadowRoot(node);
+          if (_isDocumentFragment(sr)) stack.push({
+            node: null,
+            shadow: sr
+          }, {
+            node: sr,
+            shadow: null
+          });
+        }
+      }
+    };
+    DOMPurify.sanitize = function(dirty) {
+      let cfg = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : {};
+      let body = null;
+      let importedNode = null;
+      let currentNode = null;
+      let returnNode = null;
+      IS_EMPTY_INPUT = !dirty;
+      if (IS_EMPTY_INPUT) dirty = "<!-->";
+      if (typeof dirty !== "string" && !_isNode(dirty)) {
+        dirty = stringifyValue(dirty);
+        if (typeof dirty !== "string") throw typeErrorCreate("dirty is not a string, aborting");
+      }
+      if (!DOMPurify.isSupported) return dirty;
+      if (SET_CONFIG) {
+        ALLOWED_TAGS = SET_CONFIG_ALLOWED_TAGS;
+        ALLOWED_ATTR = SET_CONFIG_ALLOWED_ATTR;
+      } else _parseConfig(cfg);
+      if (hooks2.uponSanitizeElement.length > 0 || hooks2.uponSanitizeAttribute.length > 0) ALLOWED_TAGS = clone(ALLOWED_TAGS);
+      if (hooks2.uponSanitizeAttribute.length > 0) ALLOWED_ATTR = clone(ALLOWED_ATTR);
+      DOMPurify.removed = [];
+      const inPlace = IN_PLACE && typeof dirty !== "string" && _isNode(dirty);
+      let inPlaceNodes = [];
+      const outerVisited = IN_PLACE_VISITED;
+      if (inPlace) {
+        _neutralizePatchLinkage(dirty);
+        const nn = _readNodeName(dirty);
+        if (typeof nn === "string") {
+          const tagName = transformCaseFunc(nn);
+          if (!ALLOWED_TAGS[tagName] || FORBID_TAGS[tagName]) {
+            _neutralizeRoot(dirty);
+            throw typeErrorCreate("root node is forbidden and cannot be sanitized in-place");
+          }
+        }
+        if (_isClobbered(dirty)) {
+          _neutralizeRoot(dirty);
+          throw typeErrorCreate("root node is clobbered and cannot be sanitized in-place");
+        }
+        inPlaceNodes = _collectLiveNodes(dirty);
+        IN_PLACE_VISITED = setCreate();
+      } else if (_isNode(dirty)) {
+        body = _initDocument("<!---->");
+        importedNode = body.ownerDocument.importNode(dirty, true);
+        if (importedNode.nodeType === NODE_TYPE.element && importedNode.nodeName === "BODY") body = importedNode;
+        else if (importedNode.nodeName === "HTML") body = importedNode;
+        else body.appendChild(importedNode);
+        _sanitizeAttachedShadowRoots(body);
+      } else {
+        if (!RETURN_DOM && !SAFE_FOR_TEMPLATES && !WHOLE_DOCUMENT && dirty.indexOf("<") === -1) return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? _createTrustedHTML(dirty) : dirty;
+        body = _initDocument(dirty);
+        if (!body) return RETURN_DOM ? null : RETURN_TRUSTED_TYPE ? emptyHTML : "";
+      }
+      if (body && FORCE_BODY) _forceRemove(body.firstChild);
+      const walkRoot = inPlace ? dirty : body;
+      try {
+        if (inPlace) _sanitizeAttachedShadowRoots(dirty);
+        const nodeIterator = _createNodeIterator(walkRoot);
+        while (currentNode = nodeIterator.nextNode()) {
+          _sanitizeElements(currentNode, walkRoot);
+          _sanitizeAttributes(currentNode, walkRoot);
+          if (_isDocumentFragment(currentNode.content)) _sanitizeShadowDOM2(currentNode.content);
+        }
+        if (inPlace) _sanitizeUnvisitedNodes(dirty, inPlaceNodes);
+      } catch (error) {
+        if (inPlace) {
+          _neutralizeRoot(dirty);
+          _neutralizeDiscarded(dirty, inPlaceNodes);
+        }
+        throw error;
+      } finally {
+        IN_PLACE_VISITED = outerVisited;
+      }
+      if (inPlace) {
+        if (_neutralizeDiscarded(dirty, inPlaceNodes)) throw typeErrorCreate("a node selected for removal could not be safely returned; refusing to sanitize in place");
+        if (SAFE_FOR_TEMPLATES) _scrubTemplateExpressions2(dirty);
+        return dirty;
+      }
+      if (RETURN_DOM) {
+        if (SAFE_FOR_TEMPLATES) _scrubTemplateExpressions2(body);
+        if (RETURN_DOM_FRAGMENT) {
+          returnNode = createDocumentFragment.call(body.ownerDocument);
+          while (body.firstChild) returnNode.appendChild(body.firstChild);
+        } else returnNode = body;
+        if (ALLOWED_ATTR.shadowroot || ALLOWED_ATTR.shadowrootmode) returnNode = importNode.call(originalDocument, returnNode, true);
+        return returnNode;
+      }
+      let serializedHTML = WHOLE_DOCUMENT ? body.outerHTML : body.innerHTML;
+      if (WHOLE_DOCUMENT && ALLOWED_TAGS["!doctype"] && body.ownerDocument && body.ownerDocument.doctype && body.ownerDocument.doctype.name && regExpTest(DOCTYPE_NAME, body.ownerDocument.doctype.name)) serializedHTML = "<!DOCTYPE " + body.ownerDocument.doctype.name + ">\n" + serializedHTML;
+      if (SAFE_FOR_TEMPLATES) serializedHTML = _stripTemplateExpressions(serializedHTML);
+      return trustedTypesPolicy && RETURN_TRUSTED_TYPE ? _createTrustedHTML(serializedHTML) : serializedHTML;
+    };
+    DOMPurify.setConfig = function() {
+      let cfg = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : {};
+      _parseConfig(cfg);
+      SET_CONFIG = true;
+      SET_CONFIG_ALLOWED_TAGS = ALLOWED_TAGS;
+      SET_CONFIG_ALLOWED_ATTR = ALLOWED_ATTR;
+    };
+    DOMPurify.clearConfig = function() {
+      CONFIG2 = null;
+      SET_CONFIG = false;
+      SET_CONFIG_ALLOWED_TAGS = null;
+      SET_CONFIG_ALLOWED_ATTR = null;
+      trustedTypesPolicy = defaultTrustedTypesPolicy;
+      emptyHTML = "";
+    };
+    DOMPurify.isValidAttribute = function(tag, attr, value) {
+      if (!CONFIG2) _parseConfig({});
+      const lcTag = transformCaseFunc(tag);
+      const lcName = transformCaseFunc(attr);
+      if (typeof value === "string" && (_isUnsafeAttributeValue(attr, value) || !ALLOW_SELF_CLOSE_IN_ATTR && regExpTest(SELF_CLOSING_TAG, value))) return false;
+      return _isValidAttribute(lcTag, lcName, value);
+    };
+    DOMPurify.addHook = function(entryPoint, hookFunction) {
+      if (typeof hookFunction !== "function") return;
+      if (!objectHasOwnProperty(hooks2, entryPoint)) return;
+      arrayPush(hooks2[entryPoint], hookFunction);
+    };
+    DOMPurify.removeHook = function(entryPoint, hookFunction) {
+      if (!objectHasOwnProperty(hooks2, entryPoint)) return;
+      if (hookFunction !== void 0) {
+        const index = arrayLastIndexOf(hooks2[entryPoint], hookFunction);
+        return index === -1 ? void 0 : arraySplice(hooks2[entryPoint], index, 1)[0];
+      }
+      return arrayPop(hooks2[entryPoint]);
+    };
+    DOMPurify.removeHooks = function(entryPoint) {
+      if (!objectHasOwnProperty(hooks2, entryPoint)) return;
+      hooks2[entryPoint] = [];
+    };
+    DOMPurify.removeAllHooks = function() {
+      hooks2 = _createHooksMap();
+    };
+    return DOMPurify;
+  }
+  var purify_default = createDOMPurify();
+
+  // src/shared/veilige-html.js
+  var TAGS = ["b", "strong", "i", "em", "u", "s", "strike", "a", "mark", "font", "br", "p", "div", "span", "h2", "h3", "h4", "blockquote", "pre", "code", "ul", "ol", "li"];
+  var STIJLEN = ["color", "backgroundColor", "fontWeight", "fontStyle", "textDecoration"];
+  var LINK = /^(?:https?:\/\/|mailto:|#)/i;
+  function veiligeHtml(html2, linkKleur) {
+    var frag = purify_default.sanitize(String(html2 == null ? "" : html2), {
+      ALLOWED_TAGS: TAGS,
+      ALLOWED_ATTR: ["href", "style", "color"],
+      ALLOWED_URI_REGEXP: LINK,
+      KEEP_CONTENT: true,
+      RETURN_DOM_FRAGMENT: true
+    });
+    Array.prototype.slice.call(frag.querySelectorAll("*")).forEach(function(el) {
+      var href = el.tagName === "A" ? String(el.getAttribute("href") || "") : "";
+      var oud = {};
+      STIJLEN.forEach(function(p) {
+        oud[p] = el.style[p];
+      });
+      if (el.tagName === "FONT" && !oud.color) oud.color = String(el.getAttribute("color") || "");
+      Array.prototype.slice.call(el.attributes).forEach(function(a) {
+        el.removeAttribute(a.name);
+      });
+      if (href && LINK.test(href)) {
+        el.setAttribute("href", href);
+        el.setAttribute("target", "_blank");
+        el.setAttribute("rel", "noopener noreferrer");
+      }
+      STIJLEN.forEach(function(p) {
+        if (oud[p]) {
+          try {
+            el.style[p] = oud[p];
+          } catch (e) {
+          }
+        }
+      });
+      if (el.tagName === "A" && linkKleur) {
+        if (!el.style.color) el.style.color = linkKleur;
+        if (!el.style.textDecoration) el.style.textDecoration = "underline";
+      }
+    });
+    return frag;
+  }
+  function zetHtml(el, html2) {
+    el.innerHTML = purify_default.sanitize(String(html2 == null ? "" : html2));
+    return el;
+  }
+
   // src/content/ui/managed-text.js
   function effectiveTextConfig(key) {
     return (APP_CONFIG.texts || {})[key] || {};
   }
-  function managedRichHtml(html) {
-    const template = document.createElement("template");
-    template.innerHTML = String(html || "");
-    const allowed = /* @__PURE__ */ new Set(["B", "STRONG", "I", "EM", "U", "S", "STRIKE", "A", "MARK", "FONT", "BR", "P", "DIV", "SPAN", "H2", "H3", "H4", "BLOCKQUOTE", "PRE", "CODE", "UL", "OL", "LI"]);
-    template.content.querySelectorAll("script,style,iframe,object,embed,img,svg,form,input,button,link,meta,base,template,noscript,math,frame,frameset,marquee,title").forEach((el) => el.remove());
-    template.content.querySelectorAll("*").forEach((el) => {
-      if (!allowed.has(el.tagName)) {
-        el.replaceWith(...el.childNodes);
-        return;
-      }
-      const originalHref = el.tagName === "A" ? String(el.getAttribute("href") || "") : "";
-      const originalColor = el.tagName === "FONT" ? String(el.getAttribute("color") || "") : "";
-      const originalStyle = {
-        color: el.style.color || originalColor,
-        backgroundColor: el.style.backgroundColor,
-        fontWeight: el.style.fontWeight,
-        fontStyle: el.style.fontStyle,
-        textDecoration: el.style.textDecoration
-      };
-      [...el.attributes].forEach((attr) => el.removeAttribute(attr.name));
-      if (el.tagName === "A" && /^(?:https?:\/\/|mailto:|#)/i.test(originalHref)) {
-        el.setAttribute("href", originalHref);
-        el.setAttribute("target", "_blank");
-        el.setAttribute("rel", "noopener noreferrer");
-      }
-      const styleProbe = document.createElement("span").style;
-      ["color", "backgroundColor", "fontWeight", "fontStyle", "textDecoration"].forEach((prop) => {
-        const value = String(originalStyle[prop] || "").trim();
-        if (!value) return;
-        styleProbe[prop] = "";
-        styleProbe[prop] = value;
-        if (styleProbe[prop]) el.style[prop] = styleProbe[prop];
-      });
-      if (el.tagName === "A") {
-        if (!el.style.color) el.style.color = "#cc087d";
-        if (!el.style.textDecoration) el.style.textDecoration = "underline";
-      }
-    });
-    return template.content;
+  function managedRichHtml(html2) {
+    return veiligeHtml(html2, "#cc087d");
   }
   function managedTagClientName() {
     try {
@@ -4446,8 +6513,8 @@
     }
     try {
       if (typeof findClientEntries === "function") {
-        const entries = findClientEntries();
-        if (entries && entries[0] && entries[0].name) return entries[0].name;
+        const entries2 = findClientEntries();
+        if (entries2 && entries2[0] && entries2[0].name) return entries2[0].name;
       }
     } catch (e) {
     }
@@ -4485,7 +6552,7 @@
   }
   function replaceManagedTagsIn(root) {
     const values = managedTagValues();
-    const replace = (text) => String(text || "").replace(/\{clientNaam\}/gi, values.clientNaam || "{clientNaam}").replace(/\{clientLeeftijd\}/gi, values.clientLeeftijd == null ? "{clientLeeftijd}" : String(values.clientLeeftijd));
+    const replace = (text2) => String(text2 || "").replace(/\{clientNaam\}/gi, values.clientNaam || "{clientNaam}").replace(/\{clientLeeftijd\}/gi, values.clientLeeftijd == null ? "{clientLeeftijd}" : String(values.clientLeeftijd));
     const walk = (node) => {
       if (node.nodeType === 3) {
         node.nodeValue = replace(node.nodeValue);
@@ -4660,7 +6727,7 @@
     });
     return b;
   }
-  function onsahEmptyState(text) {
+  function onsahEmptyState(text2) {
     const T2 = ONSAH_TOKENS;
     const wrap = document.createElement("div");
     Object.assign(wrap.style, { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "6px", padding: "10px 2px", color: T2.inkSoft, fontSize: "12.5px" });
@@ -4669,7 +6736,7 @@
     icon.style.height = "22px";
     icon.style.color = T2.line;
     const lbl = document.createElement("span");
-    lbl.textContent = text;
+    lbl.textContent = text2;
     wrap.append(icon, lbl);
     return wrap;
   }
@@ -4916,6 +6983,320 @@
     });
   }
 
+  // node_modules/valibot/dist/index.mjs
+  var store$4;
+  var DEFAULT_CONFIG = {
+    lang: void 0,
+    message: void 0,
+    abortEarly: void 0,
+    abortPipeEarly: void 0
+  };
+  // @__NO_SIDE_EFFECTS__
+  function getGlobalConfig(config$1) {
+    if (!config$1 && !store$4) return DEFAULT_CONFIG;
+    return {
+      lang: config$1?.lang ?? store$4?.lang,
+      message: config$1?.message,
+      abortEarly: config$1?.abortEarly ?? store$4?.abortEarly,
+      abortPipeEarly: config$1?.abortPipeEarly ?? store$4?.abortPipeEarly
+    };
+  }
+  var store$3;
+  // @__NO_SIDE_EFFECTS__
+  function getGlobalMessage(lang) {
+    return store$3?.get(lang);
+  }
+  var store$2;
+  // @__NO_SIDE_EFFECTS__
+  function getSchemaMessage(lang) {
+    return store$2?.get(lang);
+  }
+  var store$1;
+  // @__NO_SIDE_EFFECTS__
+  function getSpecificMessage(reference, lang) {
+    return store$1?.get(reference)?.get(lang);
+  }
+  // @__NO_SIDE_EFFECTS__
+  function _stringify(input2) {
+    const type = typeof input2;
+    if (type === "string") return `"${input2}"`;
+    if (type === "number" || type === "bigint" || type === "boolean") return `${input2}`;
+    if (type === "object" || type === "function") return (input2 && Object.getPrototypeOf(input2)?.constructor?.name) ?? "null";
+    return type;
+  }
+  function _addIssue(context2, label, dataset, config$1, other) {
+    const input2 = other && "input" in other ? other.input : dataset.value;
+    const expected = other?.expected ?? context2.expects ?? null;
+    const received = other?.received ?? /* @__PURE__ */ _stringify(input2);
+    const issue = {
+      kind: context2.kind,
+      type: context2.type,
+      input: input2,
+      expected,
+      received,
+      message: `Invalid ${label}: ${expected ? `Expected ${expected} but r` : "R"}eceived ${received}`,
+      requirement: context2.requirement,
+      path: other?.path,
+      issues: other?.issues,
+      lang: config$1.lang,
+      abortEarly: config$1.abortEarly,
+      abortPipeEarly: config$1.abortPipeEarly
+    };
+    const isSchema = context2.kind === "schema";
+    const message$1 = other?.message ?? context2.message ?? /* @__PURE__ */ getSpecificMessage(context2.reference, issue.lang) ?? (isSchema ? /* @__PURE__ */ getSchemaMessage(issue.lang) : null) ?? config$1.message ?? /* @__PURE__ */ getGlobalMessage(issue.lang);
+    if (message$1 !== void 0) issue.message = typeof message$1 === "function" ? message$1(issue) : message$1;
+    if (isSchema) dataset.typed = false;
+    if (dataset.issues) dataset.issues.push(issue);
+    else dataset.issues = [issue];
+  }
+  // @__NO_SIDE_EFFECTS__
+  function _isValidObjectKey(object$1, key) {
+    return Object.prototype.hasOwnProperty.call(object$1, key) && key !== "__proto__" && key !== "prototype" && key !== "constructor";
+  }
+  // @__NO_SIDE_EFFECTS__
+  function _joinExpects(values$1, separator) {
+    const list = [...new Set(values$1)];
+    if (list.length > 1) return `(${list.join(` ${separator} `)})`;
+    return list[0] ?? "never";
+  }
+  function _standardSchema(schema) {
+    schema["~standard"] = {
+      version: 1,
+      vendor: "valibot",
+      validate: (value$1) => schema["~run"]({ value: value$1 }, /* @__PURE__ */ getGlobalConfig())
+    };
+    return schema;
+  }
+  // @__NO_SIDE_EFFECTS__
+  function getDotPath(issue) {
+    if (issue.path) {
+      let key = "";
+      for (const item of issue.path) if (typeof item.key === "string" || typeof item.key === "number") if (key) key += `.${item.key}`;
+      else key += item.key;
+      else return null;
+      return key;
+    }
+    return null;
+  }
+  var EMOJI_REGEX = new RegExp("^(?:[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,3}\\u{E007F}|(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|(?![\\p{Emoji_Modifier_Base}\\u{1F1E6}-\\u{1F1FF}])\\p{Emoji_Presentation})(?:\\u200D(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|(?![\\p{Emoji_Modifier_Base}\\u{1F1E6}-\\u{1F1FF}])\\p{Emoji_Presentation}))*)+$", "u");
+  // @__NO_SIDE_EFFECTS__
+  function getFallback(schema, dataset, config$1) {
+    return typeof schema.fallback === "function" ? schema.fallback(dataset, config$1) : schema.fallback;
+  }
+  // @__NO_SIDE_EFFECTS__
+  function getDefault(schema, dataset, config$1) {
+    return typeof schema.default === "function" ? schema.default(dataset, config$1) : schema.default;
+  }
+  // @__NO_SIDE_EFFECTS__
+  function array(item, message$1) {
+    return _standardSchema({
+      kind: "schema",
+      type: "array",
+      reference: array,
+      expects: "Array",
+      async: false,
+      item,
+      message: message$1,
+      "~run"(dataset, config$1) {
+        const input2 = dataset.value;
+        if (Array.isArray(input2)) {
+          dataset.typed = true;
+          dataset.value = [];
+          for (let key = 0; key < input2.length; key++) {
+            const value$1 = input2[key];
+            const itemDataset = this.item["~run"]({ value: value$1 }, config$1);
+            if (itemDataset.issues) {
+              const pathItem = {
+                type: "array",
+                origin: "value",
+                input: input2,
+                key,
+                value: value$1
+              };
+              for (const issue of itemDataset.issues) {
+                if (issue.path) issue.path.unshift(pathItem);
+                else issue.path = [pathItem];
+                dataset.issues?.push(issue);
+              }
+              if (!dataset.issues) dataset.issues = itemDataset.issues;
+              if (config$1.abortEarly) {
+                dataset.typed = false;
+                break;
+              }
+            }
+            if (!itemDataset.typed) dataset.typed = false;
+            dataset.value.push(itemDataset.value);
+          }
+        } else _addIssue(this, "type", dataset, config$1);
+        return dataset;
+      }
+    });
+  }
+  // @__NO_SIDE_EFFECTS__
+  function looseObject(entries$1, message$1) {
+    return _standardSchema({
+      kind: "schema",
+      type: "loose_object",
+      reference: looseObject,
+      expects: "Object",
+      async: false,
+      entries: entries$1,
+      message: message$1,
+      "~run"(dataset, config$1) {
+        const input2 = dataset.value;
+        if (input2 && typeof input2 === "object") {
+          dataset.typed = true;
+          dataset.value = {};
+          for (const key in this.entries) {
+            const valueSchema = this.entries[key];
+            if (key in input2 || (valueSchema.type === "exact_optional" || valueSchema.type === "optional" || valueSchema.type === "nullish") && valueSchema.default !== void 0) {
+              const value$1 = key in input2 ? input2[key] : /* @__PURE__ */ getDefault(valueSchema);
+              const valueDataset = valueSchema["~run"]({ value: value$1 }, config$1);
+              if (valueDataset.issues) {
+                const pathItem = {
+                  type: "object",
+                  origin: "value",
+                  input: input2,
+                  key,
+                  value: value$1
+                };
+                for (const issue of valueDataset.issues) {
+                  if (issue.path) issue.path.unshift(pathItem);
+                  else issue.path = [pathItem];
+                  dataset.issues?.push(issue);
+                }
+                if (!dataset.issues) dataset.issues = valueDataset.issues;
+                if (config$1.abortEarly) {
+                  dataset.typed = false;
+                  break;
+                }
+              }
+              if (!valueDataset.typed) dataset.typed = false;
+              dataset.value[key] = valueDataset.value;
+            } else if (valueSchema.fallback !== void 0) dataset.value[key] = /* @__PURE__ */ getFallback(valueSchema);
+            else if (valueSchema.type !== "exact_optional" && valueSchema.type !== "optional" && valueSchema.type !== "nullish") {
+              _addIssue(this, "key", dataset, config$1, {
+                input: void 0,
+                expected: `"${key}"`,
+                path: [{
+                  type: "object",
+                  origin: "key",
+                  input: input2,
+                  key,
+                  value: input2[key]
+                }]
+              });
+              if (config$1.abortEarly) break;
+            }
+          }
+          if (!dataset.issues || !config$1.abortEarly) {
+            for (const key in input2) if (/* @__PURE__ */ _isValidObjectKey(input2, key) && !Object.prototype.hasOwnProperty.call(this.entries, key)) dataset.value[key] = input2[key];
+          }
+        } else _addIssue(this, "type", dataset, config$1);
+        return dataset;
+      }
+    });
+  }
+  // @__NO_SIDE_EFFECTS__
+  function _subIssues(datasets) {
+    let issues;
+    if (datasets) for (const dataset of datasets) if (issues) for (const issue of dataset.issues) issues.push(issue);
+    else issues = dataset.issues;
+    return issues;
+  }
+  // @__NO_SIDE_EFFECTS__
+  function union(options, message$1) {
+    return _standardSchema({
+      kind: "schema",
+      type: "union",
+      reference: union,
+      expects: /* @__PURE__ */ _joinExpects(options.map((option) => option.expects), "|"),
+      async: false,
+      options,
+      message: message$1,
+      "~run"(dataset, config$1) {
+        let validDataset;
+        let typedDatasets;
+        let untypedDatasets;
+        for (const schema of this.options) {
+          const optionDataset = schema["~run"]({ value: dataset.value }, config$1);
+          if (optionDataset.typed) if (optionDataset.issues) if (typedDatasets) typedDatasets.push(optionDataset);
+          else typedDatasets = [optionDataset];
+          else {
+            validDataset = optionDataset;
+            break;
+          }
+          else if (untypedDatasets) untypedDatasets.push(optionDataset);
+          else untypedDatasets = [optionDataset];
+        }
+        if (validDataset) return validDataset;
+        if (typedDatasets) {
+          if (typedDatasets.length === 1) return typedDatasets[0];
+          _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(typedDatasets) });
+          dataset.typed = true;
+        } else if (untypedDatasets?.length === 1) return untypedDatasets[0];
+        else _addIssue(this, "type", dataset, config$1, { issues: /* @__PURE__ */ _subIssues(untypedDatasets) });
+        return dataset;
+      }
+    });
+  }
+  // @__NO_SIDE_EFFECTS__
+  function unknown() {
+    return _standardSchema({
+      kind: "schema",
+      type: "unknown",
+      reference: unknown,
+      expects: "unknown",
+      async: false,
+      "~run"(dataset) {
+        dataset.typed = true;
+        return dataset;
+      }
+    });
+  }
+  // @__NO_SIDE_EFFECTS__
+  function safeParse(schema, input2, config$1) {
+    const dataset = schema["~run"]({ value: input2 }, /* @__PURE__ */ getGlobalConfig(config$1));
+    return {
+      typed: dataset.typed,
+      success: !dataset.issues,
+      output: dataset.value,
+      issues: dataset.issues
+    };
+  }
+
+  // src/content/services/ons-api/formaat.js
+  var OBJECT = looseObject({});
+  var LIJST = array(OBJECT);
+  var SOORTEN = {
+    // entries/week: { data: [...] } of direct een lijst.
+    weekagenda: { naam: "de weekagenda", schema: union([LIJST, looseObject({ data: LIJST })]) },
+    // product_selection/product_list: groepen [naam, [[uursoort, id, ...], ...]].
+    productlijst: { naam: "de lijst met uursoorten", schema: looseObject({ basic_list: array(array(unknown())) }) },
+    // calendar/events/available_labels: lijst met afspraaktypes.
+    afspraaktypes: { naam: "de afspraaktypes", schema: LIJST },
+    // search_panel/clients: { clients: [...] } of direct een lijst.
+    clienten: { naam: "de gevonden cliënten", schema: union([LIJST, looseObject({ clients: LIJST })]) }
+  };
+  var OnsFormaatFout = class extends Error {
+    constructor(soort, naam, issues) {
+      super("ONS geeft " + naam + " in een andere vorm terug dan de hulp kent. Waarschijnlijk is ONS bijgewerkt: meld dit via Meld probleem.");
+      this.name = "OnsFormaatFout";
+      this.soort = soort;
+      this.pad = issues && issues[0] && getDotPath(issues[0]) || "";
+    }
+  };
+  function controleerOns(soort, json) {
+    var s = SOORTEN[soort];
+    if (!s) throw new Error("onbekend ONS-antwoord: " + soort);
+    var r = safeParse(s.schema, json);
+    if (!r.success) throw new OnsFormaatFout(soort, s.naam, r.issues);
+    return json;
+  }
+  function weekEntries(json) {
+    return mapAgendaWeekResponse(controleerOns("weekagenda", json));
+  }
+
   // src/content/services/ons-api/products.js
   function parseProductList(json) {
     if (!json || !Array.isArray(json.basic_list)) return [];
@@ -4946,8 +7327,7 @@
     if (cached && Date.now() - cached.ts < PRODUCT_LIST_TTL_MS && cached.list && cached.list.length) {
       return cached.list.slice();
     }
-    const json = await getJson(url);
-    if (!json || !Array.isArray(json.basic_list)) throw new Error("ongeldige product_selection response");
+    const json = controleerOns("productlijst", await getJson(url));
     const list = parseProductList(json);
     if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() };
     return list;
@@ -5660,8 +8040,8 @@
         if (failed) return;
         if (next >= weeks.length) return;
         const idx = next++;
-        getJson(_apiUrl("weekEvents", { inviteeId, date: weeks[idx] })).then(function(j) {
-          results[idx] = mapAgendaWeekResponse(j);
+        getJson(_apiUrl("weekEvents", { inviteeId, date: weeks[idx] })).then(weekEntries).then(function(rows) {
+          results[idx] = rows;
           done++;
           if (onProgress) {
             try {
@@ -5674,7 +8054,7 @@
         }, function(e) {
           if (failed) return;
           failed = true;
-          reject(new Error("week van " + weeks[idx] + " kon niet worden opgehaald (" + (e && e.message || "fout") + ")"));
+          reject(e && e.name === "OnsFormaatFout" ? e : new Error("week van " + weeks[idx] + " kon niet worden opgehaald (" + (e && e.message || "fout") + ")"));
         });
       }
       for (let i = 0; i < Math.min(3, weeks.length); i++) worker();
@@ -5983,8 +8363,8 @@
   }
 
   // src/content/features/registration/report.js
-  function registrationTextHasNoShowCue(text) {
-    return /\b(afwezig|voicemail|geen gehoor|niet bereikbaar|onbereikbaar|neemt niet op|nam niet op|niet opgenomen|niet verschenen|niet gekomen|komt niet|kwam niet|no show|noshow|zonder bericht|geen reactie|reageert niet|niet thuis|deur niet open|op voicemail|ingesproken)\b/i.test(text || "");
+  function registrationTextHasNoShowCue(text2) {
+    return /\b(afwezig|voicemail|geen gehoor|niet bereikbaar|onbereikbaar|neemt niet op|nam niet op|niet opgenomen|niet verschenen|niet gekomen|komt niet|kwam niet|no show|noshow|zonder bericht|geen reactie|reageert niet|niet thuis|deur niet open|op voicemail|ingesproken)\b/i.test(text2 || "");
   }
   function registrationReportTextFields() {
     return deepQueryAll('textarea,input,[contenteditable="true"],[role="textbox"]').filter((el) => {
@@ -6007,11 +8387,11 @@
     if ("value" in el && typeof el.value === "string") return el.value;
     return el.textContent || "";
   }
-  function setRegistrationReportTextValue(el, text) {
+  function setRegistrationReportTextValue(el, text2) {
     if (!el) return false;
-    if ("value" in el && typeof el.value === "string") setInputTextComposed(el, text);
+    if ("value" in el && typeof el.value === "string") setInputTextComposed(el, text2);
     else {
-      el.textContent = text;
+      el.textContent = text2;
       el.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
       el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
     }
@@ -6085,16 +8465,16 @@
   function registrationReportNeedsContent() {
     const field2 = registrationPrimaryReportField();
     if (!field2) return false;
-    const text = registrationReportTextValue(field2);
+    const text2 = registrationReportTextValue(field2);
     if (registrationFlow.activeRegistrationChoice) {
       const expectedPrefixRe = registrationChoicePrefixRegex(registrationFlow.activeRegistrationChoice);
-      if (!String(text || "").trim()) return true;
-      if (expectedPrefixRe && !expectedPrefixRe.test(text)) return true;
-      return !text.replace(expectedPrefixRe, "").trim();
+      if (!String(text2 || "").trim()) return true;
+      if (expectedPrefixRe && !expectedPrefixRe.test(text2)) return true;
+      return !text2.replace(expectedPrefixRe, "").trim();
     }
     const prefixRe = registrationPrefixRegex();
-    if (!prefixRe.test(text)) return false;
-    return !text.replace(prefixRe, "").trim();
+    if (!prefixRe.test(text2)) return false;
+    return !text2.replace(prefixRe, "").trim();
   }
   function prefixRegistrationReport(label) {
     const field2 = registrationPrimaryReportField();
@@ -6209,7 +8589,7 @@
 
   // src/content/features/registration/completeness.js
   function _regCareFlags() {
-    let text = "";
+    let text2 = "";
     let scripts;
     try {
       scripts = document.querySelectorAll("script");
@@ -6219,12 +8599,12 @@
     for (const s of scripts) {
       const t = s.textContent || "";
       if (t.indexOf("initialStoreState") !== -1 && t.indexOf("careProvider") !== -1) {
-        text = t;
+        text2 = t;
         break;
       }
     }
     const bool = (k) => {
-      const m = text.match(new RegExp('"' + k + '"\\s*:\\s*(true|false)'));
+      const m = text2.match(new RegExp('"' + k + '"\\s*:\\s*(true|false)'));
       return m ? m[1] === "true" : false;
     };
     return { requireReport: bool("require_report_per_client"), timeDistribution: bool("time_distribution_enabled") };
@@ -6359,17 +8739,17 @@
       if (!visible(el) || isOwnPopup(el)) return false;
       const id = el.id || "";
       if (!/(client|invitee|patient)/i.test(id) || /hour_type|time|date/i.test(id)) return false;
-      const text = clean(el.textContent || "");
-      return !!text && !/zoek|selecteer|client|cliënt|patient/.test(text);
+      const text2 = clean(el.textContent || "");
+      return !!text2 && !/zoek|selecteer|client|cliënt|patient/.test(text2);
     });
     if (select2Client) return true;
     if (!visibleSelect2HourTypeContainers().length) return false;
     return deepQueryAll("div,span,p,td,li,strong").some((el) => {
       if (!visible(el) || isOwnPopup(el)) return false;
-      const text = clean(el.textContent || "");
-      if (!text || text.length > 240) return false;
-      if (/rapportage|registratie maken|reistijd toevoegen|afwezigheid toevoegen/.test(text)) return false;
-      return /geboren op\b|\(\d{3,}\)|\b\d{1,2}\s*jaar\b/.test(text);
+      const text2 = clean(el.textContent || "");
+      if (!text2 || text2.length > 240) return false;
+      if (/rapportage|registratie maken|reistijd toevoegen|afwezigheid toevoegen/.test(text2)) return false;
+      return /geboren op\b|\(\d{3,}\)|\b\d{1,2}\s*jaar\b/.test(text2);
     });
   }
   function hasRegistrationPrereqs() {
@@ -6420,13 +8800,13 @@
     if (helperPanel._infoPanelRestore) return;
     if (registrationFlow.registrationHourTypeBusy) return;
     if (registrationFlow.registrationFlowBusy) return;
-    const text = body.textContent || "";
-    if (registrationFlow.registrationRestoredToReport && registrationFlow.activeRegistrationChoice && !/richtlijn rapporteren|indienen/i.test(text)) {
+    const text2 = body.textContent || "";
+    if (registrationFlow.registrationRestoredToReport && registrationFlow.activeRegistrationChoice && !/richtlijn rapporteren|indienen/i.test(text2)) {
       restoreRegistrationExtras();
       showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
       return;
     }
-    if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage() && !/richtlijn rapporteren|indienen/i.test(text)) {
+    if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage() && !/richtlijn rapporteren|indienen/i.test(text2)) {
       showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
       return;
     }
@@ -6434,8 +8814,8 @@
       if (!(helperPanel.popupEl && helperPanel.popupEl.querySelector("[data-registration-helper-submit]"))) showRegistrationSubmitOnly();
       return;
     }
-    if (/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text) && hasRegistrationPrereqs()) showRegistrationChoices();
-    else if (!hasRegistrationPrereqs() && !/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text)) showRegistrationNeedsClient();
+    if (/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text2) && hasRegistrationPrereqs()) showRegistrationChoices();
+    else if (!hasRegistrationPrereqs() && !/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text2)) showRegistrationNeedsClient();
   }
 
   // src/content/features/registration/prompts.js
@@ -6486,8 +8866,8 @@
     }
     if (!registrationFlow.registrationNoShowPromptSuppressed) showRegistrationNoShowPrompt();
   }
-  function registrationTextHasEpisodesTrigger(text) {
-    return /\b(moeder|vader)\b/i.test(text || "");
+  function registrationTextHasEpisodesTrigger(text2) {
+    return /\b(moeder|vader)\b/i.test(text2 || "");
   }
   function getRegistrationClientNumber() {
     const forms = activeRegistrationClientForms();
@@ -6621,11 +9001,11 @@
   }
 
   // src/content/features/registration/hour-type.js
-  function selectHourTypeInNativeSelects(text) {
+  function selectHourTypeInNativeSelects(text2) {
     const selects = deepQueryAll("select").filter((sel) => /hour_type_id/.test(sel.id || sel.name || "") && (sel.options || []).length);
     if (!selects.length) return false;
     let okCount = 0;
-    const wanted = clean(text);
+    const wanted = clean(text2);
     for (const sel of selects) {
       const option = Array.from(sel.options || []).find((opt) => clean(opt.textContent || opt.label || "") === wanted) || Array.from(sel.options || []).find((opt) => clean(opt.textContent || opt.label || "").includes(wanted));
       if (!option) continue;
@@ -6646,15 +9026,15 @@
   }
   function registrationHourTypeSelectedInContainer(container) {
     if (!container) return false;
-    const text = clean(container.textContent || container.getAttribute("title") || "");
-    return !!text && !/zoek naar uursoorten|selecteer uursoort|uursoort/.test(text);
+    const text2 = clean(container.textContent || container.getAttribute("title") || "");
+    return !!text2 && !/zoek naar uursoorten|selecteer uursoort|uursoort/.test(text2);
   }
   function registrationHourTypeTextInContainer(container) {
     if (!registrationHourTypeSelectedInContainer(container)) return "";
     return (container.textContent || container.getAttribute("title") || "").replace(/\s+/g, " ").trim();
   }
-  function registrationHourTypeLooksNoShow(text) {
-    return /\bno\s*show\b|\bnoshow\b/i.test(text || "");
+  function registrationHourTypeLooksNoShow(text2) {
+    return /\bno\s*show\b|\bnoshow\b/i.test(text2 || "");
   }
   function registrationHasNoShowHourTypeSelected() {
     if (visibleSelect2HourTypeContainers().some((container) => registrationHourTypeLooksNoShow(registrationHourTypeTextInContainer(container)))) return true;
@@ -6718,25 +9098,25 @@
       return { container, target, index, name: person.name, firstName: person.firstName };
     });
   }
-  function clickSelect2OptionTextInRoot(text, root) {
-    const wanted = clean(text);
+  function clickSelect2OptionTextInRoot(text2, root) {
+    const wanted = clean(text2);
     const options = deepQueryAll('.select2-results__option,[role="option"],li', root || document).filter((el) => visible(el) && !isOwnPopup(el) && !/true/i.test(el.getAttribute("aria-disabled") || ""));
     const match = options.find((el) => clean(el.textContent || "") === wanted) || options.find((el) => clean(el.textContent || "").includes(wanted));
     if (!match) return false;
     clickOption(match);
     return true;
   }
-  function validRegistrationHourTypeOptionText(text) {
-    const c = clean(text);
+  function validRegistrationHourTypeOptionText(text2) {
+    const c = clean(text2);
     if (!c || c.length < 2) return false;
     if (/^(onlangs gebruikt|geadviseerd|toegestaan)$/.test(c)) return false;
     return true;
   }
-  function splitRegistrationHourTypeOptionText(text) {
-    return splitUursoortCategoryText(text).filter(validRegistrationHourTypeOptionText);
+  function splitRegistrationHourTypeOptionText(text2) {
+    return splitUursoortCategoryText(text2).filter(validRegistrationHourTypeOptionText);
   }
-  function pushRegistrationHourTypeOption(out, seen, text) {
-    for (const part of splitRegistrationHourTypeOptionText(text)) {
+  function pushRegistrationHourTypeOption(out, seen, text2) {
+    for (const part of splitRegistrationHourTypeOptionText(text2)) {
       const key = clean(part);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -6748,8 +9128,8 @@
     const seen = /* @__PURE__ */ new Set();
     for (const sel of deepQueryAll("select").filter((s) => /hour_type_id/.test(s.id || s.name || ""))) {
       for (const opt of Array.from(sel.options || [])) {
-        const text = (opt.textContent || opt.label || "").replace(/\s+/g, " ").trim();
-        pushRegistrationHourTypeOption(out, seen, text);
+        const text2 = (opt.textContent || opt.label || "").replace(/\s+/g, " ").trim();
+        pushRegistrationHourTypeOption(out, seen, text2);
       }
     }
     return out;
@@ -6782,8 +9162,8 @@
       if (/group/i.test(opt.getAttribute("role") || "") || /select2-results__option--group/.test(opt.className || "")) continue;
       if (opt.id && !/hour_type_id-result/.test(opt.id)) continue;
       if (hasNestedOptionNode(opt, selector)) continue;
-      const text = (opt.textContent || "").replace(/\s+/g, " ").trim();
-      pushRegistrationHourTypeOption(out, seen, text);
+      const text2 = (opt.textContent || "").replace(/\s+/g, " ").trim();
+      pushRegistrationHourTypeOption(out, seen, text2);
     }
     return out;
   }
@@ -6966,7 +9346,7 @@
       setStatus(options.length ? "Kies uursoort" : "Uursoorten niet gevonden", !!options.length);
     }, context2);
   }
-  function setHourTypeViaSelect2(text, onDone) {
+  function setHourTypeViaSelect2(text2, onDone) {
     const containers = visibleSelect2HourTypeContainers();
     if (!containers.length) {
       onDone(false);
@@ -6984,9 +9364,9 @@
       setTimeout(() => {
         const resultsRoot = select2ResultsElementForSelection(target, container);
         const search = select2SearchInputForHourType(resultsRoot);
-        if (search) setInputText(search, text);
+        if (search) setInputText(search, text2);
         setTimeout(() => {
-          const ok = clickSelect2OptionTextInRoot(text, resultsRoot);
+          const ok = clickSelect2OptionTextInRoot(text2, resultsRoot);
           setTimeout(() => {
             const selected = clean(container.textContent || container.getAttribute("title") || "");
             if (ok && selected && !/zoek naar uursoorten|selecteer uursoort|uursoort/.test(selected)) okCount++;
@@ -6998,9 +9378,9 @@
     };
     next();
   }
-  function setRegistrationHourTypeForContext(text, context2, onDone) {
+  function setRegistrationHourTypeForContext(text2, context2, onDone) {
     if (!context2) {
-      setRegistrationHourType(text, onDone);
+      setRegistrationHourType(text2, onDone);
       return;
     }
     const target = context2.target || context2.container.closest(".select2-selection") || context2.container.parentElement || context2.container;
@@ -7008,18 +9388,18 @@
     setTimeout(() => {
       const resultsRoot = select2ResultsElementForSelection(target, context2.container);
       setTimeout(() => {
-        const ok = clickSelect2OptionTextInRoot(text, resultsRoot);
+        const ok = clickSelect2OptionTextInRoot(text2, resultsRoot);
         setTimeout(() => onDone(!!ok && registrationHourTypeSelectedInContainer(context2.container)), 120);
       }, 80);
     }, 120);
   }
-  function setRegistrationHourType(text, onDone) {
-    const nativeOk = selectHourTypeInNativeSelects(text);
+  function setRegistrationHourType(text2, onDone) {
+    const nativeOk = selectHourTypeInNativeSelects(text2);
     if (nativeOk) {
       onDone(true);
       return;
     }
-    setHourTypeViaSelect2(text, onDone);
+    setHourTypeViaSelect2(text2, onDone);
   }
   function clearRegistrationHourTypes(onDone) {
     let touched = false;
@@ -7068,15 +9448,15 @@
     const containers = visibleSelect2HourTypeContainers();
     if (containers.length) {
       return containers.every((el) => {
-        const text = clean(el.textContent || el.getAttribute("title") || "");
-        return !!text && !/zoek naar uursoorten|selecteer uursoort|uursoort/.test(text);
+        const text2 = clean(el.textContent || el.getAttribute("title") || "");
+        return !!text2 && !/zoek naar uursoorten|selecteer uursoort|uursoort/.test(text2);
       });
     }
     const selects = deepQueryAll("select").filter((sel) => /hour_type_id/.test(sel.id || sel.name || "") && (sel.options || []).length);
     if (selects.length) return selects.every((sel) => {
       const opt = sel.options && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
-      const text = clean(opt && (opt.textContent || opt.label) || "");
-      return !!String(sel.value || "").trim() && validRegistrationHourTypeOptionText(text || sel.value);
+      const text2 = clean(opt && (opt.textContent || opt.label) || "");
+      return !!String(sel.value || "").trim() && validRegistrationHourTypeOptionText(text2 || sel.value);
     });
     return false;
   }
@@ -7509,8 +9889,8 @@
     const inputs = deepQueryAll("input").filter(predicate);
     const labels = deepQueryAll("label,span,div,p,td,th").filter((el) => {
       if (!visible(el) || isOwnPopup(el)) return false;
-      const text = clean(el.textContent || "");
-      return text && text.length <= 60 && labelRe.test(text);
+      const text2 = clean(el.textContent || "");
+      return text2 && text2.length <= 60 && labelRe.test(text2);
     });
     let best = null, bestScore = Infinity;
     for (const label of labels) {
@@ -7566,8 +9946,8 @@
     return deepQueryAll("input,span,div").some((el) => {
       if (!visible(el) || isOwnPopup(el)) return false;
       const meta = clean(`${el.id || ""} ${el.getAttribute && (el.getAttribute("name") || "")} ${el.getAttribute && (el.getAttribute("aria-label") || "")}`);
-      const text = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
-      if (!text || !/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(text)) return false;
+      const text2 = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
+      if (!text2 || !/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(text2)) return false;
       return /date|datum|declaration/.test(meta) || rect(el).width < 260;
     });
   }
@@ -7628,14 +10008,14 @@
     const indirect = registrationIndirectTimeInput();
     if (directMinutes !== null) {
       if (direct) {
-        const text = minutesToDurationText(directMinutes);
-        if (String(direct.value || direct.getAttribute("value") || "") !== text) setInputTextComposed(direct, text);
+        const text2 = minutesToDurationText(directMinutes);
+        if (String(direct.value || direct.getAttribute("value") || "") !== text2) setInputTextComposed(direct, text2);
       } else ok = false;
     }
     if (indirectMinutes !== null) {
       if (indirect) {
-        const text = minutesToDurationText(indirectMinutes);
-        if (String(indirect.value || indirect.getAttribute("value") || "") !== text) setInputTextComposed(indirect, text);
+        const text2 = minutesToDurationText(indirectMinutes);
+        if (String(indirect.value || indirect.getAttribute("value") || "") !== text2) setInputTextComposed(indirect, text2);
       } else ok = false;
     }
     return ok;
@@ -8221,7 +10601,7 @@
         return;
       }
       if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) {
-        if (appointmentFlow.nonClientFreeTitleScreenActive || !text.includes("als de instellingen kloppen")) {
+        if (appointmentFlow.nonClientFreeTitleScreenActive || !text2.includes("als de instellingen kloppen")) {
           appointmentFlow.nonClientFreeTitleScreenActive = false;
           showAppointmentReadyToSave();
         }
@@ -8236,12 +10616,12 @@
       }
       return;
     }
-    const text = clean(body.textContent || "");
-    if (appointmentNeedsAvailabilityConfirmation() && !text.includes("al een afspraak") && !appointmentInSaveStage()) {
+    const text2 = clean(body.textContent || "");
+    if (appointmentNeedsAvailabilityConfirmation() && !text2.includes("al een afspraak") && !appointmentInSaveStage()) {
       showAvailabilityWarning();
       return;
     }
-    const choiceScreen = CONFIG.choices.every((choice) => text.includes(clean(choice.label)));
+    const choiceScreen = CONFIG.choices.every((choice) => text2.includes(clean(choice.label)));
     if (appointmentFlow.appointmentAwaitingManualUursoort && hasAppointmentPrereqs()) {
       if (!isScreen("manualUursoortInstruction")) showManualUursoortInstruction();
       return;
@@ -8254,11 +10634,11 @@
       showAppointmentReadyToSave();
       return;
     }
-    const prereqScreen = text.includes("vul client, begintijd en datum in") || text.includes("voeg een client toe voor clientgerelateerde afspraken") || text.includes("voeg evt. een client toe aan de afspraak");
-    const nonClientSubScreen = text.includes("niet clientgerelateerde afspraken") || text.includes(" duur:") || nonClientCategoriesActive().some(function(c) {
-      return text.includes(clean(c.label)) && text.includes("terug");
+    const prereqScreen = text2.includes("vul client, begintijd en datum in") || text2.includes("voeg een client toe voor clientgerelateerde afspraken") || text2.includes("voeg evt. een client toe aan de afspraak");
+    const nonClientSubScreen = text2.includes("niet clientgerelateerde afspraken") || text2.includes(" duur:") || nonClientCategoriesActive().some(function(c) {
+      return text2.includes(clean(c.label)) && text2.includes("terug");
     });
-    const clientDurationScreen = !!appointmentFlow.pendingChoice && (text.includes(" duur:") || text.includes("totale reistijd"));
+    const clientDurationScreen = !!appointmentFlow.pendingChoice && (text2.includes(" duur:") || text2.includes("totale reistijd"));
     if (hasClientInAppointment() && hasAppointmentPrereqs() && !choiceScreen && !clientDurationScreen) {
       appointmentFlow.activeNonClientOption = null;
       showChoices();
@@ -8719,13 +11099,13 @@
   function showAvailabilityWarning() {
     const body = $body();
     if (!body) return;
-    const entries = unavailableInvitees().filter((entry) => !appointmentFlow.appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
-    if (!entries.length) {
+    const entries2 = unavailableInvitees().filter((entry) => !appointmentFlow.appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
+    if (!entries2.length) {
       showChoices();
       return;
     }
     if (!helperPanel._availabilityRestore) helperPanel._availabilityRestore = createCurrentScreenRestore();
-    const names = entries.map((entry) => entry.firstName).filter(Boolean);
+    const names = entries2.map((entry) => entry.firstName).filter(Boolean);
     const nameText = names.length <= 1 ? names[0] || "Deze genodigde" : `${names.slice(0, -1).join(", ")} en ${names[names.length - 1]}`;
     setStatus("Let op: al een afspraak", false);
     const shell = mkModalShell("onsAvailabilityWarningModal", "Toch doorgaan?", { spineColor: "#b45309", maxWidth: "360px" });
@@ -8754,7 +11134,7 @@
     }));
     const yesBtn = mkPillButton("Ja, doorgaan", () => safe(() => {
       shell.close();
-      entries.forEach((entry) => appointmentFlow.appointmentAvailabilityConfirmedPeople.add(availabilityPersonKey(entry)));
+      entries2.forEach((entry) => appointmentFlow.appointmentAvailabilityConfirmedPeople.add(availabilityPersonKey(entry)));
       helperPanel._availabilityRestore = null;
       if (appointmentInSaveStage()) {
         if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) appointmentFlow.nonClientFreeTitleScreenActive = false;
@@ -9118,20 +11498,20 @@
     });
   }
   function handleClientListChanges() {
-    const entries = findClientEntries();
-    const currentNames = new Set(entries.map((e) => e.name));
+    const entries2 = findClientEntries();
+    const currentNames = new Set(entries2.map((e) => e.name));
     if (appointmentFlow.knownClientNames.size) {
       for (const name of appointmentFlow.knownClientNames) {
         if (!currentNames.has(name)) removeFirstNameFromTitle(firstNameFromName(name));
       }
     }
-    if (!entries.length) {
+    if (!entries2.length) {
       appointmentFlow.knownClientNames.clear();
       return;
     }
     maybePrefetchUursoorten();
     const firstSeed = !appointmentFlow.knownClientNames.size;
-    const added = entries.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
+    const added = entries2.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
     appointmentFlow.knownClientNames = new Set(currentNames);
     if (firstSeed || !added.length) return;
     if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
@@ -9836,14 +12216,14 @@
     appointmentFlow.appointmentClearingSettings = true;
     setStatus("Instellingen verwijderen...");
     let finished = false;
-    const finish = function(ok, text) {
+    const finish = function(ok, text2) {
       if (finished) return;
       finished = true;
       clearTimeout(guard);
       appointmentFlow.activeNonClientOption = null;
       appointmentFlow.appointmentClearingSettings = false;
       showAppointmentNeedsPrereqs();
-      setStatus(text || "Instellingen verwijderd", ok !== false);
+      setStatus(text2 || "Instellingen verwijderd", ok !== false);
     };
     const guard = setTimeout(function() {
       finish(false, "Instellingen grotendeels verwijderd");
@@ -9922,10 +12302,10 @@
     headRow.appendChild(title);
     headRow.appendChild(closeX);
     box.appendChild(headRow);
-    const text = document.createElement("div");
-    text.textContent = opt.info || "";
-    Object.assign(text.style, { fontSize: "13px", color: "#333", lineHeight: "1.5" });
-    box.appendChild(text);
+    const text2 = document.createElement("div");
+    text2.textContent = opt.info || "";
+    Object.assign(text2.style, { fontSize: "13px", color: "#333", lineHeight: "1.5" });
+    box.appendChild(text2);
     try {
       host.appendChild(box);
     } catch (e) {
@@ -9988,8 +12368,8 @@
       });
     });
   }
-  function nonClientHourTypeMatches(text, wanted) {
-    const c = clean(text);
+  function nonClientHourTypeMatches(text2, wanted) {
+    const c = clean(text2);
     const w = clean(wanted);
     const loose = clean(String(wanted || "").replace(/[*#]+$/, ""));
     return !!c && (c === w || !!loose && c === loose || c.includes(w) || !!loose && c.includes(loose));
@@ -10276,7 +12656,7 @@
     };
     selectNonClientUursoort(name, done);
   }
-  function selectNonClientUursoort(text, onResult, attempt = 0) {
+  function selectNonClientUursoort(text2, onResult, attempt = 0) {
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (!trigger) {
       onResult(false);
@@ -10284,7 +12664,7 @@
     }
     clickElementCenter(trigger);
     setTimeout(() => {
-      const searchText = String(text || "").replace(/[*#]+$/, "").trim();
+      const searchText = String(text2 || "").replace(/[*#]+$/, "").trim();
       const input2 = searchInputForTrigger(trigger);
       if (input2) {
         input2.focus();
@@ -10292,10 +12672,10 @@
       }
       const loose = searchText;
       setTimeout(() => {
-        const ok = clickExactDropdownOption(trigger, [text, loose].filter(Boolean));
+        const ok = clickExactDropdownOption(trigger, [text2, loose].filter(Boolean));
         if (!ok && attempt < 5) {
           clickEmptyModalSpot();
-          setTimeout(() => selectNonClientUursoort(text, onResult, attempt + 1), 120);
+          setTimeout(() => selectNonClientUursoort(text2, onResult, attempt + 1), 120);
           return;
         }
         setTimeout(() => {
@@ -10311,8 +12691,8 @@
       const txt = clean(uiText(trigger2) || trigger2.textContent || trigger2.value || trigger2.getAttribute && (trigger2.getAttribute("value") || trigger2.getAttribute("title") || ""));
       return !!txt && !/zoek naar uursoorten|selecteer uursoort|uursoort|geen resultaten|voer minstens|toont /.test(txt);
     };
-    const entries = findClientEntries();
-    if (entries.length) return computeAppointmentUursoortState() === "READY_TO_SAVE";
+    const entries2 = findClientEntries();
+    if (entries2.length) return computeAppointmentUursoortState() === "READY_TO_SAVE";
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (hasTriggerValue(trigger)) return true;
     const clientLabels = deepQueryAll("div,span,p").filter((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent) === "client");
@@ -10411,15 +12791,15 @@
       }, 90);
     }, 120);
   }
-  function chooseUursoort(text, onResult, triggerArg = null) {
-    openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
+  function chooseUursoort(text2, onResult, triggerArg = null) {
+    openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
       if (ok) setTimeout(clickEmptyModalSpot, 90);
       onResult(ok);
     });
   }
   function anyUursoortPresent() {
-    const entries = findClientEntries();
-    if (entries.length) return entries.some(entryUursoortIsSet);
+    const entries2 = findClientEntries();
+    if (entries2.length) return entries2.some(entryUursoortIsSet);
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (!trigger) return false;
     const txt = clean(uiText(trigger) || trigger.textContent || ("value" in trigger ? trigger.value : "") || "");
@@ -10427,17 +12807,17 @@
   }
 
   // src/content/features/appointment/fields.js
-  function setAppointmentTitleText(text) {
+  function setAppointmentTitleText(text2) {
     const input2 = getTitleInputSafe();
     if (!input2) return false;
-    setInputText(input2, text);
+    setInputText(input2, text2);
     return true;
   }
-  function setAppointmentEndInputText(inp, text) {
+  function setAppointmentEndInputText(inp, text2) {
     if (!inp) return false;
     const startInput = getStartTimeInput();
     if (startInput && inp === startInput) return false;
-    typeIntoSearchField(inp, text);
+    typeIntoSearchField(inp, text2);
     inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
     try {
       inp.blur && inp.blur();
@@ -10446,16 +12826,16 @@
     const host = ucTimeInputHost(inp);
     if (host) {
       try {
-        host.value = text;
+        host.value = text2;
       } catch (e) {
       }
       try {
-        host.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: String(text) }));
+        host.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: String(text2) }));
       } catch (e) {
       }
       host.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    appointmentFlow.helperEndText = String(text);
+    appointmentFlow.helperEndText = String(text2);
     return true;
   }
   function hasAppointmentDate() {
@@ -10464,8 +12844,8 @@
     return deepQueryAll("input,span,div,uc-date-input").some((el) => {
       if (!visible(el) || isOwnPopup(el)) return false;
       const meta = clean(`${el.id || ""} ${el.getAttribute && (el.getAttribute("name") || "")} ${el.getAttribute && (el.getAttribute("aria-label") || "")} ${el.getAttribute && (el.getAttribute("placeholder") || "")}`);
-      const text = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
-      if (!/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(text)) return false;
+      const text2 = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
+      if (!/\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b/.test(text2)) return false;
       return /datum|date|dd-mm-jjjj/.test(meta) || rect(el).width < 260;
     });
   }
@@ -10480,8 +12860,8 @@
       const lr = rect(label);
       const found = deepQueryAll("input,span,div,uc-time-input").find((el) => {
         if (!visible(el) || isOwnPopup(el) || el === label) return false;
-        const text = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
-        if (!/^(\d{1,2}):(\d{2})$/.test(text)) return false;
+        const text2 = String(("value" in el ? el.value : "") || el.getAttribute && el.getAttribute("value") || el.textContent || "").trim();
+        if (!/^(\d{1,2}):(\d{2})$/.test(text2)) return false;
         const r = rect(el);
         return r.top >= lr.bottom - 12 && r.top <= lr.bottom + 95 && Math.abs(r.left - lr.left) <= 180;
       });
@@ -10501,8 +12881,8 @@
   }
   function hasAppointmentEndTime() {
     const endInput = getEndTimeInput();
-    const text = String((endInput && "value" in endInput ? endInput.value : "") || "").trim();
-    return /^(\d{1,2}):(\d{2})$/.test(text);
+    const text2 = String((endInput && "value" in endInput ? endInput.value : "") || "").trim();
+    return /^(\d{1,2}):(\d{2})$/.test(text2);
   }
   function appointmentHasKnownLabel() {
     const trigger = getEtiketTrigger();
@@ -10573,12 +12953,12 @@
     restoreAppointmentStartTime();
     const next = addMinutesText(startText, minutes);
     if (!next) return false;
-    const apply = () => {
+    const apply3 = () => {
       const fresh = getEndTimeInput();
       if (!fresh) return false;
       return setAppointmentEndInputText(fresh, next);
     };
-    const ok = apply();
+    const ok = apply3();
     [80, 220, 420].forEach((delay) => setTimeout(() => {
       const fresh = getEndTimeInput();
       if (fresh && inputTextValue(fresh) !== next) setAppointmentEndInputText(fresh, next);
@@ -10657,8 +13037,8 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
     return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
   }
-  function schrijf(inp, text) {
-    typeIntoSearchField(inp, text);
+  function schrijf(inp, text2) {
+    typeIntoSearchField(inp, text2);
     inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
     inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
     try {
@@ -10669,7 +13049,7 @@
     const host = root && root.host;
     if (host) {
       try {
-        host.value = text;
+        host.value = text2;
       } catch (e) {
       }
       try {
@@ -11042,18 +13422,21 @@
     }).slice(0, 10);
     var types = {};
     return Promise.all([
-      getJson(_apiUrl("availableLabels")).then(parseLabels, function() {
+      // Lukt het ophalen niet: zonder. Een andere vorm van ONS: een duidelijke fout.
+      getJson(_apiUrl("availableLabels")).then(function(j) {
+        return parseLabels(controleerOns("afspraaktypes", j));
+      }, function() {
         return [];
       }),
       Promise.all(uniek.map(function(c) {
         return getJson(_apiUrl("productOptions", { employeeId: ids[0], clientId: c })).then(function(j) {
-          types[c] = parseProductOptions(j);
+          types[c] = parseProductOptions(controleerOns("productlijst", j));
         }, function() {
           types[c] = [];
         });
       })),
       opts && opts.medewerker ? getJson(_apiUrl("employeeProductOptions", { employeeId: ids[0] })).then(function(j) {
-        return parseProductOptions(j, { alleGroepen: true });
+        return parseProductOptions(controleerOns("productlijst", j), { alleGroepen: true });
       }, function() {
         return [];
       }) : null
@@ -11658,9 +14041,7 @@
     var id = inviteeId != null ? inviteeId : resolveInviteeId();
     if (id == null) return Promise.reject(new Error("geen invitee-id gevonden"));
     var d = agendaYmd(date) || agendaYmd(/* @__PURE__ */ new Date());
-    return getJson(_apiUrl("weekEvents", { inviteeId: id, date: d })).then(function(j) {
-      return mapAgendaWeekResponse(j);
-    });
+    return getJson(_apiUrl("weekEvents", { inviteeId: id, date: d })).then(weekEntries);
   }
   function fetchEmployeeRegistrations(date, opts) {
     opts = opts || {};
@@ -11812,14 +14193,14 @@
   function _agChip(label, value, bg, fg) {
     var c = document.createElement("span");
     c.style.cssText = "display:inline-flex;align-items:baseline;gap:4px;background:" + bg + ";color:" + fg + ";border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap";
-    c.innerHTML = '<span style="font-weight:600;opacity:.8">' + label + "</span> " + value;
+    zetHtml(c, '<span style="font-weight:600;opacity:.8">' + label + "</span> " + value);
     return c;
   }
   function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
     var wrap = document.createElement("div");
     wrap.style.cssText = "margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px";
     var h = document.createElement("div");
-    h.innerHTML = "Afgerond · geregistreerd" + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">· ' + dateLabel + "</span>" : "");
+    zetHtml(h, "Afgerond en geregistreerd" + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">' + dateLabel + "</span>" : ""));
     h.style.cssText = "font-weight:700;font-size:11px;color:" + ONSAH_TOKENS.brand + ";margin-bottom:5px";
     wrap.appendChild(h);
     if (!rs || !rs.count) {
@@ -11828,7 +14209,7 @@
     }
     var dec = declarabiliteitPct(rs, profile);
     var hero = document.createElement("div");
-    hero.innerHTML = '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span> <span style="font-size:10px;color:#999">· ' + dec.baseLabel + "</span>";
+    zetHtml(hero, '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span> <span style="font-size:10px;color:#999">' + dec.baseLabel + "</span>");
     hero.style.cssText = "margin-bottom:5px";
     wrap.appendChild(hero);
     var chips = document.createElement("div");
@@ -12583,8 +14964,8 @@
     var haal = function(inv, eerste) {
       if (!toekomst) {
         if (eerste) {
-          fetchInviteeWeek(inv, date).then(function(entries) {
-            if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries || []).slice();
+          fetchInviteeWeek(inv, date).then(function(entries2) {
+            if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries2 || []).slice();
           }, function() {
           }).then(function() {
             if (agendaPage._agWeekKey === key) safe(updateTotals);
@@ -12592,16 +14973,16 @@
         }
         return fetchWeekRegistrationDeclarabiliteit(inv, date);
       }
-      return fetchInviteeWeek(inv, date).then(function(entries) {
-        if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries.slice();
-        if (view === "day") entries = entries.filter(function(e) {
+      return fetchInviteeWeek(inv, date).then(function(entries2) {
+        if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries2.slice();
+        if (view === "day") entries2 = entries2.filter(function(e) {
           return e.date === date;
         });
         var now = Date.now();
-        entries = entries.filter(function(e) {
+        entries2 = entries2.filter(function(e) {
           return e.startMs == null || e.startMs >= now;
         });
-        return summarizeAgendaWeek(entries);
+        return summarizeAgendaWeek(entries2);
       });
     };
     var errHandler = function(e) {
@@ -12684,9 +15065,9 @@
   function computeTotalsApi() {
     var past = {}, future = { client: 0, overig: 0 };
     var now = Date.now();
-    var entries = agendaPage._agLastEntries || [];
+    var entries2 = agendaPage._agLastEntries || [];
     var lateH = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.lateThresholdHours > 0 ? APP_CONFIG.generalSettings.lateThresholdHours : 24;
-    entries.forEach(function(e) {
+    entries2.forEach(function(e) {
       var c = classifyAgendaEntry(e, now, lateH * 36e5);
       if (!c) return;
       if (c.past) {
@@ -12877,28 +15258,28 @@
   function select(options, value) {
     const s = document.createElement("select");
     s.style.cssText = CONTROL_CSS;
-    options.forEach(([v, text]) => {
+    options.forEach(([v, text2]) => {
       const o = document.createElement("option");
       o.value = v;
-      o.textContent = text;
+      o.textContent = text2;
       s.appendChild(o);
     });
     s.value = value;
     onsahFocusRing(s);
     return s;
   }
-  function checkbox(text, checked) {
+  function checkbox(text2, checked) {
     const wrap = document.createElement("label");
     wrap.style.cssText = "display:inline-flex;align-items:center;gap:6px;font-size:13px;color:" + T.ink + ";cursor:pointer;user-select:none";
     const c = document.createElement("input");
     c.type = "checkbox";
     c.checked = !!checked;
     c.style.cssText = "margin:0;width:15px;height:15px;accent-color:" + T.brand;
-    wrap.append(c, text);
+    wrap.append(c, text2);
     return { wrap, box: c };
   }
-  function dayChip(text, checked, onChange) {
-    const c = checkbox(text, checked);
+  function dayChip(text2, checked, onChange) {
+    const c = checkbox(text2, checked);
     const paint = () => {
       c.wrap.style.borderColor = c.box.checked ? T.brand : T.line;
       c.wrap.style.background = c.box.checked ? T.brandWash : "#fff";
@@ -13034,9 +15415,9 @@
       } catch (e) {
       }
     }, 0);
-    function setStatus2(text, color) {
+    function setStatus2(text2, color) {
       status.style.color = color;
-      status.textContent = text;
+      status.textContent = text2;
     }
     async function submitLeave() {
       if (busy || !result || result.error) return;
@@ -13133,8 +15514,8 @@
       return fetchEntriesForRange(id, fromYmd, toYmd, function(d, t) {
         voortgang[i] = { done: d, total: t };
         meld();
-      }).then(function(entries) {
-        return summarizeOpenRange(entries, { from: fromYmd, to: toYmd, lateHours: lateHours() });
+      }).then(function(entries2) {
+        return summarizeOpenRange(entries2, { from: fromYmd, to: toYmd, lateHours: lateHours() });
       });
     })).then(function(lijst) {
       var r = mergeOpenRangePerPersoon(lijst, ids, ids.length > 1 ? ids.map(inviteeName) : null);
@@ -13268,10 +15649,10 @@
   function round(n) {
     return Math.round(n || 0);
   }
-  function plannedRatioRows(entries, forms) {
+  function plannedRatioRows(entries2, forms) {
     forms = forms || APP_CONFIG && APP_CONFIG.registrationForms || [];
     var map = /* @__PURE__ */ Object.create(null);
-    (entries || []).forEach(function(e) {
+    (entries2 || []).forEach(function(e) {
       if (!e || e.type !== "event" || e.allDay) return;
       var naam = e.hourType && String(e.hourType).trim() || "";
       if (!naam && !e.clientPresent) return;
@@ -13312,8 +15693,8 @@
     var dezeWeek = weekStartsBetween(vandaag, vandaag)[0];
     var basis = { weekStart: start, week: agendaWeekNumber(start) };
     if (start > dezeWeek) {
-      return fetchInviteeWeek(id, start).then(function(entries) {
-        return Object.assign(basis, { mode: "gepland", rows: plannedRatioRows(entries) });
+      return fetchInviteeWeek(id, start).then(function(entries2) {
+        return Object.assign(basis, { mode: "gepland", rows: plannedRatioRows(entries2) });
       });
     }
     return fetchWeekRegistrationDeclarabiliteit(id, start).then(function(s) {
@@ -13351,8 +15732,8 @@
       count: s.count || 0
     };
   }
-  function plannedProductionRow(weekStart, entries) {
-    var rows = plannedRatioRows(entries);
+  function plannedProductionRow(weekStart, entries2) {
+    var rows = plannedRatioRows(entries2);
     var som = function(k) {
       return rows.reduce(function(t, r) {
         return t + (r[k] || 0);
@@ -13400,8 +15781,8 @@
       return Promise.all(weeks.map(function(start) {
         var p = start > dezeWeek ? limiter(function() {
           return fetchInviteeWeek(id, start);
-        }).then(function(entries) {
-          return plannedProductionRow(start, entries);
+        }).then(function(entries2) {
+          return plannedProductionRow(start, entries2);
         }) : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter, ttlMs: WEEK_TTL_MS }).then(function(summary) {
           return productionWeekRow(start, summary, prof);
         });
@@ -13429,7 +15810,7 @@
   function minutenVanDag(ms, dagStartMs) {
     return Math.round((ms - dagStartMs) / 6e4);
   }
-  function findFreeGaps(entries, opts) {
+  function findFreeGaps(entries2, opts) {
     opts = opts || {};
     var now = opts.now != null ? opts.now : Date.now();
     var stap = opts.stepMin || 15;
@@ -13442,7 +15823,7 @@
     var overslaan = opts.skipDates || {};
     var alleenDagen = Array.isArray(opts.weekdays) && opts.weekdays.length ? opts.weekdays : null;
     var bezet = /* @__PURE__ */ Object.create(null), heleDag = /* @__PURE__ */ Object.create(null);
-    (entries || []).forEach(function(e) {
+    (entries2 || []).forEach(function(e) {
       if (!e || !e.date) return;
       var toon = String(e.showAs || "").toLowerCase();
       if (toon === "free" || toon === "workingelsewhere") return;
@@ -13500,9 +15881,9 @@
     }
     return uit;
   }
-  function reservationBlocks(entries) {
+  function reservationBlocks(entries2) {
     var uit = [], gezien = /* @__PURE__ */ Object.create(null);
-    (entries || []).forEach(function(e) {
+    (entries2 || []).forEach(function(e) {
       if (!e || e.startMs == null || e.endMs == null || !(e.endMs > e.startMs)) return;
       var d0 = new Date(e.startMs);
       var dStart = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
@@ -13834,7 +16215,7 @@
       return limiet(function() {
         return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start }));
       }).then(function(j) {
-        return mapAgendaWeekResponse(j).map(function(e) {
+        return weekEntries(j).map(function(e) {
           e.layer = laag;
           e.inviteeId = id;
           return e;
@@ -14134,7 +16515,9 @@
   function searchClientsForPlan(term, outOfCare) {
     var t = String(term || "").trim();
     if (t.length < 2) return Promise.resolve([]);
-    return getJson(_apiUrl("searchClients", { term: t, outOfCare: outOfCare === true ? "true" : "false" })).then(clientsForPlan);
+    return getJson(_apiUrl("searchClients", { term: t, outOfCare: outOfCare === true ? "true" : "false" })).then(function(j) {
+      return clientsForPlan(controleerOns("clienten", j));
+    });
   }
 
   // src/content/features/agenda/route.js
@@ -14153,7 +16536,7 @@
     var limiet = createLimiter(3);
     return Promise.all(ids.map(function(id) {
       return getJson(_apiUrl("weekEvents", { inviteeId: id, date })).then(function(json) {
-        var bezoeken = mapAgendaWeekResponse(json).filter(function(e) {
+        var bezoeken = weekEntries(json).filter(function(e) {
           return e && e.date === date && !e.allDay && e.startMs != null && isAtClient(e, !!officeForLocation(e.locationName));
         }).sort(function(a, b) {
           return a.startMs - b.startMs;
@@ -15404,7 +17787,7 @@
         if (fn()) found++;
       });
       const sum = panel.querySelector(".__sum");
-      if (sum) sum.innerHTML = '<span style="color:' + (found === total ? C.ok : "#b9770e") + '">' + found + " van " + total + "</span> hooks gevonden op dit scherm.";
+      if (sum) zetHtml(sum, '<span style="color:' + (found === total ? C.ok : "#b9770e") + '">' + found + " van " + total + "</span> hooks gevonden op dit scherm.");
     }
     function openPanel() {
       ensureRoot();
@@ -15485,7 +17868,7 @@
       });
       const head = css(document.createElement("div"), { position: "sticky", top: "0", zIndex: "1", background: "#262229", color: "#fff", padding: "11px 13px", display: "flex", alignItems: "center", gap: "8px" });
       const title = document.createElement("div");
-      title.innerHTML = "<b>UI-inspector</b>";
+      zetHtml(title, "<b>UI-inspector</b>");
       title.style.flex = "1";
       const x = mini("Sluiten", closePanel);
       css(x, { border: "1px solid #fff6", background: "transparent", color: "#fff" });
@@ -15494,7 +17877,7 @@
       const body = css(document.createElement("div"), { padding: "11px 13px" });
       const sum = css(document.createElement("div"), { fontSize: "13px", fontWeight: "700", margin: "0 0 4px" });
       sum.className = "__sum";
-      sum.innerHTML = '<span style="color:' + (found === total ? C.ok : "#b9770e") + '">' + found + " van " + total + "</span> hooks gevonden op dit scherm.";
+      zetHtml(sum, '<span style="color:' + (found === total ? C.ok : "#b9770e") + '">' + found + " van " + total + "</span> hooks gevonden op dit scherm.");
       body.appendChild(sum);
       const live = css(document.createElement("div"), { fontSize: "10px", color: "#999", margin: "0 0 6px" });
       live.textContent = "↻ ververst automatisch elke 0,5 s";
@@ -15507,7 +17890,7 @@
         const h = pendingPick.hook;
         const pk = css(document.createElement("div"), { border: "2px solid " + C.pick, background: "#fff0f8", borderRadius: "8px", padding: "9px", margin: "0 0 10px" });
         const hd = document.createElement("div");
-        hd.innerHTML = "<b>Herstel bevestigen: " + h[1] + "</b>";
+        zetHtml(hd, "<b>Herstel bevestigen: " + h[1] + "</b>");
         hd.style.margin = "0 0 6px";
         pk.appendChild(hd);
         const inp = document.createElement("input");
@@ -15614,7 +17997,7 @@
         const box = css(document.createElement("div"), { border: "1px solid #e7c9dd", background: "#faf3f8", borderRadius: "8px", padding: "8px 9px", margin: "0 0 10px" });
         const bh = css(document.createElement("div"), { display: "flex", alignItems: "center", gap: "6px", margin: "0 0 6px" });
         const bt = document.createElement("div");
-        bt.innerHTML = "<b>Actieve herstellingen (" + ovKeys.length + ")</b>";
+        zetHtml(bt, "<b>Actieve herstellingen (" + ovKeys.length + ")</b>");
         bt.style.flex = "1";
         bt.style.fontSize = "12px";
         bh.append(bt, mini("Alles wissen", () => {
@@ -15633,7 +18016,7 @@
           const broken = !!(hook && selectorInfo(overrides[k], null).count === 0 && defaultEls(hook).length > 0);
           const flag = broken ? ' <span style="color:#d98a0b;font-weight:700">⚠ werkt niet meer</span>' : "";
           const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-          lab.innerHTML = "<b>" + esc(name) + "</b>" + flag + '<br><span style="color:#8a5a76;word-break:break-all">' + esc(overrides[k]) + "</span>";
+          zetHtml(lab, "<b>" + esc(name) + "</b>" + flag + '<br><span style="color:#8a5a76;word-break:break-all">' + esc(overrides[k]) + "</span>");
           r.append(lab, mini("Verwijder", () => {
             clearOverride(k);
             drawHighlights();
@@ -16039,6 +18422,8 @@
       openNewEvent,
       createEvents,
       eventOptions,
+      controleerOns,
+      searchClientsForPlan,
       onsDateText,
       findFreeGaps,
       reservationBlocks,
@@ -16103,4 +18488,10 @@
   exposeTestApi();
   startUiInspector();
 })();
+/*! Bundled license information:
+
+dompurify/dist/purify.es.mjs:
+  (*! @license DOMPurify 3.4.17 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.17/LICENSE *)
+  (*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE *)
+*/
 //# sourceMappingURL=content.js.map

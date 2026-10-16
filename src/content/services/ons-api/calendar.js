@@ -3,7 +3,6 @@
 
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
-import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import {
   _regUnwrap,
   parseRegistrationDetails,
@@ -14,14 +13,14 @@ import {
 import { _apiUrl } from './endpoints.js';
 import { getEmployeeIdAsync } from './employee.js';
 import { getJson } from './http.js';
+import { weekEntries } from './formaat.js';
 
 // Fetch de weekafspraken. Relatieve URL => same-origin => de sessiecookie gaat mee.
 export function fetchInviteeWeek(inviteeId, date) {
   var id = (inviteeId != null) ? inviteeId : resolveInviteeId();
   if (id == null) return Promise.reject(new Error('geen invitee-id gevonden'));
   var d = agendaYmd(date) || agendaYmd(new Date());
-  return getJson(_apiUrl('weekEvents', { inviteeId: id, date: d }))
-    .then(function (j) { return mapAgendaWeekResponse(j); });
+  return getJson(_apiUrl('weekEvents', { inviteeId: id, date: d })).then(weekEntries);
 }
 // Fetch de afgeronde registraties (sessie-gebruiker) voor één dag; gepagineerd.
 function fetchEmployeeRegistrations(date, opts) {

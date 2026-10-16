@@ -7,7 +7,6 @@ import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { activeZones } from './zones.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
-import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
 import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domain/route.js';
 import { officeForLocation } from '../../domain/offices.js';
@@ -15,6 +14,7 @@ import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { holidaysBetween, parseHolidays } from '../../domain/holidays.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
+import { weekEntries } from '../../services/ons-api/formaat.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
 import { fetchEventOverlap, overlapCheckStatus } from '../../services/ons-api/event-overlap.js';
 
@@ -159,7 +159,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   var limiet = createLimiter(4);
   var haal = function (sjabloon, laag, start, id) {
     return limiet(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
-      .then(function (j) { return mapAgendaWeekResponse(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
+      .then(function (j) { return weekEntries(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
   };
   var zonder = function () { return []; };
   var taken = [];

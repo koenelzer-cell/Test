@@ -8,6 +8,7 @@
 import { clean } from '../../ons/dom.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
+import { controleerOns } from './formaat.js';
 
 // Parse de product_selection/basic_list-respons naar een platte, ontdubbelde lijst
 // uursoortnamen uit 'Onlangs gebruikt', 'Geadviseerd' én 'Toegestaan'.
@@ -50,8 +51,7 @@ export async function fetchProductList({ date, employeeId, clientIds }) {
     return cached.list.slice();
   }
 
-  const json = await getJson(url);
-  if (!json || !Array.isArray(json.basic_list)) throw new Error('ongeldige product_selection response');
+  const json = controleerOns('productlijst', await getJson(url));
 
   const list = parseProductList(json);
   if (list.length) productListCache[url] = { ts: Date.now(), list: list.slice() }; // alleen niet-lege lijsten cachen

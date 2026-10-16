@@ -8,6 +8,7 @@
 
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
+import { controleerOns } from '../../services/ons-api/formaat.js';
 import { postcodeFromClient } from '../../domain/route.js';
 
 export const MAX_TREFFERS = 8;
@@ -32,5 +33,5 @@ export function clientsForPlan(json) {
 export function searchClientsForPlan(term, outOfCare) {
   var t = String(term || '').trim();
   if (t.length < 2) return Promise.resolve([]);
-  return getJson(_apiUrl('searchClients', { term: t, outOfCare: outOfCare === true ? 'true' : 'false' })).then(clientsForPlan);
+  return getJson(_apiUrl('searchClients', { term: t, outOfCare: outOfCare === true ? 'true' : 'false' })).then(function (j) { return clientsForPlan(controleerOns('clienten', j)); });
 }

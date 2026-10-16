@@ -19,6 +19,7 @@ import {
 import { clientAgeYears } from './client-age.js';
 import { absoluteSurveyUrl, surveyEditUrlFromOverview, surveyResultId } from './category-audit.js';
 import { MSG } from '../shared/messages.js';
+import { veiligeHtml } from '../shared/veilige-html.js';
 
 let _lastBadge = -1;
 export function sendBadge(count) {
@@ -158,18 +159,10 @@ export function navigateToItemCategory(item) {
 export function managedSignalNode(value, tagValues) {
   const signal = parsedSignal(value);
   const out = document.createElement('div');
-  const parsed = new DOMParser().parseFromString('<body>' + signal.html + '</body>', 'text/html');
-  const allowed = new Set(['B','STRONG','I','EM','U','S','STRIKE','A','MARK','FONT','BR','P','DIV','SPAN','H2','H3','H4','BLOCKQUOTE','PRE','CODE','UL','OL','LI']);
-  Array.prototype.slice.call(parsed.body.querySelectorAll('script,style,iframe,object,embed,img,svg,form,input,button')).forEach((el) => el.remove());
-  Array.prototype.slice.call(parsed.body.querySelectorAll('*')).forEach((el) => {
-    if (!allowed.has(el.tagName)) { el.replaceWith.apply(el, Array.prototype.slice.call(el.childNodes)); return; }
-    const href = el.tagName === 'A' ? String(el.getAttribute('href') || '') : '';
-    const styles = { color:el.style.color, backgroundColor:el.style.backgroundColor, fontWeight:el.style.fontWeight, fontStyle:el.style.fontStyle, textDecoration:el.style.textDecoration };
-    Array.prototype.slice.call(el.attributes).forEach((attr) => el.removeAttribute(attr.name));
-    if (el.tagName === 'A' && /^(?:https?:\/\/|mailto:|#)/i.test(href)) { el.setAttribute('href', href); el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener noreferrer'); }
-    Object.keys(styles).forEach((prop) => { if (styles[prop]) { try { el.style[prop] = styles[prop]; } catch (e) {} } });
-  });
-  out.innerHTML = parsed.body.innerHTML || signal.text;
+  // Veilige HTML (DOMPurify, zie src/shared/veilige-html.js); zonder opmaak de gewone tekst.
+  const frag = veiligeHtml(signal.html);
+  if (frag.childNodes.length) out.appendChild(frag);
+  else out.textContent = signal.text || '';
   const tags=tagValues||{},replace=(text)=>String(text||'').replace(/\{vraag\}/gi,tags.vraag?String(tags.vraag):'{vraag}').replace(/\{clientNaam\}/gi,tags.clientNaam||'{clientNaam}').replace(/\{clientLeeftijd\}/gi,tags.clientLeeftijd==null?'{clientLeeftijd}':String(tags.clientLeeftijd));
   const walk=(node)=>{if(node.nodeType===3){node.nodeValue=replace(node.nodeValue);return;}Array.from(node.childNodes||[]).forEach(walk);};walk(out);
   Object.assign(out.style, { color:signal.color, fontWeight:signal.bold ? '700' : '400', fontStyle:signal.italic ? 'italic' : 'normal', fontSize:signal.sizePx + 'px', overflowWrap:'anywhere' });

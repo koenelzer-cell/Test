@@ -5,10 +5,10 @@
 // herkend, dan geeft hij null en valt de aanroeper terug op de eigen
 // berekening.
 
-import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { isoLocalWithOffset, parseDetectOverlap, weekStartsBetween } from '../../domain/open-registrations.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
+import { weekEntries } from './formaat.js';
 
 // Overlapcontrole door ONS: true, false of null (onbekend). Het antwoord wordt
 // een minuut onthouden, zodat het compleetheidsvak (dat vaak opnieuw tekent)
@@ -62,8 +62,9 @@ export function fetchEntriesForRange(inviteeId, fromYmd, toYmd, onProgress) {
       if (next >= weeks.length) return;
       const idx = next++;
       getJson(_apiUrl('weekEvents', { inviteeId: inviteeId, date: weeks[idx] }))
-        .then(function (j) {
-          results[idx] = mapAgendaWeekResponse(j);
+        .then(weekEntries)
+        .then(function (rows) {
+          results[idx] = rows;
           done++;
           if (onProgress) { try { onProgress(done, weeks.length); } catch (e) {} }
           if (done === weeks.length) resolve([].concat.apply([], results));
@@ -71,7 +72,8 @@ export function fetchEntriesForRange(inviteeId, fromYmd, toYmd, onProgress) {
         }, function (e) {
           if (failed) return;
           failed = true;
-          reject(new Error('week van ' + weeks[idx] + ' kon niet worden opgehaald (' + ((e && e.message) || 'fout') + ')'));
+          // Een andere vorm van ONS: die melding zelf, die zegt wat er aan de hand is.
+          reject(e && e.name === 'OnsFormaatFout' ? e : new Error('week van ' + weeks[idx] + ' kon niet worden opgehaald (' + ((e && e.message) || 'fout') + ')'));
         });
     }
     for (let i = 0; i < Math.min(3, weeks.length); i++) worker();

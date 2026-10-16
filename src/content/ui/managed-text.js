@@ -4,6 +4,7 @@
 import { APP_CONFIG } from '../config/app-config.js';
 import { findClientEntries, findClientNameText } from '../ons/appointment-form.js';
 import { deepQueryAll } from '../ons/dom.js';
+import { veiligeHtml } from '../../shared/veilige-html.js';
 
 // (Het weekoverzicht wordt getoond ín de agendahulp-panel; zie de agenda-module
 // hieronder — geen los paneel en geen popup-knop meer.)
@@ -13,42 +14,9 @@ function effectiveTextConfig(key) {
 }
 // Bouw een gestileerd tekst-element uit de beheerbare 'texts'-config. `key`
 // bepaalt welke instelling geldt; fallbackText/defaultStyle zijn de code-standaard.
+// Veilige HTML (DOMPurify, zie src/shared/veilige-html.js); links in de merkkleur.
 export function managedRichHtml(html) {
-  const template = document.createElement('template');
-  template.innerHTML = String(html || '');
-  const allowed = new Set(['B','STRONG','I','EM','U','S','STRIKE','A','MARK','FONT','BR','P','DIV','SPAN','H2','H3','H4','BLOCKQUOTE','PRE','CODE','UL','OL','LI']);
-  template.content.querySelectorAll('script,style,iframe,object,embed,img,svg,form,input,button,link,meta,base,template,noscript,math,frame,frameset,marquee,title').forEach((el) => el.remove());
-  template.content.querySelectorAll('*').forEach((el) => {
-    if (!allowed.has(el.tagName)) { el.replaceWith(...el.childNodes); return; }
-    const originalHref = el.tagName === 'A' ? String(el.getAttribute('href') || '') : '';
-    const originalColor = el.tagName === 'FONT' ? String(el.getAttribute('color') || '') : '';
-    const originalStyle = {
-      color: el.style.color || originalColor,
-      backgroundColor: el.style.backgroundColor,
-      fontWeight: el.style.fontWeight,
-      fontStyle: el.style.fontStyle,
-      textDecoration: el.style.textDecoration
-    };
-    [...el.attributes].forEach((attr) => el.removeAttribute(attr.name));
-    if (el.tagName === 'A' && /^(?:https?:\/\/|mailto:|#)/i.test(originalHref)) {
-      el.setAttribute('href', originalHref);
-      el.setAttribute('target', '_blank');
-      el.setAttribute('rel', 'noopener noreferrer');
-    }
-    const styleProbe = document.createElement('span').style;
-    ['color','backgroundColor','fontWeight','fontStyle','textDecoration'].forEach((prop) => {
-      const value = String(originalStyle[prop] || '').trim();
-      if (!value) return;
-      styleProbe[prop] = '';
-      styleProbe[prop] = value;
-      if (styleProbe[prop]) el.style[prop] = styleProbe[prop];
-    });
-    if (el.tagName === 'A') {
-      if (!el.style.color) el.style.color = '#cc087d';
-      if (!el.style.textDecoration) el.style.textDecoration = 'underline';
-    }
-  });
-  return template.content;
+  return veiligeHtml(html, '#cc087d');
 }
 function managedTagClientName() {
   try { if (typeof findClientNameText === 'function') { const found=findClientNameText();if(found)return found; } } catch (e) {}

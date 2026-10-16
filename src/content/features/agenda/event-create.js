@@ -14,6 +14,7 @@ import { PAGE_LOCAL } from '../../../shared/storage-keys.js';
 import { buildEventPayload, learnEventMeta, parseLabels, parseProductOptions } from '../../domain/event-create.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson, postJson } from '../../services/ons-api/http.js';
+import { controleerOns } from '../../services/ons-api/formaat.js';
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -44,12 +45,13 @@ export function eventOptions(clientIds, opts) {
   var uniek = (clientIds || []).map(String).filter(function (c, i, a) { return /^\d+$/.test(c) && a.indexOf(c) === i; }).slice(0, 10);
   var types = {};
   return Promise.all([
-    getJson(_apiUrl('availableLabels')).then(parseLabels, function () { return []; }),
+    // Lukt het ophalen niet: zonder. Een andere vorm van ONS: een duidelijke fout.
+    getJson(_apiUrl('availableLabels')).then(function (j) { return parseLabels(controleerOns('afspraaktypes', j)); }, function () { return []; }),
     Promise.all(uniek.map(function (c) {
-      return getJson(_apiUrl('productOptions', { employeeId: ids[0], clientId: c })).then(function (j) { types[c] = parseProductOptions(j); }, function () { types[c] = []; });
+      return getJson(_apiUrl('productOptions', { employeeId: ids[0], clientId: c })).then(function (j) { types[c] = parseProductOptions(controleerOns('productlijst', j)); }, function () { types[c] = []; });
     })),
     opts && opts.medewerker
-      ? getJson(_apiUrl('employeeProductOptions', { employeeId: ids[0] })).then(function (j) { return parseProductOptions(j, { alleGroepen: true }); }, function () { return []; })
+      ? getJson(_apiUrl('employeeProductOptions', { employeeId: ids[0] })).then(function (j) { return parseProductOptions(controleerOns('productlijst', j), { alleGroepen: true }); }, function () { return []; })
       : null
   ]).then(function (r) {
     var uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
