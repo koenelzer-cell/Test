@@ -3,6 +3,7 @@ import { qrSvg } from './qr.js';
 import { feestdagAnimatie, feestdagIcoon, feestdagSlinger, feestdagStijl } from './feestdagen.js';
 import { rondleidingActief, rondleidingGedaan, sluitRondleiding, startRondleiding } from './rondleiding.js';
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, roadMatrix, vraagRoutes } from './geo.js';
+import { dagKort, dagLang as dagLangNl, isoWeek as isoWeekNl, maandagVan as maandagNl, maandJaar, uitYmd, werkweekTekst as werkweekNl, ymd as ymdNl } from '../shared/datum.js';
 /* ============================================================================
    agenda-panel.js — de Agendahulp in het zijpaneel.
 
@@ -54,22 +55,13 @@ function fmtMin(min) {
   var h = Math.floor(min / 60), m = min % 60;
   return h ? (h + ' u' + (m ? ' ' + m + ' m' : '')) : (m + ' m');
 }
-var WD_LANG = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
-var MON_LANG = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+// Datums in het Nederlands: date-fns, zie src/shared/datum.js.
 // 'Donderdag 8 oktober' (lang) of 'Do 8 oktober' (kort).
-function dagLang(date, kort) {
-  var d = new Date(date + 'T00:00:00');
-  if (isNaN(d.getTime())) return date;
-  var w = WD_LANG[d.getDay()];
-  return (kort ? w.slice(0, 2) : w) + ' ' + d.getDate() + ' ' + MON_LANG[d.getMonth()];
-}
+function dagLang(date, kort) { return dagLangNl(date, kort); }
 // 'van 9:00 tot 12:00' zonder voorloopnul.
 function vanTot(a, b) { var f = function (m) { return Math.floor(m / 60) + ':' + ('0' + (m % 60)).slice(-2); }; return 'van ' + f(a) + ' tot ' + f(b); }
-function dayLabel(date) {
-  var d = new Date(date + 'T00:00:00');
-  if (isNaN(d.getTime())) return date;
-  return WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()];
-}
+// 'do 8 okt'
+function dayLabel(date) { return dagKort(date); }
 function el(tag, styles, text) {
   var n = document.createElement(tag);
   if (styles) Object.assign(n.style, styles);
@@ -379,16 +371,10 @@ function voortgang(done, total) {
    Deze kiezers klappen open ONDER de rij met velden, over de volle breedte van
    het paneel: twee velden naast elkaar zijn te smal voor een maandkalender.
    Eén kiezer tegelijk per groep. */
-var MAANDEN_LANG = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-function ymdVan(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-function datumUitYmd(ymd) {
-  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
-  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
-}
-function datumTekst(ymd) {
-  var d = datumUitYmd(ymd);
-  return d ? (WD[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear()) : '';
-}
+function ymdVan(d) { return ymdNl(d); }
+function datumUitYmd(s) { return uitYmd(s); }
+// 'do 8 okt 2026'
+function datumTekst(s) { return uitYmd(s) ? dagKort(s, true) : ''; }
 function chipKnop(tekst, gekozen, onClick, extra) {
   var b = document.createElement('button');
   b.type = 'button';
@@ -443,7 +429,7 @@ function maandKalender(p, huidig, kies) {
     volgende.appendChild(svgPath(CHEV_RECHTS, 18));
     volgende.setAttribute('aria-label', 'Volgende maand');
     kop.appendChild(vorige);
-    kop.appendChild(el('div', Object.assign({}, TYPE.section, { margin: '0', flex: '1 1 auto', textAlign: 'center' }), MAANDEN_LANG[toon.getMonth()] + ' ' + toon.getFullYear()));
+    kop.appendChild(el('div', Object.assign({}, TYPE.section, { margin: '0', flex: '1 1 auto', textAlign: 'center' }), maandJaar(toon)));
     kop.appendChild(volgende);
     p.appendChild(kop);
     var rooster = el('div', { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' });
@@ -860,29 +846,10 @@ export function _resetBewaardVoorTest() {
   BEWAARD.quick = { date: '', time: '', minutes: '15', busy: false, error: '', overlap: '' };
 }
 // ISO-weeknummer en maandag van de week van 'YYYY-MM-DD'.
-function isoWeek(ymd) {
-  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
-  if (!m) return null;
-  var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-  var dag = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dag);
-  var jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - jan1) / 86400000 + 1) / 7);
-}
-// Maandag 'YYYY-MM-DD' -> '5 tot en met 9 oktober' (werkweek).
-function werkweekTekst(maYmd) {
-  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(maYmd || ''));
-  if (!m) return '';
-  var ma = new Date(+m[1], +m[2] - 1, +m[3]), vr = new Date(+m[1], +m[2] - 1, +m[3] + 4);
-  return ma.getDate() + (ma.getMonth() !== vr.getMonth() ? ' ' + MON_LANG[ma.getMonth()] : '') + ' tot en met ' + vr.getDate() + ' ' + MON_LANG[vr.getMonth()];
-}
-function maandagVan(ymd) {
-  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
-  if (!m) return ymd;
-  var d = new Date(+m[1], +m[2] - 1, +m[3]);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-}
+function isoWeek(s) { return isoWeekNl(s); }
+// '5 tot en met 9 oktober' (werkweek van die dag).
+function werkweekTekst(s) { return werkweekNl(s); }
+function maandagVan(s) { return maandagNl(s) || s; }
 // 'YYYY-MM-DD' + n weken -> 'YYYY-MM-DD' (lokale datum).
 function plusWeken(ymd, n) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
@@ -2606,7 +2573,7 @@ export function create(host, actions) {
     // 'Week 42' met eronder '12 tot en met 16 oktober'.
     var titel = el('div', { textAlign: 'center', flex: '1 1 auto', minWidth: '0' });
     titel.appendChild(el('div', { fontWeight: '700', fontSize: '13px', color: T.ink }, 'Week ' + isoWeek(plan.rasterWeek)));
-    titel.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft }, ma.getDate() + (ma.getMonth() !== vr.getMonth() ? ' ' + MON_LANG[ma.getMonth()] : '') + ' tot en met ' + vr.getDate() + ' ' + MON_LANG[vr.getMonth()] + (ma.getFullYear() !== new Date().getFullYear() ? ' ' + ma.getFullYear() : '')));
+    titel.appendChild(el('div', { fontSize: '11.5px', color: T.inkSoft }, werkweekNl(plan.rasterWeek, true)));
     titel.setAttribute('data-week-titel', '');
     nav.appendChild(titel);
     nav.appendChild(pijl('›', 1, 'data-week-verder'));

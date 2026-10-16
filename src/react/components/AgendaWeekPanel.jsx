@@ -1,4 +1,5 @@
 import { RATIO_COLORS } from './CalcModalBody.jsx';
+import { werkweekTekst as werkweekNl } from '../../shared/datum.js';
 
 // Het weekoverzicht op het startscherm van het zijpaneel, uit een
 // summarizeAgendaWeek-resultaat.
@@ -9,18 +10,11 @@ import { RATIO_COLORS } from './CalcModalBody.jsx';
 // als op Verhouding en Productieverloop), en onderin één regel naar de pagina
 // 'Opbouw en productieverloop'. Tekst in inkt; kleur alleen in de balk.
 // Bij meerdere agenda's naast elkaar: per collega een kaart met de naam erboven.
-const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
 const DELEN = [['directMinutes', 'Direct', RATIO_COLORS.direct], ['indirectMinutes', 'Indirect', RATIO_COLORS.indirect], ['travelMinutes', 'Reistijd', RATIO_COLORS.travel]];
 
-// 'YYYY-MM-DD' -> '5 tot en met 9 oktober' (maandag tot en met vrijdag van die week).
-export function werkweekTekst(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''));
-  if (!m) return '';
-  const d = new Date(+m[1], +m[2] - 1, +m[3]);
-  const ma = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
-  const vr = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + 4);
-  return ma.getDate() + (ma.getMonth() !== vr.getMonth() ? ' ' + MAANDEN[ma.getMonth()] : '') + ' tot en met ' + vr.getDate() + ' ' + MAANDEN[vr.getMonth()];
-}
+// 'YYYY-MM-DD' -> '5 tot en met 9 oktober' (maandag tot en met vrijdag van
+// die week; date-fns, zie src/shared/datum.js).
+export function werkweekTekst(ymd) { return werkweekNl(ymd); }
 
 function Chevron({ color }) {
   return (

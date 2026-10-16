@@ -7,6 +7,8 @@
 
 import { _excludeWeekendYmd } from './registrations.js';
 import { _entryMinutes } from './agenda-entries.js';
+import { format } from 'date-fns';
+import { maandagenTussen, uitYmd } from '../../shared/datum.js';
 
 // 'declared' vs 'not-declared' uit het classes-veld van de API-afspraak.
 export function isDeclaredClasses(classes) {
@@ -45,30 +47,11 @@ export function classifyAgendaEntry(e, now, lateMs) {
   };
 }
 
-// 'YYYY-MM-DD' -> lokale Date om 00:00, of null.
-function parseYmd(ymd) {
-  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''));
-  if (!m) return null;
-  var d = new Date(+m[1], +m[2] - 1, +m[3]);
-  return isNaN(d.getTime()) ? null : d;
-}
-function fmtYmd(d) {
-  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-}
-
 // De maandagen van alle weken die [van, tot] raken, oud naar nieuw. De
 // week-endpoint accepteert elke dag in de week; maandag maakt het eenduidig.
 // Geeft [] bij een ongeldige of omgekeerde periode.
 export function weekStartsBetween(fromYmd, toYmd) {
-  var a = parseYmd(fromYmd), b = parseYmd(toYmd);
-  if (!a || !b || a > b) return [];
-  var mon = new Date(a.getFullYear(), a.getMonth(), a.getDate() - ((a.getDay() + 6) % 7));
-  var out = [];
-  while (mon <= b) {
-    out.push(fmtYmd(mon));
-    mon = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 7);
-  }
-  return out;
+  return maandagenTussen(fromYmd, toYmd);
 }
 
 // Alle opgehaalde afspraken van een periode samenvatten tot open tijd per dag.
@@ -140,14 +123,9 @@ export function parseDetectOverlap(json) {
 
 // Lokale datum + minuten sinds middernacht -> ISO-tijd met de tijdzone van die
 // dag, zoals ONS hem meestuurt: 2026-10-06T12:45:00+02:00.
-export function isoLocalWithOffset(ymd, minutes) {
-  var d = parseYmd(ymd);
+export function isoLocalWithOffset(dag, minutes) {
+  var d = uitYmd(dag);
   if (!d || typeof minutes !== 'number' || !(minutes >= 0) || minutes >= 24 * 60) return null;
   d = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(minutes / 60), minutes % 60);
-  var off = -d.getTimezoneOffset();
-  var sign = off >= 0 ? '+' : '-';
-  var abs = Math.abs(off);
-  var pad = function (n) { return ('0' + n).slice(-2); };
-  return fmtYmd(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00' +
-    sign + pad(Math.floor(abs / 60)) + ':' + pad(abs % 60);
+  return format(d, "yyyy-MM-dd'T'HH:mm:ssxxx");
 }
