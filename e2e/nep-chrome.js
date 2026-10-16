@@ -21,13 +21,14 @@
   var vrij = function (msg) {
     var start = msg.from || maandag;
     var gaps = [1, 2, 4, 8, 9].map(function (n, i) { return { date: plus(start, n), startMin: 540 + i * 30, endMin: 720 + i * 30, minutes: 180 }; });
-    return { ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to || '', lastDate: msg.to || plus(start, 13), windowStart: 480, windowEnd: 1020, gaps: gaps, holidays: [] } };
+    return { ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to || '', lastDate: msg.to || plus(start, 13), windowStart: 480, windowEnd: 1020, gaps: gaps, holidays: [], onsCheck: 'ready' } };
   };
   var item = function (k, d, uur, min, client, uursoort) { var s = Date.parse(d + 'T' + uur + ':00'); return { key: (100 + k) + '|' + d + '|' + s, occurrenceId: 'occ' + k, start: s, minutes: min, client: client, late: true, uursoort: uursoort }; };
   var antwoorden = {
     'ag-get-state': function () { return { state: state }; },
     'ag-free-slots': vrij,
-    'ag-slot-check': function () { return { ok: true, status: 'ready', overlap: false }; },
+    // ONS meldt overlap aan het begin van het tweede blok (09:30).
+    'ag-slot-check': function (msg) { return { ok: true, status: 'ready', overlap: msg.startMin === 570 && !msg.clientIds }; },
     'ag-event-options': function (msg) {
       return { ok: true, metaKnown: true, labels: [{ id: 46, name: 'JG Huisbezoek' }, { id: 47, name: 'Face to face' }, { id: 48, name: 'Beeldbellen' }],
         hourTypes: Object.fromEntries((msg.clientIds || []).map(function (c) { return [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }]]; })),

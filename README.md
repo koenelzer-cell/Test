@@ -222,7 +222,14 @@ en oker).
   Tijdens het laden draait een cirkel in de knop. Ook na 'Geen vrij blok
   gevonden' staat de knop er. Opnieuw zoeken vanaf vandaag (na een wijziging)
   gaat hooguit een jaar vooruit; een wijziging
-  zoekt meteen opnieuw. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
+  zoekt meteen opnieuw. *Snelheid*: wat ONS per week teruggeeft, onthoudt de
+  hulp vijf minuten in het geheugen van de ONS-pagina (niet op schijf, weg na
+  herladen, en vergeten zodra je via het zijpaneel afspraken maakt). Een andere
+  duur, andere dagen, de weekplanning of Meer laden gebruikt die weken zonder
+  ze opnieuw op te halen. Een verre periode (Tot datum) haalt de hulp in
+  stukken van drie weken op en stopt zodra de lijst vol is; Meer laden gaat
+  daarna verder waar hij stopte. Het dagenfilter gaat mee naar het zoeken,
+  zodat de lijst ook met alleen bijvoorbeeld dinsdag en vrijdag vol wordt. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
   tikken = loslaten, ook over meerdere dagen. *Weekplanning*: een mini-agenda
@@ -239,9 +246,12 @@ en oker).
   dag in beeld komt en met de muis erover nog eens; niet bij 'minder beweging'.
   Feestdagen worden op naam herkend (niet op id: ze worden in ONS met de hand
   ingevoerd en krijgen elk jaar een ander id). Een onbekende feestdag krijgt een standaardontwerp. Goede Vrijdag
-  telt niet als feestdag (gewone werkdag). Elke gekozen
-  tijd wordt bij ONS' overlapcontrole nagekeken (melding als ONS overlap
-  ziet). De gekozen momenten staan in een vaste balk onderin met één knop
+  telt niet als feestdag (gewone werkdag). De lijst staat er meteen; daarna
+  kijkt de hulp het begin van de eerste twaalf blokken (en van de blokken die
+  Meer laden toevoegt) na bij ONS' overlapcontrole, hooguit drie tegelijk, en
+  zet een oranje rand om die begintijd als ONS overlap ziet. Elke gekozen
+  tijd wordt ook nagekeken (melding als ONS overlap ziet). Een antwoord van
+  ONS blijft vijf minuten bewaard per dag, begintijd en duur. De gekozen momenten staan in een vaste balk onderin met één knop
   'Afspraak maken (op n momenten)'; klik op de teller om de lijst te zien en
   daar momenten weg te halen of alles te wissen. 'Afspraak maken' gaat naar
   de pagina Afspraak maken (hieronder).

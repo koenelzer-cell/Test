@@ -6352,7 +6352,10 @@
         plan.busy = false;
         plan.meerBezig = false;
         if (!(res && res.ok && res.result)) plan.error = res && res.error || "Zoeken mislukt.";
-        else plan.result = res.result;
+        else {
+          plan.result = res.result;
+          nakijkenBijOns(res.result.gaps, res.result.minutes, res.result.onsCheck);
+        }
         if (pagina === "plan") setTimeout(function() {
           if (pagina === "plan" && mijn === planNr) {
             renderPagina();
@@ -6413,6 +6416,7 @@
           lastDate: r.result.lastDate || totYmd,
           afgekapt: (r.result.gaps || []).length >= MEER_MAX
         });
+        nakijkenBijOns(nieuw, r.result.minutes || res.minutes, r.result.onsCheck);
         if (pagina === "plan") setTimeout(function() {
           if (pagina === "plan" && mijn === planNr) renderPagina();
         }, 0);
@@ -7595,6 +7599,7 @@
           BEWAARD.momenten = [];
           BEWAARD.balkOpen = false;
           plan.result = null;
+          onsGezien = {};
         }
         renderPagina();
       });
@@ -8082,13 +8087,57 @@
       b.disabled = bezig;
       return b;
     }
+    var ONS_TTL = 5 * 6e4;
+    var onsGezien = {};
+    function vraagOns(date, startMin, duur, cb) {
+      var k = date + "|" + startMin + "|" + duur, c = onsGezien[k];
+      if (c && Date.now() - c.ts < ONS_TTL) {
+        cb(c.overlap);
+        return;
+      }
+      actions.onSlotCheck({ date, startMin, minutes: duur }, function(r) {
+        var klaar = r && r.status === "ready";
+        if (klaar) onsGezien[k] = { ts: Date.now(), overlap: r.overlap };
+        cb(klaar ? r.overlap : null);
+      });
+    }
+    var ONS_NAKIJK_MAX = 12;
+    var onsTekenTimer = null;
+    function onsTekenen() {
+      if (onsTekenTimer) return;
+      onsTekenTimer = setTimeout(function() {
+        onsTekenTimer = null;
+        if (pagina === "plan" && (plan.weergave || "lijst") === "lijst") renderPagina();
+      }, 40);
+    }
+    function nakijkenBijOns(gaps, duur, status) {
+      if (status !== "ready" || !actions.onSlotCheck || !(duur > 0)) return;
+      var rij = (gaps || []).slice(0, ONS_NAKIJK_MAX).filter(function(g) {
+        return g.ons === void 0;
+      });
+      var bezig = 0;
+      (function volgende() {
+        while (bezig < 3 && rij.length) {
+          var g = rij.shift();
+          bezig++;
+          (function(g2) {
+            vraagOns(g2.date, g2.startMin, duur, function(o) {
+              bezig--;
+              g2.ons = o;
+              if (o === true) onsTekenen();
+              volgende();
+            });
+          })(g);
+        }
+      })();
+    }
     function tikMoment(date, m, duur) {
       var aan = momentIndex(date, m) < 0;
       wisselMoment(date, m);
       var mo = BEWAARD.momenten[momentIndex(date, m)];
       if (aan && mo && actions.onSlotCheck) {
-        actions.onSlotCheck({ date, startMin: m, minutes: duur }, function(r) {
-          mo.ons = r && r.status === "ready" ? r.overlap : null;
+        vraagOns(date, m, duur, function(o) {
+          mo.ons = o;
           setTimeout(function() {
             if (pagina === "plan") renderPagina();
           }, 0);

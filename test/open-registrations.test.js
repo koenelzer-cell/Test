@@ -321,7 +321,8 @@ test('planhulp: zoeken tot en met een datum', async () => {
   const vandaag = new Date();
   const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
   const tot = new Date(vandaag); tot.setDate(tot.getDate() + 60);
-  const r = await api.findFreeSlots(60, 1, ymd(tot));
+  // Alle blokken (veel): de lijst raakt niet vol, dus alle weken tot die datum.
+  const r = await api.findFreeSlots(60, 1, ymd(tot), false, true);
   assert.equal(r.to, ymd(tot));
   assert.equal(r.lastDate, ymd(tot));
   assert.ok(weken.size >= 9, 'alle weken tot die datum opgehaald (' + weken.size + ')');
@@ -333,6 +334,67 @@ test('planhulp: zoeken tot en met een datum', async () => {
   assert.equal(r2.lastDate, ymd(teVer), 'ook ver weg één week ophalen');
   const gisteren = new Date(vandaag); gisteren.setDate(gisteren.getDate() - 1);
   await assert.rejects(api.findFreeSlots(60, 1, ymd(gisteren)), /vanaf vandaag/);
+});
+
+test('planhulp: een verre periode stopt zodra de lijst vol is; Meer laden gaat verder waar hij stopte', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const verzoeken = [];
+  window.fetch = (url) => { verzoeken.push(url); return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  const ymd = (d) => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  const tot = new Date(); tot.setDate(tot.getDate() + 180);
+  const r = await api.findFreeSlots(60, 1, ymd(tot), false, false, '', null, 5);
+  const weken = new Set(verzoeken.filter((u) => /date=/.test(u)).map((u) => /date=([\d-]+)/.exec(u)[1]));
+  assert.equal(r.gaps.length, 5);
+  assert.equal(weken.size, 3, 'alleen het eerste stuk van drie weken, niet een half jaar');
+  const laatsteWeek = [...weken].sort().at(-1);
+  const zondag = new Date(laatsteWeek + 'T00:00:00'); zondag.setDate(zondag.getDate() + 6);
+  assert.equal(r.lastDate, ymd(zondag), 'lastDate: de laatste dag die echt bekeken is');
+  assert.equal(r.to, ymd(tot), 'to blijft de gevraagde datum');
+  assert.equal(verzoeken.filter((u) => /date=/.test(u)).length, 3 * 5 * 2, 'vijf lagen per week, voor beide agenda\'s');
+});
+
+test('planhulp: opgehaalde weken blijven even onthouden (andere duur, dagen of Meer laden zonder nieuwe verzoeken)', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  let aantal = 0;
+  window.fetch = (url) => { if (/date=/.test(url)) aantal++; return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  await api.findFreeSlots(60, 2);
+  const eerst = aantal;
+  assert.ok(eerst >= 10, 'eerste keer: alles ophalen (' + eerst + ')');
+  await api.findFreeSlots(90, 2);
+  await api.findFreeSlots(30, 2, '', false, false, '', [2, 4]);
+  assert.equal(aantal, eerst, 'andere duur of dagen: uit het geheugen');
+  api.forgetFreeSlots();
+  await api.findFreeSlots(60, 2);
+  assert.equal(aantal, eerst * 2, 'na het maken van afspraken: opnieuw ophalen');
+  // Mislukt een week, dan wordt die niet onthouden.
+  api.forgetFreeSlots();
+  let kapot = true;
+  window.fetch = (url) => { if (/date=/.test(url)) aantal++; return kapot && /layer=events/.test(url) ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve(null) }) : Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  await assert.rejects(api.findFreeSlots(60, 2));
+  // Opnieuw proberen gebeurt later (een verzoek dat nog loopt, wordt gedeeld).
+  await new Promise((r) => setTimeout(r, 20));
+  kapot = false;
+  const r = await api.findFreeSlots(60, 2);
+  assert.ok(r.gaps.length > 0, 'de volgende keer gewoon opnieuw');
+});
+
+test('planhulp: het weekdagfilter gaat mee naar het zoeken', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  const r = await api.findFreeSlots(60, 4, '', false, false, '', [2, 5], 6);
+  assert.equal(r.gaps.length, 6, 'zes blokken op dinsdag en vrijdag, niet minder na filteren');
+  assert.deepEqual([...new Set(r.gaps.map((g) => new Date(g.date + 'T00:00:00').getDay()))].sort(), [2, 5]);
+});
+
+test('planhulp: de overlapcontrole van ONS zit niet meer in het zoeken (dat doet het zijpaneel daarna)', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const urls = [];
+  window.fetch = (url) => { urls.push(url); return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  const r = await api.findFreeSlots(60, 1);
+  assert.ok(r.gaps.length > 0);
+  assert.ok(r.gaps.every((g) => g.ons === undefined), 'geen ons per blok');
+  assert.equal(urls.filter((u) => /overlap/.test(u)).length, 0, 'geen overlapverzoeken');
+  assert.ok('onsCheck' in r, 'wel of de controle bekend is');
 });
 
 test('planhulp: het gevraagde aantal blokken telt (lijst en Meer laden)', async () => {

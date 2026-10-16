@@ -96,6 +96,8 @@ for (const breedte of [340, 420]) {
     test('planhulp: lijst, weekplanning en instellingen', async ({ page }, testInfo) => {
       await page.locator('[data-hulp="plan"]').click();
       await expect(page.locator('[data-dag][data-start]').first()).toBeVisible();
+      // ONS kijkt na nadat de lijst er staat; de waarschuwing komt er later bij.
+      await expect(page.locator('[data-ons-overlap][data-start="09:30"]')).toHaveCount(1);
       await controleer(page, testInfo, 'plan-lijst');
       await page.locator('[data-plan-meer]').click();
       await expect(page.locator('[data-plan-meer]')).toBeVisible();

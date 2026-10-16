@@ -205,6 +205,16 @@ eigen afspraak vallen eruit. Het sjabloon (alleen rollen en korte vaste
 waarden, geen tijden of id's) staat in de localStorage van de ONS-pagina
 (`onsHelper.eventOverlapTemplate`). Zonder sjabloon, of als het antwoord niet
 te lezen is, doet de planhulp geen ONS-controle en rekent hij alleen zelf.
+Het zoeken zelf (`findFreeSlots`) vraagt ONS niets na: het geeft alleen
+`onsCheck` mee (of de controle bekend is). Het zijpaneel kijkt de eerste
+blokken daarna na met `ag-slot-check`, zodat de lijst niet op ONS wacht.
+
+Planhulp en snelheid (`features/agenda/free-slots.js`): de vijf lagen per
+week en agenda blijven vijf minuten in het geheugen van de pagina
+(`weekGeheugen`, alleen velden uit `mapAgendaEntry`; `vergeetWeken` na
+afspraken maken). Een periode van meer dan drie weken wordt in stukken van
+drie weken opgehaald; zodra er genoeg blokken zijn, stopt het en is
+`lastDate` de laatste bekeken dag, waar Meer laden verdergaat.
 
 Meerdere momenten: de planhulp zet de overige momenten (datum en begintijd)
 klaar in sessionStorage (`onsHelper.pendingDuplicates`, een half uur geldig,

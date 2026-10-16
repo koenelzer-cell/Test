@@ -1195,7 +1195,7 @@ export function create(host, actions) {
       if (BEWAARD.plan !== voor || mijn !== planNr) return;
       plan.busy = false; plan.meerBezig = false;
       if (!(res && res.ok && res.result)) plan.error = (res && res.error) || 'Zoeken mislukt.';
-      else plan.result = res.result;
+      else { plan.result = res.result; nakijkenBijOns(res.result.gaps, res.result.minutes, res.result.onsCheck); }
       if (pagina === 'plan') setTimeout(function () { if (pagina === 'plan' && mijn === planNr) { renderPagina(); misschienRondleiding(); } }, 0);
     }, plan.tot, false, false, '', gekozenDagen(), plan.limit || PLAN_STAP);
   }
@@ -1235,6 +1235,7 @@ export function create(host, actions) {
       plan.tot = totYmd;   // de periode loopt nu tot en met deze dag
       plan.result = Object.assign({}, res, { gaps: gaps.concat(nieuw), holidays: feest, to: totYmd, lastDate: r.result.lastDate || totYmd,
         afgekapt: (r.result.gaps || []).length >= MEER_MAX });
+      nakijkenBijOns(nieuw, r.result.minutes || res.minutes, r.result.onsCheck);
       if (pagina === 'plan') setTimeout(function () { if (pagina === 'plan' && mijn === planNr) renderPagina(); }, 0);
     }, totYmd, false, false, van, gekozenDagen(), MEER_MAX);
   }
@@ -2077,7 +2078,7 @@ export function create(host, actions) {
       if (!(res && res.ok)) { mk.error = (res && res.error) || 'Maken mislukt.'; renderPagina(); return; }
       mk.uitslag = res.results || [];
       // Wat gelukt is, bezet nu tijd: de planhulp zoekt straks opnieuw.
-      if (mk.uitslag.some(function (r) { return r && r.ok; })) { BEWAARD.momenten = []; BEWAARD.balkOpen = false; plan.result = null; }
+      if (mk.uitslag.some(function (r) { return r && r.ok; })) { BEWAARD.momenten = []; BEWAARD.balkOpen = false; plan.result = null; onsGezien = {}; }
       renderPagina();
     });
   }
@@ -2389,14 +2390,57 @@ export function create(host, actions) {
     b.disabled = bezig;
     return b;
   }
+  // ONS' eigen overlapcontrole voor één begintijd. Een antwoord blijft even
+  // bewaard (per dag, begintijd en duur), zodat een andere duur en weer terug,
+  // of andere dagen, ONS niet opnieuw vraagt. cb(overlap): true, false of null.
+  var ONS_TTL = 5 * 60000;
+  var onsGezien = {};
+  function vraagOns(date, startMin, duur, cb) {
+    var k = date + '|' + startMin + '|' + duur, c = onsGezien[k];
+    if (c && Date.now() - c.ts < ONS_TTL) { cb(c.overlap); return; }
+    actions.onSlotCheck({ date: date, startMin: startMin, minutes: duur }, function (r) {
+      var klaar = r && r.status === 'ready';
+      if (klaar) onsGezien[k] = { ts: Date.now(), overlap: r.overlap };
+      cb(klaar ? r.overlap : null);
+    });
+  }
+  // Eerst de lijst, dan ONS: het begin van de eerste blokken wordt pas
+  // nagekeken als de lijst er al staat (hooguit drie vragen tegelijk). Een
+  // waarschuwing verschijnt zodra ONS antwoordt. Alleen als de hulp ONS'
+  // controle kent (onsCheck 'ready').
+  var ONS_NAKIJK_MAX = 12;
+  var onsTekenTimer = null;
+  function onsTekenen() {
+    if (onsTekenTimer) return;
+    onsTekenTimer = setTimeout(function () { onsTekenTimer = null; if (pagina === 'plan' && (plan.weergave || 'lijst') === 'lijst') renderPagina(); }, 40);
+  }
+  function nakijkenBijOns(gaps, duur, status) {
+    if (status !== 'ready' || !actions.onSlotCheck || !(duur > 0)) return;
+    var rij = (gaps || []).slice(0, ONS_NAKIJK_MAX).filter(function (g) { return g.ons === undefined; });
+    var bezig = 0;
+    (function volgende() {
+      while (bezig < 3 && rij.length) {
+        var g = rij.shift();
+        bezig++;
+        (function (g) {
+          vraagOns(g.date, g.startMin, duur, function (o) {
+            bezig--;
+            g.ons = o;
+            if (o === true) onsTekenen();
+            volgende();
+          });
+        })(g);
+      }
+    })();
+  }
   // Een begintijd kiezen of loslaten; bij kiezen ook ONS' overlapcontrole.
   function tikMoment(date, m, duur) {
     var aan = momentIndex(date, m) < 0;
     wisselMoment(date, m);
     var mo = BEWAARD.momenten[momentIndex(date, m)];
     if (aan && mo && actions.onSlotCheck) {
-      actions.onSlotCheck({ date: date, startMin: m, minutes: duur }, function (r) {
-        mo.ons = r && r.status === 'ready' ? r.overlap : null;
+      vraagOns(date, m, duur, function (o) {
+        mo.ons = o;
         setTimeout(function () { if (pagina === 'plan') renderPagina(); }, 0);
       });
     }

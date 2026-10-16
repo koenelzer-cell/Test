@@ -13,7 +13,7 @@ import { viewedInviteeIds } from './navigation.js';
 import { checkOpenRange, defaultRangeFrom } from './open-range.js';
 import { computeProduction, defaultProductionFrom } from './production.js';
 import { fetchWeekRatio } from './week-ratio.js';
-import { findFreeSlots, weekdagen } from './free-slots.js';
+import { findFreeSlots, vergeetWeken, weekdagen } from './free-slots.js';
 import { resolveInviteeId, currentAgendaDate } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -27,6 +27,8 @@ function aan(k) { return !(APP_CONFIG.features && APP_CONFIG.features[k] === fal
 const TTL = { ratio: 5 * 60000, plan: 5 * 60000, open: 10 * 60000, productie: 30 * 60000 };
 // Hooguit zo vaak vooraf laden (en dan alleen wat verlopen is).
 const VOORAF_INTERVAL = 5 * 60000;
+// Hoeveel vrije blokken de lijst in het zijpaneel eerst vraagt (PLAN_STAP daar).
+const PLAN_STANDAARD_AANTAL = 24;
 const _cache = Object.create(null);
 
 function idsSleutel() { return viewedInviteeIds(resolveInviteeId()).join(','); }
@@ -108,13 +110,16 @@ export function preloadPanelData(force) {
   const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {});
   Promise.resolve()
     .then(stap(() => aan('weekRatio') && cachedWeekRatio(currentAgendaDate())))
-    .then(stap(() => aan('planner') && cachedFreeSlots(60, 2)))
+    // Zoals het zijpaneel standaard zoekt (1 uur, 2 weken, 24 blokken), zodat
+    // de Planhulp meteen gevuld is.
+    .then(stap(() => aan('planner') && cachedFreeSlots(60, 2, '', false, false, '', null, PLAN_STANDAARD_AANTAL)))
     .then(stap(() => aan('openRegistrations') && cachedOpenRange(defaultRangeFrom(), vandaag)))
     .then(stap(() => aan('production') && cachedProduction(defaultProductionFrom(), defaultProductionTo())))
     .then(() => { _bezig = false; }, () => { _bezig = false; });
 }
 
 // Alleen voor de tests.
-// Na het maken van afspraken: de vrije tijd klopt niet meer, dus opnieuw ophalen.
-export function forgetFreeSlots() { Object.keys(_cache).forEach((k) => { if (k.indexOf('plan|') === 0) delete _cache[k]; }); }
-export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; }
+// Na het maken van afspraken: de vrije tijd klopt niet meer, dus opnieuw ophalen
+// (ook de onthouden weken).
+export function forgetFreeSlots() { Object.keys(_cache).forEach((k) => { if (k.indexOf('plan|') === 0) delete _cache[k]; }); vergeetWeken(); }
+export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); vergeetWeken(); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; }

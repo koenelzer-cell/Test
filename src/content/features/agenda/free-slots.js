@@ -2,6 +2,10 @@
 // duur. Haalt per week alles op wat tijd kan bezetten (ONS-afspraken,
 // onbeschikbaarheid, Outlook-afspraken, geplande bezoeken) en rekent in
 // domain/free-slots.js.
+//
+// Snelheid: opgehaalde weken blijven even in het geheugen (weekGeheugen), een
+// verre periode wordt in stukken opgehaald tot de lijst vol is, en de
+// overlapcontrole van ONS doet het zijpaneel pas als de lijst er al staat.
 
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { activeZones } from './zones.js';
@@ -12,6 +16,7 @@ import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domai
 import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { holidaysBetween, parseHolidays } from '../../domain/holidays.js';
+import { plusDagen } from '../../../shared/datum.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { weekEntries } from '../../services/ons-api/formaat.js';
@@ -65,7 +70,31 @@ export function holidays() {
 }
 export function _forgetHolidays() { feestdagenBelofte = null; }
 
-var ONS_CONTROLE_MAX = 12;
+// Wat ONS per week en laag teruggaf, een paar minuten onthouden: alleen in
+// het geheugen van deze pagina (weg na herladen), en alleen de neutrale
+// velden uit mapAgendaEntry. Een andere duur, andere dagen, de weekplanning of
+// Meer laden gebruikt zo de weken die er al zijn. Na het maken van afspraken
+// vergeet de hulp ze (vergeetWeken).
+var WEEK_TTL = 5 * 60000;
+var weekGeheugen = Object.create(null);
+export function vergeetWeken() { weekGeheugen = Object.create(null); }
+function weekLaag(sjabloon, laag, start, id, wachtrij) {
+  var k = sjabloon + '|' + id + '|' + start, nu = Date.now();
+  var c = weekGeheugen[k];
+  if (c && nu - c.ts < WEEK_TTL) return c.belofte;
+  Object.keys(weekGeheugen).forEach(function (x) { if (nu - weekGeheugen[x].ts >= WEEK_TTL) delete weekGeheugen[x]; });
+  var nieuw = { ts: nu, belofte: null };
+  nieuw.belofte = wachtrij(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
+    .then(function (j) { return weekEntries(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
+  // Mislukt: niet onthouden, de volgende zoekactie probeert het opnieuw.
+  nieuw.belofte.catch(function () { if (weekGeheugen[k] === nieuw) delete weekGeheugen[k]; });
+  weekGeheugen[k] = nieuw;
+  return nieuw.belofte;
+}
+// Zoveel weken per keer. Een korte periode (tot drie weken) gaat in één keer;
+// een verre periode stopt na het stuk waarin de lijst vol raakt.
+var WEKEN_PER_KEER = 3;
+
 export function maxBlokken(limiet, standaard) {
   var n = parseInt(limiet, 10);
   return n > 0 ? Math.min(400, n) : standaard;
@@ -122,8 +151,9 @@ function huisbezoekenPerDag(alles, datums) {
 // ook de postcodes van de afspraken op die dagen meegeven (afstand).
 // Staan er meerdere agenda's open (/invitees/13970,45267/...), dan zoekt hij
 // tijd waarop IEDEREEN vrij is: alles wat bij één van hen bezet is, telt als
-// bezet. veel: alle vrije blokken in de periode (meerdere afspraken plannen);
-// dan geen ONS-controle per blok (het zijpaneel controleert het voorstel).
+// bezet. veel: alle vrije blokken in de periode (meerdere afspraken plannen).
+// ONS' eigen overlapcontrole per blok doet het zijpaneel, als de lijst er al
+// staat (onsCheck zegt of die controle bekend is).
 // van: 'YYYY-MM-DD' (optioneel, met tot): zoeken vanaf die dag i.p.v. vandaag,
 // zonder grens hoe ver vooruit (weekraster: één week per keer).
 // dagen: [1..5] (optioneel): alleen vrije tijd op deze weekdagen (1 = maandag).
@@ -136,7 +166,8 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
   var nu = new Date();
   var vandaag = nu;
-  var dagen = weeks * 7;
+  // Aantal kalenderdagen. (Niet 'dagen' noemen: dat is het weekdagfilter.)
+  var aantalDagen = weeks * 7;
   var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || '')) ? String(tot) : '';
   // Vanaf een latere dag (middernacht): dan telt 'nu' niet mee.
   var vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || '')) ? String(van) : '';
@@ -150,47 +181,47 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
     var p = totDatum.split('-');
     var eind = new Date(+p[0], +p[1] - 1, +p[2]);
     var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
-    dagen = Math.round((eind - begin) / 86400000) + 1;
-    if (dagen < 1) return Promise.reject(new Error('Kies een datum vanaf vandaag.'));
-    if (dagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een jaar.'));
+    aantalDagen = Math.round((eind - begin) / 86400000) + 1;
+    if (aantalDagen < 1) return Promise.reject(new Error('Kies een datum vanaf vandaag.'));
+    if (aantalDagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een jaar.'));
   }
-  var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + dagen - 1);
-  var weken = weekStartsBetween(agendaYmd(vandaag), agendaYmd(laatste));
+  var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + aantalDagen - 1);
+  var laatsteYmd = agendaYmd(laatste);
+  var weken = weekStartsBetween(agendaYmd(vandaag), laatsteYmd);
+  var maxRes = veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12);
   // Hooguit 4 verzoeken tegelijk naar ONS. (Niet 'limiet' noemen: dat is
   // het aantal blokken dat het zijpaneel vraagt.)
   var wachtrij = createLimiter(4);
-  var haal = function (sjabloon, laag, start, id) {
-    return wachtrij(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
-      .then(function (j) { return weekEntries(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
-  };
   var zonder = function () { return []; };
-  var taken = [];
-  ids.forEach(function (id) {
-    weken.forEach(function (start) {
-      taken.push(Promise.all([
-        haal('weekEvents', 'events', start, id),
+  var week = function (start) {
+    return Promise.all(ids.map(function (id) {
+      return Promise.all([
+        weekLaag('weekEvents', 'events', start, id, wachtrij),
         // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
-        haal('weekUnavailabilities', 'unavailabilities', start, id).catch(zonder),
-        haal('weekOutlook', 'outlook_appointments', start, id).catch(zonder),
-        haal('weekPlannedVisits', 'planned_visits', start, id).catch(zonder),
-        haal('weekReservations', 'reservations', start, id).catch(zonder)
-      ]));
-    });
-  });
-  return Promise.all([Promise.all(taken), holidays()]).then(function (r) {
-    var perWeek = r[0];
+        weekLaag('weekUnavailabilities', 'unavailabilities', start, id, wachtrij).catch(zonder),
+        weekLaag('weekOutlook', 'outlook_appointments', start, id, wachtrij).catch(zonder),
+        weekLaag('weekPlannedVisits', 'planned_visits', start, id, wachtrij).catch(zonder),
+        weekLaag('weekReservations', 'reservations', start, id, wachtrij).catch(zonder)
+      ]);
+    }));
+  };
+  var plat = function (a) { return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a]; };
+  var win = workWindow();
+  // Vrije blokken in wat er tot nu toe is opgehaald (t/m eindYmd).
+  function reken(alles, fd, eindYmd) {
+    var eindDag = new Date(+eindYmd.slice(0, 4), +eindYmd.slice(5, 7) - 1, +eindYmd.slice(8, 10));
+    var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+    var dagenTot = Math.round((eindDag - begin) / 86400000) + 1;
     // Op een feestdag geen vrije tijd.
-    var feest = holidaysBetween(r[1], agendaYmd(vandaag), agendaYmd(laatste));
+    var feest = holidaysBetween(fd, agendaYmd(vandaag), eindYmd);
     var isFeest = {}; feest.forEach(function (h) { isFeest[h.date] = true; });
-    var alles = [].concat.apply([], perWeek.map(function (w) { return [].concat.apply([], w); }));
     // Reserveringen houden tijd vast maar bezetten hem niet: apart houden.
     var isRes = function (e) { return e.layer === 'reservations' || e.type === 'reservation'; };
     var reserveringen = reservationBlocks(alles.filter(isRes));
-    alles = alles.filter(function (e) { return !isRes(e); });
-    var win = workWindow();
-    var gaps = findFreeGaps(alles, {
-      now: startMs, days: dagen, minMinutes: minutes, stepMin: 15,
-      windowStart: win.start, windowEnd: win.end, maxResults: veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12),
+    var bezet = alles.filter(function (e) { return !isRes(e); });
+    var gaps = findFreeGaps(bezet, {
+      now: startMs, days: dagenTot, minMinutes: minutes, stepMin: 15,
+      windowStart: win.start, windowEnd: win.end, maxResults: maxRes,
       skipDates: isFeest, weekdays: weekdagen(dagen)
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
@@ -198,23 +229,28 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
     gaps.forEach(function (g) {
       g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
     });
-    var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: agendaYmd(laatste), windowStart: win.start, windowEnd: win.end, gaps: gaps, holidays: feest, invitees: ids.length, onsCheck: overlapCheckStatus() };
-    var datums = {}; gaps.forEach(function (g) { datums[g.date] = true; });
-    var bezoeken = metBezoeken ? huisbezoekenPerDag(alles, datums).then(function (v) { res.visits = v; }, function () { res.visits = {}; }) : Promise.resolve();
-    return bezoeken.then(function () { return onsNakijken(res); });
-  });
-  function onsNakijken(res) {
-    if (res.onsCheck !== 'ready' || veel) return res;
-    // Alleen de eerste blokken (zoveel als vroeger): 'Meer laden' kost zo
-    // geen extra controles bij ONS.
-    var gaps = res.gaps.slice(0, ONS_CONTROLE_MAX);
-    // Kent de hulp ONS' eigen overlapcontrole, dan per blok het begin (met de
-    // gekozen duur) daar ook nakijken. Lukt dat niet, dan blijft ons null.
-    var nakijk = createLimiter(3);
-    return Promise.all(gaps.map(function (g) {
-      return nakijk(function () {
-        return fetchEventOverlap({ ids: ids, date: g.date, startMin: g.startMin, endMin: g.startMin + minutes });
-      }).then(function (o) { g.ons = o; }, function () { g.ons = null; });
-    })).then(function () { return res; });
+    return { bezet: bezet, gaps: gaps, feest: feest };
   }
+  // Een stuk weken ophalen en rekenen; is de lijst nog niet vol, dan het
+  // volgende stuk. lastDate is de laatste dag die echt bekeken is: daar gaat
+  // Meer laden verder.
+  function stuk(i, alles) {
+    var deze = weken.slice(i, i + WEKEN_PER_KEER);
+    return Promise.all([Promise.all(deze.map(week)), holidays()]).then(function (r) {
+      alles = alles.concat(plat(r[0]));
+      var klaar = i + WEKEN_PER_KEER >= weken.length;
+      var zondag = plusDagen(deze[deze.length - 1], 6);
+      var eindYmd = klaar || zondag > laatsteYmd ? laatsteYmd : zondag;
+      var u = reken(alles, r[1], eindYmd);
+      if (!klaar && u.gaps.length < maxRes) return stuk(i + WEKEN_PER_KEER, alles);
+      var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: eindYmd, windowStart: win.start, windowEnd: win.end, gaps: u.gaps, holidays: u.feest, invitees: ids.length,
+        // Of ONS' overlapcontrole bekend is: dan kijkt het zijpaneel de eerste
+        // blokken daar na, als de lijst er al staat.
+        onsCheck: overlapCheckStatus() };
+      if (!metBezoeken) return res;
+      var datums = {}; u.gaps.forEach(function (g) { datums[g.date] = true; });
+      return huisbezoekenPerDag(u.bezet, datums).then(function (v) { res.visits = v; return res; }, function () { res.visits = {}; return res; });
+    });
+  }
+  return stuk(0, []);
 }

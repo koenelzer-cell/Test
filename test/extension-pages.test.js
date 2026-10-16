@@ -966,6 +966,36 @@ async function kiesClient(document, dom, sleutel, naam) {
 }
 const kies = (document, dom, sel, v) => { const s = document.querySelector(sel); s.value = v; s.dispatchEvent(new dom.window.Event('change')); };
 
+test('zijpaneel: planhulp toont de lijst meteen en kijkt daarna de eerste blokken na bij ONS', async () => {
+  const dagen = ['2026-10-08', '2026-10-09', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16'];
+  const gaps = [].concat(...dagen.map((date) => [{ date, startMin: 540, endMin: 660, minutes: 120 }, { date, startMin: 780, endMin: 900, minutes: 120 }]));
+  const wacht = [];
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, onsCheck: 'ready', gaps: gaps.map((g) => ({ ...g })) } }),
+    'ag-slot-check': (msg, cb) => wacht.push(() => cb({ ok: true, status: 'ready', overlap: msg.date === '2026-10-09' && msg.startMin === 780 })),
+  });
+  const vragen = (min) => verzonden.filter((m) => m.type === 'ag-slot-check' && (min == null || m.minutes === min));
+  const afhandelen = async () => { while (wacht.length) wacht.shift()(); await new Promise((r) => setTimeout(r, 60)); };
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.ok(document.querySelector('[data-dag="2026-10-08"][data-start="09:00"]'), 'de lijst staat er al');
+  assert.equal(document.querySelector('[data-ons-overlap]'), null, 'nog geen antwoord van ONS');
+  assert.equal(vragen().length, 3, 'hooguit drie vragen tegelijk');
+  await afhandelen();
+  assert.equal(vragen(60).length, 12, 'alleen het begin van de eerste twaalf blokken');
+  assert.ok(document.querySelector('[data-dag="2026-10-09"][data-start="13:00"][data-ons-overlap]'), 'de waarschuwing komt erbij');
+  assert.equal(document.querySelector('[data-dag="2026-10-09"][data-start="09:00"][data-ons-overlap]'), null);
+  // Andere duur en weer terug: wat ONS al zei, wordt niet opnieuw gevraagd.
+  document.querySelector('[data-plan-duur="90"]').click();
+  await tick(); await afhandelen();
+  assert.equal(vragen(90).length, 12);
+  document.querySelector('[data-plan-duur="60"]').click();
+  await tick(); await afhandelen();
+  assert.equal(vragen(60).length, 12, 'uit het geheugen');
+  assert.ok(document.querySelector('[data-dag="2026-10-09"][data-start="13:00"][data-ons-overlap]'), 'en meteen weer de waarschuwing');
+});
+
 test('zijpaneel: planhulp is één scherm zonder cliënt en huisbezoek', async () => {
   const { document } = maakPaneel();
   await tick();
