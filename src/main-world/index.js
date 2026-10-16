@@ -372,17 +372,19 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
     }, 80);
   }
-  /* Uursoort per cliënt: het veld uc-select[data-qa=hour_type_select] meldt
+  /* Uursoort per cliënt (en op afspraakniveau bij een niet-cliëntgebonden
+     afspraak): het veld uc-select[data-qa=hour_type_select] meldt
      een keuze via onUpdate:modelValue(id, omschrijving) (bij ONS:
      emit('update:invitation', { hour_type_id, hour_type_description })). Het
      content-script geeft het veld van de juiste cliënt even het kenmerk
      data-onsah-doel en stuurt id en naam uit ONS' eigen productlijst mee. */
-  function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && e.getAttribute('data-qa') === 'hour_type_select'); }
+  // Per cliënt én op afspraakniveau (niet cliëntgebonden, alleen zonder cliënt).
+  function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && (e.getAttribute('data-qa') === 'hour_type_select' || e.getAttribute('aria-label') === 'Uursoort')); }
   function uursoortVeldBij(doel) {
     for (var e = doel, n = 0; e && n < 30; e = e.parentElement || (e.getRootNode && e.getRootNode().host) || null, n++) {
       if (isUursoortVeld(e)) return e;
     }
-    return diepZoek(doel, 'uc-select[data-qa="hour_type_select"]');
+    return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
   }
   function zetUursoort(d, klaar) {
     var doelNaam = String(d.doel || '');

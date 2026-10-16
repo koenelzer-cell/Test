@@ -398,13 +398,13 @@
       }, 80);
     }
     function isUursoortVeld(e) {
-      return !!(e && e.tagName === "UC-SELECT" && e.getAttribute("data-qa") === "hour_type_select");
+      return !!(e && e.tagName === "UC-SELECT" && (e.getAttribute("data-qa") === "hour_type_select" || e.getAttribute("aria-label") === "Uursoort"));
     }
     function uursoortVeldBij(doel) {
       for (var e = doel, n = 0; e && n < 30; e = e.parentElement || e.getRootNode && e.getRootNode().host || null, n++) {
         if (isUursoortVeld(e)) return e;
       }
-      return diepZoek(doel, 'uc-select[data-qa="hour_type_select"]');
+      return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
     }
     function zetUursoort(d, klaar) {
       var doelNaam = String(d.doel || "");

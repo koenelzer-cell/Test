@@ -89,6 +89,7 @@ import {
 } from './features/appointment/labels.js';
 import { enforceAppointmentEndTime } from './features/appointment/end-time.js';
 import { zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
+import { nietClientUursoortMetId } from './features/appointment/uursoort-source.js';
 import {
   clearAppointmentSnapshot,
   clearSettings,
@@ -207,6 +208,7 @@ export function exposeTestApi() {
     setLabelsExclusive,
     zetLabelsViaFormulier,
     zetUursoortViaFormulier,
+    nietClientUursoortMetId,
     entryUursoortIsSet,
     // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
     // meerdere-cliënten-flow en de schermherkenning.

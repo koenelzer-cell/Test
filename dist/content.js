@@ -9680,6 +9680,15 @@
   async function fetchProductOptions(req) {
     return parseProductOptions(await productJson(req));
   }
+  var zonderClientCache = /* @__PURE__ */ Object.create(null);
+  async function fetchEmployeeProductOptions(employeeId) {
+    const url = _apiUrl("employeeProductOptions", { employeeId });
+    const c = zonderClientCache[url];
+    if (c && Date.now() - c.ts < PRODUCT_LIST_TTL_MS) return c.lijst.slice();
+    const lijst = parseProductOptions(controleerOns("productlijst", await getJson(url)), { alleGroepen: true });
+    if (lijst.length) zonderClientCache[url] = { ts: Date.now(), lijst: lijst.slice() };
+    return lijst;
+  }
 
   // src/content/features/appointment/uursoort-source.js
   function clientScope(context2, trigger) {
@@ -9745,6 +9754,14 @@
     const opties = await fetchProductOptions({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
     const w = clean(naam);
     return opties.filter((o) => clean(o.name) === w)[0] || null;
+  }
+  async function nietClientUursoortMetId(naam) {
+    const employeeId = await getEmployeeIdAsync();
+    if (!employeeId) return null;
+    const opties = await fetchEmployeeProductOptions(employeeId);
+    const kaal = (s) => clean(s).replace(/[*#\s]+$/, "");
+    const w = clean(naam), wk = kaal(naam);
+    return opties.filter((o) => clean(o.name) === w)[0] || opties.filter((o) => kaal(o.name) === wk)[0] || null;
   }
   function prefetchClientUursoorten(context2, trigger) {
     try {
@@ -15012,7 +15029,23 @@
     };
     selectNonClientUursoort(name, done);
   }
-  function selectNonClientUursoort(text2, onResult, attempt = 0) {
+  function selectNonClientUursoort(text2, onResult) {
+    const trigger = findNonClientUursoortTrigger();
+    const viaFormulier = async () => {
+      try {
+        if (!trigger) return false;
+        const optie = await nietClientUursoortMetId(text2);
+        return optie ? await zetUursoortViaFormulier(trigger, optie.id, optie.name) : false;
+      } catch (e) {
+        return false;
+      }
+    };
+    viaFormulier().then((ok) => {
+      if (ok) onResult(true);
+      else selectNonClientUursoortViaDropdown(text2, onResult);
+    });
+  }
+  function selectNonClientUursoortViaDropdown(text2, onResult, attempt = 0) {
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (!trigger) {
       onResult(false);
@@ -15031,7 +15064,7 @@
         const ok = clickExactDropdownOption(trigger, [text2, loose].filter(Boolean));
         if (!ok && attempt < 5) {
           clickEmptyModalSpot();
-          setTimeout(() => selectNonClientUursoort(text2, onResult, attempt + 1), 120);
+          setTimeout(() => selectNonClientUursoortViaDropdown(text2, onResult, attempt + 1), 120);
           return;
         }
         setTimeout(() => {
@@ -15911,7 +15944,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.274";
+      return "1.6.275";
     }
   }();
 
@@ -20503,6 +20536,7 @@
       setLabelsExclusive,
       zetLabelsViaFormulier,
       zetUursoortViaFormulier,
+      nietClientUursoortMetId,
       entryUursoortIsSet,
       // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
       // meerdere-cliënten-flow en de schermherkenning.

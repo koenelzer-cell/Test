@@ -25,7 +25,7 @@ import { appointmentFlow } from '../../state.js';
 import { findNonClientUursoortTrigger } from './non-client.js';
 import { deepQueryAll } from '../../ons/dom.js';
 import { zetUursoortViaFormulier } from '../../ons/form-model.js';
-import { uursoortMetId } from './uursoort-source.js';
+import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
 
 // Zet de uursoort op het afspraak-detailniveau (combobox "Zoek naar uursoorten")
 // door de exacte naam (incl. sterretje) te zoeken en aan te klikken.
@@ -35,7 +35,20 @@ export function setAppointmentUursoortByName(name, onDone) {
   // daarom hetzelfde pad (selectNonClientUursoort -> selectLabel-principe).
   selectNonClientUursoort(name, done);
 }
-function selectNonClientUursoort(text, onResult, attempt = 0) {
+// Eerst rechtstreeks in het formulier (geen dropdown): het uursoortveld op
+// afspraakniveau, dat er alleen is zolang er geen cliënt aan de afspraak hangt.
+function selectNonClientUursoort(text, onResult) {
+  const trigger = findNonClientUursoortTrigger();
+  const viaFormulier = async () => {
+    try {
+      if (!trigger) return false;
+      const optie = await nietClientUursoortMetId(text);
+      return optie ? await zetUursoortViaFormulier(trigger, optie.id, optie.name) : false;
+    } catch (e) { return false; }
+  };
+  viaFormulier().then((ok) => { if (ok) onResult(true); else selectNonClientUursoortViaDropdown(text, onResult); });
+}
+function selectNonClientUursoortViaDropdown(text, onResult, attempt = 0) {
   // Zelfde patroon als selectLabel: clickElementCenter opent de dropdown,
   // zoekterm typen (zonder * en #), dan exacte optie klikken.
   const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
@@ -50,7 +63,7 @@ function selectNonClientUursoort(text, onResult, attempt = 0) {
       const ok = clickExactDropdownOption(trigger, [text, loose].filter(Boolean));
       if (!ok && attempt < 5) {
         clickEmptyModalSpot();
-        setTimeout(() => selectNonClientUursoort(text, onResult, attempt + 1), 120);
+        setTimeout(() => selectNonClientUursoortViaDropdown(text, onResult, attempt + 1), 120);
         return;
       }
       setTimeout(() => { clickEmptyModalSpot(); onResult(!!ok); }, 50);

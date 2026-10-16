@@ -65,3 +65,14 @@ export async function fetchProductList(req) {
 export async function fetchProductOptions(req) {
   return parseProductOptions(await productJson(req));
 }
+// Uursoorten zonder cliënt (niet cliëntgebonden afspraak), met id: alle
+// groepen behalve 'Niet …', zoals Afspraak maken in het zijpaneel.
+const zonderClientCache = Object.create(null);
+export async function fetchEmployeeProductOptions(employeeId) {
+  const url = _apiUrl('employeeProductOptions', { employeeId: employeeId });
+  const c = zonderClientCache[url];
+  if (c && (Date.now() - c.ts) < PRODUCT_LIST_TTL_MS) return c.lijst.slice();
+  const lijst = parseProductOptions(controleerOns('productlijst', await getJson(url)), { alleGroepen: true });
+  if (lijst.length) zonderClientCache[url] = { ts: Date.now(), lijst: lijst.slice() };
+  return lijst;
+}

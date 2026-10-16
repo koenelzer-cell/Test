@@ -18,7 +18,7 @@ import { clickEmptyModalSpot, dismissOpenDropdowns } from '../../ons/interaction
 import { scanClientUursoortOptions } from '../../ons/uursoort-options.js';
 import { findClientIdByName } from '../../services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../services/ons-api/employee.js';
-import { fetchProductList, fetchProductOptions } from '../../services/ons-api/products.js';
+import { fetchEmployeeProductOptions, fetchProductList, fetchProductOptions } from '../../services/ons-api/products.js';
 
 /* ── Cliënt-id's bij een uursoortveld ─────────────────────────────────── */
 
@@ -100,6 +100,17 @@ export async function uursoortMetId(naam, context, trigger) {
   const opties = await fetchProductOptions({ date: agendaYmd(new Date()), employeeId: employeeId, clientIds: clientIds });
   const w = clean(naam);
   return opties.filter((o) => clean(o.name) === w)[0] || null;
+}
+
+// Idem voor een niet-cliëntgebonden afspraak (uursoort op afspraakniveau).
+// Namen eindigen vaak op '*'; zonder dat teken mag ook.
+export async function nietClientUursoortMetId(naam) {
+  const employeeId = await getEmployeeIdAsync();
+  if (!employeeId) return null;
+  const opties = await fetchEmployeeProductOptions(employeeId);
+  const kaal = (s) => clean(s).replace(/[*#\s]+$/, '');
+  const w = clean(naam), wk = kaal(naam);
+  return opties.filter((o) => clean(o.name) === w)[0] || opties.filter((o) => kaal(o.name) === wk)[0] || null;
 }
 
 // Warmt de cache alvast op, zodat de keuzelijst later direct gevuld is.

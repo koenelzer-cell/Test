@@ -136,7 +136,11 @@ staan.
 Kies je in de afspraakhulp de uursoort van een cliënt, dan gaat die op
 dezelfde manier in het uursoortveld van precies die cliënt (`hour_type_id`
 en de omschrijving), zonder de dropdown. Het id komt uit ONS' eigen lijst
-met toegestane uursoorten voor die cliënt, die de hulp toch al ophaalt.
+met toegestane uursoorten voor die cliënt, die de hulp toch al ophaalt. Bij
+een niet-cliëntgebonden afspraak gaat de uursoort zo in het uursoortveld op
+afspraakniveau (dat ONS alleen toont zolang er geen cliënt aan de afspraak
+hangt); het id komt dan uit de uursoorten van de medewerker zonder cliënt
+(`product_list?employee_ids[]=…`), met of zonder sterretje achter de naam.
 
 In het beheerscherm blijft alles op naam staan (afspraaktypes, labels,
 uursoorten): de hulp zoekt de id's zelf op in wat ONS het formulier geeft.

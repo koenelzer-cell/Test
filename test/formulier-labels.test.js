@@ -191,3 +191,44 @@ test('content-script markeert het uursoortveld even en stuurt id en omschrijving
   assert.equal(veld.hasAttribute('data-onsah-doel'), false, 'daarna weer weg');
   assert.equal(await api.zetUursoortViaFormulier(veld, 0, 'x'), false, 'zonder id niets');
 });
+
+test('main-world: ook het uursoortveld op afspraakniveau (niet cliëntgebonden, aria-label Uursoort)', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body><div id="content" data-v-app><section><uc-select aria-label="Uursoort"></uc-select></section></div></body>',
+    { url: 'https://impegno.onsagenda.nl/events/new', runScripts: 'outside-only' });
+  const w = dom.window;
+  const veld = w.document.querySelector('uc-select');
+  const gezet = [];
+  const v = { el: veld, props: { 'model-value': null, 'onUpdate:modelValue': (e) => { gezet.push(e); v.props['model-value'] = e; } } };
+  const houder = w.document.getElementById('content');
+  houder.__vue_app__ = {};
+  houder._vnode = { component: { subTree: { children: [v] } } };
+  w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
+  veld.setAttribute('data-onsah-doel', 'nc');
+  const r = await new Promise((klaar) => {
+    w.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'uursoortGezet') klaar(ev.data); });
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'zetUursoort', id: 'x', doel: 'nc', hourTypeId: 77, beschrijving: 'Overleg *' }, origin: w.location.origin, source: w }));
+  });
+  assert.equal(r.ok, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(gezet)), [77]);
+});
+
+test('niet-cliëntgebonden: het id bij de naam uit de uursoorten van de medewerker (met of zonder sterretje)', async () => {
+  const { api, window } = bootHelper({ url: 'https://impegno.onsagenda.nl/invitees/42479/calendar/day?date=2026-10-16' });
+  const urls = [];
+  window.fetch = (url) => {
+    urls.push(url);
+    const json = { basic_list: [
+      ['Onlangs gebruikt', [['Overleg *', 77]]],
+      ['Toegestaan', [['Scholing *', 78], ['Overleg *', 77]]],
+      ['Niet toegestaan', [['Verboden *', 99]]],
+    ] };
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(json) });
+  };
+  assert.deepEqual(JSON.parse(JSON.stringify(await api.nietClientUursoortMetId('Overleg *'))), { id: 77, name: 'Overleg *', recent: true });
+  assert.equal((await api.nietClientUursoortMetId('scholing')).id, 78, 'zonder sterretje en hoofdletters');
+  assert.equal(await api.nietClientUursoortMetId('Verboden *'), null, 'niet toegestaan telt niet');
+  assert.equal(await api.nietClientUursoortMetId('Bestaat niet'), null);
+  assert.ok(urls.every((u) => /product_list\?employee_ids%5B%5D=\d+$/.test(u)), 'de lijst zonder cliënt');
+  assert.equal(urls.length, 1, 'één keer opgehaald, daarna uit het geheugen');
+});
