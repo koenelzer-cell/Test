@@ -91,13 +91,19 @@ function schrijf(inp, text) {
 let _bezig = false;
 // Aanroepen zodra de afspraakhulp op /events/new start. Wacht tot het
 // formulier er staat (hooguit ~12 s) en vult dan datum en begintijd in.
-export function applyPendingAppointment() {
-  if (_bezig) return;
+// klaar (optioneel): krijgt { velden, uursoorten } (true = gelukt) als datum,
+// tijden en uursoorten zijn ingevuld of de hulp het opgeeft.
+// -> het klaargezette moment (of null als er niets klaarstond).
+export function applyPendingAppointment(klaar) {
+  if (_bezig) return null;
   const p = readPending();
-  if (!p) return;
+  if (!p) return null;
   _bezig = true;
   _geplandeDuur = p.minutes > 0 ? p.minutes : null;
-  vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
+  const uursoorten = vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
+  let veldenKlaar;
+  const velden = new Promise((r) => { veldenKlaar = r; });
+  if (klaar) Promise.all([velden, uursoorten]).then((r) => klaar({ velden: r[0], uursoorten: r[1] }));
   const datum = onsDateText(p.date);
   let pogingen = 0;
   const tik = () => {
@@ -112,25 +118,29 @@ export function applyPendingAppointment() {
         clearPending();
         _bezig = false;
         // Eindtijd = begintijd + duur uit de planhulp.
-        if (p.minutes > 0) setTimeout(() => { try { setAppointmentEndTimePlusMinutes(p.minutes); } catch (e) {} }, 250);
+        if (p.minutes > 0) setTimeout(() => { try { setAppointmentEndTimePlusMinutes(p.minutes); } catch (e) {} veldenKlaar(true); }, 250);
+        else veldenKlaar(true);
       }, 250);
       return;
     }
     if (pogingen < 48) setTimeout(tik, 250);
-    else { clearPending(); _bezig = false; }
+    else { clearPending(); _bezig = false; veldenKlaar(false); }
   };
   setTimeout(tik, 300);
+  return p;
 }
 
 // De uursoorten uit de planhulp in het formulier zetten, via de Vue-koppeling
 // van het uursoortveld (geen dropdown). De velden verschijnen pas als de
 // cliënten in het formulier staan: zo nodig een paar keer opnieuw proberen
 // (hooguit ~10 s). Wat niet lukt, vraagt de afspraakhulp zoals altijd.
+// -> Promise<boolean>: true als alles is gezet.
 function vulUursoorten(perClient, opAfspraak) {
   let rest = perClient.slice();
   let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
-  if (!rest.length && !afspraak) return;
-  let pogingen = 0;
+  if (!rest.length && !afspraak) return Promise.resolve(true);
+  let pogingen = 0, klaar;
+  const uitslag = new Promise((r) => { klaar = r; });
   const stap = () => {
     pogingen++;
     const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => (ok ? u : null)));
@@ -142,7 +152,9 @@ function vulUursoorten(perClient, opAfspraak) {
       rest = rest.filter((u) => gelukt.indexOf(u) < 0);
       if (gelukt.indexOf('afspraak') >= 0) afspraak = null;
       if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
+      else klaar(!rest.length && !afspraak);
     });
   };
   setTimeout(stap, 500);
+  return uitslag;
 }

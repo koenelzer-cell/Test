@@ -55,6 +55,8 @@
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    AGENDA_FORM_TITLE: "ag-form-title",
+    // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_DAY_ROUTE: "ag-day-route",
@@ -5480,6 +5482,22 @@
     }
     teken();
   }
+  var FORMULIER_TITELS = [];
+  var FORMULIER_TITEL_MS = 30 * 6e4;
+  function formulierTitel(date, time) {
+    var nu = Date.now();
+    FORMULIER_TITELS = FORMULIER_TITELS.filter(function(t2) {
+      return nu - t2.ts < FORMULIER_TITEL_MS;
+    });
+    for (var i = 0; i < FORMULIER_TITELS.length; i++) {
+      var t = FORMULIER_TITELS[i];
+      if (t.date === date && t.time === time) {
+        FORMULIER_TITELS.splice(i, 1);
+        return t.titel;
+      }
+    }
+    return "";
+  }
   function maakKiezers() {
     var host2 = el("div");
     var open = null;
@@ -7634,6 +7652,12 @@
         return uit;
       };
       var eerste = items[0];
+      FORMULIER_TITELS = items.map(function(it) {
+        var t = mk.nietClient ? ncNaam(mk) || "" : String(titelVan(mk, it) || "").trim();
+        return { date: it.date, time: hm(it.startMin), titel: t.slice(0, 200), ts: Date.now() };
+      }).filter(function(t) {
+        return t.titel;
+      });
       var req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
       if (mk.modus === "los") {
         req.multi = true;
@@ -10438,11 +10462,18 @@
       toonMelding("Kon het tabblad niet vinden", "Herlaad het zijpaneel.");
     }
   }
-  function onMessage(msg, sender) {
+  function onMessage(msg, sender, sendResponse) {
     if (!msg) return;
     const vanTab = sender && sender.tab && sender.tab.id;
     if (vanTab != null && onsTabId != null && vanTab !== onsTabId) return;
     if (vanTab != null) onsTabId = vanTab;
+    if (msg.type === MSG.AGENDA_FORM_TITLE) {
+      try {
+        sendResponse({ title: formulierTitel(String(msg.date || ""), String(msg.time || "")) });
+      } catch (e) {
+      }
+      return;
+    }
     if (msg.type === MSG.SURVEY_STATE || msg.type === MSG.AGENDA_STATE) annuleerSluiten();
     if (msg.type === MSG.SURVEY_STATE && msg.state) {
       toon("vragenlijst", msg.state);

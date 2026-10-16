@@ -348,7 +348,15 @@ en oker).
   de uursoort van de afspraak) zet de hulp in het formulier zodra de
   cliënten erin staan, via het uursoortveld van die cliënt (zonder
   dropdown). Lukt dat niet, dan vraagt de afspraakhulp de uursoort zoals
-  altijd. Instellingen van het formulier (`meta`, alleen ja/nee en
+  altijd. Ook de titel uit Afspraak maken komt in het formulier: het
+  formulier vraagt hem bij het zijpaneel op zodra het open is (de titel kan
+  een voornaam bevatten en wordt daarom nergens opgeslagen; is het zijpaneel
+  dicht, dan geen titel). Omdat het afspraaktype al bekend is, vraagt de
+  afspraakhulp er niet opnieuw naar: hij toont 'Afspraak uit de planhulp
+  invullen...' en gaat daarna meteen naar de opslaanpagina. Mist er nog een
+  uursoort, dan vraagt hij alleen die. Bij een niet-cliëntgebonden afspraak
+  zoekt hij de optie bij de uursoort en rondt hij die af zoals na een keuze in
+  de afspraakhulp. Instellingen van het formulier (`meta`, alleen ja/nee en
   getallen) neemt de hulp over van een afspraak die je zelf opslaat.
   Zodra de cliënt(en) gekozen zijn, kijkt de hulp elke afspraak opnieuw na
   met ONS' overlapcontrole, nu met de cliënt(en) erbij ('ONS: overlap' als de

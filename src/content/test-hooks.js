@@ -7,6 +7,7 @@ import {
   APP_CONFIG,
   applyHelperConfig,
   choiceLabels,
+  CONFIG,
   effectiveChoices,
   effectiveRegistrationForms,
   helperNeedsTeamChoice,
@@ -90,6 +91,7 @@ import {
 import { enforceAppointmentEndTime } from './features/appointment/end-time.js';
 import { zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
 import { nietClientUursoortMetId } from './features/appointment/uursoort-source.js';
+import { keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
 import {
   clearAppointmentSnapshot,
   clearSettings,
@@ -209,6 +211,9 @@ export function exposeTestApi() {
     zetLabelsViaFormulier,
     zetUursoortViaFormulier,
     nietClientUursoortMetId,
+    keuzeVoorLabel,
+    CONFIG,
+    nietClientOptieVoorUursoort,
     entryUursoortIsSet,
     // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
     // meerdere-cliënten-flow en de schermherkenning.

@@ -14,7 +14,7 @@
 
 import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { ONS_URL_PATTERNS, isOnsUrl } from '../shared/ons-hosts.js';
-import { create as createAgendaPanel } from './agenda-panel.js';
+import { create as createAgendaPanel, formulierTitel } from './agenda-panel.js';
 import { create as createSurveyPanel } from './survey-panel.js';
 
 const NIETS_KOP = 'Niets om te tonen';
@@ -170,7 +170,7 @@ function zoekOnsTab() {
 
 /* ── Live meelopen ─────────────────────────────────────────────────────── */
 
-function onMessage(msg, sender) {
+function onMessage(msg, sender, sendResponse) {
   if (!msg) return;
   const vanTab = sender && sender.tab && sender.tab.id;
   // Alleen het tabblad dat we volgen mag iets zeggen. De worker markeert daar
@@ -178,6 +178,11 @@ function onMessage(msg, sender) {
   // paneel niet alsnog omgooien.
   if (vanTab != null && onsTabId != null && vanTab !== onsTabId) return;
   if (vanTab != null) onsTabId = vanTab;
+  // Het ONS-formulier uit Afspraak maken is open: de titel van dat moment.
+  if (msg.type === MSG.AGENDA_FORM_TITLE) {
+    try { sendResponse({ title: formulierTitel(String(msg.date || ''), String(msg.time || '')) }); } catch (e) {}
+    return;
+  }
   if (msg.type === MSG.SURVEY_STATE || msg.type === MSG.AGENDA_STATE) annuleerSluiten();
 
   if (msg.type === MSG.SURVEY_STATE && msg.state) { toon('vragenlijst', msg.state); return; }

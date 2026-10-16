@@ -1300,6 +1300,14 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   // Nu ook de gekozen uursoorten per cliënt naar het formulier.
   knop(document, 'ONS Afspraakformulier').click();
   const form2 = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
+  // De titel blijft in het zijpaneel; het formulier vraagt hem op zodra het open is (één keer).
+  assert.equal(JSON.stringify(form2).includes('titel'), false, 'geen titel in het verzoek naar het tabblad');
+  const vraagTitel = (date, time) => { let antwoord; _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-form-title', date, time }, { tab: { id: 5 } }, (r) => { antwoord = r; })); return JSON.parse(JSON.stringify(antwoord)); };
+  const titel1 = document.querySelector('[data-maak-titel="0"]').value;
+  assert.ok(titel1, 'er is een titel');
+  assert.deepEqual(vraagTitel(form2.date, form2.time), { title: titel1 });
+  assert.deepEqual(vraagTitel(form2.date, form2.time), { title: '' }, 'daarna weg');
+  assert.deepEqual(vraagTitel(form2.eigen[0].date, form2.eigen[0].time), { title: document.querySelector('[data-maak-titel="1"]').value }, 'het eigen formulier zijn eigen titel');
   assert.deepEqual(form2.uursoorten, [{ clientId: '222', hourTypeId: 5, name: 'JW BG H10 Individuele BG midde' }]);
   assert.deepEqual(form2.eigen[0].uursoorten, [{ clientId: '11142', hourTypeId: 1135, name: 'Behandeling (GGZ 18+)' }, { clientId: '222', hourTypeId: 5, name: 'JW BG H10 Individuele BG midde' }]);
   document.querySelector('[data-maak-knop]').click();

@@ -2363,6 +2363,8 @@
   var appointmentFlow = {
     pendingChoice: null,
     // gekozen afspraaktype (choice) in behandeling
+    planhulpVullenSinds: 0,
+    // > 0: het formulier uit de planhulp wordt nog ingevuld (tijdstip)
     clientWaitTimer: null,
     activeAppointmentDurationMinutes: null,
     activeAppointmentStartTimeText: "",
@@ -3397,6 +3399,8 @@
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    AGENDA_FORM_TITLE: "ag-form-title",
+    // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
     // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
     AGENDA_DAY_ROUTE: "ag-day-route",
@@ -13584,6 +13588,10 @@
       showLoadingState("Instellingen verwijderen...");
       return;
     }
+    if (appointmentFlow.planhulpVullenSinds && Date.now() - appointmentFlow.planhulpVullenSinds < 15e3) {
+      showLoadingState("Afspraak uit de planhulp invullen...");
+      return;
+    }
     if (helperNeedsTeamChoice()) {
       showNeedsTeamChoice();
       return;
@@ -15527,13 +15535,18 @@
     }
   }
   var _bezig = false;
-  function applyPendingAppointment() {
-    if (_bezig) return;
+  function applyPendingAppointment(klaar) {
+    if (_bezig) return null;
     const p = readPending();
-    if (!p) return;
+    if (!p) return null;
     _bezig = true;
     _geplandeDuur = p.minutes > 0 ? p.minutes : null;
-    vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
+    const uursoorten = vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
+    let veldenKlaar;
+    const velden = new Promise((r) => {
+      veldenKlaar = r;
+    });
+    if (klaar) Promise.all([velden, uursoorten]).then((r) => klaar({ velden: r[0], uursoorten: r[1] }));
     const datum = onsDateText(p.date);
     let pogingen = 0;
     const tik = () => {
@@ -15551,7 +15564,9 @@
               setAppointmentEndTimePlusMinutes(p.minutes);
             } catch (e) {
             }
+            veldenKlaar(true);
           }, 250);
+          else veldenKlaar(true);
         }, 250);
         return;
       }
@@ -15559,15 +15574,20 @@
       else {
         clearPending();
         _bezig = false;
+        veldenKlaar(false);
       }
     };
     setTimeout(tik, 300);
+    return p;
   }
   function vulUursoorten(perClient, opAfspraak) {
     let rest = perClient.slice();
     let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
-    if (!rest.length && !afspraak) return;
-    let pogingen = 0;
+    if (!rest.length && !afspraak) return Promise.resolve(true);
+    let pogingen = 0, klaar;
+    const uitslag = new Promise((r) => {
+      klaar = r;
+    });
     const stap = () => {
       pogingen++;
       const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => ok ? u : null));
@@ -15579,9 +15599,11 @@
         rest = rest.filter((u) => gelukt.indexOf(u) < 0);
         if (gelukt.indexOf("afspraak") >= 0) afspraak = null;
         if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
+        else klaar(!rest.length && !afspraak);
       });
     };
     setTimeout(stap, 500);
+    return uitslag;
   }
 
   // src/content/features/appointment/duplicate.js
@@ -16017,7 +16039,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.276";
+      return "1.6.277";
     }
   }();
 
@@ -16425,6 +16447,95 @@
       safe(ensureMounted);
     });
   };
+
+  // src/content/helper/planner-form.js
+  function keuzeVoorLabel(naam) {
+    const w = clean(naam || "");
+    if (!w) return null;
+    return (CONFIG.choices || []).find((c) => choiceLabels(c).some((l) => clean(l) === w)) || null;
+  }
+  function nietClientOptieVoorUursoort(naam) {
+    const kaal = (s) => clean(s || "").replace(/[*#\s]+$/, "");
+    const w = kaal(naam);
+    if (!w) return null;
+    for (const cat of nonClientCategoriesActive()) {
+      const opties = [].concat(cat && cat.directOption ? [cat.directOption] : [], cat && cat.options || []);
+      const o = opties.find((x) => x && x.uursoort && kaal(x.uursoort) === w);
+      if (o) return o;
+    }
+    return null;
+  }
+  function vraagTitel(date, time) {
+    return new Promise((klaar) => {
+      let gemeld = false;
+      const einde = (t) => {
+        if (!gemeld) {
+          gemeld = true;
+          klaar(t);
+        }
+      };
+      setTimeout(() => einde(""), 2e3);
+      try {
+        chrome.runtime.sendMessage({ type: MSG.AGENDA_FORM_TITLE, date, time }, (res) => {
+          try {
+            void chrome.runtime.lastError;
+          } catch (e) {
+          }
+          einde(res && typeof res.title === "string" ? res.title.trim().slice(0, 200) : "");
+        });
+      } catch (e) {
+        einde("");
+      }
+    });
+  }
+  function zetTitel(titel, pogingen = 0) {
+    const inp = getTitleInputSafe();
+    if (inp && inputTextValue(inp) === titel) return;
+    if (inp && setAppointmentTitleText(titel)) return;
+    if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
+  }
+  function startVanuitPlanhulp() {
+    let keuze = null, nietClient = null, titel = "";
+    const p = applyPendingAppointment(() => afronden());
+    if (!p) return;
+    const label = p.model && Array.isArray(p.model.labels) && p.model.labels[0] ? p.model.labels[0].name : "";
+    keuze = keuzeVoorLabel(label);
+    if (!keuze && p.uursoortAfspraak) nietClient = nietClientOptieVoorUursoort(p.uursoortAfspraak.name);
+    if (keuze || nietClient) {
+      appointmentFlow.planhulpVullenSinds = Date.now();
+      if (keuze) appointmentFlow.pendingChoice = keuze;
+      if (p.minutes > 0) appointmentFlow.activeAppointmentDurationMinutes = p.minutes;
+    }
+    vraagTitel(p.date, p.time).then((t) => {
+      titel = t;
+      if (t) zetTitel(t);
+    });
+    function afronden() {
+      if (!keuze && !nietClient) return;
+      appointmentFlow.planhulpVullenSinds = 0;
+      if (nietClient) {
+        handleNonClientOption(nietClient);
+        return;
+      }
+      appointmentFlow.appointmentTypeApplied = true;
+      const labels = choiceLabels(keuze);
+      const naarOpslaan = () => {
+        if (titel) zetTitel(titel);
+        showAppointmentReadyToSave();
+      };
+      setLabelsExclusive(labels, () => {
+        if (appointmentReadyToSave()) {
+          naarOpslaan();
+          return;
+        }
+        if (hasClientInAppointment() && !hasUursoortSelected()) {
+          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+          return;
+        }
+        showChoices();
+      });
+    }
+  }
 
   // src/content/services/ons-api/calendar.js
   function fetchInviteeWeek(inviteeId, date) {
@@ -16877,7 +16988,7 @@
     const wantRegistrations = (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
     if (wantEvents && location.href.includes(CONFIG.urlNeedle)) {
       activate("events");
-      applyPendingAppointment();
+      startVanuitPlanhulp();
     } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate("registrations");
     else deactivate();
     updateRegistrationsOverviewPanel();
@@ -20629,6 +20740,9 @@
       zetLabelsViaFormulier,
       zetUursoortViaFormulier,
       nietClientUursoortMetId,
+      keuzeVoorLabel,
+      CONFIG,
+      nietClientOptieVoorUursoort,
       entryUursoortIsSet,
       // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
       // meerdere-cliënten-flow en de schermherkenning.

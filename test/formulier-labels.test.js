@@ -272,3 +272,20 @@ test('planhulp zet de uursoorten klaar voor het formulier (per cliënt en voor e
   api.openNewEvent({ date: '2026-10-20', time: '10:00', minutes: 60, uursoortAfspraak: { hourTypeId: 77, name: 'Teamoverleg' } });
   assert.deepEqual(JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')).uursoortAfspraak, { hourTypeId: 77, name: 'Teamoverleg' });
 });
+
+test('vanuit de planhulp: het afspraaktype bij het label, de niet-cliëntgebonden optie bij de uursoort', () => {
+  const { api } = bootHelper();
+  const keuze = api.CONFIG.choices.find((c) => api.choiceLabels(c).length);
+  assert.ok(keuze, 'de standaardconfig heeft afspraaktypes met labels');
+  const label = api.choiceLabels(keuze)[0];
+  assert.equal(api.keuzeVoorLabel(label), keuze);
+  assert.equal(api.keuzeVoorLabel(label.toUpperCase()), keuze, 'hoofdletters maken niet uit');
+  assert.equal(api.keuzeVoorLabel('Bestaat niet'), null);
+  assert.equal(api.keuzeVoorLabel(''), null);
+  const opties = [].concat(...api.nonClientCategoriesActive().map((c) => [].concat(c.directOption ? [c.directOption] : [], c.options || [])));
+  const opt = opties.find((o) => o && o.uursoort);
+  assert.ok(opt, 'de standaardconfig heeft niet-cliëntgebonden opties');
+  assert.equal(api.nietClientOptieVoorUursoort(opt.uursoort), opt);
+  assert.equal(api.nietClientOptieVoorUursoort(opt.uursoort.replace(/[*#\s]+$/, '')), opt, 'ook zonder sterretje');
+  assert.equal(api.nietClientOptieVoorUursoort('Bestaat niet'), null);
+});

@@ -47,6 +47,9 @@ export function showChoices() {
   const body = $body(); if (!body) return;
   appointmentFlow.appointmentDoorplannen = false; // nieuwe afspraakflow: doorplannen-intentie reset
   if (appointmentFlow.appointmentClearingSettings) { showLoadingState('Instellingen verwijderen...'); return; }
+  // Formulier uit de planhulp: niet om het type vragen terwijl de hulp het
+  // nog invult (helper/planner-form.js gaat daarna naar de opslaanpagina).
+  if (appointmentFlow.planhulpVullenSinds && Date.now() - appointmentFlow.planhulpVullenSinds < 15000) { showLoadingState('Afspraak uit de planhulp invullen...'); return; }
   if (helperNeedsTeamChoice()) { showNeedsTeamChoice(); return; }
   appointmentFlow.nonClientFreeTitleScreenActive = false;
   appointmentFlow.appointmentAwaitingManualUursoort = false;

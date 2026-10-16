@@ -40,6 +40,7 @@ export const helperPanel = {
 };
 export const appointmentFlow = {
   pendingChoice: null,        // gekozen afspraaktype (choice) in behandeling
+  planhulpVullenSinds: 0,     // > 0: het formulier uit de planhulp wordt nog ingevuld (tijdstip)
   clientWaitTimer: null,
   activeAppointmentDurationMinutes: null,
   activeAppointmentStartTimeText: '',

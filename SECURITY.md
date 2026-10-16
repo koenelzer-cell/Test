@@ -174,7 +174,10 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   die ONS' Vue-formulier zelf voor die velden gebruikt. Vanuit de planhulp
   staan daarvoor kort (hooguit twee minuten, in de sessie van het tabblad)
   het interne cliënt-id, het uursoort-id en de naam van de uursoort klaar,
-  geen cliëntnaam. Het verzoek komt via
+  geen cliëntnaam. De titel (die een voornaam kan bevatten) wordt niet
+  opgeslagen: het formulier vraagt hem via een extensiebericht op bij het
+  zijpaneel, dat hem alleen in het geheugen heeft (hooguit een half uur, en
+  weg zodra hij is opgevraagd). Het verzoek komt via
   `postMessage` en wordt alleen aangenomen van dezelfde origin en hetzelfde
   venster; het bevat alleen labelnamen, of een uursoort-id met de naam van de
   uursoort en een kenmerk van het veld. Het script leest alleen id en naam

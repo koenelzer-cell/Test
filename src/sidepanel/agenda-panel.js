@@ -466,6 +466,22 @@ function maandKalender(p, huidig, kies) {
   teken();
 }
 
+// Titels voor het ONS-formulier (Afspraak maken, ONS Afspraakformulier): per
+// moment, alleen hier in het geheugen. Het content-script vraagt de titel op
+// zodra het formulier open is (MSG.AGENDA_FORM_TITLE); zo hoeft een titel met
+// een cliëntnaam nergens bewaard te worden.
+var FORMULIER_TITELS = [];
+var FORMULIER_TITEL_MS = 30 * 60000;
+export function formulierTitel(date, time) {
+  var nu = Date.now();
+  FORMULIER_TITELS = FORMULIER_TITELS.filter(function (t) { return nu - t.ts < FORMULIER_TITEL_MS; });
+  for (var i = 0; i < FORMULIER_TITELS.length; i++) {
+    var t = FORMULIER_TITELS[i];
+    if (t.date === date && t.time === time) { FORMULIER_TITELS.splice(i, 1); return t.titel; }
+  }
+  return '';
+}
+
 export function maakKiezers() {
   var host = el('div');           // hier klapt de open kiezer uit
   var open = null;                // { knop, sluit }
@@ -2108,6 +2124,11 @@ export function create(host, actions) {
       return uit;
     };
     var eerste = items[0];
+    // Titel per moment, voor als het formulier erom vraagt.
+    FORMULIER_TITELS = items.map(function (it) {
+      var t = mk.nietClient ? (ncNaam(mk) || '') : String(titelVan(mk, it) || '').trim();
+      return { date: it.date, time: hm(it.startMin), titel: t.slice(0, 200), ts: Date.now() };
+    }).filter(function (t) { return t.titel; });
     var req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
     if (mk.modus === 'los') { req.multi = true; req.eigen = items.slice(1).map(function (it) { return metType(Object.assign(tijd(it), { minutes: it.minutes, clientIds: ids(it) }), it); }); }
     else req.extra = items.slice(1).map(tijd);

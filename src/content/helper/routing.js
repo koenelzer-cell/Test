@@ -1,7 +1,7 @@
 // Welke hulp hoort bij de huidige URL? Volgt navigatie in de single-page app
 // van ONS.
 
-import { applyPendingAppointment } from '../features/appointment/prefill.js';
+import { startVanuitPlanhulp } from './planner-form.js';
 import { forgetStaleDuplicates } from '../features/appointment/duplicate.js';
 import { APP_CONFIG, CONFIG } from '../config/app-config.js';
 import { isRegistrationEditOrNew } from '../ons/agenda-location.js';
@@ -33,7 +33,7 @@ export function syncWithUrl() {
   const wantRegistrations = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
   // De registratiehulp draait alleen op de invul-/edit-/new-pagina, NIET op het
   // kale /registrations-overzicht (daar tonen we het declarabiliteit-paneel).
-  if (wantEvents && location.href.includes(CONFIG.urlNeedle)) { activate('events'); applyPendingAppointment(); }
+  if (wantEvents && location.href.includes(CONFIG.urlNeedle)) { activate('events'); startVanuitPlanhulp(); }
   else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate('registrations');
   else deactivate();
   updateRegistrationsOverviewPanel();
