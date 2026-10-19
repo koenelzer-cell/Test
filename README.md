@@ -142,6 +142,11 @@ afspraakniveau (dat ONS alleen toont zolang er geen cliënt aan de afspraak
 hangt); het id komt dan uit de uursoorten van de medewerker zonder cliënt
 (`product_list?employee_ids[]=…`), met of zonder sterretje achter de naam.
 
+De voornamen in de titel ('Face to face - Tamara') en de vraag welke cliënt
+nog een uursoort mist, haalt de hulp ook uit het formulier zelf: uit het
+afspraakmodel (de cliënten met hun id) en uit het uursoortveld van elke
+cliënt. Alleen als dat niet lukt, leest hij de cliëntkaarten op het scherm.
+
 Ook weghalen gaat zo: 'Verwijder instellingen' en het wissen van een
 uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te
 klikken of de dropdown te openen.

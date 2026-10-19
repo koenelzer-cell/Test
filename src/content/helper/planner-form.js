@@ -18,6 +18,8 @@ import { showAppointmentReadyToSave } from '../features/appointment/save.js';
 import { clientsMissingUursoortEntries, showUursoortQueue } from '../features/appointment/uursoort-queue.js';
 import { ensureClientExpanded, hasClientInAppointment } from '../features/appointment/clients.js';
 import { handleNonClientOption } from '../features/appointment/non-client.js';
+import { clientVoornamenAsync } from '../features/appointment/client-name.js';
+import { leesFormulier } from '../ons/form-model.js';
 import { showAppointmentNeedsPrereqs } from '../features/appointment/prereqs.js';
 import { inputTextValue } from '../ons/form-controls.js';
 
@@ -77,13 +79,27 @@ export function kaartVoornamen() {
   }
   return namen;
 }
+// Voornamen eerst uit het afspraakmodel (main-world), anders uit de kaarten.
 function voegVoornamenToe(keuze) {
-  const inp = getTitleInputSafe();
-  if (!inp) return;
-  const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
-  const delen = t.split(' - ').map(clean);
-  const erbij = kaartVoornamen().filter((n) => delen.indexOf(clean(n)) < 0);
-  if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(' - '));
+  return clientVoornamenAsync().then((namen) => {
+    if (!namen.length) namen = kaartVoornamen();
+    const inp = getTitleInputSafe();
+    if (!inp) return;
+    const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
+    const delen = t.split(' - ').map(clean);
+    const erbij = namen.filter((n) => delen.indexOf(clean(n)) < 0);
+    if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(' - '));
+  });
+}
+// Welke cliënten missen nog een uursoort? Eerst uit het formulier zelf
+// (uursoortveld per cliënt-id), anders uit de cliëntkaarten op het scherm.
+// -> Promise<number> (aantal; bij geen gevonden cliënt nooit 0)
+function ontbrekendeUursoorten() {
+  return leesFormulier().then((f) => {
+    if (f && f.clients && f.clients.length) return f.clients.filter((c) => f.uursoorten[c.id] == null).length;
+    invalidateClientEntries();
+    return findClientEntries().length ? clientsMissingUursoortEntries().length : 1;
+  });
 }
 // Wachten tot elke cliëntkaart open staat met naam en uursoortveld (zoals de
 // afspraakhulp dat ook doet voordat hij verder gaat). Hooguit ~4 s.
@@ -129,7 +145,7 @@ export function startVanuitPlanhulp() {
         clientLater = true;
         // Tot de kaart van de nieuwe cliënt er helemaal staat: laadmelding.
         appointmentFlow.planhulpVullenSinds = Date.now();
-        wachtOpClientkaarten(() => { voegVoornamenToe(keuze); afronden(); });
+        wachtOpClientkaarten(() => { voegVoornamenToe(keuze).then(afronden, afronden); });
       };
       showAppointmentNeedsPrereqs();
       return;
@@ -147,16 +163,14 @@ export function startVanuitPlanhulp() {
       // ONS kan bij een uursoort zelf een label koppelen: daarna precies de
       // labels van dit type, zoals de afspraakhulp altijd doet.
       setLabelsExclusive(labels, () => {
-        // Per cliëntkaart kijken wat ontbreekt. Een type zonder
-        // uursoortkeuze vraagt er niet om; zonder gevonden kaart nooit
-        // 'klaar' aannemen.
-        invalidateClientEntries();
-        const kaarten = findClientEntries();
-        const missen = keuze.pickUursoort ? (kaarten.length ? clientsMissingUursoortEntries() : [null]) : [];
-        if (!missen.length) { naarOpslaan(); return; }
-        // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
-        appointmentFlow.planhulpVullenSinds = 0;
-        showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+        // Een type zonder uursoortkeuze vraagt er niet om.
+        const telling = keuze.pickUursoort ? ontbrekendeUursoorten() : Promise.resolve(0);
+        telling.then((missen) => {
+          if (!missen) { naarOpslaan(); return; }
+          // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
+          appointmentFlow.planhulpVullenSinds = 0;
+          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+        });
       });
     });
   }

@@ -240,17 +240,10 @@ export function findClientNameText() {
   }
   return '';
 }
-// Voornaam/aanhef uit een cliëntnaam. ONS toont namen als "Mw. E.I.A Aalbers"
-// of "Dhr. RWC Aalbers"; de aanhef (Mw./Dhr./Mevr./Hr.) is geen voornaam, dus
-// die slaan we over. Wat overblijft (bij veel cliënten vaak de voorletters) is
-// prima als aanduiding.
-export function firstNameFromName(name) {
-  const tokens = String(name || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
-  const TITLE = /^(mw|mevr|mevrouw|dhr|hr|meneer|mr|dr)\.?$/i;
-  let i = 0;
-  while (i < tokens.length - 1 && TITLE.test(tokens[i])) i++;
-  return tokens[i] || tokens[0] || '';
-}
+// Voornaam/aanhef uit een cliëntnaam: de regel staat in src/shared/namen.js
+// (ook de main-world gebruikt hem).
+import { firstNameFromName as voornaamUitNaam } from '../../shared/namen.js';
+export function firstNameFromName(name) { return voornaamUitNaam(name); }
 // ÉÉN bron voor de gekozen labels. In de huidige ONS-UI is elke chip een
 // <button class="label-tag" aria-label="Verwijder label <naam>"> binnen
 // <div class="label-tags" data-qa="label_tags">; de button ZELF is de

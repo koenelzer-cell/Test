@@ -3443,8 +3443,12 @@
     // { id, ok, reden? }
     SET_HOUR_TYPE: "zetUursoort",
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
-    HOUR_TYPE_SET: "uursoortGezet"
+    HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
+    READ_FORM: "leesFormulier",
+    // { id }  wat het open afspraakformulier bevat
+    FORM_READ: "formulierGelezen"
+    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
   };
 
   // src/content/services/ons-api/event-details.js
@@ -5121,6 +5125,15 @@
     return best;
   }
 
+  // src/shared/namen.js
+  function firstNameFromName(name) {
+    const tokens = String(name || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    const TITLE = /^(mw|mevr|mevrouw|dhr|hr|meneer|mr|dr)\.?$/i;
+    let i = 0;
+    while (i < tokens.length - 1 && TITLE.test(tokens[i])) i++;
+    return tokens[i] || tokens[0] || "";
+  }
+
   // src/content/ons/appointment-form.js
   function getEtiketTrigger() {
     if (CONFIG.etiketFieldSelector) {
@@ -5353,12 +5366,8 @@
     }
     return "";
   }
-  function firstNameFromName(name) {
-    const tokens = String(name || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
-    const TITLE = /^(mw|mevr|mevrouw|dhr|hr|meneer|mr|dr)\.?$/i;
-    let i = 0;
-    while (i < tokens.length - 1 && TITLE.test(tokens[i])) i++;
-    return tokens[i] || tokens[0] || "";
+  function firstNameFromName2(name) {
+    return firstNameFromName(name);
   }
   function labelChips(trigger) {
     const tr = trigger ? rect(trigger) : null;
@@ -5527,7 +5536,7 @@
       seen.add(key);
       const entry = {
         name,
-        firstName: firstNameFromName(name),
+        firstName: firstNameFromName2(name),
         nameEl,
         role,
         toggle,
@@ -5583,7 +5592,7 @@
       if (!role) continue;
       const toggle = toggles.find((btn) => clean(btn.getAttribute("aria-label") || "").includes(clean(name))) || toggles.map((btn) => ({ btn, r: rect(btn) })).filter(({ r }) => r.left > nr.left + 240 && r.top >= nr.top - 90 && r.top <= nr.top + 90).sort((a, b) => Math.abs(a.r.top + a.r.height / 2 - (nr.top + nr.height / 2)) - Math.abs(b.r.top + b.r.height / 2 - (nr.top + nr.height / 2)))[0]?.btn || null;
       seen.add(name);
-      basics.push({ name, firstName: firstNameFromName(name), nameEl, role, toggle });
+      basics.push({ name, firstName: firstNameFromName2(name), nameEl, role, toggle });
     }
     const sorted = basics.sort((a, b) => rect(a.nameEl).top - rect(b.nameEl).top || rect(a.nameEl).left - rect(b.nameEl).left);
     return sorted.map((entry, index) => {
@@ -5839,7 +5848,10 @@
       wachtMs
     );
   }
-  function vraagMainWorld(type, antwoordType, velden, wachtMs) {
+  function leesFormulier(wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+  }
+  function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
     return new Promise((klaar) => {
       const id = type + "-" + ++volgnummer + "-" + Date.now();
       let gemeld = false;
@@ -5847,9 +5859,9 @@
         if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
         const d = ev.data;
         if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
-        einde(d.ok === true);
+        einde(volledig ? d.ok === true ? d : null : d.ok === true);
       };
-      const timer = setTimeout(() => einde(false), wachtMs || 1500);
+      const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
       function einde(ok) {
         if (gemeld) return;
         gemeld = true;
@@ -5861,7 +5873,7 @@
       try {
         window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type, id }, velden), location.origin);
       } catch (e) {
-        einde(false);
+        einde(volledig ? null : false);
       }
     });
   }
@@ -6465,7 +6477,7 @@
   // src/content/features/appointment/client-name.js
   function findClientFirstName() {
     const directName = findClientNameText();
-    if (directName) return firstNameFromName(directName);
+    if (directName) return firstNameFromName2(directName);
     const labels = deepQueryAll("div,span,p").filter((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent) === "client");
     let best = null, bestScore = Infinity;
     for (const label of labels) {
@@ -6486,13 +6498,13 @@
         }
       }
     }
-    return best ? firstNameFromName(best) : "";
+    return best ? firstNameFromName2(best) : "";
   }
   function findClientFirstNames() {
     const names = [];
     const seen = /* @__PURE__ */ new Set();
     for (const entry of findClientEntries()) {
-      const first = entry.firstName || firstNameFromName(entry.name);
+      const first = entry.firstName || firstNameFromName2(entry.name);
       const key = clean(first);
       if (first && !seen.has(key)) {
         seen.add(key);
@@ -6505,17 +6517,31 @@
     }
     return names;
   }
+  function clientVoornamenAsync(wachtMs) {
+    return leesFormulier(wachtMs || 600).then((f) => {
+      const uitModel = [];
+      (f && f.clients || []).forEach((c) => {
+        if (c.voornaam && !uitModel.some((n) => clean(n) === clean(c.voornaam))) uitModel.push(c.voornaam);
+      });
+      return uitModel.length ? uitModel : findClientFirstNames();
+    }, () => findClientFirstNames());
+  }
   function setTitleForChoice(choice, onResult) {
-    const input2 = getTitleInput();
-    if (!input2) {
+    if (!getTitleInput()) {
       onResult(false);
       return;
     }
-    const firstNames = findClientFirstNames();
-    const titleBase = choice.titleLabel || choice.label;
-    const title = firstNames.length ? `${titleBase} - ${firstNames.join(" - ")}` : titleBase;
-    setInputText(input2, title);
-    onResult(true);
+    clientVoornamenAsync().then((firstNames) => {
+      const input2 = getTitleInput();
+      if (!input2) {
+        onResult(false);
+        return;
+      }
+      const titleBase = choice.titleLabel || choice.label;
+      const title = firstNames.length ? `${titleBase} - ${firstNames.join(" - ")}` : titleBase;
+      setInputText(input2, title);
+      onResult(true);
+    });
   }
   function removeFirstNameFromTitle(first) {
     if (!first) return;
@@ -11474,7 +11500,7 @@
     const clientForm = select2 && select2.closest && select2.closest(".client_form[data-invitee-name]") || container && container.closest && container.closest(".client_form[data-invitee-name]");
     if (clientForm) {
       const nm = (clientForm.getAttribute("data-invitee-name") || "").replace(/\s+/g, " ").trim();
-      if (nm) return { name: nm, firstName: firstNameFromName(nm) || `client ${index + 1}` };
+      if (nm) return { name: nm, firstName: firstNameFromName2(nm) || `client ${index + 1}` };
     }
     const roots = [select2 && select2.closest('tr,.client_information,.nested-fields,[class*="client" i]')].filter(Boolean);
     const banned = /^(uursoort|rapportage|geboren op|zichtbaar voor|zoek naar uursoorten|selecteer uursoort|onlangs gebruikt|geadviseerd|toegestaan)$/;
@@ -11493,7 +11519,7 @@
       }).sort((a, b) => rect(b).bottom - rect(a).bottom);
       if (names.length) {
         const txt = names[0].textContent.replace(/\s+/g, " ").trim();
-        return { name: txt, firstName: firstNameFromName(txt) || `client ${index + 1}` };
+        return { name: txt, firstName: firstNameFromName2(txt) || `client ${index + 1}` };
       }
     }
     const cr = rect(container);
@@ -11509,7 +11535,7 @@
     }).sort((a, b) => rect(b).bottom - rect(a).bottom)[0];
     if (fallback) {
       const txt = fallback.textContent.replace(/\s+/g, " ").trim();
-      return { name: txt, firstName: firstNameFromName(txt) || `client ${index + 1}` };
+      return { name: txt, firstName: firstNameFromName2(txt) || `client ${index + 1}` };
     }
     return { name: `Client ${index + 1}`, firstName: `client ${index + 1}` };
   }
@@ -12842,7 +12868,7 @@
 
   // src/content/features/appointment/uursoort-screens.js
   function clientsMissingUursoort() {
-    return findClientEntries().filter((entry) => !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName(entry.name)).filter(Boolean);
+    return findClientEntries().filter((entry) => !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName2(entry.name)).filter(Boolean);
   }
   function missingUursoortText(names) {
     if (!names.length) return "Alle uursoorten zijn ingevuld.";
@@ -13508,7 +13534,7 @@
       const key = name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ name, firstName: firstNameFromName(name), role: "" });
+      out.push({ name, firstName: firstNameFromName2(name), role: "" });
     }
     return out.sort((a, b) => a.firstName.localeCompare(b.firstName));
   }
@@ -13934,7 +13960,7 @@
     const currentNames = new Set(entries2.map((e) => e.name));
     if (appointmentFlow.knownClientNames.size) {
       for (const name of appointmentFlow.knownClientNames) {
-        if (!currentNames.has(name)) removeFirstNameFromTitle(firstNameFromName(name));
+        if (!currentNames.has(name)) removeFirstNameFromTitle(firstNameFromName2(name));
       }
     }
     if (!entries2.length) {
@@ -16048,7 +16074,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.279";
+      return "1.6.280";
     }
   }();
 
@@ -16507,18 +16533,28 @@
     invalidateClientEntries();
     const namen = [];
     for (const e of findClientEntries()) {
-      const f = e.firstName || firstNameFromName(e.name || "");
+      const f = e.firstName || firstNameFromName2(e.name || "");
       if (f && !namen.some((n) => clean(n) === clean(f))) namen.push(f);
     }
     return namen;
   }
   function voegVoornamenToe(keuze) {
-    const inp = getTitleInputSafe();
-    if (!inp) return;
-    const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
-    const delen = t.split(" - ").map(clean);
-    const erbij = kaartVoornamen().filter((n) => delen.indexOf(clean(n)) < 0);
-    if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(" - "));
+    return clientVoornamenAsync().then((namen) => {
+      if (!namen.length) namen = kaartVoornamen();
+      const inp = getTitleInputSafe();
+      if (!inp) return;
+      const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
+      const delen = t.split(" - ").map(clean);
+      const erbij = namen.filter((n) => delen.indexOf(clean(n)) < 0);
+      if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(" - "));
+    });
+  }
+  function ontbrekendeUursoorten() {
+    return leesFormulier().then((f) => {
+      if (f && f.clients && f.clients.length) return f.clients.filter((c) => f.uursoorten[c.id] == null).length;
+      invalidateClientEntries();
+      return findClientEntries().length ? clientsMissingUursoortEntries().length : 1;
+    });
   }
   function wachtOpClientkaarten(verder, poging = 0) {
     ensureClientExpanded(() => {
@@ -16558,8 +16594,7 @@
           clientLater = true;
           appointmentFlow.planhulpVullenSinds = Date.now();
           wachtOpClientkaarten(() => {
-            voegVoornamenToe(keuze);
-            afronden();
+            voegVoornamenToe(keuze).then(afronden, afronden);
           });
         };
         showAppointmentNeedsPrereqs();
@@ -16575,15 +16610,15 @@
       appointmentFlow.planhulpVullenSinds = Date.now();
       wachtOpClientkaarten(() => {
         setLabelsExclusive(labels, () => {
-          invalidateClientEntries();
-          const kaarten = findClientEntries();
-          const missen = keuze.pickUursoort ? kaarten.length ? clientsMissingUursoortEntries() : [null] : [];
-          if (!missen.length) {
-            naarOpslaan();
-            return;
-          }
-          appointmentFlow.planhulpVullenSinds = 0;
-          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+          const telling = keuze.pickUursoort ? ontbrekendeUursoorten() : Promise.resolve(0);
+          telling.then((missen) => {
+            if (!missen) {
+              naarOpslaan();
+              return;
+            }
+            appointmentFlow.planhulpVullenSinds = 0;
+            showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+          });
         });
       });
     }
@@ -20794,6 +20829,7 @@
       nietClientUursoortMetId,
       keuzeVoorLabel,
       kaartVoornamen,
+      clientVoornamenAsync,
       CONFIG,
       nietClientOptieVoorUursoort,
       entryUursoortIsSet,

@@ -12,9 +12,22 @@
     // { id, ok, reden? }
     SET_HOUR_TYPE: "zetUursoort",
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
-    HOUR_TYPE_SET: "uursoortGezet"
+    HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
+    READ_FORM: "leesFormulier",
+    // { id }  wat het open afspraakformulier bevat
+    FORM_READ: "formulierGelezen"
+    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
   };
+
+  // src/shared/namen.js
+  function firstNameFromName(name) {
+    const tokens = String(name || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    const TITLE = /^(mw|mevr|mevrouw|dhr|hr|meneer|mr|dr)\.?$/i;
+    let i = 0;
+    while (i < tokens.length - 1 && TITLE.test(tokens[i])) i++;
+    return tokens[i] || tokens[0] || "";
+  }
 
   // src/shared/storage-keys.js
   var PAGE_SESSION = {
@@ -485,11 +498,68 @@
         klaar(ok ? { ok: true } : { ok: false, reden: "veld nam de waarde niet over" });
       }, 80);
     }
+    function eventDetails() {
+      var veld = diepZoek(document, '[data-qa="label_select"]');
+      var h = veld;
+      while (h && !h.__vue_app__) h = h.parentElement || h.getRootNode && h.getRootNode().host || null;
+      if (!h || !h._vnode) return null;
+      var stapel = [h._vnode], gezien = /* @__PURE__ */ new WeakSet(), n = 0;
+      while (stapel.length && n < 2e5) {
+        var v = stapel.pop();
+        if (!v || typeof v !== "object" || gezien.has(v)) continue;
+        gezien.add(v);
+        n++;
+        var c = v.component;
+        if (c) {
+          var naam = c.type && (c.type.name || c.type.__name);
+          if (naam === "EventDetails" && c.props && c.props.event && typeof c.props.event === "object") return c;
+          stapel.push(c.subTree);
+        }
+        var i;
+        if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
+        if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
+      }
+      return null;
+    }
+    function leesFormulier() {
+      var c = eventDetails();
+      if (!c) return { ok: false, reden: "geen afspraakmodel" };
+      var ev = c.props.event;
+      var clients = (Array.isArray(ev.clients) ? ev.clients : []).map(function(cl) {
+        return { id: Number(cl && cl.id), voornaam: firstNameFromName(cl && cl.name) };
+      }).filter(function(cl) {
+        return cl.id > 0;
+      });
+      var uursoorten = {};
+      clients.forEach(function(cl) {
+        uursoorten[cl.id] = null;
+      });
+      diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]').forEach(function(el) {
+        var v = vueVnodeVan(el);
+        var cids = v ? propVan(v, "client-ids", "clientIds") : null;
+        if (!Array.isArray(cids)) return;
+        var mv = propVan(v, "model-value", "modelValue");
+        var waarde = mv && typeof mv === "object" ? mv.id : mv;
+        cids.forEach(function(id) {
+          uursoorten[Number(id)] = waarde == null || waarde === "" ? null : Number(waarde);
+        });
+      });
+      return {
+        ok: true,
+        clients,
+        uursoorten,
+        labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number)
+      };
+    }
     window.addEventListener("message", function(ev) {
       try {
         if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
         var d = ev.data;
         if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
+        if (d.type === PAGE_COMMAND.READ_FORM) {
+          post(PAGE_COMMAND.FORM_READ, Object.assign({ id: String(d.id || "").slice(0, 60) }, leesFormulier()));
+          return;
+        }
         var id = String(d.id || "").slice(0, 60);
         if (d.type === PAGE_COMMAND.SET_LABELS) {
           var namen = (Array.isArray(d.labels) ? d.labels : []).map(function(x) {

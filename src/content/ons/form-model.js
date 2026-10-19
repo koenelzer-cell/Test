@@ -51,7 +51,15 @@ export function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtM
     { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs);
 }
 
-function vraagMainWorld(type, antwoordType, velden, wachtMs) {
+// Wat het open formulier bevat (main-world, uit het Vue-model):
+// { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
+//   labelIds } of null als dat niet lukt. Geen volledige namen.
+export function leesFormulier(wachtMs) {
+  return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+}
+
+// volledig: het hele antwoord teruggeven (of null) in plaats van true/false.
+function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
   return new Promise((klaar) => {
     const id = type + '-' + (++volgnummer) + '-' + Date.now();
     let gemeld = false;
@@ -59,9 +67,9 @@ function vraagMainWorld(type, antwoordType, velden, wachtMs) {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
       const d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
-      einde(d.ok === true);
+      einde(volledig ? (d.ok === true ? d : null) : d.ok === true);
     };
-    const timer = setTimeout(() => einde(false), wachtMs || 1500);
+    const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
     function einde(ok) {
       if (gemeld) return;
       gemeld = true;
@@ -72,6 +80,6 @@ function vraagMainWorld(type, antwoordType, velden, wachtMs) {
     window.addEventListener('message', luister);
     try {
       window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type: type, id: id }, velden), location.origin);
-    } catch (e) { einde(false); }
+    } catch (e) { einde(volledig ? null : false); }
   });
 }

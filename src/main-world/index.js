@@ -15,7 +15,7 @@
         ONS het nieuwe afspraakformulier opbouwt.
      6) Labels en uursoort van het open afspraakformulier zetten op verzoek
         van de afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de
-        dropdown.
+        dropdown, en lezen wat erin staat (cliënten, uursoorten, labels).
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
@@ -25,6 +25,7 @@
    verwijderd.)
    ========================================================================== */
 import { PAGE_BRIDGE, PAGE_COMMAND } from '../shared/messages.js';
+import { firstNameFromName } from '../shared/namen.js';
 import { PAGE_SESSION } from '../shared/storage-keys.js';
 
 (function onsAgendahulpMainWorld() {
@@ -442,11 +443,60 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
     }, 80);
   }
+  /* Lezen wat het open formulier bevat, uit het afspraakmodel van de
+     Vue-component EventDetails (props.event) en de uursoortvelden. Zo hoeft
+     de afspraakhulp cliënten en uursoorten niet uit tekst en positie op het
+     scherm af te leiden.
+     PRIVACY: per cliënt gaat alleen het id en de voornaam (voor de titel)
+     terug; geen volledige naam, geboortedatum, nummer of adres. */
+  function eventDetails() {
+    var veld = diepZoek(document, '[data-qa="label_select"]');
+    var h = veld;
+    while (h && !h.__vue_app__) h = h.parentElement || (h.getRootNode && h.getRootNode().host) || null;
+    if (!h || !h._vnode) return null;
+    var stapel = [h._vnode], gezien = new WeakSet(), n = 0;
+    while (stapel.length && n < 200000) {
+      var v = stapel.pop();
+      if (!v || typeof v !== 'object' || gezien.has(v)) continue;
+      gezien.add(v); n++;
+      var c = v.component;
+      if (c) {
+        var naam = c.type && (c.type.name || c.type.__name);
+        if (naam === 'EventDetails' && c.props && c.props.event && typeof c.props.event === 'object') return c;
+        stapel.push(c.subTree);
+      }
+      var i;
+      if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
+      if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
+    }
+    return null;
+  }
+  function leesFormulier() {
+    var c = eventDetails();
+    if (!c) return { ok: false, reden: 'geen afspraakmodel' };
+    var ev = c.props.event;
+    var clients = (Array.isArray(ev.clients) ? ev.clients : []).map(function (cl) {
+      return { id: Number(cl && cl.id), voornaam: firstNameFromName(cl && cl.name) };
+    }).filter(function (cl) { return cl.id > 0; });
+    var uursoorten = {};
+    clients.forEach(function (cl) { uursoorten[cl.id] = null; });
+    diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]').forEach(function (el) {
+      var v = vueVnodeVan(el);
+      var cids = v ? propVan(v, 'client-ids', 'clientIds') : null;
+      if (!Array.isArray(cids)) return;
+      var mv = propVan(v, 'model-value', 'modelValue');
+      var waarde = mv && typeof mv === 'object' ? mv.id : mv;
+      cids.forEach(function (id) { uursoorten[Number(id)] = waarde == null || waarde === '' ? null : Number(waarde); });
+    });
+    return { ok: true, clients: clients, uursoorten: uursoorten,
+      labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number) };
+  }
   window.addEventListener('message', function (ev) {
     try {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
       var d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
+      if (d.type === PAGE_COMMAND.READ_FORM) { post(PAGE_COMMAND.FORM_READ, Object.assign({ id: String(d.id || '').slice(0, 60) }, leesFormulier())); return; }
       var id = String(d.id || '').slice(0, 60);
       if (d.type === PAGE_COMMAND.SET_LABELS) {
         var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);

@@ -9,6 +9,7 @@ import {
   getTitleInput,
 } from '../../ons/appointment-form.js';
 import { deepQueryAll } from '../../ons/dom.js';
+import { leesFormulier } from '../../ons/form-model.js';
 
 export function findClientFirstName() {
   const directName = findClientNameText();
@@ -46,14 +47,27 @@ export function findClientFirstNames() {
   }
   return names;
 }
+// Voornamen van de cliënten: eerst uit het afspraakmodel van het formulier
+// (main-world, betrouwbaar); lukt dat niet, dan uit de cliëntkaarten.
+export function clientVoornamenAsync(wachtMs) {
+  return leesFormulier(wachtMs || 600).then((f) => {
+    const uitModel = [];
+    ((f && f.clients) || []).forEach((c) => {
+      if (c.voornaam && !uitModel.some((n) => clean(n) === clean(c.voornaam))) uitModel.push(c.voornaam);
+    });
+    return uitModel.length ? uitModel : findClientFirstNames();
+  }, () => findClientFirstNames());
+}
 export function setTitleForChoice(choice, onResult) {
-  const input = getTitleInput();
-  if (!input) { onResult(false); return; }
-  const firstNames = findClientFirstNames();
-  const titleBase = choice.titleLabel || choice.label;
-  const title = firstNames.length ? `${titleBase} - ${firstNames.join(' - ')}` : titleBase;
-  setInputText(input, title);
-  onResult(true);
+  if (!getTitleInput()) { onResult(false); return; }
+  clientVoornamenAsync().then((firstNames) => {
+    const input = getTitleInput();
+    if (!input) { onResult(false); return; }
+    const titleBase = choice.titleLabel || choice.label;
+    const title = firstNames.length ? `${titleBase} - ${firstNames.join(' - ')}` : titleBase;
+    setInputText(input, title);
+    onResult(true);
+  });
 }
 // Haal de voornaam van een verwijderde cliënt uit de titel. De titel is
 // opgebouwd als "Basis - Voornaam1 - Voornaam2"; we houden het eerste segment

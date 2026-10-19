@@ -289,3 +289,47 @@ test('vanuit de planhulp: het afspraaktype bij het label, de niet-cliëntgebonde
   assert.equal(api.nietClientOptieVoorUursoort(opt.uursoort.replace(/[*#\s]+$/, '')), opt, 'ook zonder sterretje');
   assert.equal(api.nietClientOptieVoorUursoort('Bestaat niet'), null);
 });
+
+test('main-world leest het formulier uit het Vue-model: cliënt-id en voornaam, uursoort per cliënt, labels (geen andere gegevens)', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body><div id="content" data-v-app><uc-combo-box data-qa="label_select"></uc-combo-box>'
+    + '<uc-select data-qa="hour_type_select"></uc-select><uc-select data-qa="hour_type_select"></uc-select></div></body>',
+    { url: 'https://impegno.onsagenda.nl/events/new', runScripts: 'outside-only' });
+  const w = dom.window;
+  const [label, uA, uB] = [w.document.querySelector('[data-qa="label_select"]'), ...w.document.querySelectorAll('[data-qa="hour_type_select"]')];
+  const event = { name: 'Face to face', label_ids: [46], client_ids: [11142, 222],
+    clients: [{ id: 11142, name: 'Tamara Test', date_of_birth: '2020-01-01', identification_no: '106839', address: { street: 'X' } },
+      { id: 222, name: 'Dhr. Bram Proef', date_of_birth: '1990-02-02', identification_no: '1' }] };
+  const vel = (el, cids, waarde) => ({ el, props: { 'client-ids': cids, 'model-value': waarde, 'onUpdate:modelValue': () => {} } });
+  const details = { type: { name: 'EventDetails' }, props: { event },
+    subTree: { children: [{ el: label, props: { 'model-value': [46], 'onUpdate:modelValue': () => {} } }, vel(uA, [11142], 1135), vel(uB, [222], null)] } };
+  const houder = w.document.getElementById('content');
+  houder.__vue_app__ = {};
+  houder._vnode = { component: { subTree: { children: [{ component: details }] } } };
+  w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
+  const r = await new Promise((klaar) => {
+    w.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'formulierGelezen') klaar(ev.data); });
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'leesFormulier', id: 'l1' }, origin: w.location.origin, source: w }));
+  });
+  const kaal = JSON.parse(JSON.stringify(r));
+  assert.equal(kaal.ok, true);
+  assert.deepEqual(kaal.clients, [{ id: 11142, voornaam: 'Tamara' }, { id: 222, voornaam: 'Bram' }], 'aanhef overgeslagen');
+  assert.deepEqual(kaal.uursoorten, { 11142: 1135, 222: null });
+  assert.deepEqual(kaal.labelIds, [46]);
+  const tekst = JSON.stringify(kaal);
+  for (const geheim of ['Test', 'Proef', '2020-01-01', '106839', 'street']) assert.ok(!tekst.includes(geheim), 'niet in het antwoord: ' + geheim);
+});
+
+test('afspraakhulp: voornamen voor de titel eerst uit het formulier, anders uit de kaarten', async () => {
+  const { api, window } = bootHelper();
+  const post = window.postMessage.bind(window);
+  window.postMessage = (data) => window.dispatchEvent(new window.MessageEvent('message', { data, origin: window.location.origin, source: window }));
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (!d || d.dir !== 'to-main' || d.type !== 'leesFormulier') return;
+    window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'formulierGelezen', id: d.id, ok: true,
+      clients: [{ id: 1, voornaam: 'Tamara' }, { id: 2, voornaam: 'tamara' }, { id: 3, voornaam: 'Bram' }], uursoorten: {}, labelIds: [] }, origin: window.location.origin, source: window }));
+  });
+  assert.deepEqual(Array.from(await api.clientVoornamenAsync()), ['Tamara', 'Bram'], 'uit het model, zonder dubbele');
+  window.postMessage = post;
+});
