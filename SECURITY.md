@@ -182,7 +182,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   venster; het bevat alleen labelnamen, of een uursoort-id met de naam van de
   uursoort en een kenmerk van het veld. Het script leest alleen id en naam
   van de beschikbare labels. Ook dan verstuurt het niets: opslaan blijft aan
-  de medewerker. Op verzoek leest het script ook wat het open formulier
+  de medewerker. Titel, notities, tijden en reistijd kan het script op
+  verzoek zetten via de methode die het formulier zelf daarvoor gebruikt
+  (alleen die velden, nooit cliënten of medewerkers). Op verzoek leest het script ook wat het open formulier
   bevat (voor de titel en welke cliënt nog een uursoort mist); daarvan gaat
   per cliënt alleen het interne id en de voornaam naar het content-script,
   geen volledige naam, geboortedatum, nummer of adres, en niets wordt

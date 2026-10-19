@@ -14,6 +14,10 @@
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
+    SET_FIELD: "zetVeld",
+    // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
+    FIELD_SET: "veldGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -521,6 +525,45 @@
       }
       return null;
     }
+    var VELDEN = { name: "tekst", comment: "tekst", start_time: "tijd", end_time: "tijd", travel_time_before: "getal", travel_time_after: "getal" };
+    function zetVeld(d, klaar) {
+      var veld = String(d.veld || ""), soort = VELDEN[veld], w = d.waarde;
+      if (!soort) {
+        klaar({ ok: false, reden: "onbekend veld" });
+        return;
+      }
+      if (soort === "tekst") w = String(w == null ? "" : w).slice(0, 500);
+      else if (soort === "tijd") {
+        w = String(w == null ? "" : w);
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(w)) {
+          klaar({ ok: false, reden: "ongeldige tijd" });
+          return;
+        }
+      } else {
+        w = Number(w);
+        if (!(w >= 0 && w < 1440)) {
+          klaar({ ok: false, reden: "ongeldig getal" });
+          return;
+        }
+      }
+      var c = eventDetails();
+      if (!c || !c.proxy || typeof c.proxy.onChange !== "function") {
+        klaar({ ok: false, reden: "geen onChange" });
+        return;
+      }
+      try {
+        c.proxy.onChange(w, veld);
+      } catch (e) {
+        klaar({ ok: false, reden: "ONS weigerde de waarde" });
+        return;
+      }
+      setTimeout(function() {
+        var c2 = eventDetails();
+        var nu = c2 && c2.props && c2.props.event ? c2.props.event[veld] : void 0;
+        var ok = soort === "getal" ? Number(nu) === w : String(nu == null ? "" : nu) === w;
+        klaar(ok ? { ok: true } : { ok: false, reden: "model nam de waarde niet over" });
+      }, 80);
+    }
     function leesFormulier() {
       var c = eventDetails();
       if (!c) return { ok: false, reden: "geen afspraakmodel" };
@@ -558,6 +601,13 @@
         if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
         if (d.type === PAGE_COMMAND.READ_FORM) {
           post(PAGE_COMMAND.FORM_READ, Object.assign({ id: String(d.id || "").slice(0, 60) }, leesFormulier()));
+          return;
+        }
+        if (d.type === PAGE_COMMAND.SET_FIELD) {
+          var vid = String(d.id || "").slice(0, 60);
+          zetVeld(d, function(r) {
+            post(PAGE_COMMAND.FIELD_SET, Object.assign({ id: vid }, r));
+          });
           return;
         }
         var id = String(d.id || "").slice(0, 60);

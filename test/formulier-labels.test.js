@@ -333,3 +333,39 @@ test('afspraakhulp: voornamen voor de titel eerst uit het formulier, anders uit 
   assert.deepEqual(Array.from(await api.clientVoornamenAsync()), ['Tamara', 'Bram'], 'uit het model, zonder dubbele');
   window.postMessage = post;
 });
+
+test('main-world zet titel, tijden en reistijd via EventDetails.onChange en kijkt het model na; alleen vaste velden', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body><div id="content" data-v-app><uc-combo-box data-qa="label_select"></uc-combo-box></div></body>',
+    { url: 'https://impegno.onsagenda.nl/events/new', runScripts: 'outside-only' });
+  const w = dom.window;
+  const event = { name: '', start_time: '10:00', end_time: '11:00', travel_time_before: 0, label_ids: [], clients: [] };
+  const aangeroepen = [];
+  let neemtOver = true;
+  const details = { type: { name: 'EventDetails' }, props: { event },
+    proxy: { onChange: (waarde, veld) => { aangeroepen.push([veld, waarde]); if (neemtOver) event[veld] = waarde; } },
+    subTree: { children: [{ el: w.document.querySelector('[data-qa="label_select"]'), props: { 'onUpdate:modelValue': () => {} } }] } };
+  const houder = w.document.getElementById('content');
+  houder.__vue_app__ = {};
+  houder._vnode = { component: { subTree: { children: [{ component: details }] } } };
+  w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
+  const zet = (veld, waarde) => new Promise((klaar) => {
+    const id = 'v' + Math.random();
+    const luister = (ev) => { if (ev.data && ev.data.type === 'veldGezet' && ev.data.id === id) { w.removeEventListener('message', luister); klaar(ev.data); } };
+    w.addEventListener('message', luister);
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'zetVeld', id, veld, waarde }, origin: w.location.origin, source: w }));
+  });
+  assert.equal((await zet('name', 'Face to face - Tamara')).ok, true);
+  assert.equal(event.name, 'Face to face - Tamara');
+  assert.equal((await zet('end_time', '11:30')).ok, true);
+  assert.equal((await zet('travel_time_before', 15)).ok, true);
+  assert.equal(event.travel_time_before, 15);
+  assert.match((await zet('end_time', '25:00')).reden, /ongeldige tijd/);
+  assert.match((await zet('label_ids', [1])).reden, /onbekend veld/, 'labels gaan via hun eigen veld');
+  assert.match((await zet('client_ids', [9])).reden, /onbekend veld/, 'cliënten nooit via deze weg');
+  neemtOver = false;
+  const r = await zet('name', 'Andere titel');
+  assert.equal(r.ok, false);
+  assert.match(r.reden, /model nam de waarde niet over/);
+  assert.deepEqual(JSON.parse(JSON.stringify(aangeroepen.map((a) => a[0]))), ['name', 'end_time', 'travel_time_before', 'name'], 'ongeldige verzoeken roepen ONS niet aan');
+});

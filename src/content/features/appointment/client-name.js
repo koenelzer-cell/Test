@@ -10,6 +10,7 @@ import {
 } from '../../ons/appointment-form.js';
 import { deepQueryAll } from '../../ons/dom.js';
 import { leesFormulier } from '../../ons/form-model.js';
+import { zetTitelAsync } from './title.js';
 
 export function findClientFirstName() {
   const directName = findClientNameText();
@@ -65,8 +66,7 @@ export function setTitleForChoice(choice, onResult) {
     if (!input) { onResult(false); return; }
     const titleBase = choice.titleLabel || choice.label;
     const title = firstNames.length ? `${titleBase} - ${firstNames.join(' - ')}` : titleBase;
-    setInputText(input, title);
-    onResult(true);
+    zetTitelAsync(title).then(() => onResult(true), () => { setInputText(input, title); onResult(true); });
   });
 }
 // Haal de voornaam van een verwijderde cliënt uit de titel. De titel is

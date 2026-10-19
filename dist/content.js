@@ -3445,6 +3445,10 @@
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
+    SET_FIELD: "zetVeld",
+    // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
+    FIELD_SET: "veldGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -5848,6 +5852,9 @@
       wachtMs
     );
   }
+  function zetVeldViaFormulier(veld, waarde, wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
+  }
   function leesFormulier(wachtMs) {
     return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
   }
@@ -6474,6 +6481,24 @@
     }, 130);
   }
 
+  // src/content/features/appointment/title.js
+  function zetTitelAsync(tekst) {
+    const titel = String(tekst == null ? "" : tekst);
+    const toont = () => {
+      const inp = getTitleInputSafe();
+      return !!inp && inputTextValue(inp) === titel;
+    };
+    return zetVeldViaFormulier("name", titel).then((ok) => new Promise((klaar) => {
+      setTimeout(() => {
+        if (ok && toont()) {
+          klaar(true);
+          return;
+        }
+        klaar(setAppointmentTitleText(titel));
+      }, ok ? 60 : 0);
+    }));
+  }
+
   // src/content/features/appointment/client-name.js
   function findClientFirstName() {
     const directName = findClientNameText();
@@ -6539,8 +6564,10 @@
       }
       const titleBase = choice.titleLabel || choice.label;
       const title = firstNames.length ? `${titleBase} - ${firstNames.join(" - ")}` : titleBase;
-      setInputText(input2, title);
-      onResult(true);
+      zetTitelAsync(title).then(() => onResult(true), () => {
+        setInputText(input2, title);
+        onResult(true);
+      });
     });
   }
   function removeFirstNameFromTitle(first) {
@@ -16074,7 +16101,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.280";
+      return "1.6.281";
     }
   }();
 
@@ -16526,7 +16553,10 @@
   function zetTitel(titel, pogingen = 0) {
     const inp = getTitleInputSafe();
     if (inp && inputTextValue(inp) === titel) return;
-    if (inp && setAppointmentTitleText(titel)) return;
+    if (inp) {
+      zetTitelAsync(titel);
+      return;
+    }
     if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
   }
   function kaartVoornamen() {
@@ -16546,7 +16576,7 @@
       const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
       const delen = t.split(" - ").map(clean);
       const erbij = namen.filter((n) => delen.indexOf(clean(n)) < 0);
-      if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(" - "));
+      if (erbij.length) return zetTitelAsync([t].concat(erbij).join(" - "));
     });
   }
   function ontbrekendeUursoorten() {

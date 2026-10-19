@@ -12,7 +12,7 @@ import { clean } from '../ons/dom.js';
 import { findClientEntries, firstNameFromName, getTitleInputSafe, invalidateClientEntries } from '../ons/appointment-form.js';
 import { appointmentFlow } from '../state.js';
 import { applyPendingAppointment } from '../features/appointment/prefill.js';
-import { setAppointmentTitleText } from '../features/appointment/fields.js';
+import { zetTitelAsync } from '../features/appointment/title.js';
 import { setLabelsExclusive } from '../features/appointment/labels.js';
 import { showAppointmentReadyToSave } from '../features/appointment/save.js';
 import { clientsMissingUursoortEntries, showUursoortQueue } from '../features/appointment/uursoort-queue.js';
@@ -57,11 +57,12 @@ function vraagTitel(date, time) {
     } catch (e) { einde(''); }
   });
 }
-// Titel zetten zodra het titelveld er is (hooguit ~10 s).
+// Titel zetten zodra het titelveld er is (hooguit ~10 s): eerst in het
+// afspraakmodel, anders typen.
 function zetTitel(titel, pogingen = 0) {
   const inp = getTitleInputSafe();
   if (inp && inputTextValue(inp) === titel) return;
-  if (inp && setAppointmentTitleText(titel)) return;
+  if (inp) { zetTitelAsync(titel); return; }
   if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
 }
 
@@ -88,7 +89,7 @@ function voegVoornamenToe(keuze) {
     const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
     const delen = t.split(' - ').map(clean);
     const erbij = namen.filter((n) => delen.indexOf(clean(n)) < 0);
-    if (erbij.length) setAppointmentTitleText([t].concat(erbij).join(' - '));
+    if (erbij.length) return zetTitelAsync([t].concat(erbij).join(' - '));
   });
 }
 // Welke cliënten missen nog een uursoort? Eerst uit het formulier zelf

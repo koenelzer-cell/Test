@@ -51,6 +51,13 @@ export function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtM
     { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs);
 }
 
+// Eén veld van het afspraakmodel via ONS' eigen onChange: 'name' (titel),
+// 'comment', 'start_time'/'end_time' ('14:00'), 'travel_time_before'/'after'
+// (minuten). -> Promise<boolean> (true = het model heeft de waarde)
+export function zetVeldViaFormulier(veld, waarde, wachtMs) {
+  return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde: waarde }, wachtMs);
+}
+
 // Wat het open formulier bevat (main-world, uit het Vue-model):
 // { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
 //   labelIds } of null als dat niet lukt. Geen volledige namen.

@@ -79,6 +79,8 @@ export const PAGE_COMMAND = {
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
   SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
+  SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
+  FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
 };
