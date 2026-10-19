@@ -34,6 +34,8 @@ export function findClientFirstName() {
   }
   return best ? firstNameFromName(best) : '';
 }
+// Voornamen uit de cliëntkaarten van dit formulier. Bewust geen zoeken op
+// positie of losse tekst elders op de pagina: dat gaf verkeerde namen.
 export function findClientFirstNames() {
   const names = [];
   const seen = new Set();
@@ -41,10 +43,6 @@ export function findClientFirstNames() {
     const first = entry.firstName || firstNameFromName(entry.name);
     const key = clean(first);
     if (first && !seen.has(key)) { seen.add(key); names.push(first); }
-  }
-  if (!names.length) {
-    const first = findClientFirstName();
-    if (first) names.push(first);
   }
   return names;
 }
@@ -66,7 +64,7 @@ export function setTitleForChoice(choice, onResult) {
     if (!input) { onResult(false); return; }
     const titleBase = choice.titleLabel || choice.label;
     const title = firstNames.length ? `${titleBase} - ${firstNames.join(' - ')}` : titleBase;
-    zetTitelAsync(title).then(() => onResult(true), () => { setInputText(input, title); onResult(true); });
+    zetTitelAsync(title).then((ok) => onResult(!!ok));
   });
 }
 // Haal de voornaam van een verwijderde cliënt uit de titel. De titel is

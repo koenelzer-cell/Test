@@ -1,6 +1,7 @@
 // Uursoort kiezen per cliënt: opties ophalen (API, met DOM-terugval) en de
 // wachtrij bij meerdere cliënten.
 
+import { wachtTot } from '../../core/wacht.js';
 import { clean } from '../../ons/dom.js';
 import {
   entryUursoortIsSet,
@@ -188,16 +189,15 @@ function uursoortContextsForNames(names) {
     .filter((entry) => wanted.has(clean(entry.name)) && entry.uursoortTrigger)
     .map((entry) => ({ firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger }));
 }
-function startUursoortForNewClients(names, attempt = 0) {
+function startUursoortForNewClients(names) {
   if (!appointmentFlow.pendingChoice || !appointmentFlow.pendingChoice.pickUursoort || appointmentFlow.autoSelectingNewClient) return;
   appointmentFlow.autoSelectingNewClient = true;
-  ensureClientExpanded(() => {
-    const contexts = uursoortContextsForNames(names);
-    if (!contexts.length && attempt < 8) {
-      appointmentFlow.autoSelectingNewClient = false;
-      setTimeout(() => startUursoortForNewClients(names, attempt + 1), 220);
-      return;
-    }
+  ensureClientExpanded(() => wachtTot(() => {
+    invalidateClientEntries();
+    const c = uursoortContextsForNames(names);
+    return c.length ? c : null;
+  }, { max: 2000 }).then((gevonden) => {
+    const contexts = gevonden || [];
     if (!contexts.length) {
       appointmentFlow.autoSelectingNewClient = false;
       setStatus('Nieuwe client gevonden | uursoortveld niet gevonden', false);
@@ -209,7 +209,7 @@ function startUursoortForNewClients(names, attempt = 0) {
       showChoices();
       setStatus('Uursoort voor nieuwe client gezet');
     });
-  });
+  }));
 }
 export function handleClientListChanges() {
   const entries = findClientEntries();

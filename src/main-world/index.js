@@ -295,19 +295,22 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   }
   installDetailsWatcher();
 
-  /* ---- labels zetten via het formulier zelf ------------------------------
-     Het afspraakformulier van ONS is een Vue-app. Het labelveld
-     (uc-combo-box, data-qa="label_select") krijgt zijn waarde als
-     model-value, met de keuzes in available-labels, en meldt een keuze via
-     onUpdate:modelValue (bij ONS: e.onChange(t, 'label_ids')). Die functie
-     roepen we hier aan met de id's van de gevraagde labels: precies wat de
-     dropdown doet na een klik, maar zonder dat hij opengaat. De gevraagde set
-     vervangt wat er stond (net als de afspraakhulp altijd deed). Daarna kijken
-     we of het veld de nieuwe waarde heeft; zo niet, dan meldt het antwoord
-     ok: false en klikt het content-script zoals vroeger.
-     Alleen Vue-interne velden die al jaren vastliggen: _vnode, component,
-     subTree, children, dynamicChildren, el en props.
-     PRIVACY: we lezen alleen id en naam van de beschikbare labels.
+  /* ---- het afspraakformulier via Vue ---------------------------------
+     Het afspraakformulier van ONS is een Vue-app met uc-*-webcomponenten.
+     Alleen hier (pagina-context) kunnen we erbij. Alles gaat via twee
+     bouwstenen:
+       formulierBoom()     één wandeling door de Vue-boom: per element het
+                           veld met een Vue-koppeling (props met
+                           onUpdate:modelValue) en de component EventDetails
+                           met het afspraakmodel (props.event);
+       zetEnControleer()   iets doen via ONS' eigen koppeling en na de
+                           volgende tekenronde nakijken of het gelukt is.
+     Het content-script vraagt het via PAGE_COMMAND en doet het zelf (via het
+     scherm) als het antwoord ok: false is.
+     Alleen Vue-interne velden die al jaren vastliggen: __vue_app__, _vnode,
+     component, subTree, children, dynamicChildren, el, props, proxy.
+     PRIVACY: we lezen alleen id en naam van labels, uursoort-id's, cliënt-id
+     en voornaam; geen andere cliëntgegevens.
      ---------------------------------------------------------------------- */
   function diepZoekAlle(root, sel, uit) {
     uit = uit || [];
@@ -324,158 +327,137 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     }
     return null;
   }
-  function vueVnodeVan(el) {
-    var h = el;
-    while (h && !h.__vue_app__) h = h.parentElement || (h.getRootNode && h.getRootNode().host) || null;
-    if (!h || !h._vnode) return null;
-    var stapel = [h._vnode], gezien = new WeakSet(), n = 0;
-    while (stapel.length && n < 200000) {
-      var v = stapel.pop();
-      if (!v || typeof v !== 'object' || gezien.has(v)) continue;
-      gezien.add(v); n++;
-      if (v.el === el && v.props && typeof v.props['onUpdate:modelValue'] === 'function') return v;
-      if (v.component) stapel.push(v.component.subTree);
-      if (v.suspense && v.suspense.activeBranch) stapel.push(v.suspense.activeBranch);
-      var i;
-      if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
-      if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
-    }
-    return null;
-  }
+  function omhoog(e) { return e.parentElement || (e.getRootNode && e.getRootNode().host) || null; }
   function norm(s) {
-    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   }
   function propVan(v, a, b) { return v.props[a] !== undefined ? v.props[a] : v.props[b]; }
-  function labelId(x) { return x && typeof x === 'object' ? Number(x.id) : Number(x); }
-  // namen -> { ok, reden? }. Zelfde herkenning als de chips: exact, anders
-  // een label waarvan de naam het gevraagde bevat (alleen als dat er één is).
-  // namen leeg = alle labels weghalen (Verwijder instellingen).
-  function zetLabels(namen, klaar) {
-    var veld = diepZoek(document, '[data-qa="label_select"]');
-    if (!veld) { klaar({ ok: false, reden: 'geen labelveld' }); return; }
-    var v = vueVnodeVan(veld);
-    if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
-    if (!namen.length) {
-      try { v.props['onUpdate:modelValue']([]); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
-      setTimeout(function () {
-        var na = vueVnodeVan(veld), nu = na ? propVan(na, 'model-value', 'modelValue') : null;
-        klaar(Array.isArray(nu) && !nu.length ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
-      }, 80);
-      return;
-    }
-    var beschikbaar = propVan(v, 'available-labels', 'availableLabels');
-    if (!Array.isArray(beschikbaar) || !beschikbaar.length) { klaar({ ok: false, reden: 'geen beschikbare labels' }); return; }
-    var gekozen = [];
-    for (var i = 0; i < namen.length; i++) {
-      var w = norm(namen[i]);
-      var exact = beschikbaar.filter(function (l) { return l && norm(l.name) === w; });
-      var bevat = exact.length ? exact : beschikbaar.filter(function (l) { return l && norm(l.name).indexOf(w) !== -1; });
-      if (bevat.length !== 1 || !(Number(bevat[0].id) > 0)) { klaar({ ok: false, reden: 'label niet gevonden' }); return; }
-      if (gekozen.indexOf(bevat[0]) < 0) gekozen.push(bevat[0]);
-    }
-    var huidig = propVan(v, 'model-value', 'modelValue');
-    // De waarde in dezelfde vorm als ONS hem in het veld zet: id's, of de
-    // labelobjecten als het veld die al bevat.
-    var objecten = Array.isArray(huidig) && huidig.length > 0 && typeof huidig[0] === 'object';
-    var ids = gekozen.map(function (l) { return Number(l.id); });
-    try { v.props['onUpdate:modelValue'](objecten ? gekozen.slice() : ids.slice()); }
-    catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
-    // Na de volgende tekenronde nakijken.
-    setTimeout(function () {
-      var na = vueVnodeVan(veld);
-      var nu = na ? propVan(na, 'model-value', 'modelValue') : null;
-      var nuIds = Array.isArray(nu) ? nu.map(labelId).sort() : [];
-      var ok = nuIds.length === ids.length && ids.slice().sort().every(function (id, k) { return id === nuIds[k]; });
-      klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
-    }, 80);
+  function waardeVan(v) { var mv = propVan(v, 'model-value', 'modelValue'); return mv && typeof mv === 'object' && !Array.isArray(mv) ? mv.id : mv; }
+  function idVan(x) { return x && typeof x === 'object' ? Number(x.id) : Number(x); }
+  function zelfdeIds(a, b) {
+    var x = (a || []).map(idVan).sort(), y = (b || []).map(idVan).sort();
+    return x.length === y.length && x.every(function (id, k) { return id === y[k]; });
   }
-  /* Uursoort per cliënt (en op afspraakniveau bij een niet-cliëntgebonden
-     afspraak): het veld uc-select[data-qa=hour_type_select] meldt
-     een keuze via onUpdate:modelValue(id, omschrijving) (bij ONS:
-     emit('update:invitation', { hour_type_id, hour_type_description })). Het
-     content-script geeft het veld van de juiste cliënt even het kenmerk
-     data-onsah-doel en stuurt id en naam uit ONS' eigen productlijst mee. */
-  // Per cliënt én op afspraakniveau (niet cliëntgebonden, alleen zonder cliënt).
-  function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && (e.getAttribute('data-qa') === 'hour_type_select' || e.getAttribute('aria-label') === 'Uursoort')); }
-  function uursoortVeldBij(doel) {
-    for (var e = doel, n = 0; e && n < 30; e = e.parentElement || (e.getRootNode && e.getRootNode().host) || null, n++) {
-      if (isUursoortVeld(e)) return e;
-    }
-    return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
-  }
-  // Het uursoortveld van een cliënt (vanuit de planhulp): het veld waarvan
-  // de vnode die cliënt in client-ids heeft.
-  function uursoortVeldVoorClient(clientId) {
-    var velden = diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]');
-    for (var i = 0; i < velden.length; i++) {
-      var v = vueVnodeVan(velden[i]);
-      var cids = v ? propVan(v, 'client-ids', 'clientIds') : null;
-      if (Array.isArray(cids) && cids.map(Number).indexOf(Number(clientId)) >= 0) return velden[i];
-    }
-    return null;
-  }
-  // d: { doel | clientId, hourTypeId, beschrijving } of { doel, wis: true }.
-  function zetUursoort(d, klaar) {
-    var wis = d.wis === true;
-    var id = Number(d.hourTypeId);
-    if (!wis && !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-    var veld = null;
-    if (d.clientId != null) {
-      if (!/^\d{1,12}$/.test(String(d.clientId))) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-      veld = uursoortVeldVoorClient(d.clientId);
-    } else {
-      var doelNaam = String(d.doel || '');
-      if (!/^[\w-]{1,60}$/.test(doelNaam)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
-      veld = doel ? uursoortVeldBij(doel) : null;
-    }
-    if (!veld) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
-    var v = vueVnodeVan(veld);
-    if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
-    try {
-      if (wis) v.props['onUpdate:modelValue'](null, '');
-      else v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200));
-    } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
-    setTimeout(function () {
-      var na = vueVnodeVan(veld);
-      var nu = na ? propVan(na, 'model-value', 'modelValue') : null;
-      var waarde = nu && typeof nu === 'object' ? nu.id : nu;
-      var ok = wis ? (waarde == null || waarde === '') : Number(waarde) === id;
-      klaar(ok ? { ok: true } : { ok: false, reden: 'veld nam de waarde niet over' });
-    }, 80);
-  }
-  /* Lezen wat het open formulier bevat, uit het afspraakmodel van de
-     Vue-component EventDetails (props.event) en de uursoortvelden. Zo hoeft
-     de afspraakhulp cliënten en uursoorten niet uit tekst en positie op het
-     scherm af te leiden.
-     PRIVACY: per cliënt gaat alleen het id en de voornaam (voor de titel)
-     terug; geen volledige naam, geboortedatum, nummer of adres. */
-  function eventDetails() {
-    var veld = diepZoek(document, '[data-qa="label_select"]');
-    var h = veld;
-    while (h && !h.__vue_app__) h = h.parentElement || (h.getRootNode && h.getRootNode().host) || null;
+
+  // start (optioneel): een element in het formulier om de Vue-app vanaf te zoeken.
+  function formulierBoom(start) {
+    var anker = start || diepZoek(document, '[data-qa="label_select"]') || diepZoek(document, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
+    var h = anker;
+    while (h && !h.__vue_app__) h = omhoog(h);
     if (!h || !h._vnode) return null;
+    var perEl = new Map(), velden = [], details = null;
     var stapel = [h._vnode], gezien = new WeakSet(), n = 0;
     while (stapel.length && n < 200000) {
       var v = stapel.pop();
       if (!v || typeof v !== 'object' || gezien.has(v)) continue;
       gezien.add(v); n++;
+      // De buitenste vnode van een element telt (daar zit de koppeling).
+      if (v.el && v.props && typeof v.props['onUpdate:modelValue'] === 'function' && !perEl.has(v.el)) { perEl.set(v.el, v); velden.push(v); }
       var c = v.component;
       if (c) {
-        var naam = c.type && (c.type.name || c.type.__name);
-        if (naam === 'EventDetails' && c.props && c.props.event && typeof c.props.event === 'object') return c;
+        if (!details && c.props && c.props.event && typeof c.props.event === 'object' && c.type && (c.type.name || c.type.__name) === 'EventDetails') details = c;
         stapel.push(c.subTree);
       }
       var i;
       if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
       if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
     }
-    return null;
+    return { veld: function (el) { return perEl.get(el) || null; }, velden: velden, details: details };
   }
-  /* Eén veld van het afspraakmodel zetten via ONS' eigen methode
-     EventDetails.onChange(waarde, veld) (die het formulier zelf gebruikt voor
-     o.a. comment en label_ids). Alleen deze velden, in de vorm van het model;
-     daarna nakijken of het model de waarde heeft. */
+  function zetEnControleer(doe, controleer, klaar) {
+    try { doe(); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
+    setTimeout(function () {
+      var ok = false;
+      try { ok = !!controleer(formulierBoom()); } catch (e) {}
+      klaar(ok ? { ok: true } : { ok: false, reden: 'het formulier nam de waarde niet over' });
+    }, 80);
+  }
+
+  /* Labels: uc-combo-box[data-qa=label_select]; model-value, available-labels
+     en onUpdate:modelValue (bij ONS onChange(t, 'label_ids')). d.labels:
+     namen; d.wis: alles weg; d.toevoegen: bij wat er staat, anders vervangt
+     de set wat er stond. Namen: exact, anders het ene label dat het bevat. */
+  function zetLabels(d, klaar) {
+    var veld = diepZoek(document, '[data-qa="label_select"]');
+    if (!veld) { klaar({ ok: false, reden: 'geen labelveld' }); return; }
+    var boom = formulierBoom(), v = boom && boom.veld(veld);
+    if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
+    var huidig = propVan(v, 'model-value', 'modelValue');
+    huidig = Array.isArray(huidig) ? huidig : [];
+    var beschikbaar = propVan(v, 'available-labels', 'availableLabels');
+    beschikbaar = Array.isArray(beschikbaar) ? beschikbaar : [];
+    var gekozen = [];
+    if (d.wis !== true) {
+      for (var i = 0; i < d.labels.length; i++) {
+        var w = norm(d.labels[i]);
+        var exact = beschikbaar.filter(function (l) { return l && norm(l.name) === w; });
+        var bevat = exact.length ? exact : beschikbaar.filter(function (l) { return l && norm(l.name).indexOf(w) !== -1; });
+        if (bevat.length !== 1 || !(Number(bevat[0].id) > 0)) { klaar({ ok: false, reden: 'label niet gevonden' }); return; }
+        if (gekozen.indexOf(bevat[0]) < 0) gekozen.push(bevat[0]);
+      }
+      if (d.toevoegen === true) {
+        huidig.forEach(function (x) {
+          if (gekozen.some(function (g) { return Number(g.id) === idVan(x); })) return;
+          gekozen.push(typeof x === 'object' ? x : (beschikbaar.filter(function (l) { return Number(l.id) === Number(x); })[0] || { id: Number(x) }));
+        });
+      }
+    }
+    // Dezelfde vorm als ONS hem in het veld zet: id's, of labelobjecten als
+    // het veld die al bevat.
+    var objecten = huidig.length > 0 && typeof huidig[0] === 'object';
+    var waarde = objecten ? gekozen.slice() : gekozen.map(function (l) { return Number(l.id); });
+    zetEnControleer(function () { v.props['onUpdate:modelValue'](waarde); }, function (b) {
+      var na = b && b.veld(veld), nu = na ? propVan(na, 'model-value', 'modelValue') : null;
+      return Array.isArray(nu) && zelfdeIds(nu, waarde);
+    }, klaar);
+  }
+
+  /* Uursoort: uc-select[data-qa=hour_type_select] (per cliënt, en op
+     afspraakniveau bij een niet-cliëntgebonden afspraak) meldt een keuze via
+     onUpdate:modelValue(id, omschrijving). Het veld komt van een kenmerk dat
+     het content-script even zet (d.doel) of van het cliënt-id (d.clientId,
+     uit client-ids in de vnode). d.wis: leegmaken. */
+  function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && (e.getAttribute('data-qa') === 'hour_type_select' || e.getAttribute('aria-label') === 'Uursoort')); }
+  function uursoortVeldBij(doel) {
+    for (var e = doel, n = 0; e && n < 30; e = omhoog(e), n++) if (isUursoortVeld(e)) return e;
+    return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
+  }
+  function uursoortVelden(boom) {
+    return (boom ? boom.velden : []).filter(function (v) { return isUursoortVeld(v.el); });
+  }
+  function zetUursoort(d, klaar) {
+    var wis = d.wis === true, id = Number(d.hourTypeId);
+    if (!wis && !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+    var boom = null, v = null;
+    if (d.clientId != null) {
+      boom = formulierBoom();
+      if (!/^\d{1,12}$/.test(String(d.clientId))) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+      v = uursoortVelden(boom).filter(function (x) {
+        var cids = propVan(x, 'client-ids', 'clientIds');
+        return Array.isArray(cids) && cids.map(Number).indexOf(Number(d.clientId)) >= 0;
+      })[0] || null;
+    } else {
+      var doelNaam = String(d.doel || '');
+      if (!/^[\w-]{1,60}$/.test(doelNaam)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
+      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+      var el = doel ? uursoortVeldBij(doel) : null;
+      boom = el ? formulierBoom(el) : null;
+      v = boom ? boom.veld(el) : null;
+    }
+    if (!v) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
+    var veld = v.el;
+    zetEnControleer(function () {
+      if (wis) v.props['onUpdate:modelValue'](null, '');
+      else v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200));
+    }, function () {
+      var b = formulierBoom(veld), na = b && b.veld(veld), nu = na ? waardeVan(na) : null;
+      return wis ? (nu == null || nu === '') : Number(nu) === id;
+    }, klaar);
+  }
+
+  /* Eén veld van het afspraakmodel via EventDetails.onChange(waarde, veld),
+     de methode die het formulier zelf o.a. voor comment en label_ids
+     gebruikt. Alleen deze velden, in de vorm van het model. */
   var VELDEN = { name: 'tekst', comment: 'tekst', start_time: 'tijd', end_time: 'tijd', travel_time_before: 'getal', travel_time_after: 'getal' };
   function zetVeld(d, klaar) {
     var veld = String(d.veld || ''), soort = VELDEN[veld], w = d.waarde;
@@ -483,18 +465,19 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     if (soort === 'tekst') w = String(w == null ? '' : w).slice(0, 500);
     else if (soort === 'tijd') { w = String(w == null ? '' : w); if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(w)) { klaar({ ok: false, reden: 'ongeldige tijd' }); return; } }
     else { w = Number(w); if (!(w >= 0 && w < 1440)) { klaar({ ok: false, reden: 'ongeldig getal' }); return; } }
-    var c = eventDetails();
+    var boom = formulierBoom(), c = boom && boom.details;
     if (!c || !c.proxy || typeof c.proxy.onChange !== 'function') { klaar({ ok: false, reden: 'geen onChange' }); return; }
-    try { c.proxy.onChange(w, veld); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
-    setTimeout(function () {
-      var c2 = eventDetails();
-      var nu = c2 && c2.props && c2.props.event ? c2.props.event[veld] : undefined;
-      var ok = soort === 'getal' ? Number(nu) === w : String(nu == null ? '' : nu) === w;
-      klaar(ok ? { ok: true } : { ok: false, reden: 'model nam de waarde niet over' });
-    }, 80);
+    zetEnControleer(function () { c.proxy.onChange(w, veld); }, function (b) {
+      var nu = b && b.details ? b.details.props.event[veld] : undefined;
+      return soort === 'getal' ? Number(nu) === w : String(nu == null ? '' : nu) === w;
+    }, klaar);
   }
+
+  /* Lezen wat het open formulier bevat: cliënt-id en voornaam (voor de
+     titel), de uursoort per cliënt (uit de uursoortvelden) en de label-id's.
+     Geen volledige naam, geboortedatum, nummer of adres. */
   function leesFormulier() {
-    var c = eventDetails();
+    var boom = formulierBoom(), c = boom && boom.details;
     if (!c) return { ok: false, reden: 'geen afspraakmodel' };
     var ev = c.props.event;
     var clients = (Array.isArray(ev.clients) ? ev.clients : []).map(function (cl) {
@@ -502,36 +485,31 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     }).filter(function (cl) { return cl.id > 0; });
     var uursoorten = {};
     clients.forEach(function (cl) { uursoorten[cl.id] = null; });
-    diepZoekAlle(document, 'uc-select[data-qa="hour_type_select"]').forEach(function (el) {
-      var v = vueVnodeVan(el);
-      var cids = v ? propVan(v, 'client-ids', 'clientIds') : null;
+    uursoortVelden(boom).forEach(function (v) {
+      var cids = propVan(v, 'client-ids', 'clientIds');
       if (!Array.isArray(cids)) return;
-      var mv = propVan(v, 'model-value', 'modelValue');
-      var waarde = mv && typeof mv === 'object' ? mv.id : mv;
+      var waarde = waardeVan(v);
       cids.forEach(function (id) { uursoorten[Number(id)] = waarde == null || waarde === '' ? null : Number(waarde); });
     });
     return { ok: true, clients: clients, uursoorten: uursoorten,
       labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number) };
   }
+
   window.addEventListener('message', function (ev) {
     try {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
       var d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
-      if (d.type === PAGE_COMMAND.READ_FORM) { post(PAGE_COMMAND.FORM_READ, Object.assign({ id: String(d.id || '').slice(0, 60) }, leesFormulier())); return; }
-      if (d.type === PAGE_COMMAND.SET_FIELD) {
-        var vid = String(d.id || '').slice(0, 60);
-        zetVeld(d, function (r) { post(PAGE_COMMAND.FIELD_SET, Object.assign({ id: vid }, r)); });
-        return;
-      }
       var id = String(d.id || '').slice(0, 60);
+      var antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
+      if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
+      if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
+      if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_LABELS) {
         var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
         // Leeg mag alleen als bewust wissen (wis: true).
-        if (!namen.length && d.wis !== true) { post(PAGE_COMMAND.LABELS_SET, { id: id, ok: false, reden: 'geen labels' }); return; }
-        zetLabels(namen, function (r) { post(PAGE_COMMAND.LABELS_SET, Object.assign({ id: id }, r)); });
-      } else if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) {
-        zetUursoort(d, function (r) { post(PAGE_COMMAND.HOUR_TYPE_SET, Object.assign({ id: id }, r)); });
+        if (!namen.length && d.wis !== true) { antwoord(PAGE_COMMAND.LABELS_SET)({ ok: false, reden: 'geen labels' }); return; }
+        zetLabels({ labels: namen, wis: d.wis === true && !namen.length, toevoegen: d.toevoegen === true }, antwoord(PAGE_COMMAND.LABELS_SET));
       }
     } catch (e) {}
   });

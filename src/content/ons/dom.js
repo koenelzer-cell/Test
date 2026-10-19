@@ -1,6 +1,7 @@
 // DOM-basis: shadow-DOM-bewust zoeken, zichtbaarheid, tekstnormalisatie,
 // pollen.
 
+import { wachtTot } from '../core/wacht.js';
 import { helperPanel } from '../state.js';
 
 /*  shadow-DOM-bewuste zoekers (met shadow-root cache)  */
@@ -64,15 +65,10 @@ export function deepActive() {
 // Poll `fn` until it returns a truthy value (then onDone(value)) or the
 // timeout elapses (then onDone(null)). Robuuster dan een vaste setTimeout:
 // wacht precies zo lang als nodig op langzaam ladende (shadow-DOM) UI.
+// Callback-vorm van wachtTot (core/wacht.js): onDone(waarde) zodra fn() iets
+// 'waars' geeft, of onDone(null) na `timeout` ms.
 export function pollFor(fn, onDone, { timeout = 6000, interval = 120 } = {}) {
-  const start = Date.now();
-  const tick = () => {
-    let val = null; try { val = fn(); } catch (e) { val = null; }
-    if (val) { onDone(val); return; }
-    if (Date.now() - start >= timeout) { onDone(null); return; }
-    setTimeout(tick, interval);
-  };
-  tick();
+  wachtTot(fn, { max: timeout, elke: interval }).then(onDone);
 }
 /*  helpers  */
 const normalize = (s) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();

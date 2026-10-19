@@ -24,7 +24,7 @@ import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { findNonClientUursoortTrigger } from './non-client.js';
 import { deepQueryAll } from '../../ons/dom.js';
-import { wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
+import { eerstViaFormulier, wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
 import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
 
 // Zet de uursoort op het afspraak-detailniveau (combobox "Zoek naar uursoorten")
@@ -39,14 +39,10 @@ export function setAppointmentUursoortByName(name, onDone) {
 // afspraakniveau, dat er alleen is zolang er geen cliënt aan de afspraak hangt.
 function selectNonClientUursoort(text, onResult) {
   const trigger = findNonClientUursoortTrigger();
-  const viaFormulier = async () => {
-    try {
-      if (!trigger) return false;
-      const optie = await nietClientUursoortMetId(text);
-      return optie ? await zetUursoortViaFormulier(trigger, optie.id, optie.name) : false;
-    } catch (e) { return false; }
-  };
-  viaFormulier().then((ok) => { if (ok) onResult(true); else selectNonClientUursoortViaDropdown(text, onResult); });
+  eerstViaFormulier(
+    () => (trigger ? nietClientUursoortMetId(text).then((optie) => (optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false)) : false),
+    () => new Promise((klaar) => selectNonClientUursoortViaDropdown(text, klaar))
+  ).then((ok) => onResult(!!ok));
 }
 function selectNonClientUursoortViaDropdown(text, onResult, attempt = 0) {
   // Zelfde patroon als selectLabel: clickElementCenter opent de dropdown,
@@ -145,13 +141,13 @@ function clearUursoortSearchInput(openedBy, trigger) {
 export function clearUursoort(onDone, triggerArg = null) {
   const trigger = triggerArg || getUursoortTrigger();
   if (!trigger) { if (onDone) onDone(); return; }
-  // Eerst rechtstreeks in het formulier (geen dropdown); lukt dat niet, dan
-  // zoals vroeger.
-  wisUursoortViaFormulier(trigger).then((ok) => {
-    if (ok) { if (onDone) onDone(); } else clearUursoortViaDropdown(onDone, trigger);
-  });
+  eerstViaFormulier(
+    () => wisUursoortViaFormulier(trigger),
+    () => new Promise((klaar) => clearUursoortViaScherm(klaar, trigger))
+  ).then(() => { if (onDone) onDone(); });
 }
-function clearUursoortViaDropdown(onDone, trigger) {
+// Via het scherm: de dropdown openen en de gekozen optie deselecteren.
+export function clearUursoortViaScherm(onDone, trigger) {
   const currentText = clean(uiText(trigger));
   const openedBy = openSelectCombobox(trigger) || trigger;
   setTimeout(() => {
@@ -181,23 +177,14 @@ function clearUursoortViaDropdown(onDone, trigger) {
 }
 // context (optioneel): de cliënt uit de uursoortwachtrij, voor het juiste id.
 export function chooseUursoort(text, onResult, triggerArg = null, context = null) {
-  const viaDropdown = () => openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
-    if (ok) setTimeout(clickEmptyModalSpot, 90);
-    onResult(ok);
-  });
-  // Eerst rechtstreeks in het formulier van ONS (geen dropdown); lukt dat niet,
-  // dan zoals vroeger via de dropdown.
-  uursoortViaFormulier(text, triggerArg || getUursoortTrigger(), context).then((ok) => {
-    if (ok) onResult(true); else viaDropdown();
-  });
-}
-async function uursoortViaFormulier(text, trigger, context) {
-  try {
-    if (!trigger) return false;
-    const optie = await uursoortMetId(text, context, trigger);
-    if (!optie) return false;
-    return await zetUursoortViaFormulier(trigger, optie.id, optie.name);
-  } catch (e) { return false; }
+  const trigger = triggerArg || getUursoortTrigger();
+  eerstViaFormulier(
+    () => (trigger ? uursoortMetId(text, context, trigger).then((optie) => (optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false)) : false),
+    () => new Promise((klaar) => openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
+      if (ok) setTimeout(clickEmptyModalSpot, 90);
+      klaar(ok);
+    }))
+  ).then((ok) => onResult(!!ok));
 }
 export function anyUursoortPresent() {
   const entries = findClientEntries();

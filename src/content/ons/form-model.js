@@ -1,19 +1,29 @@
-// Het open afspraakformulier van ONS rechtstreeks bijwerken, via de
-// main-world (src/main-world/index.js, taak 6): labels en uursoort. Die gebruikt ONS' eigen
-// Vue-koppeling van het veld, dus er gaat geen dropdown open. Het antwoord is
-// true (gezet en nagekeken) of false; bij false doet de aanroeper het zoals
-// vroeger, met klikken.
+// Het open afspraakformulier van ONS rechtstreeks bijwerken en lezen, via de
+// main-world (src/main-world/index.js): labels, uursoort, titel en andere
+// velden, met ONS' eigen Vue-koppeling. Het antwoord is true (gezet en
+// nagekeken) of false.
+//
+// Vaste werkwijze voor elke zetter: eerstViaFormulier(viaFormulier,
+// viaScherm). Eerst via het formulier; lukt dat niet, dan één keer via het
+// scherm (klikken of typen).
 
 import { PAGE_BRIDGE, PAGE_COMMAND } from '../../shared/messages.js';
 
 let volgnummer = 0;
 
+// viaFormulier: () => Promise<boolean>; viaScherm: () => waarde of Promise.
+// -> Promise met true (formulier gelukt) of de uitkomst van viaScherm.
+export function eerstViaFormulier(viaFormulier, viaScherm) {
+  return Promise.resolve().then(viaFormulier).then((ok) => (ok ? true : viaScherm()), () => viaScherm());
+}
+
 // namen: labelnamen zoals in de config ('JG Huisbezoek'). De set vervangt
-// wat er stond. -> Promise<boolean>
-export function zetLabelsViaFormulier(namen, wachtMs) {
+// wat er stond, of komt erbij met { toevoegen: true }. -> Promise<boolean>
+export function zetLabelsViaFormulier(namen, opties) {
   const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? '' : n).trim()).filter(Boolean);
   if (!lijst.length) return Promise.resolve(false);
-  return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst }, wachtMs);
+  const o = typeof opties === 'number' ? { wachtMs: opties } : (opties || {});
+  return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
 }
 
 // Alle labels weghalen (Verwijder instellingen). -> Promise<boolean>

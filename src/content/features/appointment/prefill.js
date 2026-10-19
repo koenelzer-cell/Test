@@ -13,6 +13,8 @@
 // het slaat velden over die al goed staan.
 
 import { getDateInput, getStartTimeInput } from '../../ons/appointment-form.js';
+import { deepQueryAll } from '../../ons/dom.js';
+import { wachtTot } from '../../core/wacht.js';
 import { inputTextValue, typeIntoSearchField } from '../../ons/form-controls.js';
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { setAppointmentEndTimePlusMinutes } from './end-time.js';
@@ -101,33 +103,30 @@ export function applyPendingAppointment(klaar) {
   _bezig = true;
   _geplandeDuur = p.minutes > 0 ? p.minutes : null;
   const uursoorten = vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
-  let veldenKlaar;
-  const velden = new Promise((r) => { veldenKlaar = r; });
+  const velden = vulDatumEnTijd(p).then((ok) => { clearPending(); _bezig = false; return ok; });
   if (klaar) Promise.all([velden, uursoorten]).then((r) => klaar({ velden: r[0], uursoorten: r[1] }));
-  const datum = onsDateText(p.date);
-  let pogingen = 0;
-  const tik = () => {
-    pogingen++;
-    const d = getDateInput(), s = getStartTimeInput();
-    if (d && s) {
-      if (datum && inputTextValue(d) !== datum) schrijf(d, datum);
-      // De begintijd pas na de datum: ONS kan bij een datumwissel de tijden herberekenen.
-      setTimeout(() => {
-        const s2 = getStartTimeInput();
-        if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
-        clearPending();
-        _bezig = false;
-        // Eindtijd = begintijd + duur uit de planhulp.
-        if (p.minutes > 0) setTimeout(() => { try { setAppointmentEndTimePlusMinutes(p.minutes); } catch (e) {} veldenKlaar(true); }, 250);
-        else veldenKlaar(true);
-      }, 250);
-      return;
-    }
-    if (pogingen < 48) setTimeout(tik, 250);
-    else { clearPending(); _bezig = false; veldenKlaar(false); }
-  };
-  setTimeout(tik, 300);
   return p;
+}
+// Datum, begintijd en (met een duur) de eindtijd. Velden die al goed staan
+// (bijv. uit het lege afspraakmodel) worden niet opnieuw getypt. Elke stap
+// wacht tot de vorige zichtbaar is: ONS kan bij een datumwissel de tijden
+// herberekenen. -> Promise<boolean>
+function vulDatumEnTijd(p) {
+  const datum = onsDateText(p.date);
+  const toont = (veld, tekst) => { const inp = veld(); return !!inp && inputTextValue(inp) === tekst; };
+  return wachtTot(() => getDateInput() && getStartTimeInput(), { max: 12000 }).then((klaarVoor) => {
+    if (!klaarVoor) return false;
+    if (datum && !toont(getDateInput, datum)) schrijf(getDateInput(), datum);
+    return wachtTot(() => !datum || toont(getDateInput, datum), { max: 1500 }).then(() => {
+      const s = getStartTimeInput();
+      if (s && inputTextValue(s) !== p.time) schrijf(s, p.time);
+      return wachtTot(() => toont(getStartTimeInput, p.time), { max: 1500 });
+    }).then(() => {
+      // Eindtijd = begintijd + duur uit de planhulp.
+      if (p.minutes > 0) { try { setAppointmentEndTimePlusMinutes(p.minutes); } catch (e) {} }
+      return true;
+    });
+  });
 }
 
 // De uursoorten uit de planhulp in het formulier zetten, via de Vue-koppeling
@@ -139,22 +138,21 @@ function vulUursoorten(perClient, opAfspraak) {
   let rest = perClient.slice();
   let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
   if (!rest.length && !afspraak) return Promise.resolve(true);
-  let pogingen = 0, klaar;
-  const uitslag = new Promise((r) => { klaar = r; });
-  const stap = () => {
-    pogingen++;
+  // Zoveel uursoortvelden als er cliënten zijn (of het veld op afspraakniveau).
+  const veldenEr = () => afspraak ? !!findNonClientUursoortTrigger() : deepQueryAll('uc-select[data-qa="hour_type_select"]').length >= rest.length;
+  const ronde = (n) => wachtTot(veldenEr, { max: 8000 }).then(() => {
     const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => (ok ? u : null)));
     if (afspraak) {
       const veld = findNonClientUursoortTrigger();
       werk.push(veld ? zetUursoortViaFormulier(veld, afspraak.hourTypeId, afspraak.name).then((ok) => (ok ? 'afspraak' : null)) : Promise.resolve(null));
     }
-    Promise.all(werk).then((gelukt) => {
-      rest = rest.filter((u) => gelukt.indexOf(u) < 0);
-      if (gelukt.indexOf('afspraak') >= 0) afspraak = null;
-      if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
-      else klaar(!rest.length && !afspraak);
-    });
-  };
-  setTimeout(stap, 500);
-  return uitslag;
+    return Promise.all(werk);
+  }).then((gelukt) => {
+    rest = rest.filter((u) => gelukt.indexOf(u) < 0);
+    if (gelukt.indexOf('afspraak') >= 0) afspraak = null;
+    // Een veld kan net opnieuw zijn opgebouwd: nog één ronde.
+    if ((rest.length || afspraak) && n < 2) return ronde(n + 1);
+    return !rest.length && !afspraak;
+  });
+  return ronde(0);
 }

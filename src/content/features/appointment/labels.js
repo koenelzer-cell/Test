@@ -1,6 +1,5 @@
 // Afspraaklabels zetten en opruimen.
 
-import { allKnownLabels } from '../../config/app-config.js';
 import { clean, isOwnPopup, pollFor, rect, visible } from '../../ons/dom.js';
 import {
   clickElementCenter,
@@ -14,7 +13,8 @@ import {
   uiText,
 } from '../../ons/form-controls.js';
 import { getEtiketTrigger, labelChips } from '../../ons/appointment-form.js';
-import { wisLabelsViaFormulier, zetLabelsViaFormulier } from '../../ons/form-model.js';
+import { eerstViaFormulier, wisLabelsViaFormulier, zetLabelsViaFormulier } from '../../ons/form-model.js';
+import { wachtTot } from '../../core/wacht.js';
 import { clickEmptyModalSpot, rowForOptionText } from '../../ons/interaction.js';
 import { setStatus } from '../../screen/status.js';
 
@@ -53,46 +53,47 @@ export function clickExactDropdownOption(trigger, texts) {
   clickOption(best);
   return true;
 }
-export function clearKnownLabels(onDone, attempt = 0) {
+// Alle labels weg: eerst in het formulier, anders elke chip via zijn eigen ×.
+export function clearKnownLabels(onDone) {
   const trigger = getEtiketTrigger();
   if (!trigger) { if (onDone) onDone(false); return; }
+  if (!labelChips(trigger).length) { if (onDone) onDone(true); return; }
+  eerstViaFormulier(
+    () => wisLabelsViaFormulier().then((ok) => ok && wachtTot(() => !labelChips(getEtiketTrigger() || trigger).length, { max: 800 }).then(Boolean)),
+    () => new Promise((klaar) => wisLabelsViaScherm(klaar))
+  ).then((ok) => { if (onDone) onDone(ok); });
+}
+function wisLabelsViaScherm(onDone, attempt = 0) {
+  const trigger = getEtiketTrigger();
+  if (!trigger) { onDone(false); return; }
   const chips = labelChips(trigger);
-  if (!chips.length) { if (onDone) onDone(true); return; }
-  // Eerst rechtstreeks in het formulier (geen chips aanklikken); staan er
-  // daarna nog chips, dan verder zoals vroeger.
-  if (attempt === 0) {
-    wisLabelsViaFormulier().then((ok) => {
-      if (!ok) { clearKnownLabels(onDone, 1); return; }
-      setTimeout(() => {
-        if (!labelChips(getEtiketTrigger() || trigger).length) { if (onDone) onDone(true); }
-        else clearKnownLabels(onDone, 1);
-      }, 120);
-    });
-    return;
-  }
+  if (!chips.length) { onDone(true); return; }
   // Klik elke chip-verwijderknop één keer. NOOIT via de dropdown wissen: een klik
   // op een dropdown-optie ZET het label juist - dat was de bug waarbij 'Verwijder
   // instellingen' (na handmatig verwijderen) het label terugplaatste.
   for (const chip of chips) clickOption(chip.el);
   setTimeout(() => {
-    if (!labelChips(trigger).length) { clickEmptyModalSpot(); if (onDone) onDone(true); return; }
-    if (attempt >= 4) { clickEmptyModalSpot(); if (onDone) onDone(false); return; }
-    clearKnownLabels(onDone, attempt + 1);
+    if (!labelChips(trigger).length) { clickEmptyModalSpot(); onDone(true); return; }
+    if (attempt >= 4) { clickEmptyModalSpot(); onDone(false); return; }
+    wisLabelsViaScherm(onDone, attempt + 1);
   }, 150);
 }
+// Precies dit ene label (zelfde als setLabelsExclusive met één naam).
 export function setLabel(text, onResult) {
   if (!text) { onResult(true); return; }
-  const trigger = getEtiketTrigger();
-  const selected = trigger ? selectedKnownLabels(trigger, allKnownLabels()) : [];
-  const wanted = clean(text);
-  if (selected.length === 1 && selected[0] === wanted) {
-    onResult(true);
-    return;
-  }
-  clearKnownLabels(() => setTimeout(() => selectLabel(text, onResult), 60));
+  setLabelsExclusive([text], onResult);
 }
-// Opgeruimd (#3): enforceChosenLabelOnly is vervangen door setLabelExclusive,
-// dat gefaseerd en gericht werkt via de echte label-chips.
+// Dit label erbij, de rest blijft staan.
+export function voegLabelToe(naam, onDone) {
+  const w = clean(naam);
+  if (!w) { if (onDone) onDone(true); return; }
+  const staat = () => { const tr = getEtiketTrigger(); return !!tr && selectedAllLabelChipTexts(tr).some((l) => l === w || l.indexOf(w) !== -1); };
+  if (staat()) { if (onDone) onDone(true); return; }
+  eerstViaFormulier(
+    () => zetLabelsViaFormulier([naam], { toevoegen: true }).then((ok) => ok && wachtTot(staat, { max: 800 }).then(Boolean)),
+    () => new Promise((klaar) => addLabelExact(naam, klaar))
+  ).then((ok) => { if (onDone) onDone(ok); });
+}
 // Alle daadwerkelijk geselecteerde labelchips (ook labels die NIET in de config
 // staan, zoals het label dat ONS automatisch aan een uursoort koppelt). Leunt op
 // labelChips, dus op de echte button.label-tag-chips.
@@ -161,65 +162,26 @@ function addLabelExact(text, onResult) {
     );
   }, 140);
 }
-// Zet exact het gekozen label. STRIKT gefaseerd zodat er nooit tegelijk wordt
-// verwijderd en toegevoegd (dat veroorzaakte het geflikker):
-//   fase 1 - verwijder eerst alle niet-gekozen labels (gericht via hun ×);
-//   fase 2 - pas als er geen extra's meer zijn en het label ontbreekt: exact
-//            één keer toevoegen en KLAAR (niet opnieuw de lus in).
-// Wordt pas AAN HET EIND aangeroepen (nadat ONS zijn eigen uursoort-label heeft
-// gekoppeld).
-function setLabelExclusive(text, onDone, attempt = 0) {
-  if (!text) { if (onDone) onDone(true); return; }
-  const trigger = getEtiketTrigger();
-  if (!trigger) { if (onDone) onDone(false); return; }
-  const wanted = clean(text);
-  // Doel-chip = exact het label of een chip die het label bevat (bv. met icoon
-  // ervoor). Bewust NIET de omgekeerde substring, zodat korte labels niet per
-  // ongeluk als 'doel' gelden.
-  const isTarget = (l) => l === wanted || l.indexOf(wanted) !== -1;
-  const chips = selectedAllLabelChipTexts(trigger);
-  const extras = chips.filter((l) => !isTarget(l));
-  const triggerTxt = clean(uiText(trigger) || trigger.textContent || '');
-  const hasTarget = chips.some(isTarget) || (wanted && triggerTxt.indexOf(wanted) !== -1);
-  if (!extras.length && hasTarget) { if (onDone) onDone(true); return; }
-  if (attempt >= 6) {
-    if (extras.length) setStatus('Let op: verwijder zelf nog het extra label "' + extras[0] + '"', false);
-    if (onDone) onDone(!extras.length);
-    return;
-  }
-  // Fase 1: eerst extra labels weg (target beschermd), daarna opnieuw evalueren.
-  if (extras.length) {
-    removeLabelChipsByText(trigger, extras, wanted);
-    setTimeout(() => setLabelExclusive(text, onDone, attempt + 1), 160);
-    return;
-  }
-  // Fase 2: geen extra's meer, label ontbreekt -> exact één keer toevoegen. KLAAR.
-  addLabelExact(text, () => { if (onDone) onDone(true); });
-}
-// Zet exact de gekozen SET labels (meerdere etiketten per afspraaktype). Zelfde
-// strikte fasering als setLabelExclusive, maar dan voor een lijst:
-//   fase 1 - verwijder eerst elk label dat niet in de gewenste set zit;
-//   fase 2 - voeg ontbrekende labels één voor één toe (nooit tegelijk verwijderen
-//            en toevoegen), en evalueer daarna opnieuw tot de set klopt.
-export function setLabelsExclusive(texts, onDone, attempt = 0) {
-  const wanted = (Array.isArray(texts) ? texts : [texts]).map((t) => clean(t)).filter(Boolean);
+// Zet exact de gekozen SET labels (een of meer per afspraaktype): eerst in het
+// formulier (geen dropdown), anders via het scherm.
+export function setLabelsExclusive(texts, onDone) {
+  const lijst = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? '' : t).trim()).filter(Boolean);
+  const wanted = lijst.map(clean).filter(Boolean);
   if (!wanted.length) { if (onDone) onDone(true); return; }
-  // Eerst rechtstreeks in het formulier van ONS (geen dropdown). Staan de
-  // labels daarna goed, dan klaar; anders verder met klikken zoals vroeger.
-  if (attempt === 0) {
-    const namen = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? '' : t).trim()).filter(Boolean);
-    zetLabelsViaFormulier(namen).then((ok) => {
-      if (!ok) { setLabelsExclusive(texts, onDone, 1); return; }
-      setTimeout(() => {
-        if (labelsKloppen(wanted)) { if (onDone) onDone(true); }
-        else setLabelsExclusive(texts, onDone, 1);
-      }, 120);
-    });
-    return;
-  }
-  if (wanted.length === 1) { setLabelExclusive(wanted[0], onDone, attempt); return; }
+  eerstViaFormulier(
+    () => zetLabelsViaFormulier(lijst).then((ok) => ok && wachtTot(() => labelsKloppen(wanted), { max: 800 }).then(Boolean)),
+    () => new Promise((klaar) => labelsViaScherm(wanted, klaar))
+  ).then((ok) => { if (onDone) onDone(ok); });
+}
+// Via het scherm, STRIKT gefaseerd zodat er nooit tegelijk wordt verwijderd en
+// toegevoegd (dat gaf geflikker):
+//   fase 1 - verwijder eerst elk label dat niet in de gewenste set zit;
+//   fase 2 - voeg ontbrekende labels één voor één toe, en kijk daarna opnieuw.
+// Wordt pas AAN HET EIND van een keuze aangeroepen (nadat ONS zijn eigen
+// uursoort-label heeft gekoppeld).
+function labelsViaScherm(wanted, onDone, attempt = 0) {
   const trigger = getEtiketTrigger();
-  if (!trigger) { if (onDone) onDone(false); return; }
+  if (!trigger) { onDone(false); return; }
   // Een chip "hoort erbij" als hij één van de gewenste labels is of bevat.
   const isWantedChip = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
   const chips = selectedAllLabelChipTexts(trigger);
@@ -227,21 +189,19 @@ export function setLabelsExclusive(texts, onDone, attempt = 0) {
   const triggerTxt = clean(uiText(trigger) || trigger.textContent || '');
   const present = (w) => chips.some((l) => l === w || l.indexOf(w) !== -1) || (w && triggerTxt.indexOf(w) !== -1);
   const missing = wanted.filter((w) => !present(w));
-  if (!extras.length && !missing.length) { if (onDone) onDone(true); return; }
+  if (!extras.length && !missing.length) { onDone(true); return; }
   if (attempt >= 10) {
     if (extras.length) setStatus('Let op: verwijder zelf nog het extra label "' + extras[0] + '"', false);
     else if (missing.length) setStatus('Let op: voeg zelf nog het label "' + missing[0] + '" toe', false);
-    if (onDone) onDone(!extras.length && !missing.length);
+    onDone(false);
     return;
   }
-  // Fase 1: eerst alle niet-gewenste labels weg (gewenste chips blijven staan).
   if (extras.length) {
     removeLabelChipsByText(trigger, extras);
-    setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 160);
+    setTimeout(() => labelsViaScherm(wanted, onDone, attempt + 1), 160);
     return;
   }
-  // Fase 2: het eerste ontbrekende label toevoegen, daarna opnieuw evalueren.
-  addLabelExact(missing[0], () => setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 150));
+  addLabelExact(missing[0], () => setTimeout(() => labelsViaScherm(wanted, onDone, attempt + 1), 150));
 }
 // Staan precies de gewenste labels als chip in het veld?
 function labelsKloppen(wanted) {
@@ -250,31 +210,4 @@ function labelsKloppen(wanted) {
   const chips = selectedAllLabelChipTexts(trigger);
   const hoort = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
   return chips.length > 0 && chips.every(hoort) && wanted.every((w) => chips.some((l) => l === w || l.indexOf(w) !== -1));
-}
-export function selectLabel(text, onResult, attempt = 0) {
-  const trigger = getEtiketTrigger();
-  if (!trigger) { onResult(false); return; }
-  clickElementCenter(trigger);
-  setTimeout(() => {
-    const input = searchInputForTrigger(trigger);
-    if (input) { input.focus(); setInputText(input, text); }
-    // Poll tot het label-optie gerenderd is (op productie laadt de lijst
-    // trager) i.p.v. één poging na een vaste vertraging.
-    pollFor(
-      () => findExactDropdownOption(trigger, [text]),
-      (best) => {
-        if (best) {
-          clickOption(best);
-          setTimeout(() => { clickEmptyModalSpot(); onResult(true); }, 90);
-          return;
-        }
-        if (attempt < 3) {
-          setTimeout(() => selectLabel(text, onResult, attempt + 1), 180);
-          return;
-        }
-        setTimeout(() => { clickEmptyModalSpot(); onResult(false); }, 90);
-      },
-      { timeout: 2600, interval: 130 }
-    );
-  }, 130);
 }

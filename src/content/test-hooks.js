@@ -89,10 +89,12 @@ import {
   setLabelsExclusive,
 } from './features/appointment/labels.js';
 import { enforceAppointmentEndTime } from './features/appointment/end-time.js';
-import { zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
+import { eerstViaFormulier, zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
+import { wachtTot } from './core/wacht.js';
+import { pollFor } from './ons/dom.js';
 import { nietClientUursoortMetId } from './features/appointment/uursoort-source.js';
-import { kaartVoornamen, keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
-import { clientVoornamenAsync } from './features/appointment/client-name.js';
+import { keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
+import { clientVoornamenAsync, findClientFirstNames } from './features/appointment/client-name.js';
 import {
   clearAppointmentSnapshot,
   clearSettings,
@@ -211,9 +213,12 @@ export function exposeTestApi() {
     setLabelsExclusive,
     zetLabelsViaFormulier,
     zetUursoortViaFormulier,
+    eerstViaFormulier,
+    wachtTot,
+    pollFor,
     nietClientUursoortMetId,
     keuzeVoorLabel,
-    kaartVoornamen,
+    findClientFirstNames,
     clientVoornamenAsync,
     CONFIG,
     nietClientOptieVoorUursoort,

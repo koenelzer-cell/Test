@@ -2254,6 +2254,51 @@
     return `${hours} uur${rest ? ` ${rest} min.` : ""}`;
   }
 
+  // src/content/core/wacht.js
+  function wachtTot(voorwaarde, opties) {
+    const max = opties && opties.max || 3e3;
+    const elke = opties && opties.elke || 250;
+    return new Promise((klaar) => {
+      let gemeld = false, gepland = false, obs = null, timer = null, tik = null;
+      const einde = (w) => {
+        if (gemeld) return;
+        gemeld = true;
+        clearTimeout(timer);
+        clearInterval(tik);
+        if (obs) obs.disconnect();
+        klaar(w || null);
+      };
+      const probeer = () => {
+        gepland = false;
+        if (gemeld) return;
+        let w = null;
+        try {
+          w = voorwaarde();
+        } catch (e) {
+          w = null;
+        }
+        if (w) einde(w);
+      };
+      const straks = () => {
+        if (gepland || gemeld) return;
+        gepland = true;
+        setTimeout(probeer, 16);
+      };
+      timer = setTimeout(() => {
+        probeer();
+        einde(null);
+      }, max);
+      tik = setInterval(probeer, elke);
+      try {
+        obs = new MutationObserver(straks);
+        obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
+      } catch (e) {
+        obs = null;
+      }
+      probeer();
+    });
+  }
+
   // src/shared/storage-keys.js
   var SYNC = {
     SECTOR: "sector",
@@ -2550,25 +2595,7 @@
     return el;
   }
   function pollFor(fn, onDone, { timeout = 6e3, interval = 120 } = {}) {
-    const start = Date.now();
-    const tick = () => {
-      let val = null;
-      try {
-        val = fn();
-      } catch (e) {
-        val = null;
-      }
-      if (val) {
-        onDone(val);
-        return;
-      }
-      if (Date.now() - start >= timeout) {
-        onDone(null);
-        return;
-      }
-      setTimeout(tick, interval);
-    };
-    tick();
+    wachtTot(fn, { max: timeout, elke: interval }).then(onDone);
   }
   var normalize = (s) => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
   var deburr = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -3438,7 +3465,7 @@
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
-    // { id, labels: ['JG Huisbezoek', …] } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten of wissen
+    // { id, labels: ['JG Huisbezoek', …], toevoegen? } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten (vervangen of toevoegen) of wissen
     LABELS_SET: "labelsGezet",
     // { id, ok, reden? }
     SET_HOUR_TYPE: "zetUursoort",
@@ -5798,10 +5825,14 @@
 
   // src/content/ons/form-model.js
   var volgnummer = 0;
-  function zetLabelsViaFormulier(namen, wachtMs) {
+  function eerstViaFormulier(viaFormulier, viaScherm) {
+    return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
+  }
+  function zetLabelsViaFormulier(namen, opties) {
     const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
     if (!lijst.length) return Promise.resolve(false);
-    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst }, wachtMs);
+    const o = typeof opties === "number" ? { wachtMs: opties } : opties || {};
+    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
   }
   function wisLabelsViaFormulier(wachtMs) {
     return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
@@ -6226,44 +6257,47 @@
     clickOption(best);
     return true;
   }
-  function clearKnownLabels(onDone, attempt = 0) {
+  function clearKnownLabels(onDone) {
     const trigger = getEtiketTrigger();
     if (!trigger) {
       if (onDone) onDone(false);
       return;
     }
-    const chips = labelChips(trigger);
-    if (!chips.length) {
+    if (!labelChips(trigger).length) {
       if (onDone) onDone(true);
       return;
     }
-    if (attempt === 0) {
-      wisLabelsViaFormulier().then((ok) => {
-        if (!ok) {
-          clearKnownLabels(onDone, 1);
-          return;
-        }
-        setTimeout(() => {
-          if (!labelChips(getEtiketTrigger() || trigger).length) {
-            if (onDone) onDone(true);
-          } else clearKnownLabels(onDone, 1);
-        }, 120);
-      });
+    eerstViaFormulier(
+      () => wisLabelsViaFormulier().then((ok) => ok && wachtTot(() => !labelChips(getEtiketTrigger() || trigger).length, { max: 800 }).then(Boolean)),
+      () => new Promise((klaar) => wisLabelsViaScherm(klaar))
+    ).then((ok) => {
+      if (onDone) onDone(ok);
+    });
+  }
+  function wisLabelsViaScherm(onDone, attempt = 0) {
+    const trigger = getEtiketTrigger();
+    if (!trigger) {
+      onDone(false);
+      return;
+    }
+    const chips = labelChips(trigger);
+    if (!chips.length) {
+      onDone(true);
       return;
     }
     for (const chip of chips) clickOption(chip.el);
     setTimeout(() => {
       if (!labelChips(trigger).length) {
         clickEmptyModalSpot();
-        if (onDone) onDone(true);
+        onDone(true);
         return;
       }
       if (attempt >= 4) {
         clickEmptyModalSpot();
-        if (onDone) onDone(false);
+        onDone(false);
         return;
       }
-      clearKnownLabels(onDone, attempt + 1);
+      wisLabelsViaScherm(onDone, attempt + 1);
     }, 150);
   }
   function setLabel(text2, onResult) {
@@ -6271,14 +6305,28 @@
       onResult(true);
       return;
     }
-    const trigger = getEtiketTrigger();
-    const selected = trigger ? selectedKnownLabels(trigger, allKnownLabels()) : [];
-    const wanted = clean(text2);
-    if (selected.length === 1 && selected[0] === wanted) {
-      onResult(true);
+    setLabelsExclusive([text2], onResult);
+  }
+  function voegLabelToe(naam, onDone) {
+    const w = clean(naam);
+    if (!w) {
+      if (onDone) onDone(true);
       return;
     }
-    clearKnownLabels(() => setTimeout(() => selectLabel(text2, onResult), 60));
+    const staat = () => {
+      const tr = getEtiketTrigger();
+      return !!tr && selectedAllLabelChipTexts(tr).some((l) => l === w || l.indexOf(w) !== -1);
+    };
+    if (staat()) {
+      if (onDone) onDone(true);
+      return;
+    }
+    eerstViaFormulier(
+      () => zetLabelsViaFormulier([naam], { toevoegen: true }).then((ok) => ok && wachtTot(staat, { max: 800 }).then(Boolean)),
+      () => new Promise((klaar) => addLabelExact(naam, klaar))
+    ).then((ok) => {
+      if (onDone) onDone(ok);
+    });
   }
   function selectedAllLabelChipTexts(trigger) {
     return labelChips(trigger).map((c) => c.name);
@@ -6349,68 +6397,24 @@
       );
     }, 140);
   }
-  function setLabelExclusive(text2, onDone, attempt = 0) {
-    if (!text2) {
-      if (onDone) onDone(true);
-      return;
-    }
-    const trigger = getEtiketTrigger();
-    if (!trigger) {
-      if (onDone) onDone(false);
-      return;
-    }
-    const wanted = clean(text2);
-    const isTarget = (l) => l === wanted || l.indexOf(wanted) !== -1;
-    const chips = selectedAllLabelChipTexts(trigger);
-    const extras = chips.filter((l) => !isTarget(l));
-    const triggerTxt = clean(uiText(trigger) || trigger.textContent || "");
-    const hasTarget = chips.some(isTarget) || wanted && triggerTxt.indexOf(wanted) !== -1;
-    if (!extras.length && hasTarget) {
-      if (onDone) onDone(true);
-      return;
-    }
-    if (attempt >= 6) {
-      if (extras.length) setStatus('Let op: verwijder zelf nog het extra label "' + extras[0] + '"', false);
-      if (onDone) onDone(!extras.length);
-      return;
-    }
-    if (extras.length) {
-      removeLabelChipsByText(trigger, extras, wanted);
-      setTimeout(() => setLabelExclusive(text2, onDone, attempt + 1), 160);
-      return;
-    }
-    addLabelExact(text2, () => {
-      if (onDone) onDone(true);
-    });
-  }
-  function setLabelsExclusive(texts, onDone, attempt = 0) {
-    const wanted = (Array.isArray(texts) ? texts : [texts]).map((t) => clean(t)).filter(Boolean);
+  function setLabelsExclusive(texts, onDone) {
+    const lijst = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? "" : t).trim()).filter(Boolean);
+    const wanted = lijst.map(clean).filter(Boolean);
     if (!wanted.length) {
       if (onDone) onDone(true);
       return;
     }
-    if (attempt === 0) {
-      const namen = (Array.isArray(texts) ? texts : [texts]).map((t) => String(t == null ? "" : t).trim()).filter(Boolean);
-      zetLabelsViaFormulier(namen).then((ok) => {
-        if (!ok) {
-          setLabelsExclusive(texts, onDone, 1);
-          return;
-        }
-        setTimeout(() => {
-          if (labelsKloppen(wanted)) {
-            if (onDone) onDone(true);
-          } else setLabelsExclusive(texts, onDone, 1);
-        }, 120);
-      });
-      return;
-    }
-    if (wanted.length === 1) {
-      setLabelExclusive(wanted[0], onDone, attempt);
-      return;
-    }
+    eerstViaFormulier(
+      () => zetLabelsViaFormulier(lijst).then((ok) => ok && wachtTot(() => labelsKloppen(wanted), { max: 800 }).then(Boolean)),
+      () => new Promise((klaar) => labelsViaScherm(wanted, klaar))
+    ).then((ok) => {
+      if (onDone) onDone(ok);
+    });
+  }
+  function labelsViaScherm(wanted, onDone, attempt = 0) {
     const trigger = getEtiketTrigger();
     if (!trigger) {
-      if (onDone) onDone(false);
+      onDone(false);
       return;
     }
     const isWantedChip = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
@@ -6420,21 +6424,21 @@
     const present = (w) => chips.some((l) => l === w || l.indexOf(w) !== -1) || w && triggerTxt.indexOf(w) !== -1;
     const missing = wanted.filter((w) => !present(w));
     if (!extras.length && !missing.length) {
-      if (onDone) onDone(true);
+      onDone(true);
       return;
     }
     if (attempt >= 10) {
       if (extras.length) setStatus('Let op: verwijder zelf nog het extra label "' + extras[0] + '"', false);
       else if (missing.length) setStatus('Let op: voeg zelf nog het label "' + missing[0] + '" toe', false);
-      if (onDone) onDone(!extras.length && !missing.length);
+      onDone(false);
       return;
     }
     if (extras.length) {
       removeLabelChipsByText(trigger, extras);
-      setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 160);
+      setTimeout(() => labelsViaScherm(wanted, onDone, attempt + 1), 160);
       return;
     }
-    addLabelExact(missing[0], () => setTimeout(() => setLabelsExclusive(texts, onDone, attempt + 1), 150));
+    addLabelExact(missing[0], () => setTimeout(() => labelsViaScherm(wanted, onDone, attempt + 1), 150));
   }
   function labelsKloppen(wanted) {
     const trigger = getEtiketTrigger();
@@ -6442,43 +6446,6 @@
     const chips = selectedAllLabelChipTexts(trigger);
     const hoort = (l) => wanted.some((w) => l === w || l.indexOf(w) !== -1);
     return chips.length > 0 && chips.every(hoort) && wanted.every((w) => chips.some((l) => l === w || l.indexOf(w) !== -1));
-  }
-  function selectLabel(text2, onResult, attempt = 0) {
-    const trigger = getEtiketTrigger();
-    if (!trigger) {
-      onResult(false);
-      return;
-    }
-    clickElementCenter(trigger);
-    setTimeout(() => {
-      const input2 = searchInputForTrigger(trigger);
-      if (input2) {
-        input2.focus();
-        setInputText(input2, text2);
-      }
-      pollFor(
-        () => findExactDropdownOption(trigger, [text2]),
-        (best) => {
-          if (best) {
-            clickOption(best);
-            setTimeout(() => {
-              clickEmptyModalSpot();
-              onResult(true);
-            }, 90);
-            return;
-          }
-          if (attempt < 3) {
-            setTimeout(() => selectLabel(text2, onResult, attempt + 1), 180);
-            return;
-          }
-          setTimeout(() => {
-            clickEmptyModalSpot();
-            onResult(false);
-          }, 90);
-        },
-        { timeout: 2600, interval: 130 }
-      );
-    }, 130);
   }
 
   // src/content/features/appointment/title.js
@@ -6488,15 +6455,10 @@
       const inp = getTitleInputSafe();
       return !!inp && inputTextValue(inp) === titel;
     };
-    return zetVeldViaFormulier("name", titel).then((ok) => new Promise((klaar) => {
-      setTimeout(() => {
-        if (ok && toont()) {
-          klaar(true);
-          return;
-        }
-        klaar(setAppointmentTitleText(titel));
-      }, ok ? 60 : 0);
-    }));
+    return eerstViaFormulier(
+      () => zetVeldViaFormulier("name", titel).then((ok) => ok && wachtTot(toont, { max: 600 }).then(Boolean)),
+      () => setAppointmentTitleText(titel)
+    );
   }
 
   // src/content/features/appointment/client-name.js
@@ -6536,10 +6498,6 @@
         names.push(first);
       }
     }
-    if (!names.length) {
-      const first = findClientFirstName();
-      if (first) names.push(first);
-    }
     return names;
   }
   function clientVoornamenAsync(wachtMs) {
@@ -6564,10 +6522,7 @@
       }
       const titleBase = choice.titleLabel || choice.label;
       const title = firstNames.length ? `${titleBase} - ${firstNames.join(" - ")}` : titleBase;
-      zetTitelAsync(title).then(() => onResult(true), () => {
-        setInputText(input2, title);
-        onResult(true);
-      });
+      zetTitelAsync(title).then((ok) => onResult(!!ok));
     });
   }
   function removeFirstNameFromTitle(first) {
@@ -13959,16 +13914,15 @@
     const wanted = new Set(names.map(clean));
     return findClientEntries().filter((entry) => wanted.has(clean(entry.name)) && entry.uursoortTrigger).map((entry) => ({ firstName: entry.firstName, name: entry.name, trigger: entry.uursoortTrigger }));
   }
-  function startUursoortForNewClients(names, attempt = 0) {
+  function startUursoortForNewClients(names) {
     if (!appointmentFlow.pendingChoice || !appointmentFlow.pendingChoice.pickUursoort || appointmentFlow.autoSelectingNewClient) return;
     appointmentFlow.autoSelectingNewClient = true;
-    ensureClientExpanded(() => {
-      const contexts = uursoortContextsForNames(names);
-      if (!contexts.length && attempt < 8) {
-        appointmentFlow.autoSelectingNewClient = false;
-        setTimeout(() => startUursoortForNewClients(names, attempt + 1), 220);
-        return;
-      }
+    ensureClientExpanded(() => wachtTot(() => {
+      invalidateClientEntries();
+      const c = uursoortContextsForNames(names);
+      return c.length ? c : null;
+    }, { max: 2e3 }).then((gevonden) => {
+      const contexts = gevonden || [];
       if (!contexts.length) {
         appointmentFlow.autoSelectingNewClient = false;
         setStatus("Nieuwe client gevonden | uursoortveld niet gevonden", false);
@@ -13980,7 +13934,7 @@
         showChoices();
         setStatus("Uursoort voor nieuwe client gezet");
       });
-    });
+    }));
   }
   function handleClientListChanges() {
     const entries2 = findClientEntries();
@@ -14063,7 +14017,7 @@
         }
       },
       reistijdTotaal: () => appointmentTravelTotalMinutes(),
-      zetTitel: (tekst) => setAppointmentTitleText(tekst),
+      zetTitel: (tekst) => zetTitelAsync(tekst),
       zetLabel: (naam, klaar) => setLabel(naam, klaar),
       wisLabels: (klaar) => clearKnownLabels(klaar),
       zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),
@@ -14680,22 +14634,28 @@
     }
     return null;
   }
+  function titelVoorOptie(opt) {
+    if (opt.freeTitle) setAppointmentTitleText(opt.display);
+    else zetTitelAsync(opt.display);
+  }
+  function nonClientLabels(opt) {
+    return ["JG Overig"].concat(opt && opt.etiket ? [opt.etiket] : []);
+  }
   function clearNonClientUursoort(onDone) {
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (!trigger || !nonClientUursoortValueText()) {
       if (onDone) onDone();
       return;
     }
-    const clicked = clickLabelChipRemovers(trigger, []);
-    if (clicked) {
-      setTimeout(function() {
-        if (onDone) onDone();
-      }, 220);
-      return;
-    }
-    clearUursoort(function() {
+    eerstViaFormulier(
+      () => wisUursoortViaFormulier(trigger),
+      () => new Promise(function(klaar) {
+        if (clickLabelChipRemovers(trigger, [])) setTimeout(klaar, 220);
+        else clearUursoortViaScherm(klaar, trigger);
+      })
+    ).then(function() {
       if (onDone) onDone();
-    }, trigger);
+    });
   }
   function clearNonClientSettings() {
     appointmentFlow.appointmentClearingSettings = true;
@@ -14833,8 +14793,8 @@
     return ok;
   }
   function finishNonClientOption(opt) {
-    setLabel("JG Overig", function() {
-      setAppointmentTitleText(opt.display);
+    setLabelsExclusive(nonClientLabels(opt), function() {
+      zetTitelAsync(opt.display);
       scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
       setStatus(opt.display + " gezet");
       const tryShow = function() {
@@ -14936,14 +14896,8 @@
     appointmentFlow.nonClientFreeTitleScreenActive = false;
     appointmentFlow.nonClientNoUursoortActive = false;
     appointmentFlow.nonClientBusy = true;
-    setAppointmentTitleText(opt.display);
-    if (opt.etiket) {
-      try {
-        selectLabel(opt.etiket, function() {
-        });
-      } catch (e) {
-      }
-    }
+    titelVoorOptie(opt);
+    if (opt.etiket) voegLabelToe(opt.etiket);
     if (opt.freeTitle) {
       appointmentFlow.nonClientBusy = false;
       if (!hasAppointmentEndTime()) {
@@ -15069,7 +15023,7 @@
       pickerNode: mkDurationPicker(durValues, function(m) {
         return safe(function() {
           const endOk = applyNonClientEndTime(m);
-          setAppointmentTitleText(opt.display);
+          titelVoorOptie(opt);
           setStatus(endOk ? opt.display + " " + registrationDurationLabel(m) : "Eindtijd niet gezet", endOk);
           setTimeout(function() {
             safe(function() {
@@ -15097,7 +15051,7 @@
     appointmentFlow.nonClientFreeTitleScreenActive = true;
     markScreen("nonClientFreeTitlePrompt", { opt });
     const prefix = nonClientFreeTitlePrefix(opt);
-    setLabel("JG Overig", function() {
+    setLabelsExclusive(nonClientLabels(opt), function() {
       const inp = getTitleInputSafe();
       const cur = inp ? clean(inputTextValue(inp)) : "";
       if (!cur || cur === clean(opt.display) || cur === clean(prefix)) setAppointmentTitleText(prefix);
@@ -15143,19 +15097,10 @@
   }
   function selectNonClientUursoort(text2, onResult) {
     const trigger = findNonClientUursoortTrigger();
-    const viaFormulier = async () => {
-      try {
-        if (!trigger) return false;
-        const optie = await nietClientUursoortMetId(text2);
-        return optie ? await zetUursoortViaFormulier(trigger, optie.id, optie.name) : false;
-      } catch (e) {
-        return false;
-      }
-    };
-    viaFormulier().then((ok) => {
-      if (ok) onResult(true);
-      else selectNonClientUursoortViaDropdown(text2, onResult);
-    });
+    eerstViaFormulier(
+      () => trigger ? nietClientUursoortMetId(text2).then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
+      () => new Promise((klaar) => selectNonClientUursoortViaDropdown(text2, klaar))
+    ).then((ok) => onResult(!!ok));
   }
   function selectNonClientUursoortViaDropdown(text2, onResult, attempt = 0) {
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
@@ -15260,13 +15205,14 @@
       if (onDone) onDone();
       return;
     }
-    wisUursoortViaFormulier(trigger).then((ok) => {
-      if (ok) {
-        if (onDone) onDone();
-      } else clearUursoortViaDropdown(onDone, trigger);
+    eerstViaFormulier(
+      () => wisUursoortViaFormulier(trigger),
+      () => new Promise((klaar) => clearUursoortViaScherm(klaar, trigger))
+    ).then(() => {
+      if (onDone) onDone();
     });
   }
-  function clearUursoortViaDropdown(onDone, trigger) {
+  function clearUursoortViaScherm(onDone, trigger) {
     const currentText = clean(uiText(trigger));
     const openedBy = openSelectCombobox(trigger) || trigger;
     setTimeout(() => {
@@ -15300,24 +15246,14 @@
     }, 120);
   }
   function chooseUursoort(text2, onResult, triggerArg = null, context2 = null) {
-    const viaDropdown = () => openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
-      if (ok) setTimeout(clickEmptyModalSpot, 90);
-      onResult(ok);
-    });
-    uursoortViaFormulier(text2, triggerArg || getUursoortTrigger(), context2).then((ok) => {
-      if (ok) onResult(true);
-      else viaDropdown();
-    });
-  }
-  async function uursoortViaFormulier(text2, trigger, context2) {
-    try {
-      if (!trigger) return false;
-      const optie = await uursoortMetId(text2, context2, trigger);
-      if (!optie) return false;
-      return await zetUursoortViaFormulier(trigger, optie.id, optie.name);
-    } catch (e) {
-      return false;
-    }
+    const trigger = triggerArg || getUursoortTrigger();
+    eerstViaFormulier(
+      () => trigger ? uursoortMetId(text2, context2, trigger).then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
+      () => new Promise((klaar) => openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
+        if (ok) setTimeout(clickEmptyModalSpot, 90);
+        klaar(ok);
+      }))
+    ).then((ok) => onResult(!!ok));
   }
   function anyUursoortPresent() {
     const entries2 = findClientEntries();
@@ -15604,68 +15540,57 @@
     _bezig = true;
     _geplandeDuur = p.minutes > 0 ? p.minutes : null;
     const uursoorten = vulUursoorten(Array.isArray(p.uursoorten) ? p.uursoorten : [], p.uursoortAfspraak || null);
-    let veldenKlaar;
-    const velden = new Promise((r) => {
-      veldenKlaar = r;
+    const velden = vulDatumEnTijd(p).then((ok) => {
+      clearPending();
+      _bezig = false;
+      return ok;
     });
     if (klaar) Promise.all([velden, uursoorten]).then((r) => klaar({ velden: r[0], uursoorten: r[1] }));
-    const datum = onsDateText(p.date);
-    let pogingen = 0;
-    const tik = () => {
-      pogingen++;
-      const d = getDateInput(), s = getStartTimeInput();
-      if (d && s) {
-        if (datum && inputTextValue(d) !== datum) schrijf(d, datum);
-        setTimeout(() => {
-          const s2 = getStartTimeInput();
-          if (s2 && inputTextValue(s2) !== p.time) schrijf(s2, p.time);
-          clearPending();
-          _bezig = false;
-          if (p.minutes > 0) setTimeout(() => {
-            try {
-              setAppointmentEndTimePlusMinutes(p.minutes);
-            } catch (e) {
-            }
-            veldenKlaar(true);
-          }, 250);
-          else veldenKlaar(true);
-        }, 250);
-        return;
-      }
-      if (pogingen < 48) setTimeout(tik, 250);
-      else {
-        clearPending();
-        _bezig = false;
-        veldenKlaar(false);
-      }
-    };
-    setTimeout(tik, 300);
     return p;
+  }
+  function vulDatumEnTijd(p) {
+    const datum = onsDateText(p.date);
+    const toont = (veld, tekst) => {
+      const inp = veld();
+      return !!inp && inputTextValue(inp) === tekst;
+    };
+    return wachtTot(() => getDateInput() && getStartTimeInput(), { max: 12e3 }).then((klaarVoor) => {
+      if (!klaarVoor) return false;
+      if (datum && !toont(getDateInput, datum)) schrijf(getDateInput(), datum);
+      return wachtTot(() => !datum || toont(getDateInput, datum), { max: 1500 }).then(() => {
+        const s = getStartTimeInput();
+        if (s && inputTextValue(s) !== p.time) schrijf(s, p.time);
+        return wachtTot(() => toont(getStartTimeInput, p.time), { max: 1500 });
+      }).then(() => {
+        if (p.minutes > 0) {
+          try {
+            setAppointmentEndTimePlusMinutes(p.minutes);
+          } catch (e) {
+          }
+        }
+        return true;
+      });
+    });
   }
   function vulUursoorten(perClient, opAfspraak) {
     let rest = perClient.slice();
     let afspraak = opAfspraak && opAfspraak.hourTypeId > 0 ? opAfspraak : null;
     if (!rest.length && !afspraak) return Promise.resolve(true);
-    let pogingen = 0, klaar;
-    const uitslag = new Promise((r) => {
-      klaar = r;
-    });
-    const stap = () => {
-      pogingen++;
+    const veldenEr = () => afspraak ? !!findNonClientUursoortTrigger() : deepQueryAll('uc-select[data-qa="hour_type_select"]').length >= rest.length;
+    const ronde = (n) => wachtTot(veldenEr, { max: 8e3 }).then(() => {
       const werk = rest.map((u) => zetUursoortVoorClient(u.clientId, u.hourTypeId, u.name).then((ok) => ok ? u : null));
       if (afspraak) {
         const veld = findNonClientUursoortTrigger();
         werk.push(veld ? zetUursoortViaFormulier(veld, afspraak.hourTypeId, afspraak.name).then((ok) => ok ? "afspraak" : null) : Promise.resolve(null));
       }
-      Promise.all(werk).then((gelukt) => {
-        rest = rest.filter((u) => gelukt.indexOf(u) < 0);
-        if (gelukt.indexOf("afspraak") >= 0) afspraak = null;
-        if ((rest.length || afspraak) && pogingen < 25) setTimeout(stap, 400);
-        else klaar(!rest.length && !afspraak);
-      });
-    };
-    setTimeout(stap, 500);
-    return uitslag;
+      return Promise.all(werk);
+    }).then((gelukt) => {
+      rest = rest.filter((u) => gelukt.indexOf(u) < 0);
+      if (gelukt.indexOf("afspraak") >= 0) afspraak = null;
+      if ((rest.length || afspraak) && n < 2) return ronde(n + 1);
+      return !rest.length && !afspraak;
+    });
+    return ronde(0);
   }
 
   // src/content/features/appointment/duplicate.js
@@ -16101,7 +16026,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.281";
+      return "1.6.282";
     }
   }();
 
@@ -16550,27 +16475,13 @@
       }
     });
   }
-  function zetTitel(titel, pogingen = 0) {
-    const inp = getTitleInputSafe();
-    if (inp && inputTextValue(inp) === titel) return;
-    if (inp) {
-      zetTitelAsync(titel);
-      return;
-    }
-    if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
-  }
-  function kaartVoornamen() {
-    invalidateClientEntries();
-    const namen = [];
-    for (const e of findClientEntries()) {
-      const f = e.firstName || firstNameFromName2(e.name || "");
-      if (f && !namen.some((n) => clean(n) === clean(f))) namen.push(f);
-    }
-    return namen;
+  function zetTitel(titel) {
+    wachtTot(getTitleInputSafe, { max: 1e4 }).then((inp) => {
+      if (inp && inputTextValue(inp) !== titel) zetTitelAsync(titel);
+    });
   }
   function voegVoornamenToe(keuze) {
     return clientVoornamenAsync().then((namen) => {
-      if (!namen.length) namen = kaartVoornamen();
       const inp = getTitleInputSafe();
       if (!inp) return;
       const t = String(inputTextValue(inp) || "").trim() || keuze.titleLabel || keuze.label || "";
@@ -16586,13 +16497,13 @@
       return findClientEntries().length ? clientsMissingUursoortEntries().length : 1;
     });
   }
-  function wachtOpClientkaarten(verder, poging = 0) {
+  function wachtOpClientkaarten(verder) {
     ensureClientExpanded(() => {
-      invalidateClientEntries();
-      const kaarten = findClientEntries();
-      const klaar = kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
-      if (klaar || poging >= 8) verder();
-      else setTimeout(() => wachtOpClientkaarten(verder, poging + 1), 300);
+      wachtTot(() => {
+        invalidateClientEntries();
+        const kaarten = findClientEntries();
+        return kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
+      }, { max: 4e3 }).then(() => verder());
     });
   }
   function startVanuitPlanhulp() {
@@ -20856,9 +20767,12 @@
       setLabelsExclusive,
       zetLabelsViaFormulier,
       zetUursoortViaFormulier,
+      eerstViaFormulier,
+      wachtTot,
+      pollFor,
       nietClientUursoortMetId,
       keuzeVoorLabel,
-      kaartVoornamen,
+      findClientFirstNames,
       clientVoornamenAsync,
       CONFIG,
       nietClientOptieVoorUursoort,

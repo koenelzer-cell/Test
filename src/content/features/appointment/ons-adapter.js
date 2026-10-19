@@ -17,7 +17,8 @@ import {
   invalidateClientEntries,
   labelChips,
 } from '../../ons/appointment-form.js';
-import { clearTitle, setAppointmentTitleText } from './fields.js';
+import { clearTitle } from './fields.js';
+import { zetTitelAsync } from './title.js';
 import { chooseUursoort } from './uursoort-field.js';
 import { clearKnownLabels, setLabel } from './labels.js';
 import { clearEndTime } from './end-time.js';
@@ -91,7 +92,7 @@ export const OnsAdapter = {
     },
     reistijdTotaal: () => appointmentTravelTotalMinutes(),
 
-    zetTitel: (tekst) => setAppointmentTitleText(tekst),
+    zetTitel: (tekst) => zetTitelAsync(tekst),
     zetLabel: (naam, klaar) => setLabel(naam, klaar),
     wisLabels: (klaar) => clearKnownLabels(klaar),
     zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),

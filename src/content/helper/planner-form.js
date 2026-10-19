@@ -7,9 +7,10 @@
 // alleen 'voeg een cliënt toe'; geen uursoort, dan alleen die vraag.
 
 import { MSG } from '../../shared/messages.js';
+import { wachtTot } from '../core/wacht.js';
 import { choiceLabels, CONFIG, nonClientCategoriesActive } from '../config/app-config.js';
 import { clean } from '../ons/dom.js';
-import { findClientEntries, firstNameFromName, getTitleInputSafe, invalidateClientEntries } from '../ons/appointment-form.js';
+import { findClientEntries, getTitleInputSafe, invalidateClientEntries } from '../ons/appointment-form.js';
 import { appointmentFlow } from '../state.js';
 import { applyPendingAppointment } from '../features/appointment/prefill.js';
 import { zetTitelAsync } from '../features/appointment/title.js';
@@ -57,33 +58,20 @@ function vraagTitel(date, time) {
     } catch (e) { einde(''); }
   });
 }
-// Titel zetten zodra het titelveld er is (hooguit ~10 s): eerst in het
-// afspraakmodel, anders typen.
-function zetTitel(titel, pogingen = 0) {
-  const inp = getTitleInputSafe();
-  if (inp && inputTextValue(inp) === titel) return;
-  if (inp) { zetTitelAsync(titel); return; }
-  if (pogingen < 40) setTimeout(() => zetTitel(titel, pogingen + 1), 250);
+// Titel zetten zodra het titelveld er is (hooguit ~10 s).
+function zetTitel(titel) {
+  wachtTot(getTitleInputSafe, { max: 10000 }).then((inp) => {
+    if (inp && inputTextValue(inp) !== titel) zetTitelAsync(titel);
+  });
 }
 
 // Voornamen van cliënten die er in het formulier bij kwamen, achter de titel
 // zoals de afspraakhulp ze schrijft ('Titel - Voornaam'; zo kan hij een
 // voornaam ook weer weghalen als je een cliënt verwijdert).
-// Alleen namen uit de cliëntkaarten van dit formulier, nooit uit andere
-// tekst op de pagina.
-export function kaartVoornamen() {
-  invalidateClientEntries();
-  const namen = [];
-  for (const e of findClientEntries()) {
-    const f = e.firstName || firstNameFromName(e.name || '');
-    if (f && !namen.some((n) => clean(n) === clean(f))) namen.push(f);
-  }
-  return namen;
-}
-// Voornamen eerst uit het afspraakmodel (main-world), anders uit de kaarten.
+// Voornamen uit het afspraakmodel, anders uit de cliëntkaarten
+// (clientVoornamenAsync), achter de titel.
 function voegVoornamenToe(keuze) {
   return clientVoornamenAsync().then((namen) => {
-    if (!namen.length) namen = kaartVoornamen();
     const inp = getTitleInputSafe();
     if (!inp) return;
     const t = String(inputTextValue(inp) || '').trim() || keuze.titleLabel || keuze.label || '';
@@ -104,13 +92,13 @@ function ontbrekendeUursoorten() {
 }
 // Wachten tot elke cliëntkaart open staat met naam en uursoortveld (zoals de
 // afspraakhulp dat ook doet voordat hij verder gaat). Hooguit ~4 s.
-function wachtOpClientkaarten(verder, poging = 0) {
+function wachtOpClientkaarten(verder) {
   ensureClientExpanded(() => {
-    invalidateClientEntries();
-    const kaarten = findClientEntries();
-    const klaar = kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
-    if (klaar || poging >= 8) verder();
-    else setTimeout(() => wachtOpClientkaarten(verder, poging + 1), 300);
+    wachtTot(() => {
+      invalidateClientEntries();
+      const kaarten = findClientEntries();
+      return kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
+    }, { max: 4000 }).then(() => verder());
   });
 }
 

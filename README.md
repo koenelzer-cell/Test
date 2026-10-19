@@ -149,6 +149,14 @@ nog een uursoort mist, haalt de hulp ook uit het formulier zelf: uit het
 afspraakmodel (de cliënten met hun id) en uit het uursoortveld van elke
 cliënt. Alleen als dat niet lukt, leest hij de cliëntkaarten op het scherm.
 
+Elke stap werkt op dezelfde manier: eerst rechtstreeks in het formulier en
+nakijken, anders één keer via het scherm (klikken of typen). Wachten op het
+formulier (velden, cliëntkaarten) gebeurt op het moment dat de pagina
+verandert, niet met vaste wachttijden. Voornamen komen alleen uit het
+afspraakmodel of de cliëntkaarten, nooit uit andere tekst op de pagina. Bij
+een niet-cliëntgebonden optie met een eigen label blijft dat label nu naast
+'JG Overig' staan (het verdween eerder weer).
+
 Ook weghalen gaat zo: 'Verwijder instellingen' en het wissen van een
 uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te
 klikken of de dropdown te openen.

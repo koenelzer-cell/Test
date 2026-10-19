@@ -14,9 +14,11 @@ import {
   hasAppointmentStartTime,
   setAppointmentTitleText,
 } from './fields.js';
-import { clearUursoort, setAppointmentUursoortByName } from './uursoort-field.js';
+import { clearUursoortViaScherm, setAppointmentUursoortByName } from './uursoort-field.js';
 import { updateSubmitGuard } from './submit-guard.js';
-import { clearKnownLabels, clickLabelChipRemovers, selectLabel, setLabel } from './labels.js';
+import { clearKnownLabels, clickLabelChipRemovers, setLabelsExclusive, voegLabelToe } from './labels.js';
+import { zetTitelAsync } from './title.js';
+import { eerstViaFormulier, wisUursoortViaFormulier } from '../../ons/form-model.js';
 import {
   clearEndTime,
   enforceAppointmentEndTime,
@@ -100,14 +102,31 @@ export function findNonClientUursoortTrigger() {
   }
   return null;
 }
+// Titel van een optie. Bij een vrije titel ('Overig') direct typen: daarna
+// zet het titelscherm er meteen het voorvoegsel in, en een titel die later
+// via het model binnenkomt zou dat overschrijven.
+function titelVoorOptie(opt) {
+  if (opt.freeTitle) setAppointmentTitleText(opt.display);
+  else zetTitelAsync(opt.display);
+}
+// Labels van een niet-cliëntgebonden optie: JG Overig, plus het eigen label
+// uit de beheerlijst als dat is ingesteld (dat bleef vroeger niet staan).
+function nonClientLabels(opt) {
+  return ['JG Overig'].concat(opt && opt.etiket ? [opt.etiket] : []);
+}
 function clearNonClientUursoort(onDone) {
-  // Één poging: chip-verwijdering of dropdown-deselect. Bij mislukking
-  // accepteren — de uursoort wordt bij de volgende keuze toch overschreven.
+  // Eerst in het formulier; via het scherm één poging (chip weg, anders de
+  // dropdown). Bij mislukking accepteren: de uursoort wordt bij de volgende
+  // keuze toch overschreven.
   const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
   if (!trigger || !nonClientUursoortValueText()) { if (onDone) onDone(); return; }
-  const clicked = clickLabelChipRemovers(trigger, []);
-  if (clicked) { setTimeout(function () { if (onDone) onDone(); }, 220); return; }
-  clearUursoort(function () { if (onDone) onDone(); }, trigger);
+  eerstViaFormulier(
+    () => wisUursoortViaFormulier(trigger),
+    () => new Promise(function (klaar) {
+      if (clickLabelChipRemovers(trigger, [])) setTimeout(klaar, 220);
+      else clearUursoortViaScherm(klaar, trigger);
+    })
+  ).then(function () { if (onDone) onDone(); });
 }
 export function clearNonClientSettings() {
   appointmentFlow.appointmentClearingSettings = true;
@@ -215,8 +234,8 @@ function finishNonClientOption(opt) {
   // precies zoals handleChoice dat in de cliëntflow doet.
   // enforceAppointmentEndTime/scheduleAppointmentEndTime doen niets als
   // activeAppointmentDurationMinutes null is (eindtijd was al ingevuld).
-  setLabel('JG Overig', function () {
-    setAppointmentTitleText(opt.display);
+  setLabelsExclusive(nonClientLabels(opt), function () {
+    zetTitelAsync(opt.display);
     scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
     setStatus(opt.display + ' gezet');
     const tryShow = function () {
@@ -319,9 +338,9 @@ export function handleNonClientOption(opt) {
   appointmentFlow.nonClientFreeTitleScreenActive = false;
   appointmentFlow.nonClientNoUursoortActive = false;
   appointmentFlow.nonClientBusy = true; // voorkom dat de refresh-cyclus opnieuw triggert
-  setAppointmentTitleText(opt.display);
+  titelVoorOptie(opt);
   // Optioneel ONS-label uit de beheerlijst (alleen als ingesteld).
-  if (opt.etiket) { try { selectLabel(opt.etiket, function () {}); } catch (e) {} }
+  if (opt.etiket) voegLabelToe(opt.etiket);
   if (opt.freeTitle) {
     // 'Overig': raak de uursoort niet aan. Eerst (zonodig) de duur vragen,
     // daarna het vrije-titel-scherm dat blokkeert tot er een titel staat.
@@ -433,7 +452,7 @@ export function showNonClientDurationSelection(opt) {
     // Zelfde opzet als de cliëntflow: eerst eindtijd zetten + plannen, dan
     // na 80ms de uursoort/label-stappen (die elk de eindtijd opnieuw afdwingen).
     const endOk = applyNonClientEndTime(m);
-    setAppointmentTitleText(opt.display);
+    titelVoorOptie(opt);
     setStatus(endOk ? (opt.display + ' ' + registrationDurationLabel(m)) : 'Eindtijd niet gezet', endOk);
     setTimeout(function () { safe(function () {
       if (opt.freeTitle) showNonClientFreeTitlePrompt(opt);
@@ -455,7 +474,7 @@ export function showNonClientFreeTitlePrompt(opt) {
   const prefix = nonClientFreeTitlePrefix(opt);
   // Label JG Overig zetten en de titel voorzien van de prefix (alleen als de
   // gebruiker nog niets eigens heeft ingevuld).
-  setLabel('JG Overig', function () {
+  setLabelsExclusive(nonClientLabels(opt), function () {
     const inp = getTitleInputSafe();
     const cur = inp ? clean(inputTextValue(inp)) : '';
     if (!cur || cur === clean(opt.display) || cur === clean(prefix)) setAppointmentTitleText(prefix);

@@ -366,6 +366,28 @@ test('main-world zet titel, tijden en reistijd via EventDetails.onChange en kijk
   neemtOver = false;
   const r = await zet('name', 'Andere titel');
   assert.equal(r.ok, false);
-  assert.match(r.reden, /model nam de waarde niet over/);
+  assert.match(r.reden, /nam de waarde niet over/);
   assert.deepEqual(JSON.parse(JSON.stringify(aangeroepen.map((a) => a[0]))), ['name', 'end_time', 'travel_time_before', 'name'], 'ongeldige verzoeken roepen ONS niet aan');
+});
+
+test('main-world: een label toevoegen laat de bestaande staan', async () => {
+  const { w, kaal } = await formulier({ beginWaarde: [29] });
+  const r = await new Promise((klaar) => {
+    w.addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'labelsGezet' && ev.data.id === 't') klaar(ev.data); });
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'zetLabels', id: 't', labels: ['JG Huisbezoek'], toevoegen: true }, origin: w.location.origin, source: w }));
+  });
+  assert.equal(r.ok, true);
+  assert.deepEqual(kaal(), [[46, 29]], 'het nieuwe label erbij, Verslaglegging blijft');
+});
+
+test('eerstViaFormulier: het scherm-pad alleen als het formulier-pad niet lukt', async () => {
+  const { api } = bootHelper();
+  let scherm = 0;
+  const viaScherm = () => { scherm++; return 'scherm'; };
+  assert.equal(await api.eerstViaFormulier(() => Promise.resolve(true), viaScherm), true);
+  assert.equal(scherm, 0, 'formulier gelukt: scherm niet aangeraakt');
+  assert.equal(await api.eerstViaFormulier(() => Promise.resolve(false), viaScherm), 'scherm');
+  assert.equal(await api.eerstViaFormulier(() => { throw new Error('kapot'); }, viaScherm), 'scherm', 'ook bij een fout');
+  assert.equal(await api.eerstViaFormulier(() => false, () => Promise.resolve(7)), 7, 'scherm-pad mag een belofte geven');
+  assert.equal(scherm, 2);
 });
