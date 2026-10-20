@@ -20,7 +20,7 @@ export function routeEnabled() {
 }
 
 function hm(ms) {
-  var d = new Date(ms);
+  const d = new Date(ms);
   return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
 }
 
@@ -29,23 +29,23 @@ function hm(ms) {
 export function dayRoute(date, origin) {
   if (!routeEnabled()) return Promise.reject(new Error('De route staat uit (beheer).'));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) return Promise.reject(new Error('Kies een dag.'));
-  var ids = viewedInviteeIds(resolveInviteeId());
+  const ids = viewedInviteeIds(resolveInviteeId());
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
-  var limiet = createLimiter(3);
+  const limiet = createLimiter(3);
   return Promise.all(ids.map(function (id) {
     return getJson(_apiUrl('weekEvents', { inviteeId: id, date: date })).then(function (json) {
-      var bezoeken = weekEntries(json).filter(function (e) {
+      const bezoeken = weekEntries(json).filter(function (e) {
         return e && e.date === date && !e.allDay && e.startMs != null && isAtClient(e, !!officeForLocation(e.locationName));
       }).sort(function (a, b) { return a.startMs - b.startMs; });
       return Promise.all(bezoeken.map(function (e) {
-        var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: id, occurrenceId: e.occurrenceId }) : null);
+        const url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: id, occurrenceId: e.occurrenceId }) : null);
         if (!url) return Promise.resolve({ start: hm(e.startMs), address: '' });
         return limiet(function () { return getJson(url); })
           .then(function (d) { return { start: hm(e.startMs), address: addressFromDetails(d) }; },
             function () { return { start: hm(e.startMs), address: '' }; });
       }));
     }).then(function (stops) {
-      var metAdres = stops.filter(function (s) { return s.address; });
+      const metAdres = stops.filter(function (s) { return s.address; });
       return {
         id: id, name: ids.length > 1 ? inviteeName(id) : '',
         stops: stops, missing: stops.length - metAdres.length,

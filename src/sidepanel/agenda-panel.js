@@ -46,7 +46,7 @@ import { maakRoute } from './pagina-route.js';
 import { maakInfo } from './pagina-info.js';
 import { maakRondleidingen } from './rondleidingen.js';
 
-var PAGINA_TITEL = {
+const PAGINA_TITEL = {
   hoofd: 'Agendahulp', clienttijd: 'Cliënttijd', verhouding: 'Verhouding per uursoort',
   open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', plan: 'Planhulp', route: 'Route van de dag', maken: 'Afspraak maken'
 };
@@ -62,41 +62,41 @@ export function create(host, actions) {
   //   onsGezien wat ONS' overlapcontrole per tijdvak zei (planhulp)
   // Daarnaast de elementen en functies van deze schil die een pagina nodig
   // heeft, en wat elke pagina zelf teruggeeft (pageX, startX, …).
-  var ctx = { actions: actions, host: host, state: null, pagina: 'hoofd' };
-  var vorigePagina = BEWAARD.pagina;   // na opnieuw opbouwen terug naar deze pagina
-  var vergelijkSig = '';               // agenda-inhoud van de vorige update
+  const ctx = { actions: actions, host: host, state: null, pagina: 'hoofd' };
+  let vorigePagina = BEWAARD.pagina;   // na opnieuw opbouwen terug naar deze pagina
+  let vergelijkSig = '';               // agenda-inhoud van de vorige update
 
-  var root = el('div', {
+  const root = el('div', {
     background: '#fff', color: T.ink, font: '400 13px/1.45 ' + FONT,
     overflow: 'hidden', display: 'flex', flexDirection: 'row', alignItems: 'stretch',
     height: '100%', width: '100%'
   });
 
   // ── Spine ──
-  var spine = el('div', {
+  const spine = el('div', {
     width: '16px', flex: '0 0 auto', display: 'flex', flexDirection: 'column',
     alignItems: 'center', padding: '12px 0', userSelect: 'none'
   });
   spine.setAttribute('aria-hidden', 'true');
-  var spineChip = el('span', {
+  const spineChip = el('span', {
     width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,.24)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flex: '0 0 auto'
   });
   spine.appendChild(spineChip);
 
   // ── Inhoudskolom ──
-  var mainCol = el('div', {
+  const mainCol = el('div', {
     flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column',
     overflowY: 'auto', overflowX: 'hidden'
   });
 
-  var header = el('div', {
+  const header = el('div', {
     display: 'flex', alignItems: 'center', background: '#fff', padding: '12px',
     userSelect: 'none', borderBottom: '1px solid ' + T.line, flex: '0 0 auto'
   });
   // Terugpijl in de kop (niet op de hoofdpagina): zelfde regel als vroeger de
   // losse knop 'Terug'. Afspraak maken gaat terug naar de planhulp.
-  var terugPijl = document.createElement('button');
+  const terugPijl = document.createElement('button');
   terugPijl.type = 'button';
   terugPijl.setAttribute('data-terug', '');
   terugPijl.setAttribute('aria-label', 'Terug');
@@ -111,32 +111,32 @@ export function create(host, actions) {
   focusRing(terugPijl);
   terugPijl.addEventListener('click', function (e) { e.preventDefault(); naarPagina(ctx.pagina === 'maken' ? 'plan' : 'hoofd'); });
   header.appendChild(terugPijl);
-  var title = el('span', Object.assign({}, TYPE.pageTitle, {
+  const title = el('span', Object.assign({}, TYPE.pageTitle, {
     flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   }), PAGINA_TITEL.hoofd);
   title.setAttribute('data-paneel-titel', '');
   header.appendChild(title);
 
-  var controls = el('div', { display: 'inline-flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginLeft: '8px' });
+  const controls = el('div', { display: 'inline-flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginLeft: '8px' });
 
   // Aan/uit-schakelaar.
-  var onoff = document.createElement('button');
+  const onoff = document.createElement('button');
   onoff.type = 'button';
   Object.assign(onoff.style, {
     position: 'relative', background: 'transparent', border: '0', borderRadius: '999px',
     color: '#fff', cursor: 'pointer', lineHeight: '1', padding: '0', width: '58px', height: '24px',
     overflow: 'hidden', flex: '0 0 auto', fontFamily: 'inherit'
   });
-  var swTrack = el('span', {
+  const swTrack = el('span', {
     position: 'absolute', inset: '0', borderRadius: '999px', border: '1px solid rgba(255,255,255,.45)',
     transition: 'background .16s ease, opacity .16s ease'
   });
-  var swText = el('span', {
+  const swText = el('span', {
     position: 'absolute', top: '0', bottom: '0', display: 'flex', alignItems: 'center',
     fontSize: '11px', fontWeight: '600', color: '#fff',
     transition: 'left .16s ease, right .16s ease', pointerEvents: 'none'
   });
-  var swKnob = el('span', {
+  const swKnob = el('span', {
     position: 'absolute', top: '3px', width: '18px', height: '18px', borderRadius: '50%',
     background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.22)', transition: 'left .16s ease'
   });
@@ -144,14 +144,14 @@ export function create(host, actions) {
   focusRing(onoff);
   onoff.addEventListener('click', function (e) {
     e.preventDefault(); e.stopPropagation();
-    var next = !(ctx.state && ctx.state.enabled);
+    const next = !(ctx.state && ctx.state.enabled);
     if (ctx.state) ctx.state.enabled = next;
     paintOnoff();
     if (actions.onToggleEnabled) actions.onToggleEnabled(next);
     if (ctx.pagina === 'hoofd') renderStatus();
   });
 
-  var info = document.createElement('button');
+  const info = document.createElement('button');
   info.type = 'button';
   info.title = 'Legenda en versie';
   info.setAttribute('aria-label', 'Legenda en versie');
@@ -172,31 +172,31 @@ export function create(host, actions) {
   mainCol.appendChild(header);
 
   // Hoofdpagina: status, totalen (dagweergave), weekoverzicht, knoppen.
-  var hoofd = el('div', { flex: '0 0 auto' });
-  var statusBox = el('div', { padding: '12px 12px 0' });
-  var totals = el('div', { padding: '0 12px' });
-  var weekBox = el('div', { padding: '16px 12px 0' });
+  const hoofd = el('div', { flex: '0 0 auto' });
+  const statusBox = el('div', { padding: '12px 12px 0' });
+  const totals = el('div', { padding: '0 12px' });
+  const weekBox = el('div', { padding: '16px 12px 0' });
   // Twee gescheiden kinderen: de laadstrook is van ons, de container daaronder
   // is van React. Zelf iets in een React-container zetten laat zijn interne
   // boekhouding los van de echte DOM.
-  var laadStrook = el('div');
-  var weekHost = el('div', { transition: 'opacity .15s ease' });
+  const laadStrook = el('div');
+  const weekHost = el('div', { transition: 'opacity .15s ease' });
   weekBox.appendChild(laadStrook);
   weekBox.appendChild(weekHost);
-  var navBox = el('div', { padding: '18px 12px 12px' });
+  const navBox = el('div', { padding: '18px 12px 12px' });
   hoofd.appendChild(statusBox); hoofd.appendChild(totals); hoofd.appendChild(weekBox); hoofd.appendChild(navBox);
 
   // Andere pagina's.
-  var paginaBox = el('div', { padding: '16px 12px 12px', flex: '0 0 auto', display: 'none' });
+  const paginaBox = el('div', { padding: '16px 12px 12px', flex: '0 0 auto', display: 'none' });
   mainCol.appendChild(hoofd); mainCol.appendChild(paginaBox);
 
   // ── Voet ── blijft onderaan in beeld, ook als je scrolt of de pagina kort
   // is: de balk met gekozen momenten (planhulp) en Verlof aanvragen.
-  var voet = el('div', { position: 'sticky', bottom: '0', marginTop: 'auto', flex: '0 0 auto', background: '#fff', zIndex: '2' });
-  var balkHost = el('div');
+  const voet = el('div', { position: 'sticky', bottom: '0', marginTop: 'auto', flex: '0 0 auto', background: '#fff', zIndex: '2' });
+  const balkHost = el('div');
   voet.appendChild(balkHost);
-  var leaveBar = el('div', { padding: '10px 12px', background: '#fff', borderTop: '1px solid ' + T.line });
-  var leaveBtn = baseButton('Verlof aanvragen', function () { if (actions.onRequestLeave) actions.onRequestLeave(); }, true, false);
+  const leaveBar = el('div', { padding: '10px 12px', background: '#fff', borderTop: '1px solid ' + T.line });
+  const leaveBtn = baseButton('Verlof aanvragen', function () { if (actions.onRequestLeave) actions.onRequestLeave(); }, true, false);
   leaveBtn.title = 'Verlof vastleggen in de agenda en aanvragen in AFAS';
   leaveBar.appendChild(leaveBtn);
   voet.appendChild(leaveBar);
@@ -205,12 +205,12 @@ export function create(host, actions) {
   root.appendChild(spine); root.appendChild(mainCol);
   host.appendChild(root);
 
-  var bridge = function () { return window.__onsahReact; };
+  const bridge = function () { return window.__onsahReact; };
 
   /* ── Hoofdpagina ── */
 
   function paintOnoff() {
-    var aan = !!(ctx.state && ctx.state.enabled);
+    const aan = !!(ctx.state && ctx.state.enabled);
     swText.textContent = aan ? 'Aan' : 'Uit';
     swTrack.style.background = aan ? T.ok : T.bad;
     swTrack.style.opacity = aan ? '1' : '.82';
@@ -227,19 +227,19 @@ export function create(host, actions) {
 
   function renderStatus() {
     statusBox.innerHTML = '';
-    var tekst, toon;
+    let tekst, toon;
     if (!ctx.state || !ctx.state.enabled) { tekst = 'Gekleurde dagindeling staat uit.'; toon = 'off'; }
     else if (!ctx.state.profileLabel) { tekst = 'Kies eerst een indeling via het extensie-icoontje in de browser.'; toon = 'warn'; }
     // Staat alles goed aan, dan geen melding (alleen uit of nog te kiezen).
     else { statusBox.style.display = 'none'; return; }
     statusBox.style.display = '';
-    var bg = toon === 'ok' ? T.okWash : (toon === 'warn' ? T.warnWash : T.lineSoft);
-    var fg = toon === 'ok' ? T.ok : (toon === 'warn' ? T.warn : T.inkSoft);
-    var card = el('div', {
+    const bg = toon === 'ok' ? T.okWash : (toon === 'warn' ? T.warnWash : T.lineSoft);
+    const fg = toon === 'ok' ? T.ok : (toon === 'warn' ? T.warn : T.inkSoft);
+    const card = el('div', {
       display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '9px 11px',
       borderRadius: '10px', background: bg, color: fg, fontSize: '13px', lineHeight: '1.4', fontWeight: '600'
     });
-    var icon = toon === 'ok' ? svgSpineCheck() : svgInfoIcon();
+    const icon = toon === 'ok' ? svgSpineCheck() : svgInfoIcon();
     icon.setAttribute('width', '13'); icon.setAttribute('height', '13');
     Object.assign(icon.style, { width: '13px', height: '13px', flex: '0 0 auto', marginTop: '2px' });
     card.appendChild(icon);
@@ -250,26 +250,26 @@ export function create(host, actions) {
   function renderTotals() {
     totals.innerHTML = '';
     if (!ctx.state) return;
-    var view = ctx.state.view || '';
+    const view = ctx.state.view || '';
 
     // Knop naar de weekweergave — alleen buiten de (werk)week-weergave.
     if (view !== 'workweek' && view !== 'week') {
-      var weekBtn = secondaryBtn('Naar weekweergave', function () { if (actions.onJumpToWeek) actions.onJumpToWeek(); });
+      const weekBtn = secondaryBtn('Naar weekweergave', function () { if (actions.onJumpToWeek) actions.onJumpToWeek(); });
       weekBtn.style.marginTop = '12px';
       totals.appendChild(weekBtn);
     }
 
     // In dagweergave: nog te registreren (klikbaar).
     if (view === 'day') {
-      var items = ctx.state.unfinished || [];
+      const items = ctx.state.unfinished || [];
       totals.appendChild(sectionHead('Nog te registreren' + (items.length ? ' (' + items.length + ')' : ''), false));
       if (!items.length) {
         totals.appendChild(noteBox('Alles geregistreerd.', 'ok'));
         totals.lastChild.style.marginTop = '0';
       } else {
-        var list = el('div', { display: 'flex', flexDirection: 'column', gap: '6px' });
+        const list = el('div', { display: 'flex', flexDirection: 'column', gap: '6px' });
         items.forEach(function (it) {
-          var card = clickCard(function () { if (actions.onOpenOccurrence) actions.onOpenOccurrence(it.id); }, 'Afspraak openen');
+          const card = clickCard(function () { if (actions.onOpenOccurrence) actions.onOpenOccurrence(it.id); }, 'Afspraak openen');
           Object.assign(card.style, { display: 'flex', alignItems: 'center', gap: '8px' });
           card.appendChild(el('span', { fontSize: '13px', fontWeight: '600', color: T.ink, fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' }, it.time || '--:--'));
           card.appendChild(el('span', { fontSize: '13px', color: T.ink, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, it.name));
@@ -283,10 +283,10 @@ export function create(host, actions) {
 
   // Het weekoverzicht is een React-component (src/react/components/AgendaWeekPanel.jsx).
   function renderWeek() {
-    var w = ctx.state && ctx.state.week;
-    var bezig = !!(ctx.state && ctx.state.weekLoading);
-    var fout = (ctx.state && ctx.state.weekError) || '';
-    var b = bridge();
+    const w = ctx.state && ctx.state.week;
+    const bezig = !!(ctx.state && ctx.state.weekLoading);
+    const fout = (ctx.state && ctx.state.weekError) || '';
+    const b = bridge();
 
     if (fout && !bezig) {
       if (b && b.unmount) b.unmount(weekHost);
@@ -305,12 +305,12 @@ export function create(host, actions) {
       // Nooit een stil leeg vak: of we halen op, of we wachten op de agenda.
       // Zelfde vorm als de weekkaart, zodat het scherm niet verspringt.
       laadStrook.appendChild(el('div', { fontSize: '15px', fontWeight: '700', color: T.ink, margin: '0 2px 8px' }, 'Weekoverzicht'));
-      var lk = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '12px 14px', background: '#fff' });
+      const lk = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '12px 14px', background: '#fff' });
       if (bezig) {
         [['40%', '10px', '0'], ['58%', '22px', '8px'], ['100%', '8px', '16px'], ['82%', '10px', '10px']].forEach(function (b) {
           lk.appendChild(el('div', { width: b[0], height: b[1], marginTop: b[2], borderRadius: '5px', background: '#f1ecea', animation: 'onsAhPuls 1.4s ease-in-out infinite' }));
         });
-        var lb = laadBalk(); lb.style.marginTop = '14px';
+        const lb = laadBalk(); lb.style.marginTop = '14px';
         lk.appendChild(lb);
       } else {
         lk.appendChild(txt('help', 'Wordt opgehaald zodra de agenda van deze week geladen is.'));
@@ -337,15 +337,15 @@ export function create(host, actions) {
   // Teller bij Open registraties: wat je zelf al hebt opgehaald (min wat je
   // hebt afgewerkt), anders wat de hulp vooraf heeft geladen. Onbekend = geen teller.
   function openTeller() {
-    if (ctx.range.result) { var t = telOpen(ctx.range.result, ctx.range.afgewerkt || {}); return t.count - t.done; }
+    if (ctx.range.result) { const t = telOpen(ctx.range.result, ctx.range.afgewerkt || {}); return t.count - t.done; }
     return ctx.state && ctx.state.openCount != null ? ctx.state.openCount : null;
   }
-  var navRouteAan = null;
+  let navRouteAan = null;
   function navSleutel() { return JSON.stringify((ctx.state && ctx.state.features) || {}) + (ctx.state && ctx.state.routeEnabled === false) + '|' + openTeller(); }
   function renderNav() {
     navRouteAan = navSleutel();
     navBox.innerHTML = '';
-    var rijen = [];
+    const rijen = [];
     if (fAan('openRegistrations')) rijen.push(['open', ICON_RANGE, 'Open registraties', function () { naarPagina('open'); }, openTeller()]);
     if (fAan('planner')) rijen.push(['plan', ICON_PLAN, 'Planhulp', function () { naarPagina('plan'); }]);
     if (fAan('quickRegister')) rijen.push(['snel', ICON_QUICK, 'Snel registreren', function () { naarPagina('snel'); }]);
@@ -353,7 +353,7 @@ export function create(host, actions) {
     if (fAan('weekRatio')) rijen.push(['verhouding', ICON_RATIO, 'Verhouding per uursoort', function () { naarPagina('verhouding'); }]);
     if (!rijen.length) return;
     navBox.appendChild(el('div', { fontSize: '12px', fontWeight: '700', color: T.inkSoft, margin: '0 2px 8px' }, 'Hulpmiddelen'));
-    var lijst = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' });
+    const lijst = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' });
     lijst.setAttribute('data-hulpmiddelen', '');
     rijen.forEach(function (r, i) { lijst.appendChild(hulpRij(r[0], r[1], r[2], r[3], r[4], i === 0)); });
     navBox.appendChild(lijst);
@@ -363,7 +363,7 @@ export function create(host, actions) {
     ctx.losKoppelen();
     ctx.pagina = p;
     BEWAARD.pagina = p;
-    var opHoofd = ctx.pagina === 'hoofd';
+    const opHoofd = ctx.pagina === 'hoofd';
     hoofd.style.display = opHoofd ? '' : 'none';
     paginaBox.style.display = opHoofd ? 'none' : '';
     leaveBar.style.display = (opHoofd && !(ctx.state && ctx.state.leaveRequest === false)) ? '' : 'none';
@@ -389,7 +389,7 @@ export function create(host, actions) {
   // update vervangen, maar wat je invult of opvraagt moet blijven staan.
   ctx.range = BEWAARD.range;
   ctx.prod = BEWAARD.prod;
-  var quick = BEWAARD.quick;
+  const quick = BEWAARD.quick;
   ctx.ratio = BEWAARD.ratio;
   ctx.plan = BEWAARD.plan;
 
@@ -416,18 +416,18 @@ export function create(host, actions) {
   // krijgt (bijv. van reistijd heen naar terug tikken). Herkend aan zijn
   // data-attribuut (liefst een met een waarde).
   function veldMetFocus() {
-    var a = document.activeElement;
+    const a = document.activeElement;
     if (!a || !paginaBox.contains(a) || !/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return null;
-    var attrs = Array.prototype.filter.call(a.attributes, function (x) { return /^data-/.test(x.name); });
-    var at = attrs.filter(function (x) { return x.value; })[0] || attrs[0];
+    const attrs = Array.prototype.filter.call(a.attributes, function (x) { return /^data-/.test(x.name); });
+    const at = attrs.filter(function (x) { return x.value; })[0] || attrs[0];
     if (!at) return null;
-    var f = { sel: '[' + at.name + '="' + String(at.value).replace(/["\\]/g, '\\$&') + '"]' };
+    const f = { sel: '[' + at.name + '="' + String(at.value).replace(/["\\]/g, '\\$&') + '"]' };
     try { f.start = a.selectionStart; f.end = a.selectionEnd; } catch (e) {}
     return f;
   }
   function focusTerug(f) {
     if (!f) return;
-    var n = paginaBox.querySelector(f.sel);
+    const n = paginaBox.querySelector(f.sel);
     if (!n) return;
     try { n.focus(); if (f.start != null && n.setSelectionRange) n.setSelectionRange(f.start, f.end); } catch (e) {}
   }
@@ -435,22 +435,22 @@ export function create(host, actions) {
   // een eigen actie, niet bij elke pagina-update: dat zou een half ingevuld
   // veld wissen. De React-inhoud loopt wel mee via renderLive().
   function renderPagina() {
-    var focus = veldMetFocus();
+    const focus = veldMetFocus();
     ctx.losKoppelen();
     paginaBox.innerHTML = '';
     renderBalk();
     if (ctx.pagina === 'hoofd') return;
     vulStandaarden();
     if (ctx.pagina === 'plan' && fAan('planner')) {
-      var kopRij = el('div', { display: 'flex', justifyContent: 'flex-end', margin: '-6px -6px 4px 0' });
-      var rk = tekstKnop(ICON_HELP, 'Rondleiding', function () { ctx.startPlanRondleiding(); });
+      const kopRij = el('div', { display: 'flex', justifyContent: 'flex-end', margin: '-6px -6px 4px 0' });
+      const rk = tekstKnop(ICON_HELP, 'Rondleiding', function () { ctx.startPlanRondleiding(); });
       rk.setAttribute('data-plan-rondleiding', '');
       rk.title = 'Rondleiding door de Planhulp';
       rk.style.color = T.inkSoft;
       kopRij.appendChild(rk);
       paginaBox.appendChild(kopRij);
     }
-    var inhoud = ctx.pagina === 'clienttijd' ? ctx.pageClientTime()
+    const inhoud = ctx.pagina === 'clienttijd' ? ctx.pageClientTime()
       : ctx.pagina === 'verhouding' ? ctx.pageRatio()
       : ctx.pagina === 'open' ? ctx.pageOpen()
       : ctx.pagina === 'snel' ? ctx.pageQuick()
@@ -502,15 +502,15 @@ export function create(host, actions) {
 
   return {
     update: function (next) {
-      var vorigeSig = vergelijkSig;
+      const vorigeSig = vergelijkSig;
       ctx.state = next || null;
       // Andere medewerker (invitee) in de URL: resultaten van de vorige horen
       // er niet meer bij. Terug naar de hoofdpagina met een schone lei.
-      var inv = ctx.state && ctx.state.inviteeId;
+      const inv = ctx.state && ctx.state.inviteeId;
       // Agenda's erbij of eraf (meerdere naast elkaar): planhulp bijwerken.
-      var agendas = (ctx.state && ctx.state.inviteeIds) || '';
-      var vorigeAgendas = BEWAARD.agendaSleutel;
-      var gedeeld = function (a, b) { var x = String(a || '').split(','); return String(b || '').split(',').some(function (id) { return id && x.indexOf(id) >= 0; }); };
+      const agendas = (ctx.state && ctx.state.inviteeIds) || '';
+      const vorigeAgendas = BEWAARD.agendaSleutel;
+      const gedeeld = function (a, b) { const x = String(a || '').split(','); return String(b || '').split(',').some(function (id) { return id && x.indexOf(id) >= 0; }); };
       if (agendas && vorigeAgendas && agendas !== vorigeAgendas && gedeeld(agendas, vorigeAgendas)) {
         BEWAARD.agendaSleutel = agendas;
         if (inv) BEWAARD.inviteeId = inv;
@@ -544,7 +544,7 @@ export function create(host, actions) {
       if (ctx.pagina === 'plan') renderPagina();
     },
     setRangeProgress: function (kind, done, total) {
-      var doel = kind === 'productie' ? ctx.prod : ctx.range;
+      const doel = kind === 'productie' ? ctx.prod : ctx.range;
       if (!doel.busy) return;
       doel.done = done; doel.total = total;
       if ((kind === 'productie' && ctx.pagina === 'clienttijd') || (kind !== 'productie' && ctx.pagina === 'open')) renderPagina();
@@ -552,7 +552,7 @@ export function create(host, actions) {
     destroy: function () {
       sluitRondleiding();
       ctx.stopOpen();
-      try { var b = bridge(); if (b) { b.unmount(weekHost); if (ctx.liveHost) b.unmount(ctx.liveHost); } } catch (e) {}
+      try { const b = bridge(); if (b) { b.unmount(weekHost); if (ctx.liveHost) b.unmount(ctx.liveHost); } } catch (e) {}
       if (root.parentNode) root.parentNode.removeChild(root);
     }
   };

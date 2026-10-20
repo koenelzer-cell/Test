@@ -24,14 +24,14 @@ export const MAX_PRODUCTION_WEEKS = 26;
 
 // Standaardperiode: de laatste acht weken t/m vandaag (latere weken kunnen ook).
 export function defaultProductionFrom() {
-  var d = new Date(); d.setDate(d.getDate() - 7 * 7);
+  const d = new Date(); d.setDate(d.getDate() - 7 * 7);
   return agendaYmd(d);
 }
 
 // Eén week samenvatten tot de getallen die de grafiek en de tabel nodig hebben.
 export function productionWeekRow(weekStart, summary, profile) {
-  var s = summary || {};
-  var dec = declarabiliteitPct(s, profile);
+  const s = summary || {};
+  const dec = declarabiliteitPct(s, profile);
   return {
     weekStart: weekStart,
     week: agendaWeekNumber(weekStart),
@@ -49,8 +49,8 @@ export function productionWeekRow(weekStart, summary, profile) {
 // Een latere week: wat er GEPLAND staat, met direct/indirect uit de labels
 // (zelfde regels als de pagina Verhouding per uursoort).
 export function plannedProductionRow(weekStart, entries) {
-  var rows = plannedRatioRows(entries);
-  var som = function (k) { return rows.reduce(function (t, r) { return t + (r[k] || 0); }, 0); };
+  const rows = plannedRatioRows(entries);
+  const som = function (k) { return rows.reduce(function (t, r) { return t + (r[k] || 0); }, 0); };
   return {
     weekStart: weekStart, week: agendaWeekNumber(weekStart), planned: true,
     directMinutes: som('direct'), indirectMinutes: som('indirect'), travelMinutes: som('travel'),
@@ -65,28 +65,28 @@ export function plannedProductionRow(weekStart, entries) {
 // Bij meerdere agenda's naast elkaar: per collega een eigen reeks weken
 // (result.persons); result.weeks is die van de eerste.
 export function computeProduction(fromYmd, toYmd, onProgress) {
-  var ids = viewedInviteeIds(resolveInviteeId());
+  const ids = viewedInviteeIds(resolveInviteeId());
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   if (!fromYmd || !toYmd) return Promise.reject(new Error('Kies een begin- en einddatum.'));
   if (fromYmd > toYmd) return Promise.reject(new Error('De begindatum ligt na de einddatum.'));
-  var today = agendaYmd(new Date());
-  var dezeWeek = weekStartsBetween(today, today)[0];
-  var weeks = weekStartsBetween(fromYmd, toYmd);
+  const today = agendaYmd(new Date());
+  const dezeWeek = weekStartsBetween(today, today)[0];
+  const weeks = weekStartsBetween(fromYmd, toYmd);
   if (!weeks.length) return Promise.reject(new Error('Ongeldige periode.'));
   if (weeks.length > MAX_PRODUCTION_WEEKS) return Promise.reject(new Error('Periode te lang (hooguit ' + MAX_PRODUCTION_WEEKS + ' weken).'));
-  var prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
-  var limiter = createLimiter(GELIJKTIJDIG);
-  var klaar = 0;
-  var totaal = weeks.length * ids.length;
-  var gedaan = function (row) {
+  const prof = (typeof ACTIVE_PROFILE !== 'undefined') ? ACTIVE_PROFILE : null;
+  const limiter = createLimiter(GELIJKTIJDIG);
+  let klaar = 0;
+  const totaal = weeks.length * ids.length;
+  const gedaan = function (row) {
     klaar++;
     if (onProgress) { try { onProgress(klaar, totaal); } catch (e) {} }
     return row;
   };
-  var voor = function (id) {
+  const voor = function (id) {
     return Promise.all(weeks.map(function (start) {
       // Latere weken: planning. Deze week en eerder: registraties.
-      var p = start > dezeWeek
+      const p = start > dezeWeek
         ? limiter(function () { return fetchInviteeWeek(id, start); }).then(function (entries) { return plannedProductionRow(start, entries); })
         : fetchWeekRegistrationDeclarabiliteit(id, start, { limiter: limiter, ttlMs: WEEK_TTL_MS }).then(function (summary) { return productionWeekRow(start, summary, prof); });
       return p.then(gedaan, function (e) {

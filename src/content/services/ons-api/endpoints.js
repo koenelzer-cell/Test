@@ -57,8 +57,8 @@ const _API_DEFAULTS = {
 };
 function _apiTemplate(name) {
   try {
-    var eps = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG && APP_CONFIG.apiEndpoints) || {};
-    var t = eps[name];
+    const eps = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG && APP_CONFIG.apiEndpoints) || {};
+    const t = eps[name];
     if (typeof t === 'string' && t.charAt(0) === '/') return t; // same-origin, relatief pad
   } catch (e) {}
   return _API_DEFAULTS[name];

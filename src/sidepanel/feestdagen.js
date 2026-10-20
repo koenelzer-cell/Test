@@ -3,10 +3,10 @@
 // SVG-tekst; er gaat niets naar buiten en er wordt niets van ONS als HTML
 // gebruikt (de naam alleen als tekst).
 
-var SVG_NS = 'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function patroonUrl(w, h, inner) {
-  var svg = '<svg xmlns="' + SVG_NS + '" width="' + w + '" height="' + h + '">' + inner + '</svg>';
+  const svg = '<svg xmlns="' + SVG_NS + '" width="' + w + '" height="' + h + '">' + inner + '</svg>';
   return "url('data:image/svg+xml," + encodeURIComponent(svg).replace(/'/g, '%27') + "')";
 }
 
@@ -17,19 +17,19 @@ function ster(x, y, s, f) { return '<path transform="translate(' + x + ' ' + y +
 function vlok(x, y, s, f) { return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')" stroke="' + f + '" stroke-width="1.3" stroke-linecap="round" fill="none"><path d="M0 -6V6M-5.2 -3L5.2 3M-5.2 3L5.2 -3"/><path d="M-1.6 -4.4L0 -3L1.6 -4.4M-1.6 4.4L0 3L1.6 4.4"/></g>'; }
 function ei(x, y, s, f, b) { return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')"><path d="M0 -8C4.5 -8 7 -1 7 2.5C7 6.5 4 9 0 9C-4 9 -7 6.5 -7 2.5C-7 -1 -4.5 -8 0 -8Z" fill="' + f + '"/><path d="M-6.6 1.5L-3.3 -0.5L0 1.5L3.3 -0.5L6.6 1.5" stroke="' + b + '" stroke-width="1.3" fill="none"/></g>'; }
 function knal(x, y, s, f) {
-  var r = '';
-  for (var a = 0; a < 360; a += 45) r += '<path transform="rotate(' + a + ')" d="M0 -3V-7"/>';
+  let r = '';
+  for (let a = 0; a < 360; a += 45) r += '<path transform="rotate(' + a + ')" d="M0 -3V-7"/>';
   return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')" stroke="' + f + '" stroke-width="1.4" stroke-linecap="round">' + r + '</g>';
 }
 function vlam(x, y, s, f) { return '<path transform="translate(' + x + ' ' + y + ') scale(' + s + ')" fill="' + f + '" d="M0 -8C3 -4 5 -1 5 2.5C5 6 2.6 8 0 8C-2.6 8 -5 6 -5 2.5C-5 0 -3.5 -1 -2.5 -3C-1.5 -1 -1 0 0 0C0 -3 -1 -5 0 -8Z"/>'; }
 function duif(f, s) { return '<g fill="' + f + '" stroke="' + s + '" stroke-width="1.2" stroke-linejoin="round"><path d="M8 26C12 20 18 18 23 19L30 12C33 10 37 11 38 14L42 15L38 17C37 22 33 27 26 29C20 31 13 30 8 26Z"/><path d="M20 21C18 15 13 11 7 10C10 15 13 19 20 23Z"/><path d="M14 28L8 33L16 31Z"/></g><circle cx="35" cy="14" r="1" fill="' + s + '"/>'; }
 function zonnestralen() {
-  var r = '';
+  let r = '';
   [-60, -30, 0, 30, 60].forEach(function (a) { r += '<path transform="rotate(' + a + ' 24 26)" d="M24 12V4"/>'; });
   return '<g stroke="#ffd34d" stroke-width="2" stroke-linecap="round">' + r + '</g>';
 }
 
-var STIJLEN = {
+const STIJLEN = {
   paas1: { bg: 'linear-gradient(180deg,#fff8dc,#fdeeb4)', ink: '#8a5a00', stip: '#f0a92e',
     patroon: function () { return patroonUrl(34, 40, ei(9, 11, .55, '#f9c6d9', '#fff') + ei(25, 30, .5, '#bfe3c9', '#fff')); },
     icoon: function () { return '<path d="M8 30H40L36 42H12Z" fill="#c98a3d"/><path d="M8 30H40" stroke="#a46c28" stroke-width="2"/><path d="M10 34H38M11 38H37" stroke="#a46c28" stroke-width="1"/>' + ei(16, 24, 1, '#f79ac0', '#fff') + ei(32, 24, 1, '#8fd3a8', '#fff') + ei(24, 20, 1.15, '#ffd34d', '#f08a24'); } },
@@ -70,8 +70,8 @@ var STIJLEN = {
 // ONS met de hand ingevoerd en krijgen elk jaar een ander id). Ruim gelezen:
 // hoofdletters, spaties, '2e', 'tweede', '...maandag' en dergelijke.
 export function feestdagSleutel(naam) {
-  var n = String(naam || '').trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ').trim();
-  var tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
+  const n = String(naam || '').trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ').trim();
+  const tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
   if (/pas(en|dag)|paas/.test(n)) return tweede ? 'paas2' : 'paas1';
   if (/koning/.test(n)) return 'koning';
   if (/bevrijding/.test(n)) return 'bevrijding';
@@ -84,31 +84,31 @@ export function feestdagSleutel(naam) {
 
 // { bg, ink, kop (kleur van de kop boven de kolom), stip, slinger }
 export function feestdagStijl(naam) {
-  var s = STIJLEN[feestdagSleutel(naam)];
+  const s = STIJLEN[feestdagSleutel(naam)];
   return { sleutel: feestdagSleutel(naam), achtergrond: s.patroon() + ',' + s.bg, ink: s.ink, kop: s.kop || s.ink, stip: s.stip, slinger: !!s.slinger };
 }
 
 function svgUit(doc, viewBox, inner) {
   // Vaste tekst uit dit bestand, nooit gegevens van ONS.
-  var p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS + '" viewBox="' + viewBox + '">' + inner + '</svg>', 'image/svg+xml');
+  const p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS + '" viewBox="' + viewBox + '">' + inner + '</svg>', 'image/svg+xml');
   return doc.importNode(p.documentElement, true);
 }
 
 // De tekening (48 x 48) als <svg>.
 export function feestdagIcoon(doc, naam) {
-  var svg = svgUit(doc, '0 0 48 48', STIJLEN[feestdagSleutel(naam)].icoon());
+  const svg = svgUit(doc, '0 0 48 48', STIJLEN[feestdagSleutel(naam)].icoon());
   svg.setAttribute('aria-hidden', 'true');
   return svg;
 }
 
 // Vlaggetjes (Koningsdag) bovenin een kolom.
 export function feestdagSlinger(doc) {
-  var kleuren = ['#c8102e', '#fff', '#21468b'], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
+  let kleuren = ['#c8102e', '#fff', '#21468b'], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
   [4, 14, 24, 34, 44, 54].forEach(function (x, i) {
-    var y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
+    const y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
     d += '<path d="M' + (x - 3) + ' ' + y + 'L' + (x + 3) + ' ' + y + 'L' + x + ' 9Z" fill="' + kleuren[i % 3] + '"/>';
   });
-  var svg = svgUit(doc, '0 0 60 10', d);
+  const svg = svgUit(doc, '0 0 60 10', d);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('aria-hidden', 'true');
   return svg;
@@ -116,7 +116,7 @@ export function feestdagSlinger(doc) {
 
 // Korte animatie per feestdag (Web Animations API): frames, duur en het
 // draaipunt van de tekening. Speelt één keer als de dag in beeld komt.
-var ANIMATIES = {
+const ANIMATIES = {
   koning: { origin: '50% 100%', duur: 1100, frames: [
     { transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-9px) rotate(-7deg)', offset: 0.3 },
     { transform: 'translateY(0) rotate(0)', offset: 0.55 }, { transform: 'translateY(-4px) rotate(5deg)', offset: 0.75 }, { transform: 'translateY(0) rotate(0)' }] },
@@ -147,6 +147,6 @@ var ANIMATIES = {
     { transform: 'rotate(0) scale(1)' }, { transform: 'rotate(180deg) scale(1.15)', offset: 0.5 }, { transform: 'rotate(360deg) scale(1)' }] }
 };
 export function feestdagAnimatie(naam) {
-  var a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
+  const a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
   return { origin: a.origin, duur: a.duur, frames: a.frames };
 }

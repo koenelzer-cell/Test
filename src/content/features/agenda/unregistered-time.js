@@ -49,12 +49,12 @@ export function computeTotals() {
 // VERLEDEN die nog NIET 'declared' is en waaraan een cliënt en/of uursoort hangt, is
 // ongeregistreerde tijd (planning = realisatie -> we gebruiken de geplande duur).
 export function computeTotalsApi() {
-  var past = {}, future = { client: 0, overig: 0 };
-  var now = Date.now();
-  var entries = agendaPage._agLastEntries || [];
-  var lateH = (APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.lateThresholdHours > 0) ? APP_CONFIG.generalSettings.lateThresholdHours : 24;
+  const past = {}, future = { client: 0, overig: 0 };
+  const now = Date.now();
+  const entries = agendaPage._agLastEntries || [];
+  const lateH = (APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.lateThresholdHours > 0) ? APP_CONFIG.generalSettings.lateThresholdHours : 24;
   entries.forEach(function (e) {
-    var c = classifyAgendaEntry(e, now, lateH * 3600000);
+    const c = classifyAgendaEntry(e, now, lateH * 3600000);
     if (!c) return;
     if (c.past) {
       if (c.declared) return; // al geregistreerd
@@ -83,8 +83,8 @@ export function listUnfinished() {
     if (classifyOccurrence(occ) === 'skip') return;
     if (isDeclared(occ)) return; // al afgerond
     // Cliënt-check: eerst de API (is er een cliënt gekoppeld?), anders het label.
-    var apiClient = apiClientPresentById(id);
-    var isClient = (apiClient != null) ? apiClient : isClientAppointment(occ);
+    const apiClient = apiClientPresentById(id);
+    const isClient = (apiClient != null) ? apiClient : isClientAppointment(occ);
     out.push({ id: id || '', name: occurrenceName(occ), time: occ.getAttribute('data-time') || '', client: isClient, el: occ });
   });
   out.sort((a, b) => a.time.localeCompare(b.time));

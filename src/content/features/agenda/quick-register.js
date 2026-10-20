@@ -22,26 +22,26 @@ import { storePendingDuplicates } from '../appointment/duplicate.js';
 // afspraakhulp neemt het daar over (die start op /events/new).
 export function openNewEvent(req) {
   req = req || {};
-  var ymd = String(req.date || ''), hhmm = String(req.time || ''), minutes = parseInt(req.minutes, 10);
+  const ymd = String(req.date || ''), hhmm = String(req.time || ''), minutes = parseInt(req.minutes, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: 'Ongeldig tijdstip.' };
-  var ids = currentInviteeIds();
-  if (!ids.length) { var id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
+  let ids = currentInviteeIds();
+  if (!ids.length) { const id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
   // Afspraaktype uit de planhulp ({ id, name }): komt in het lege afspraakmodel.
-  var leesLabel = function (l) {
-    var naam = String((l && l.name) || '').trim();
+  const leesLabel = function (l) {
+    const naam = String((l && l.name) || '').trim();
     return l && Number(l.id) > 0 && naam ? { id: Number(l.id), name: naam.slice(0, 100) } : null;
   };
   // Uursoort per cliënt ({ clientId, hourTypeId, name }) en op afspraakniveau
   // (niet cliëntgebonden): de hulp zet ze zodra het formulier open is.
-  var leesUursoorten = function (l) {
+  const leesUursoorten = function (l) {
     return (Array.isArray(l) ? l : []).map(function (u) {
-      var cid = String((u && u.clientId) || ''), id = Number(u && u.hourTypeId);
+      const cid = String((u && u.clientId) || ''), id = Number(u && u.hourTypeId);
       return /^\d{1,12}$/.test(cid) && id > 0 ? { clientId: cid, hourTypeId: id, name: String((u && u.name) || '').trim().slice(0, 200) } : null;
     }).filter(Boolean).slice(0, 10);
   };
-  var leesAfspraakUursoort = function (u) {
-    var id = Number(u && u.hourTypeId);
+  const leesAfspraakUursoort = function (u) {
+    const id = Number(u && u.hourTypeId);
     return id > 0 ? { hourTypeId: id, name: String((u && u.name) || '').trim().slice(0, 200) } : null;
   };
   storePendingAppointment({ date: ymd, time: hhmm, minutes: minutes, label: leesLabel(req.label),
@@ -49,29 +49,29 @@ export function openNewEvent(req) {
   // Meerdere momenten gekozen: de rest krijgt een kopie zodra deze is opgeslagen.
   // Momenten met eigen instellingen krijgen daarna elk een nieuw formulier.
   // Cliënt(en) uit de planhulp (interne id's): komen meteen in het formulier.
-  var clientLijst = function (l) { return (Array.isArray(l) ? l : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10); };
-  var lees = function (lijst) {
+  const clientLijst = function (l) { return (Array.isArray(l) ? l : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10); };
+  const lees = function (lijst) {
     return (Array.isArray(lijst) ? lijst : []).map(function (m) {
-      var t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
+      const t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String((m && m.time) || ''));
       if (!(t && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date || '')))) return null;
-      var uit = { date: String(m.date), startMin: +t[1] * 60 + +t[2] };
+      const uit = { date: String(m.date), startMin: +t[1] * 60 + +t[2] };
       // Eigen duur (meerdere afspraken plannen): eindtijd vooraf ingevuld.
-      var mm = parseInt(m.minutes, 10);
+      const mm = parseInt(m.minutes, 10);
       if (mm > 0 && mm <= 24 * 60) uit.minutes = mm;
-      var cl = clientLijst(m.clientIds);
+      const cl = clientLijst(m.clientIds);
       if (cl.length) uit.clientIds = cl;
-      var lb = leesLabel(m.label);
+      const lb = leesLabel(m.label);
       if (lb) uit.label = lb;
-      var us = leesUursoorten(m.uursoorten);
+      const us = leesUursoorten(m.uursoorten);
       if (us.length) uit.uursoorten = us;
       return uit;
     }).filter(Boolean);
   };
   // Kopieën uit (beheer): alleen dit ene formulier.
-  var f = APP_CONFIG.features || {};
-  var kopieen = f.plannerCopies !== false;
+  const f = APP_CONFIG.features || {};
+  const kopieen = f.plannerCopies !== false;
   // Los (elk een eigen formulier met eigen cliënt): geen kopieën.
-  var eigenOk = kopieen;
+  const eigenOk = kopieen;
   storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
   spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd));
   return { ok: true };
@@ -85,7 +85,7 @@ function overlapCheck(ymd, startMin, endMin) {
   return fetchOnsOverlap(ymd, startMin, endMin, '').then(function (ons) {
     // De eigen vergelijking levert ook de tijden voor de melding.
     return fetchWeekTijdvakken('registraties', ymd).then(function () {
-      var hit = overlappendTijdvak('registraties', ymd, startMin, endMin, null);
+      const hit = overlappendTijdvak('registraties', ymd, startMin, endMin, null);
       if (hit) return overlapMelding(hit, 'een registratie');
       if (ons === true) return 'Let op: ONS meldt dat dit tijdvak overlapt met een bestaande registratie.';
       return null;
@@ -96,18 +96,18 @@ function overlapCheck(ymd, startMin, endMin) {
 // { date: 'YYYY-MM-DD', time: 'HH:MM', minutes, force } -> { ok, overlap?, error? }
 export function quickRegister(req) {
   req = req || {};
-  var ymd = String(req.date || '');
-  var hhmm = String(req.time || '').trim();
-  var minutes = parseInt(req.minutes, 10);
-  var startMin = timeTextToMinutes(hhmm);
+  const ymd = String(req.date || '');
+  let hhmm = String(req.time || '').trim();
+  const minutes = parseInt(req.minutes, 10);
+  const startMin = timeTextToMinutes(hhmm);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return Promise.resolve({ ok: false, error: 'Kies een datum.' });
   if (startMin == null || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hhmm)) return Promise.resolve({ ok: false, error: 'Vul een begintijd in (uu:mm).' });
   if (!(minutes > 0) || minutes > 24 * 60) return Promise.resolve({ ok: false, error: 'Vul een duur in minuten in.' });
   if (startMin + minutes > 24 * 60) return Promise.resolve({ ok: false, error: 'De registratie loopt over middernacht.' });
-  var id = currentInviteeId(ymd) || resolveInviteeId();
+  const id = currentInviteeId(ymd) || resolveInviteeId();
   if (id == null) return Promise.resolve({ ok: false, error: 'Open eerst je agenda in ONS.' });
   hhmm = ('0' + Math.floor(startMin / 60)).slice(-2) + ':' + ('0' + (startMin % 60)).slice(-2);
-  var go = function () { spaNavigate(location.origin + quickRegisterUrl(id, ymd, hhmm, minutes)); return { ok: true }; };
+  const go = function () { spaNavigate(location.origin + quickRegisterUrl(id, ymd, hhmm, minutes)); return { ok: true }; };
   if (req.force) return Promise.resolve(go());
   return overlapCheck(ymd, startMin, startMin + minutes).then(function (msg) {
     return msg ? { ok: false, overlap: msg } : go();

@@ -130,7 +130,7 @@ let _bezig = false;
 function volgendeEigen(eigen, bodyText) {
   const volgende = eigen[0];
   storePendingDuplicates([], eigen.slice(1));
-  var klaar = { date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) };
+  const klaar = { date: volgende.date, time: ('0' + Math.floor(volgende.startMin / 60)).slice(-2) + ':' + ('0' + (volgende.startMin % 60)).slice(-2) };
   // Met een eigen duur (meerdere afspraken plannen) staat de eindtijd ook klaar.
   if (volgende.minutes > 0) klaar.minutes = volgende.minutes;
   // En het eigen afspraaktype.

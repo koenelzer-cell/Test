@@ -6,17 +6,17 @@
 // moment, alleen hier in het geheugen. Het content-script vraagt de titel op
 // zodra het formulier open is (MSG.AGENDA_FORM_TITLE); zo hoeft een titel met
 // een cliëntnaam nergens bewaard te worden.
-var FORMULIER_TITELS = [];
-var FORMULIER_TITEL_MS = 30 * 60000;
+let FORMULIER_TITELS = [];
+const FORMULIER_TITEL_MS = 30 * 60000;
 // titels: [{ date, time, titel }] voor de momenten van het formulier dat nu opengaat.
 export function onthoudFormulierTitels(titels) {
   FORMULIER_TITELS = titels.filter(function (t) { return t.titel; }).map(function (t) { return { date: t.date, time: t.time, titel: t.titel.slice(0, 200), ts: Date.now() }; });
 }
 export function formulierTitel(date, time) {
-  var nu = Date.now();
+  const nu = Date.now();
   FORMULIER_TITELS = FORMULIER_TITELS.filter(function (t) { return nu - t.ts < FORMULIER_TITEL_MS; });
-  for (var i = 0; i < FORMULIER_TITELS.length; i++) {
-    var t = FORMULIER_TITELS[i];
+  for (let i = 0; i < FORMULIER_TITELS.length; i++) {
+    const t = FORMULIER_TITELS[i];
     if (t.date === date && t.time === time) { FORMULIER_TITELS.splice(i, 1); return t.titel; }
   }
   return '';
@@ -28,7 +28,7 @@ export function formulierTitel(date, time) {
    zijpaneel open is, ook als het paneel opnieuw wordt opgebouwd. Dat gebeurt
    bij elke paginawissel in ONS (bijv. naar een registratieformulier en terug).
    Zo blijft de lijst open registraties een afwerklijst. */
-export var BEWAARD = {
+export const BEWAARD = {
   pagina: 'hoofd',
   // result: de lijst zoals hij getoond wordt; afgewerkt: sleutels van afspraken
   // die bij een latere controle niet meer open stonden.
@@ -63,8 +63,8 @@ export function legeResultaten() {
 
 // Index van een gekozen moment (planhulp), of -1.
 export function momentIndex(date, startMin) {
-  for (var i = 0; i < BEWAARD.momenten.length; i++) {
-    var m = BEWAARD.momenten[i];
+  for (let i = 0; i < BEWAARD.momenten.length; i++) {
+    const m = BEWAARD.momenten[i];
     if (m.date === date && m.startMin === startMin) return i;
   }
   return -1;

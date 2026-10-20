@@ -86,7 +86,7 @@ export function cachedWeekRatio(date) {
   return onthouden('ratio', String(date), function () { return fetchWeekRatio(date); });
 }
 export function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
-  var d = weekdagen(dagen), l = parseInt(limiet, 10) > 0 ? Math.min(400, parseInt(limiet, 10)) : 0;
+  const d = weekdagen(dagen), l = parseInt(limiet, 10) > 0 ? Math.min(400, parseInt(limiet, 10)) : 0;
   return onthouden('plan', minutes + '|' + weeks + '|' + (tot || '') + '|' + (metBezoeken ? 'b' : '') + (veel ? 'v' : '') + (van ? '|' + van : '') + (d ? '|d' + d.join('') : '') + (l ? '|l' + l : ''), function () { return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d, l); });
 }
 

@@ -2947,7 +2947,7 @@
   var STIJLEN = ["color", "backgroundColor", "fontWeight", "fontStyle", "textDecoration"];
   var LINK = /^(?:https?:\/\/|mailto:|#)/i;
   function veiligeHtml(html2, linkKleur) {
-    var frag = purify_default.sanitize(String(html2 == null ? "" : html2), {
+    const frag = purify_default.sanitize(String(html2 == null ? "" : html2), {
       ALLOWED_TAGS: TAGS,
       ALLOWED_ATTR: ["href", "style", "color"],
       ALLOWED_URI_REGEXP: LINK,
@@ -2955,8 +2955,8 @@
       RETURN_DOM_FRAGMENT: true
     });
     Array.prototype.slice.call(frag.querySelectorAll("*")).forEach(function(el) {
-      var href = el.tagName === "A" ? String(el.getAttribute("href") || "") : "";
-      var oud = {};
+      const href = el.tagName === "A" ? String(el.getAttribute("href") || "") : "";
+      const oud = {};
       STIJLEN.forEach(function(p) {
         oud[p] = el.style[p];
       });
@@ -3834,9 +3834,9 @@
   function pushChecklist(force) {
     if (!surveyState._zijpaneelOpen) return;
     try {
-      var payload = checklistVoorZijpaneel(surveyState._laatsteChecklist);
+      const payload = checklistVoorZijpaneel(surveyState._laatsteChecklist);
       if (!payload) return;
-      var sig = JSON.stringify(payload);
+      const sig = JSON.stringify(payload);
       if (!force && sig === surveyState._checklistSig) return;
       surveyState._checklistSig = sig;
       chrome.runtime.sendMessage({ type: MSG.SURVEY_STATE, state: payload });
@@ -3845,22 +3845,22 @@
   }
   function openChecklistItem(index) {
     if (!surveyState._laatsteChecklist || !Array.isArray(surveyState._laatsteChecklist.items)) return;
-    var item = surveyState._laatsteChecklist.items[index];
+    const item = surveyState._laatsteChecklist.items[index];
     if (!item) return;
-    var found = localQuestionForItem(item) || (item.anchorId ? document.getElementById(item.anchorId) : null);
-    var q = closestSurveyQuestionBlock(found) || found;
+    const found = localQuestionForItem(item) || (item.anchorId ? document.getElementById(item.anchorId) : null);
+    const q = closestSurveyQuestionBlock(found) || found;
     if (q) {
       try {
         q.scrollIntoView({ block: "center", behavior: "smooth" });
       } catch (e) {
       }
-      var focusable = q.querySelector && q.querySelector('input:not([type="hidden"]),textarea,select,[contenteditable="true"],[tabindex]');
+      const focusable = q.querySelector && q.querySelector('input:not([type="hidden"]),textarea,select,[contenteditable="true"],[tabindex]');
       try {
         if (focusable) focusable.focus();
       } catch (e) {
       }
       if (q.style) {
-        var oldOutline = q.style.outline, oldOffset = q.style.outlineOffset;
+        const oldOutline = q.style.outline, oldOffset = q.style.outlineOffset;
         q.style.outline = "3px solid #cc087d";
         q.style.outlineOffset = "4px";
         setTimeout(function() {
@@ -3880,7 +3880,7 @@
       chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
         if (!msg || typeof msg.type !== "string") return;
         if (msg.type === MSG.SIDEPANEL_STATE) {
-          var was = surveyState._zijpaneelOpen;
+          const was = surveyState._zijpaneelOpen;
           surveyState._zijpaneelOpen = !!msg.open;
           if (was === surveyState._zijpaneelOpen) return;
           if (surveyState._zijpaneelOpen) {

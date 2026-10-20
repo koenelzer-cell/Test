@@ -5,7 +5,7 @@
 import { CHEV_LINKS, CHEV_RECHTS, T, TYPE, el, fmtMin, focusRing, isoWeek, kaart, laadBalk, maandagVan, noteBox, plusWeken, svgPath, txt, werkweekTekst, zorgVoorStijl } from './ui.js';
 
 function bladerKnop(icoon, label, onClick) {
-  var b = document.createElement('button');
+  const b = document.createElement('button');
   b.type = 'button';
   b.setAttribute('aria-label', label);
   b.title = label;
@@ -22,11 +22,11 @@ function bladerKnop(icoon, label, onClick) {
 }
 function ratioSkelet() {
   zorgVoorStijl();
-  var wrap = el('div', { animation: 'onsAhPuls 1.4s ease-in-out infinite' });
+  const wrap = el('div', { animation: 'onsAhPuls 1.4s ease-in-out infinite' });
   wrap.setAttribute('aria-hidden', 'true');
   wrap.appendChild(el('div', { height: '9px', width: '80%', borderRadius: '6px', background: T.lineSoft, margin: '0 0 14px' }));
   [0, 1].forEach(function () {
-    var kaart = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '12px', marginBottom: '8px' });
+    const kaart = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '12px', marginBottom: '8px' });
     kaart.appendChild(el('div', { height: '11px', width: '60%', borderRadius: '6px', background: T.lineSoft, margin: '0 0 12px' }));
     ['85%', '40%', '20%'].forEach(function (bw) {
       kaart.appendChild(el('div', { height: '8px', width: '35%', borderRadius: '6px', background: T.lineSoft, margin: '0 0 6px' }));
@@ -46,9 +46,9 @@ export function maakVerhouding(ctx) {
   // Containers van React op de huidige pagina; vóór het leegmaken loskoppelen.
   ctx.liveHost = null;
   // Per collega een eigen React-container in liveHost (bij één medewerker één).
-  var liveSubs = {}, liveSleutel = '';
+  let liveSubs = {}, liveSleutel = '';
   function subsLos() {
-    var b = bridge();
+    const b = bridge();
     Object.keys(liveSubs).forEach(function (k) { if (b && b.unmount) b.unmount(liveSubs[k]); });
     liveSubs = {}; liveSleutel = '';
   }
@@ -59,14 +59,14 @@ export function maakVerhouding(ctx) {
   // Containers voor deze personen klaarzetten (alleen opnieuw opbouwen als de
   // personen veranderen, anders verliest React zijn toestand).
   function subsVoor(personen) {
-    var sleutel = personen.map(function (p) { return p.id + ':' + p.name; }).join('|');
+    const sleutel = personen.map(function (p) { return p.id + ':' + p.name; }).join('|');
     if (sleutel !== liveSleutel) {
       subsLos();
       ctx.liveHost.innerHTML = '';
       personen.forEach(function (p, i) {
-        var blok = el('div', { marginTop: i ? '14px' : '0' });
+        const blok = el('div', { marginTop: i ? '14px' : '0' });
         if (p.name) blok.appendChild(el('div', Object.assign({}, TYPE.label, { margin: '0 0 6px', color: T.ink }), p.name));
-        var sub = el('div');
+        const sub = el('div');
         blok.appendChild(sub);
         ctx.liveHost.appendChild(blok);
         liveSubs[p.id || ('p' + i)] = sub;
@@ -79,17 +79,17 @@ export function maakVerhouding(ctx) {
   // React-inhoud die met de pagina-toestand meeloopt (opbouw, verhouding).
   function renderLive() {
     if (!ctx.liveHost) return;
-    var b = bridge();
+    const b = bridge();
     if (ctx.pagina === 'verhouding') {
       if (!ctx.ratio.result) return;
       if (!b) { ctx.liveHost.innerHTML = ''; ctx.liveHost.appendChild(noteBox('Kon niet laden (bundel ontbreekt).', 'bad')); return; }
-      var rp = (ctx.ratio.result.persons && ctx.ratio.result.persons.length > 1) ? ctx.ratio.result.persons : [{ id: '', name: '', rows: ctx.ratio.result.rows || [] }];
+      const rp = (ctx.ratio.result.persons && ctx.ratio.result.persons.length > 1) ? ctx.ratio.result.persons : [{ id: '', name: '', rows: ctx.ratio.result.rows || [] }];
       subsVoor(rp).forEach(function (sub, i) {
         b.renderCalcBody(sub, rp[i].rows || [], (ctx.state && ctx.state.nonClientMarker) || '*', fmtMin, T, ctx.ratio.result.mode);
       });
       return;
     }
-    var w = ctx.state && ctx.state.week;
+    const w = ctx.state && ctx.state.week;
     if (!w || !w.summary) {
       subsLos();
       ctx.liveHost.innerHTML = '';
@@ -98,7 +98,7 @@ export function maakVerhouding(ctx) {
     }
     if (!b) { ctx.liveHost.innerHTML = ''; ctx.liveHost.appendChild(noteBox('Kon niet laden (bundel ontbreekt).', 'bad')); return; }
     if (ctx.pagina === 'clienttijd') {
-      var cp = (w.perInvitee && w.perInvitee.length > 1) ? w.perInvitee : [{ id: '', name: '', summary: w.summary }];
+      const cp = (w.perInvitee && w.perInvitee.length > 1) ? w.perInvitee : [{ id: '', name: '', summary: w.summary }];
       subsVoor(cp).forEach(function (sub, i) { b.renderBreakdownBody(sub, cp[i].summary, w.opts || {}, fmtMin, T); });
     }
   }
@@ -108,7 +108,7 @@ export function maakVerhouding(ctx) {
   function ratioDatum() { return plusWeken((ctx.state && ctx.state.viewDate) || (ctx.state && ctx.state.today), ctx.ratio.offset); }
   function laadRatio() {
     if (!actions.onWeekRatio) return;
-    var datum = ratioDatum();
+    const datum = ratioDatum();
     ctx.ratio.busy = true; ctx.ratio.error = ''; ctx.ratio.voor = datum; ctx.ratio.result = null;
     if (ctx.pagina === 'verhouding') renderPagina();
     actions.onWeekRatio(datum, function (res) {
@@ -120,16 +120,16 @@ export function maakVerhouding(ctx) {
     });
   }
   function pageRatio() {
-    var box = el('div');
-    var r0 = ctx.ratio.result;
-    var doel = maandagVan(ratioDatum());
+    const box = el('div');
+    const r0 = ctx.ratio.result;
+    const doel = maandagVan(ratioDatum());
     // Weekkiezer als kaart: pijlen links en rechts, week en datums in het midden.
-    var nav = kaart({ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 6px', margin: '0 0 10px' });
+    const nav = kaart({ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 6px', margin: '0 0 10px' });
     nav.appendChild(bladerKnop(CHEV_LINKS, 'Vorige week', function () { ctx.ratio.offset--; laadRatio(); }));
-    var midden = el('div', { flex: '1 1 auto', textAlign: 'center', minWidth: '0' });
+    const midden = el('div', { flex: '1 1 auto', textAlign: 'center', minWidth: '0' });
     // Het weeknummer staat er meteen, ook tijdens het laden.
     midden.appendChild(el('div', { fontSize: '14px', fontWeight: '700', color: T.ink }, 'Week ' + ((r0 && r0.week) || isoWeek(doel) || '')));
-    var sub = ctx.ratio.busy ? 'ophalen…' : (r0 ? (r0.mode === 'gepland' ? 'gepland' : 'geregistreerd') : '');
+    const sub = ctx.ratio.busy ? 'ophalen…' : (r0 ? (r0.mode === 'gepland' ? 'gepland' : 'geregistreerd') : '');
     midden.appendChild(txt('help', (sub ? sub + ', ' : '') + werkweekTekst(doel)));
     nav.appendChild(midden);
     nav.appendChild(bladerKnop(CHEV_RECHTS, 'Volgende week', function () { ctx.ratio.offset++; laadRatio(); }));

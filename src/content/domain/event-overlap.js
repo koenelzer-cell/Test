@@ -20,17 +20,17 @@ import { isoLocalWithOffset, parseDetectOverlap } from './open-registrations.js'
 
 export const OVERLAP_PATH = '/event_planner/overlap_detection';
 
-var WEG = /client|cli%c3%abnt|cliënt|patient|title|titel|descr|omschr|note|remark|opmerk|comment|name|naam|subject|onderwerp|address|adres|email|phone|telefoon|bsn/i;
-var EIGEN_AFSPRAAK = /event_id|eventid|occurrence|exclude|except|ignore/i;
-var EIND = /end|eind|until|till|stop|(^|[_\[])to(\]|$)/i;
-var BEGIN = /start|begin|from|(^|[_\[])van(\]|$)/i;
+const WEG = /client|cli%c3%abnt|cliënt|patient|title|titel|descr|omschr|note|remark|opmerk|comment|name|naam|subject|onderwerp|address|adres|email|phone|telefoon|bsn/i;
+const EIGEN_AFSPRAAK = /event_id|eventid|occurrence|exclude|except|ignore/i;
+const EIND = /end|eind|until|till|stop|(^|[_\[])to(\]|$)/i;
+const BEGIN = /start|begin|from|(^|[_\[])van(\]|$)/i;
 
 function paren(query) {
-  var uit = [];
+  const uit = [];
   String(query || '').replace(/^\?/, '').split('&').forEach(function (p) {
     if (!p) return;
-    var i = p.indexOf('=');
-    var k = i < 0 ? p : p.slice(0, i), v = i < 0 ? '' : p.slice(i + 1);
+    const i = p.indexOf('=');
+    let k = i < 0 ? p : p.slice(0, i), v = i < 0 ? '' : p.slice(i + 1);
     try { k = decodeURIComponent(k.replace(/\+/g, ' ')); v = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) { return; }
     uit.push([k, v]);
   });
@@ -50,8 +50,8 @@ function isoVorm(v) {
   return /T\d{2}:\d{2}:\d{2}/.test(v) ? 'naiefSec' : 'naief';
 }
 function minutenUit(soort, v) {
-  if (soort === 'time') { var t = v.split(':'); return +t[0] * 60 + +t[1]; }
-  if (soort === 'iso') { var m = /T(\d{2}):(\d{2})/.exec(v); return m ? +m[1] * 60 + +m[2] : null; }
+  if (soort === 'time') { const t = v.split(':'); return +t[0] * 60 + +t[1]; }
+  if (soort === 'iso') { const m = /T(\d{2}):(\d{2})/.exec(v); return m ? +m[1] * 60 + +m[2] : null; }
   return null;
 }
 
@@ -60,38 +60,38 @@ function minutenUit(soort, v) {
 // role: invitee | literal | startIso | endIso | startDate | endDate |
 //       startTime | endTime | duration
 export function learnOverlapTemplate(url) {
-  var s = String(url || '');
-  var q = s.indexOf('?');
-  var pad = (q < 0 ? s : s.slice(0, q)).replace(/^https?:\/\/[^/]+/i, '');
+  const s = String(url || '');
+  const q = s.indexOf('?');
+  const pad = (q < 0 ? s : s.slice(0, q)).replace(/^https?:\/\/[^/]+/i, '');
   if (pad !== OVERLAP_PATH) return null;
-  var params = [], gezien = Object.create(null);
-  var tijden = { start: null, end: null }, duurIdx = -1, kapot = false;
+  const params = [], gezien = Object.create(null);
+  let tijden = { start: null, end: null }, duurIdx = -1, kapot = false;
   paren(q < 0 ? '' : s.slice(q + 1)).forEach(function (kv) {
-    var k = kv[0], v = kv[1], lk = k.toLowerCase();
+    const k = kv[0], v = kv[1], lk = k.toLowerCase();
     if (/client|cli%c3%abnt|cliënt|patient/.test(lk) && /^\d+(,\d+)*$/.test(v) && !EIGEN_AFSPRAAK.test(lk)) {
       if (gezien[k]) { gezien[k].herhaald = true; return; }
-      var c = { key: k, role: 'client', sep: v.indexOf(',') >= 0 ? ',' : '' };
+      const c = { key: k, role: 'client', sep: v.indexOf(',') >= 0 ? ',' : '' };
       gezien[k] = c; params.push(c); return;
     }
     if (WEG.test(lk) || EIGEN_AFSPRAAK.test(lk)) return;
     if (/invitee|employee|medewerker|participant|user_id/.test(lk) && /^\d+(,\d+)*$/.test(v)) {
       if (gezien[k]) { gezien[k].herhaald = true; return; }
-      var p = { key: k, role: 'invitee', sep: v.indexOf(',') >= 0 ? ',' : '' };
+      const p = { key: k, role: 'invitee', sep: v.indexOf(',') >= 0 ? ',' : '' };
       gezien[k] = p; params.push(p); return;
     }
-    var soort = soortWaarde(v);
+    const soort = soortWaarde(v);
     if (soort) {
-      var eind = EIND.test(lk) && !BEGIN.test(lk);
-      var kant = eind ? 'end' : (BEGIN.test(lk) ? 'start' : null);
-      var basis = soort === 'iso' ? 'Iso' : soort === 'time' ? 'Time' : 'Date';
+      const eind = EIND.test(lk) && !BEGIN.test(lk);
+      let kant = eind ? 'end' : (BEGIN.test(lk) ? 'start' : null);
+      const basis = soort === 'iso' ? 'Iso' : soort === 'time' ? 'Time' : 'Date';
       if (!kant) kant = params.some(function (x) { return x.role === 'start' + basis; }) ? 'end' : 'start';
-      var rol = kant + basis;
+      const rol = kant + basis;
       if (params.some(function (x) { return x.role === rol; })) { kapot = true; return; }
-      var item = { key: k, role: rol };
+      const item = { key: k, role: rol };
       if (soort === 'iso') item.form = isoVorm(v);
       if (soort === 'dateNl') item.form = 'nl';
       if (soort === 'time') item.form = /:\d{2}:\d{2}$/.test(v) ? 'hms' : 'hm';
-      var min = minutenUit(soort, v);
+      const min = minutenUit(soort, v);
       if (min != null) tijden[kant] = min;
       params.push(item); return;
     }
@@ -104,27 +104,27 @@ export function learnOverlapTemplate(url) {
   if (kapot) return null;
   // Duur: seconden of minuten? Uit begin en eind als die er zijn, anders op grootte.
   if (duurIdx >= 0) {
-    var d = params[duurIdx], raw = d.raw; delete d.raw;
-    var verschil = (tijden.start != null && tijden.end != null) ? tijden.end - tijden.start : null;
+    const d = params[duurIdx], raw = d.raw; delete d.raw;
+    const verschil = (tijden.start != null && tijden.end != null) ? tijden.end - tijden.start : null;
     if (verschil > 0) d.unit = raw === verschil * 60 ? 'sec' : 'min';
     else d.unit = (raw >= 600 && raw % 60 === 0) ? 'sec' : 'min';
   }
-  var heeft = function (r) { return params.some(function (x) { return x.role === r; }); };
-  var begin = heeft('startIso') || (heeft('startDate') && heeft('startTime'));
-  var eindOk = heeft('endIso') || heeft('endTime') || heeft('duration');
+  const heeft = function (r) { return params.some(function (x) { return x.role === r; }); };
+  const begin = heeft('startIso') || (heeft('startDate') && heeft('startTime'));
+  const eindOk = heeft('endIso') || heeft('endTime') || heeft('duration');
   if (!heeft('invitee') || !begin || !eindOk) return null;
   params.forEach(function (x) { if (gezien[x.key] === x) x.repeat = !!x.herhaald || /\[\]$/.test(x.key); delete x.herhaald; });
   return { path: OVERLAP_PATH, params: params };
 }
 
 function twee(n) { return ('0' + n).slice(-2); }
-function ymdNl(ymd) { var p = ymd.split('-'); return p[2] + '-' + p[1] + '-' + p[0]; }
+function ymdNl(ymd) { const p = ymd.split('-'); return p[2] + '-' + p[1] + '-' + p[0]; }
 function isoIn(ymd, min, vorm) {
-  var off = isoLocalWithOffset(ymd, min);
+  const off = isoLocalWithOffset(ymd, min);
   if (!off) return null;
   if (vorm === 'offset') return off;
   if (vorm === 'utc') return new Date(off).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  var naief = off.slice(0, 19);
+  const naief = off.slice(0, 19);
   return vorm === 'naief' ? naief.slice(0, 16) : naief;
 }
 
@@ -134,14 +134,14 @@ function isoIn(ymd, min, vorm) {
 // genodigden (zoals ONS cliënten ook in invitee_ids[] van het formulier zet).
 export function buildOverlapUrl(tpl, req) {
   if (!tpl || !Array.isArray(tpl.params) || !req) return null;
-  var ids = (req.ids || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
-  var cl = (req.clientIds || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
-  var metClientRol = tpl.params.some(function (p) { return p.role === 'client'; });
-  var genodigden = metClientRol ? ids : ids.concat(cl.filter(function (c) { return ids.indexOf(c) < 0; }));
-  var ymd = String(req.date || ''), s = req.startMin, e = req.endMin;
+  const ids = (req.ids || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
+  const cl = (req.clientIds || []).map(String).filter(function (x) { return /^\d+$/.test(x); });
+  const metClientRol = tpl.params.some(function (p) { return p.role === 'client'; });
+  const genodigden = metClientRol ? ids : ids.concat(cl.filter(function (c) { return ids.indexOf(c) < 0; }));
+  const ymd = String(req.date || ''), s = req.startMin, e = req.endMin;
   if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
-  var delen = [], fout = false;
-  var zet = function (k, v) { delen.push(encodeURIComponent(k) + '=' + encodeURIComponent(v)); };
+  let delen = [], fout = false;
+  const zet = function (k, v) { delen.push(encodeURIComponent(k) + '=' + encodeURIComponent(v)); };
   tpl.params.forEach(function (p) {
     switch (p.role) {
       case 'invitee':
@@ -157,13 +157,13 @@ export function buildOverlapUrl(tpl, req) {
         break;
       case 'literal': zet(p.key, p.value == null ? '' : p.value); break;
       case 'startIso': case 'endIso': {
-        var iso = isoIn(ymd, p.role === 'startIso' ? s : e, p.form);
+        const iso = isoIn(ymd, p.role === 'startIso' ? s : e, p.form);
         if (!iso) fout = true; else zet(p.key, iso);
         break;
       }
       case 'startDate': case 'endDate': zet(p.key, p.form === 'nl' ? ymdNl(ymd) : ymd); break;
       case 'startTime': case 'endTime': {
-        var m = p.role === 'startTime' ? s : e;
+        const m = p.role === 'startTime' ? s : e;
         zet(p.key, twee(Math.floor(m / 60)) + ':' + twee(m % 60) + (p.form === 'hms' ? ':00' : ''));
         break;
       }
@@ -179,18 +179,18 @@ export function buildOverlapUrl(tpl, req) {
 // (niet herkend). Eerst de bekende vormen; daarna: een veld met 'overlap' of
 // 'conflict' in de naam, of een object dat alleen uit lijsten bestaat.
 export function parseEventOverlap(json) {
-  var bekend = parseDetectOverlap(json);
+  const bekend = parseDetectOverlap(json);
   if (bekend !== null) return bekend;
   if (!json || typeof json !== 'object') return null;
-  var keys = Object.keys(json);
-  for (var i = 0; i < keys.length; i++) {
+  const keys = Object.keys(json);
+  for (let i = 0; i < keys.length; i++) {
     if (!/overlap|conflict/i.test(keys[i])) continue;
-    var v = json[keys[i]];
+    const v = json[keys[i]];
     if (typeof v === 'boolean') return v;
     if (Array.isArray(v)) return v.length > 0;
     if (typeof v === 'number') return v > 0;
   }
-  var lijsten = keys.filter(function (k) { return Array.isArray(json[k]); });
+  const lijsten = keys.filter(function (k) { return Array.isArray(json[k]); });
   if (keys.length && lijsten.length === keys.length) return lijsten.some(function (k) { return json[k].length > 0; });
   return null;
 }

@@ -12,7 +12,7 @@ import { summarizeOpenRange } from '../../domain/open-registrations.js';
 import { fetchEntriesForRange } from '../../services/ons-api/open-registrations.js';
 
 function lateHours() {
-  var g = APP_CONFIG.generalSettings;
+  const g = APP_CONFIG.generalSettings;
   return (g && g.lateThresholdHours > 0) ? g.lateThresholdHours : 24;
 }
 
@@ -20,30 +20,30 @@ function lateHours() {
 // vergrendeld; daar valt niets meer te registreren. Zonder die datum: vier
 // weken terug.
 export function defaultRangeFrom() {
-  var w = editableWindowStart();
+  const w = editableWindowStart();
   if (w) return agendaYmd(w);
-  var d = new Date(); d.setDate(d.getDate() - 28);
+  const d = new Date(); d.setDate(d.getDate() - 28);
   return agendaYmd(d);
 }
 
 // Bij meerdere agenda's naast elkaar: voor iedere collega, in één lijst per
 // dag; elke afspraak krijgt de naam van de collega erbij.
 export function checkOpenRange(fromYmd, toYmd, onProgress) {
-  var ids = viewedInviteeIds(resolveInviteeId());
+  const ids = viewedInviteeIds(resolveInviteeId());
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   if (!fromYmd || !toYmd) return Promise.reject(new Error('Kies een begin- en einddatum.'));
   if (fromYmd > toYmd) return Promise.reject(new Error('De begindatum ligt na de einddatum.'));
-  var voortgang = ids.map(function () { return { done: 0, total: 0 }; });
-  var meld = function () {
+  const voortgang = ids.map(function () { return { done: 0, total: 0 }; });
+  const meld = function () {
     if (!onProgress) return;
-    var d = 0, t = 0; voortgang.forEach(function (v) { d += v.done; t += v.total; });
+    let d = 0, t = 0; voortgang.forEach(function (v) { d += v.done; t += v.total; });
     onProgress(d, t);
   };
   return Promise.all(ids.map(function (id, i) {
     return fetchEntriesForRange(id, fromYmd, toYmd, function (d, t) { voortgang[i] = { done: d, total: t }; meld(); })
       .then(function (entries) { return summarizeOpenRange(entries, { from: fromYmd, to: toYmd, lateHours: lateHours() }); });
   })).then(function (lijst) {
-    var r = mergeOpenRangePerPersoon(lijst, ids, ids.length > 1 ? ids.map(inviteeName) : null);
+    const r = mergeOpenRangePerPersoon(lijst, ids, ids.length > 1 ? ids.map(inviteeName) : null);
     r.from = fromYmd; r.to = toYmd;
     return r;
   });
@@ -53,17 +53,17 @@ export function checkOpenRange(fromYmd, toYmd, onProgress) {
 // ieder moet hij geregistreerd worden).
 export function mergeOpenRangePerPersoon(lijst, ids, namen) {
   if (lijst.length === 1 && !namen) return lijst[0];
-  var dagen = Object.create(null);
+  const dagen = Object.create(null);
   lijst.forEach(function (r, i) {
     (r.days || []).forEach(function (d) {
-      var dag = dagen[d.date] || (dagen[d.date] = { date: d.date, client: 0, overig: 0, count: 0, lateCount: 0, items: [] });
+      const dag = dagen[d.date] || (dagen[d.date] = { date: d.date, client: 0, overig: 0, count: 0, lateCount: 0, items: [] });
       dag.client += d.client; dag.overig += d.overig; dag.count += d.count; dag.lateCount += d.lateCount;
       d.items.forEach(function (it) {
         dag.items.push(Object.assign({}, it, { key: ids[i] + ':' + it.key, persoon: namen ? namen[i] : '' }));
       });
     });
   });
-  var days = Object.keys(dagen).sort().map(function (k) { dagen[k].items.sort(function (a, b) { return a.start - b.start; }); return dagen[k]; });
+  const days = Object.keys(dagen).sort().map(function (k) { dagen[k].items.sort(function (a, b) { return a.start - b.start; }); return dagen[k]; });
   return {
     days: days,
     totalMinutes: days.reduce(function (t, d) { return t + d.client + d.overig; }, 0),

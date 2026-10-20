@@ -72,7 +72,7 @@ const agendaActies = {
   onDayRoute: function (date, origin, cb) { vraagAanTab({ type: MSG.AGENDA_DAY_ROUTE, date: date, origin: origin || '' }, cb); },
   onSlotCheck: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb); },
   onFreeSlots: function (minutes, weeks, cb, to, visits, many, from, days, limit) {
-    var m = { type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '', visits: !!visits, many: !!many, from: from || '' };
+    const m = { type: MSG.AGENDA_FREE_SLOTS, minutes: minutes, weeks: weeks, to: to || '', visits: !!visits, many: !!many, from: from || '' };
     if (Array.isArray(days) && days.length && days.length < 5) m.days = days.slice();
     if (limit > 0) m.limit = limit;
     vraagAanTab(m, cb);

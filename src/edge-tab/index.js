@@ -37,22 +37,22 @@ import { MSG } from '../shared/messages.js';
   // Verborgen hulpframes van de vragenlijstmodule mogen geen eigen lipje krijgen.
   if (window.top !== window) return;
 
-  var ROZE = '#cc087d';
-  var ROZE_DIEP = '#8c0a58';
-  var STIJL_ID = 'onsah-edge-tab-stijl';
-  var NUDGE_KEY = 'onsHelper.edgeTabNudged';  // sessionStorage: één keer per sessie wiebelen
-  var tab = null, chev = null, labelEl = null, tipEl = null;
-  var open = false;
-  var VERS_MS = 5000;        // zo lang telt een 'open' van het zijpaneel zelf
-  var STARTWACHT_MS = 400;   // bij laden even wachten op het antwoord
-  var laatsteZijpaneel = 0;  // tijd van de laatste 'open' van het zijpaneel
-  var vervalTimer = null;
+  const ROZE = '#cc087d';
+  const ROZE_DIEP = '#8c0a58';
+  const STIJL_ID = 'onsah-edge-tab-stijl';
+  const NUDGE_KEY = 'onsHelper.edgeTabNudged';  // sessionStorage: één keer per sessie wiebelen
+  let tab = null, chev = null, labelEl = null, tipEl = null;
+  let open = false;
+  const VERS_MS = 5000;        // zo lang telt een 'open' van het zijpaneel zelf
+  const STARTWACHT_MS = 400;   // bij laden even wachten op het antwoord
+  let laatsteZijpaneel = 0;  // tijd van de laatste 'open' van het zijpaneel
+  let vervalTimer = null;
 
   // Keyframes kunnen niet inline; één klein stijlblok. De transform houdt de
   // verticale centrering (-50%) vast, anders springt het lipje omhoog.
   function zorgVoorStijl() {
     if (document.getElementById(STIJL_ID)) return;
-    var st = document.createElement('style');
+    const st = document.createElement('style');
     st.id = STIJL_ID;
     st.textContent =
       '@keyframes onsahEdgeIn{from{transform:translate(100%,-50%)}to{transform:translate(0,-50%)}}' +
@@ -86,15 +86,15 @@ import { MSG } from '../shared/messages.js';
   }
 
   function svgChevron() {
-    var ns = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(ns, 'svg');
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('width', '15'); svg.setAttribute('height', '15');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
     svg.setAttribute('stroke-width', '2.4');
     svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
-    var p = document.createElementNS(ns, 'path');
+    const p = document.createElementNS(ns, 'path');
     p.setAttribute('d', 'M15 5 8 12l7 7');
     svg.appendChild(p);
     return svg;
@@ -143,12 +143,12 @@ import { MSG } from '../shared/messages.js';
     });
     tab.appendChild(labelEl);
 
-    var uit = function () {
+    const uit = function () {
       tab.style.width = '26px';
       labelEl.style.maxWidth = '0'; labelEl.style.opacity = '0'; labelEl.style.margin = '0';
       tab.style.boxShadow = '0 4px 18px -4px rgba(140,10,88,.45), 0 0 0 1px rgba(255,255,255,.14) inset';
     };
-    var aan = function () {
+    const aan = function () {
       tab.style.width = '116px';
       labelEl.style.maxWidth = '84px'; labelEl.style.opacity = '1'; labelEl.style.margin = '0 8px 0 4px';
       tab.style.boxShadow = '0 8px 26px -6px rgba(140,10,88,.55), 0 0 0 1px rgba(255,255,255,.22) inset';
@@ -200,7 +200,7 @@ import { MSG } from '../shared/messages.js';
 
   function toon(zichtbaar) {
     if (!tab) return;
-    var was = tab.style.display !== 'none';
+    const was = tab.style.display !== 'none';
     tab.style.display = zichtbaar ? 'flex' : 'none';
     if (zichtbaar && !was) speel('onsah-in');   // komt terug na sluiten zijpaneel
   }

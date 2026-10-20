@@ -9,10 +9,10 @@
 import * as v from 'valibot';
 import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 
-var OBJECT = v.looseObject({});
-var LIJST = v.array(OBJECT);
+const OBJECT = v.looseObject({});
+const LIJST = v.array(OBJECT);
 
-var SOORTEN = {
+const SOORTEN = {
   // entries/week: { data: [...] } of direct een lijst.
   weekagenda: { naam: 'de weekagenda', schema: v.union([LIJST, v.looseObject({ data: LIJST })]) },
   // product_selection/product_list: groepen [naam, [[uursoort, id, ...], ...]].
@@ -35,9 +35,9 @@ export class OnsFormaatFout extends Error {
 
 // json -> json als de vorm klopt, anders een OnsFormaatFout.
 export function controleerOns(soort, json) {
-  var s = SOORTEN[soort];
+  const s = SOORTEN[soort];
   if (!s) throw new Error('onbekend ONS-antwoord: ' + soort);
-  var r = v.safeParse(s.schema, json);
+  const r = v.safeParse(s.schema, json);
   if (!r.success) throw new OnsFormaatFout(soort, s.naam, r.issues);
   return json;
 }

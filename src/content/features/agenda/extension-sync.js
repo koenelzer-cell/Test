@@ -57,8 +57,8 @@ function pushSummary(res) {
 // Agendahulp woont in het zijpaneel, niet in de pagina.
 export function updateTotals(res) {
   res = res || ((agendaPage._agLastEntries && agendaPage._agLastEntries.length) ? computeTotalsApi() : computeTotals());
-  var past = res.past || {};
-  var dagen = Object.keys(past).filter(function (d) { return (past[d].client + past[d].overig) > 0; });
+  const past = res.past || {};
+  const dagen = Object.keys(past).filter(function (d) { return (past[d].client + past[d].overig) > 0; });
   pushBadge(dagen.length);
   pushSummary(res);
   pushPanelState();

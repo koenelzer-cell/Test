@@ -23,13 +23,13 @@ import { forgetFreeSlots } from './preload.js';
 const META_KEY = PAGE_LOCAL.EVENT_META_TEMPLATE;
 
 export function directCreateEnabled() {
-  var f = APP_CONFIG.features || {};
+  const f = APP_CONFIG.features || {};
   return f.planner !== false && f.plannerDirect !== false;
 }
 
 function medewerkers() {
-  var ids = currentInviteeIds();
-  if (!ids.length) { var een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
+  let ids = currentInviteeIds();
+  if (!ids.length) { const een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
   return ids;
 }
 function leesMeta() {
@@ -41,10 +41,10 @@ function leesMeta() {
 // een niet cliëntgebonden afspraak.
 export function eventOptions(clientIds, opts) {
   if (!directCreateEnabled()) return Promise.reject(new Error('Afspraken maken vanuit de planhulp staat uit (beheer).'));
-  var ids = medewerkers();
+  const ids = medewerkers();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
-  var uniek = (clientIds || []).map(String).filter(function (c, i, a) { return /^\d+$/.test(c) && a.indexOf(c) === i; }).slice(0, 10);
-  var types = {};
+  const uniek = (clientIds || []).map(String).filter(function (c, i, a) { return /^\d+$/.test(c) && a.indexOf(c) === i; }).slice(0, 10);
+  const types = {};
   return Promise.all([
     // Lukt het ophalen niet: zonder. Een andere vorm van ONS: een duidelijke fout.
     getJson(_apiUrl('availableLabels')).then(function (j) { return parseLabels(controleerOns('afspraaktypes', j)); }, function () { return []; }),
@@ -55,7 +55,7 @@ export function eventOptions(clientIds, opts) {
       ? getJson(_apiUrl('employeeProductOptions', { employeeId: ids[0] })).then(function (j) { return parseProductOptions(controleerOns('productlijst', j), { alleGroepen: true }); }, function () { return []; })
       : null
   ]).then(function (r) {
-    var uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
+    const uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
     if (r[2]) uit.employeeHourTypes = r[2];
     return uit;
   });
@@ -68,11 +68,11 @@ export function eventOptions(clientIds, opts) {
 export async function createEvents(events, post) {
   if (!directCreateEnabled()) throw new Error('Afspraken maken vanuit de planhulp staat uit (beheer).');
   post = post || postJson;
-  var ids = medewerkers();
+  const ids = medewerkers();
   if (!ids.length) throw new Error('Open eerst je agenda in ONS.');
-  var meta = leesMeta(), results = [];
+  const meta = leesMeta(), results = [];
   for (const e of (events || []).slice(0, 20)) {
-    var payload = buildEventPayload({
+    const payload = buildEventPayload({
       date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids,
       // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
       // de uursoort op de afspraak zelf.
@@ -95,10 +95,10 @@ export function listenForEventMeta() {
     window.addEventListener('message', function (ev) {
       if (!ev || ev.origin !== location.origin) return;
       if (ev.source && ev.source !== window) return;
-      var d = ev.data;
+      const d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'eventMeta') return;
       forgetFreeSlots();
-      var m = learnEventMeta(d.meta);
+      const m = learnEventMeta(d.meta);
       if (m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
     }, false);
   } catch (e) {}

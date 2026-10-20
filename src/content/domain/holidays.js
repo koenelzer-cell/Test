@@ -2,16 +2,16 @@
 // date: 'YYYY-MM-DD', time_slot: { all_day } }] } -> [{ date, name }].
 // Alleen hele dagen; ONS zet soms een spatie voor de naam. Goede Vrijdag
 // telt niet mee: dan wordt gewoon gewerkt (vrije tijd zoals elke dag).
-var GEEN_VRIJE_DAG = /goede\s*vrijdag/i;
+const GEEN_VRIJE_DAG = /goede\s*vrijdag/i;
 export function parseHolidays(json) {
-  var lijst = json && Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
-  var uit = [], gezien = Object.create(null);
+  const lijst = json && Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
+  const uit = [], gezien = Object.create(null);
   lijst.forEach(function (h) {
     if (!h || (h.type && h.type !== 'holiday')) return;
-    var date = String(h.date || '');
+    const date = String(h.date || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     if (h.time_slot && h.time_slot.all_day === false) return;
-    var name = String(h.name == null ? '' : h.name).trim().replace(/\s+/g, ' ').slice(0, 80) || 'Feestdag';
+    const name = String(h.name == null ? '' : h.name).trim().replace(/\s+/g, ' ').slice(0, 80) || 'Feestdag';
     if (GEEN_VRIJE_DAG.test(name)) return;
     if (gezien[date]) return;
     gezien[date] = true;

@@ -109,12 +109,12 @@
     });
   }
   function formulierTitel(date, time) {
-    var nu = Date.now();
-    FORMULIER_TITELS = FORMULIER_TITELS.filter(function(t2) {
-      return nu - t2.ts < FORMULIER_TITEL_MS;
+    const nu = Date.now();
+    FORMULIER_TITELS = FORMULIER_TITELS.filter(function(t) {
+      return nu - t.ts < FORMULIER_TITEL_MS;
     });
-    for (var i = 0; i < FORMULIER_TITELS.length; i++) {
-      var t = FORMULIER_TITELS[i];
+    for (let i = 0; i < FORMULIER_TITELS.length; i++) {
+      const t = FORMULIER_TITELS[i];
       if (t.date === date && t.time === time) {
         FORMULIER_TITELS.splice(i, 1);
         return t.titel;
@@ -155,8 +155,8 @@
     BEWAARD.route = { date: "", busy: false, result: null, error: "" };
   }
   function momentIndex(date, startMin) {
-    for (var i = 0; i < BEWAARD.momenten.length; i++) {
-      var m = BEWAARD.momenten[i];
+    for (let i = 0; i < BEWAARD.momenten.length; i++) {
+      const m = BEWAARD.momenten[i];
       if (m.date === date && m.startMin === startMin) return i;
     }
     return -1;
@@ -2303,36 +2303,36 @@
   }
   function uitYmd(s) {
     if (!YMD.test(String(s || ""))) return null;
-    var d = parseISO(String(s));
+    const d = parseISO(String(s));
     return isValid(d) ? d : null;
   }
   function isoWeek(s) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     return d ? getISOWeek(d) : null;
   }
   function maandagVan(s) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     return d ? ymd(startOfISOWeek(d)) : null;
   }
   function hoofdletter(t) {
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
   }
   function dagLang(s, kort) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     return d ? hoofdletter(format(d, kort ? "EEEEEE d MMMM" : "EEEE d MMMM", NL)) : String(s == null ? "" : s);
   }
   function dagKort(s, metJaar) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     return d ? format(d, metJaar ? "EEEEEE d MMM yyyy" : "EEEEEE d MMM", NL).replace(/\./g, "") : String(s == null ? "" : s);
   }
   function maandJaar(d) {
     return d instanceof Date && isValid(d) ? format(d, "LLLL yyyy", NL) : "";
   }
   function werkweekTekst(s, metJaar) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     if (!d) return "";
-    var ma = startOfISOWeek(d), vr = addDays(ma, 4);
-    var tekst = format(ma, ma.getMonth() !== vr.getMonth() ? "d MMMM" : "d", NL) + " tot en met " + format(vr, "d MMMM", NL);
+    const ma = startOfISOWeek(d), vr = addDays(ma, 4);
+    let tekst = format(ma, ma.getMonth() !== vr.getMonth() ? "d MMMM" : "d", NL) + " tot en met " + format(vr, "d MMMM", NL);
     if (metJaar && ma.getFullYear() !== (/* @__PURE__ */ new Date()).getFullYear()) tekst += " " + ma.getFullYear();
     return tekst;
   }
@@ -2358,14 +2358,14 @@
   var SVG_NS = "http://www.w3.org/2000/svg";
   function fmtMin(min) {
     min = Math.max(0, Math.round(min || 0));
-    var h = Math.floor(min / 60), m = min % 60;
+    const h = Math.floor(min / 60), m = min % 60;
     return h ? h + " u" + (m ? " " + m + " m" : "") : m + " m";
   }
   function dagLang2(date, kort) {
     return dagLang(date, kort);
   }
   function vanTot(a, b) {
-    var f = function(m) {
+    const f = function(m) {
       return Math.floor(m / 60) + ":" + ("0" + m % 60).slice(-2);
     };
     return "van " + f(a) + " tot " + f(b);
@@ -2374,14 +2374,14 @@
     return dagKort(date);
   }
   function el(tag2, styles, text) {
-    var n = document.createElement(tag2);
+    const n = document.createElement(tag2);
     if (styles) Object.assign(n.style, styles);
     if (text != null) n.textContent = text;
     return n;
   }
   function focusRing(node, color, binnen) {
     node.addEventListener("focus", function() {
-      var zichtbaar = true;
+      let zichtbaar = true;
       try {
         zichtbaar = node.matches(":focus-visible");
       } catch (e) {
@@ -2413,11 +2413,11 @@
     small: { fontSize: "11px", fontWeight: "600" }
   };
   function txt(kind, text, extra) {
-    var n = el("div", Object.assign({}, TYPE[kind], extra || {}), text);
+    const n = el("div", Object.assign({}, TYPE[kind], extra || {}), text);
     return n;
   }
   function sectionHead(text, first, sub, label) {
-    var h = el("div", { display: "flex", alignItems: "baseline", gap: "8px", margin: first ? "0 2px 8px" : "20px 2px 8px", minWidth: "0" });
+    const h = el("div", { display: "flex", alignItems: "baseline", gap: "8px", margin: first ? "0 2px 8px" : "20px 2px 8px", minWidth: "0" });
     h.appendChild(el("span", { fontSize: "14px", fontWeight: "700", color: T.ink, whiteSpace: "nowrap" }, text));
     if (sub) h.appendChild(el("span", { fontSize: "12px", color: T.inkSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, sub));
     if (label) {
@@ -2427,16 +2427,16 @@
     return h;
   }
   function foutStaat(o) {
-    var w = el("div", { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 18px 20px" });
+    const w = el("div", { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 18px 20px" });
     w.setAttribute("data-staat", "");
-    var kl = o.kleur || [T.brand, T.brandWash];
-    var ic = el("div", { width: "64px", height: "64px", borderRadius: "20px", background: kl[1], color: kl[0], display: "flex", alignItems: "center", justifyContent: "center" });
+    const kl = o.kleur || [T.brand, T.brandWash];
+    const ic = el("div", { width: "64px", height: "64px", borderRadius: "20px", background: kl[1], color: kl[0], display: "flex", alignItems: "center", justifyContent: "center" });
     ic.appendChild(svgPath(o.icoon, 30));
     w.appendChild(ic);
     w.appendChild(el("div", { fontSize: "15px", fontWeight: "700", color: T.ink, marginTop: "12px" }, o.titel));
     if (o.tekst) w.appendChild(el("div", { fontSize: "12.5px", color: T.inkSoft, marginTop: "4px", maxWidth: "280px", lineHeight: "1.45" }, o.tekst));
     if (o.knop && o.onKnop) {
-      var b = document.createElement("button");
+      const b = document.createElement("button");
       b.type = "button";
       b.setAttribute("data-staat-knop", "");
       Object.assign(b.style, {
@@ -2468,7 +2468,7 @@
     return el("div", Object.assign({ border: "1px solid " + T.line, borderRadius: "12px", background: "#fff", padding: "12px 14px", boxSizing: "border-box" }, extra || {}));
   }
   function svgSpineCheck() {
-    var svg = document.createElementNS(SVG_NS, "svg");
+    const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -2478,13 +2478,13 @@
     svg.setAttribute("stroke-width", "1.8");
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
-    var p = document.createElementNS(SVG_NS, "path");
+    const p = document.createElementNS(SVG_NS, "path");
     p.setAttribute("d", "M3 7.2l2.6 2.6L11 4");
     svg.appendChild(p);
     return svg;
   }
   function svgSpinePause() {
-    var svg = document.createElementNS(SVG_NS, "svg");
+    const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -2494,7 +2494,7 @@
     svg.setAttribute("stroke-width", "1.8");
     svg.setAttribute("stroke-linecap", "round");
     [5, 9].forEach(function(x) {
-      var l = document.createElementNS(SVG_NS, "line");
+      const l = document.createElementNS(SVG_NS, "line");
       l.setAttribute("x1", x);
       l.setAttribute("y1", "3.5");
       l.setAttribute("x2", x);
@@ -2504,7 +2504,7 @@
     return svg;
   }
   function svgInfoIcon() {
-    var svg = document.createElementNS(SVG_NS, "svg");
+    const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "14");
     svg.setAttribute("height", "14");
@@ -2513,18 +2513,18 @@
     svg.setAttribute("stroke", "currentColor");
     svg.setAttribute("stroke-width", "1.6");
     svg.setAttribute("stroke-linecap", "round");
-    var line = document.createElementNS(SVG_NS, "line");
+    const line = document.createElementNS(SVG_NS, "line");
     line.setAttribute("x1", "7");
     line.setAttribute("y1", "6.2");
     line.setAttribute("x2", "7");
     line.setAttribute("y2", "10.4");
-    var dot = document.createElementNS(SVG_NS, "circle");
+    const dot = document.createElementNS(SVG_NS, "circle");
     dot.setAttribute("cx", "7");
     dot.setAttribute("cy", "3.6");
     dot.setAttribute("r", ".9");
     dot.setAttribute("fill", "currentColor");
     dot.setAttribute("stroke", "none");
-    var ring = document.createElementNS(SVG_NS, "circle");
+    const ring = document.createElementNS(SVG_NS, "circle");
     ring.setAttribute("cx", "7");
     ring.setAttribute("cy", "7");
     ring.setAttribute("r", "6.1");
@@ -2534,12 +2534,12 @@
     return svg;
   }
   function svgPath(d, size) {
-    var svg = document.createElementNS(SVG_NS, "svg");
+    const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("width", size || 18);
     svg.setAttribute("height", size || 18);
     svg.setAttribute("aria-hidden", "true");
-    var p = document.createElementNS(SVG_NS, "path");
+    const p = document.createElementNS(SVG_NS, "path");
     p.setAttribute("fill", "currentColor");
     p.setAttribute("d", d);
     svg.appendChild(p);
@@ -2555,7 +2555,7 @@
   var ICON_HELP = "M11 18h2v-2h-2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5a4 4 0 0 0-4-4z";
   var ICON_RATIO = "M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z";
   function tag(text, tone) {
-    var c = tone === "bad" ? [T.bad, T.badWash] : tone === "warn" ? [T.warn, T.warnWash] : tone === "ok" ? [T.ok, T.okWash] : [T.inkSoft, T.lineSoft];
+    const c = tone === "bad" ? [T.bad, T.badWash] : tone === "warn" ? [T.warn, T.warnWash] : tone === "ok" ? [T.ok, T.okWash] : [T.inkSoft, T.lineSoft];
     return el("span", Object.assign({}, TYPE.small, {
       display: "inline-block",
       color: c[0],
@@ -2568,7 +2568,7 @@
     }), text);
   }
   function noteBox(text, tone) {
-    var c = tone === "bad" ? [T.badWash, T.bad] : tone === "ok" ? [T.okWash, T.ok] : [T.warnWash, T.warn];
+    const c = tone === "bad" ? [T.badWash, T.bad] : tone === "ok" ? [T.okWash, T.ok] : [T.warnWash, T.warn];
     return el("div", {
       marginTop: "10px",
       padding: "9px 11px",
@@ -2581,7 +2581,7 @@
     }, text);
   }
   function baseButton(text, onClick, primary, disabled) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     b.textContent = text;
     b.disabled = !!disabled;
@@ -2614,7 +2614,7 @@
     return b;
   }
   function primaryBtn(text, onClick, disabled) {
-    var b = baseButton(text, onClick, true, disabled);
+    const b = baseButton(text, onClick, true, disabled);
     b.style.marginTop = "10px";
     return b;
   }
@@ -2622,13 +2622,13 @@
     return baseButton(text, onClick, false, false);
   }
   function fieldLabel(text, input) {
-    var w = el("label", Object.assign({}, TYPE.label, { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 0", minWidth: "0" }));
+    const w = el("label", Object.assign({}, TYPE.label, { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 0", minWidth: "0" }));
     w.appendChild(document.createTextNode(text));
     w.appendChild(input);
     return w;
   }
   function inputEl(type, value, onChange) {
-    var i = document.createElement("input");
+    const i = document.createElement("input");
     i.type = type;
     i.value = value || "";
     Object.assign(i.style, {
@@ -2651,7 +2651,7 @@
     return i;
   }
   function clickCard(onClick, title) {
-    var card = el("div", {
+    const card = el("div", {
       padding: "9px 11px",
       borderRadius: "12px",
       background: "#fff",
@@ -2690,7 +2690,7 @@
   };
   var CHEV_GRIJS = "#b9b0b4";
   function hulpRij(soort, icoon, titel, onClick, teller, eerste) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     b.setAttribute("data-hulp", soort);
     Object.assign(b.style, {
@@ -2711,8 +2711,8 @@
       transition: "background .12s ease"
     });
     if (!eerste) b.appendChild(el("span", { position: "absolute", left: "60px", right: "0", top: "0", height: "1px", background: T.line }));
-    var kl = HULP_KLEUR[soort] || [T.brand, T.brandWash];
-    var ic = el("span", {
+    const kl = HULP_KLEUR[soort] || [T.brand, T.brandWash];
+    const ic = el("span", {
       width: "36px",
       height: "36px",
       borderRadius: "10px",
@@ -2727,12 +2727,12 @@
     b.appendChild(ic);
     b.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", fontSize: "13.5px", fontWeight: "600", color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, titel));
     if (teller) {
-      var t = el("span", { background: T.brand, color: "#fff", fontWeight: "700", fontSize: "11.5px", borderRadius: "10px", minWidth: "22px", height: "20px", padding: "0 7px", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", flex: "0 0 auto" }, String(teller));
+      const t = el("span", { background: T.brand, color: "#fff", fontWeight: "700", fontSize: "11.5px", borderRadius: "10px", minWidth: "22px", height: "20px", padding: "0 7px", display: "inline-flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", flex: "0 0 auto" }, String(teller));
       t.setAttribute("data-hulp-teller", String(teller));
       t.setAttribute("aria-label", teller + " open");
       b.appendChild(t);
     }
-    var pijl = svgPath(CHEV_RECHTS, 20);
+    const pijl = svgPath(CHEV_RECHTS, 20);
     pijl.style.color = CHEV_GRIJS;
     pijl.style.flex = "0 0 auto";
     b.appendChild(pijl);
@@ -2747,15 +2747,15 @@
     return b;
   }
   function zorgVoorStijl(doc) {
-    var d = doc || document;
+    const d = doc || document;
     if (d.getElementById("ons-agendapanel-stijl")) return;
-    var st = d.createElement("style");
+    const st = d.createElement("style");
     st.id = "ons-agendapanel-stijl";
     st.textContent = "@keyframes onsAhSchuif{0%{transform:translateX(-60%)}100%{transform:translateX(260%)}}@keyframes onsAhPuls{0%,100%{opacity:.55}50%{opacity:.9}}@keyframes onsAhDraai{to{transform:rotate(360deg)}}";
     (d.head || d.documentElement).appendChild(st);
   }
   function laadBalk() {
-    var spoor = el("div", {
+    const spoor = el("div", {
       position: "relative",
       height: "3px",
       borderRadius: "999px",
@@ -2779,10 +2779,10 @@
   }
   function voortgang(done, total) {
     zorgVoorStijl();
-    var p = el("div", { marginTop: "10px" });
+    const p = el("div", { marginTop: "10px" });
     p.appendChild(txt("label", total ? "Week " + done + " van " + total + " opgehaald" : "Weken ophalen…", { marginBottom: "5px" }));
     if (total) {
-      var spoor = el("div", { height: "4px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden" });
+      const spoor = el("div", { height: "4px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden" });
       spoor.setAttribute("role", "progressbar");
       spoor.setAttribute("aria-valuemin", "0");
       spoor.setAttribute("aria-valuemax", String(total));
@@ -2801,11 +2801,11 @@
     return uitYmd(s);
   }
   function datumTekst(s) {
-    var d = uitYmd(s);
+    const d = uitYmd(s);
     return d ? dagKort(s, d.getFullYear() !== (/* @__PURE__ */ new Date()).getFullYear()) : "";
   }
   function chipKnop(tekst, gekozen, onClick, extra) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     b.textContent = tekst;
     Object.assign(b.style, {
@@ -2838,7 +2838,7 @@
     return b;
   }
   function veldKnop(tekst, leeg2, icoon) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     Object.assign(b.style, {
       width: "100%",
@@ -2855,9 +2855,9 @@
       color: leeg2 ? T.inkSoft : T.ink,
       textAlign: "left"
     });
-    var t = el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }, tekst);
+    const t = el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }, tekst);
     b.appendChild(t);
-    var ic = svgPath(icoon, 16);
+    const ic = svgPath(icoon, 16);
     ic.style.color = "#8d8589";
     ic.style.flex = "0 0 auto";
     b.appendChild(ic);
@@ -2882,8 +2882,8 @@
     return maandagVan(s) || s;
   }
   function plusWeken(ymd2, n) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
-    var d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : /* @__PURE__ */ new Date();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd2 || ""));
+    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : /* @__PURE__ */ new Date();
     d.setDate(d.getDate() + 7 * n);
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
@@ -2891,7 +2891,7 @@
     return ("0" + Math.floor(min / 60)).slice(-2) + ":" + ("0" + min % 60).slice(-2);
   }
   function tekstKnop(icoon, tekst, onClick, disabled) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     b.disabled = !!disabled;
     Object.assign(b.style, {
@@ -2950,17 +2950,17 @@
   }
   function startRondleiding(opts) {
     if (actief) actief.sluit(false);
-    var doc = document, win = doc.defaultView || window;
-    var stappen = opts.stappen || [];
-    var i = 0, richting = 1, timer = null, wacht = null;
-    var host2 = doc.createElement("div");
+    const doc = document, win = doc.defaultView || window;
+    const stappen = opts.stappen || [];
+    let i = 0, richting = 1, timer = null, wacht = null;
+    const host2 = doc.createElement("div");
     host2.setAttribute("data-rondleiding", opts.naam);
     host2.setAttribute("role", "dialog");
     host2.setAttribute("aria-modal", "true");
     Object.assign(host2.style, { position: "fixed", inset: "0", zIndex: "2147483000", font: '13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif' });
-    var gat = doc.createElement("div");
+    const gat = doc.createElement("div");
     Object.assign(gat.style, { position: "absolute", borderRadius: "14px", boxShadow: "0 0 0 9999px rgba(32,20,28,.58)", outline: "2px solid " + BRAND, outlineOffset: "2px", pointerEvents: "none", transition: "left .2s ease, top .2s ease, width .2s ease, height .2s ease" });
-    var kaart2 = doc.createElement("div");
+    const kaart2 = doc.createElement("div");
     Object.assign(kaart2.style, { position: "absolute", background: "#fff", borderRadius: "14px", padding: "16px 16px 12px", boxShadow: "0 18px 40px -16px rgba(0,0,0,.45)", color: "#201d1f", boxSizing: "border-box" });
     host2.appendChild(gat);
     host2.appendChild(kaart2);
@@ -2969,13 +2969,13 @@
     });
     doc.body.appendChild(host2);
     function el3(tag2, stijl, tekst) {
-      var n = doc.createElement(tag2);
+      const n = doc.createElement(tag2);
       if (stijl) Object.assign(n.style, stijl);
       if (tekst != null) n.textContent = tekst;
       return n;
     }
     function knop(tekst, hoofd, attr, fn) {
-      var b = el3("button", {
+      const b = el3("button", {
         height: "32px",
         padding: hoofd ? "0 14px" : "0 12px",
         borderRadius: "9px",
@@ -3000,21 +3000,21 @@
     }
     function zichtbaar(e) {
       if (!e || !e.isConnected || !e.getBoundingClientRect) return false;
-      for (var n = e; n && n.style; n = n.parentNode) if (n.style.display === "none") return false;
+      for (let n = e; n && n.style; n = n.parentNode) if (n.style.display === "none") return false;
       return true;
     }
     function elementen(s) {
       return s.vind ? lijst(s.vind()).filter(zichtbaar) : [];
     }
     function plaats() {
-      var s = stappen[i];
+      const s = stappen[i];
       if (!s) return;
-      var els = elementen(s);
-      var vw = win.innerWidth || 380, vh = win.innerHeight || 800;
-      var breed = Math.min(300, vw - 32);
-      var r = null;
+      const els = elementen(s);
+      const vw = win.innerWidth || 380, vh = win.innerHeight || 800;
+      const breed = Math.min(300, vw - 32);
+      let r = null;
       if (els.length) {
-        var rs = els.map(function(e) {
+        const rs = els.map(function(e) {
           return e.getBoundingClientRect();
         });
         r = {
@@ -3031,14 +3031,14 @@
             return x.bottom;
           }))
         };
-        var b = s.breedte && s.breedte();
+        const b = s.breedte && s.breedte();
         if (b) {
-          var br = b.getBoundingClientRect();
+          const br = b.getBoundingClientRect();
           r.left = br.left + 6;
           r.right = br.right - 6;
         }
       }
-      var pad = 6;
+      const pad = 6;
       kaart2.style.width = breed + "px";
       kaart2.style.left = Math.round((vw - breed) / 2) + "px";
       if (!r) {
@@ -3051,28 +3051,28 @@
       host2.style.background = "transparent";
       gat.style.display = "";
       Object.assign(gat.style, { left: r.left - pad + "px", top: r.top - pad + "px", width: r.right - r.left + pad * 2 + "px", height: r.bottom - r.top + pad * 2 + "px" });
-      var hk = kaart2.offsetHeight || 210;
-      var onder = r.bottom + 18 + hk < vh || r.top - 18 - hk < 0;
-      var top = onder ? r.bottom + 18 : r.top - 18 - hk;
+      const hk = kaart2.offsetHeight || 210;
+      const onder = r.bottom + 18 + hk < vh || r.top - 18 - hk < 0;
+      const top = onder ? r.bottom + 18 : r.top - 18 - hk;
       kaart2.style.top = Math.max(8, Math.min(top, vh - hk - 8)) + "px";
       if (pijl) {
         pijl.style.display = "";
         pijl.style.top = onder ? "-7px" : "";
         pijl.style.bottom = onder ? "" : "-7px";
-        var mid = (r.left + r.right) / 2 - parseFloat(kaart2.style.left) - 7;
+        const mid = (r.left + r.right) / 2 - parseFloat(kaart2.style.left) - 7;
         pijl.style.left = Math.min(Math.max(mid, 18), breed - 30) + "px";
       }
     }
-    var pijl = null;
+    let pijl = null;
     function teken() {
-      var s = stappen[i];
+      const s = stappen[i];
       kaart2.innerHTML = "";
       kaart2.setAttribute("data-rondleiding-stap", String(i));
       pijl = el3("div", { position: "absolute", width: "14px", height: "14px", background: "#fff", transform: "rotate(45deg)" });
       kaart2.appendChild(pijl);
-      var tel = telbaar(), nr = tel.indexOf(s);
+      const tel = telbaar(), nr = tel.indexOf(s);
       if (!s.vind) {
-        var ic = el3("div", { width: "44px", height: "44px", borderRadius: "12px", background: "#fbe6f2", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px", color: BRAND });
+        const ic = el3("div", { width: "44px", height: "44px", borderRadius: "12px", background: "#fbe6f2", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px", color: BRAND });
         if (opts.icoon) {
           try {
             ic.appendChild(opts.icoon());
@@ -3082,20 +3082,20 @@
         kaart2.appendChild(ic);
       }
       kaart2.appendChild(el3("div", { fontSize: "11px", fontWeight: "700", color: BRAND }, nr >= 0 ? (opts.stapLabel || "Stap") + " " + (nr + 1) + " van " + tel.length : opts.kop || "Rondleiding"));
-      var kop = el3("div", { fontSize: "15px", fontWeight: "700", margin: "2px 0 4px" }, s.titel);
+      const kop = el3("div", { fontSize: "15px", fontWeight: "700", margin: "2px 0 4px" }, s.titel);
       kop.setAttribute("data-rondleiding-titel", "");
       kaart2.appendChild(kop);
       kaart2.appendChild(el3("div", { color: "#4b4448" }, s.tekst));
-      var voet = el3("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "14px" });
-      var stip = el3("div", { display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" });
+      const voet = el3("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "14px" });
+      const stip = el3("div", { display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" });
       if (nr >= 0) tel.forEach(function(_, k) {
         stip.appendChild(el3("i", { display: "inline-block", width: k === nr ? "14px" : "5px", height: "5px", borderRadius: "3px", background: k === nr ? BRAND : "#ecd3e1" }));
       });
       voet.appendChild(stip);
-      var kn = el3("div", { display: "flex", gap: "6px", alignItems: "center", flex: "0 0 auto" });
-      var laatste = i === stappen.length - 1;
+      const kn = el3("div", { display: "flex", gap: "6px", alignItems: "center", flex: "0 0 auto" });
+      const laatste = i === stappen.length - 1;
       if (i === 0) {
-        var over = el3("button", { border: "0", background: "transparent", color: "#6b6367", font: '600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer", padding: "0 6px" }, "Overslaan");
+        const over = el3("button", { border: "0", background: "transparent", color: "#6b6367", font: '600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer", padding: "0 6px" }, "Overslaan");
         over.type = "button";
         over.setAttribute("data-rondleiding-sluiten", "");
         over.addEventListener("click", function() {
@@ -3112,7 +3112,7 @@
       voet.appendChild(kn);
       kaart2.appendChild(voet);
       if (i > 0 && !laatste) {
-        var dicht = el3("button", { display: "block", margin: "8px auto 0", border: "0", background: "transparent", color: "#8d8589", font: '11.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer" }, "Rondleiding sluiten");
+        const dicht = el3("button", { display: "block", margin: "8px auto 0", border: "0", background: "transparent", color: "#8d8589", font: '11.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer" }, "Rondleiding sluiten");
         dicht.type = "button";
         dicht.setAttribute("data-rondleiding-sluiten", "");
         dicht.addEventListener("click", function() {
@@ -3121,7 +3121,7 @@
         kaart2.appendChild(dicht);
       }
       plaats();
-      var hoofdKnop = kaart2.querySelector("[data-rondleiding-volgende]");
+      const hoofdKnop = kaart2.querySelector("[data-rondleiding-volgende]");
       try {
         hoofdKnop.focus({ preventScroll: true });
       } catch (e) {
@@ -3137,7 +3137,7 @@
       }
       if (n < 0) n = 0;
       i = n;
-      var s = stappen[i];
+      const s = stappen[i];
       kaart2.style.visibility = "hidden";
       host2.setAttribute("data-rondleiding-bezig", "");
       if (s.voor) {
@@ -3154,7 +3154,7 @@
           else naar(0, 1);
           return;
         }
-        var eerste = elementen(s)[0];
+        const eerste = elementen(s)[0];
         if (eerste && eerste.scrollIntoView) {
           try {
             eerste.scrollIntoView({ block: "center" });
@@ -3172,11 +3172,11 @@
         sluit(false);
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        var v = kaart2.querySelector("[data-rondleiding-volgende]");
+        const v = kaart2.querySelector("[data-rondleiding-volgende]");
         if (v) v.click();
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        var p = kaart2.querySelector("[data-rondleiding-vorige]");
+        const p = kaart2.querySelector("[data-rondleiding-vorige]");
         if (p) p.click();
       }
     }
@@ -3207,7 +3207,7 @@
   // src/sidepanel/feestdagen.js
   var SVG_NS2 = "http://www.w3.org/2000/svg";
   function patroonUrl(w, h, inner) {
-    var svg = '<svg xmlns="' + SVG_NS2 + '" width="' + w + '" height="' + h + '">' + inner + "</svg>";
+    const svg = '<svg xmlns="' + SVG_NS2 + '" width="' + w + '" height="' + h + '">' + inner + "</svg>";
     return "url('data:image/svg+xml," + encodeURIComponent(svg).replace(/'/g, "%27") + "')";
   }
   function wolk(x, y, s, f) {
@@ -3226,8 +3226,8 @@
     return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')"><path d="M0 -8C4.5 -8 7 -1 7 2.5C7 6.5 4 9 0 9C-4 9 -7 6.5 -7 2.5C-7 -1 -4.5 -8 0 -8Z" fill="' + f + '"/><path d="M-6.6 1.5L-3.3 -0.5L0 1.5L3.3 -0.5L6.6 1.5" stroke="' + b + '" stroke-width="1.3" fill="none"/></g>';
   }
   function knal(x, y, s, f) {
-    var r = "";
-    for (var a = 0; a < 360; a += 45) r += '<path transform="rotate(' + a + ')" d="M0 -3V-7"/>';
+    let r = "";
+    for (let a = 0; a < 360; a += 45) r += '<path transform="rotate(' + a + ')" d="M0 -3V-7"/>';
     return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')" stroke="' + f + '" stroke-width="1.4" stroke-linecap="round">' + r + "</g>";
   }
   function vlam(x, y, s, f) {
@@ -3237,7 +3237,7 @@
     return '<g fill="' + f + '" stroke="' + s + '" stroke-width="1.2" stroke-linejoin="round"><path d="M8 26C12 20 18 18 23 19L30 12C33 10 37 11 38 14L42 15L38 17C37 22 33 27 26 29C20 31 13 30 8 26Z"/><path d="M20 21C18 15 13 11 7 10C10 15 13 19 20 23Z"/><path d="M14 28L8 33L16 31Z"/></g><circle cx="35" cy="14" r="1" fill="' + s + '"/>';
   }
   function zonnestralen() {
-    var r = "";
+    let r = "";
     [-60, -30, 0, 30, 60].forEach(function(a) {
       r += '<path transform="rotate(' + a + ' 24 26)" d="M24 12V4"/>';
     });
@@ -3373,8 +3373,8 @@
     }
   };
   function feestdagSleutel(naam) {
-    var n = String(naam || "").trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, " ").trim();
-    var tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
+    const n = String(naam || "").trim().toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, " ").trim();
+    const tweede = /(^|\s)(tweede|2e|2de)(\s|$)/.test(n) || /(paas|pinkster)maandag/.test(n);
     if (/pas(en|dag)|paas/.test(n)) return tweede ? "paas2" : "paas1";
     if (/koning/.test(n)) return "koning";
     if (/bevrijding/.test(n)) return "bevrijding";
@@ -3385,25 +3385,25 @@
     return "standaard";
   }
   function feestdagStijl(naam) {
-    var s = STIJLEN[feestdagSleutel(naam)];
+    const s = STIJLEN[feestdagSleutel(naam)];
     return { sleutel: feestdagSleutel(naam), achtergrond: s.patroon() + "," + s.bg, ink: s.ink, kop: s.kop || s.ink, stip: s.stip, slinger: !!s.slinger };
   }
   function svgUit(doc, viewBox, inner) {
-    var p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS2 + '" viewBox="' + viewBox + '">' + inner + "</svg>", "image/svg+xml");
+    const p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS2 + '" viewBox="' + viewBox + '">' + inner + "</svg>", "image/svg+xml");
     return doc.importNode(p.documentElement, true);
   }
   function feestdagIcoon(doc, naam) {
-    var svg = svgUit(doc, "0 0 48 48", STIJLEN[feestdagSleutel(naam)].icoon());
+    const svg = svgUit(doc, "0 0 48 48", STIJLEN[feestdagSleutel(naam)].icoon());
     svg.setAttribute("aria-hidden", "true");
     return svg;
   }
   function feestdagSlinger(doc) {
-    var kleuren = ["#c8102e", "#fff", "#21468b"], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
+    let kleuren = ["#c8102e", "#fff", "#21468b"], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
     [4, 14, 24, 34, 44, 54].forEach(function(x, i) {
-      var y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
+      const y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
       d += '<path d="M' + (x - 3) + " " + y + "L" + (x + 3) + " " + y + "L" + x + ' 9Z" fill="' + kleuren[i % 3] + '"/>';
     });
-    var svg = svgUit(doc, "0 0 60 10", d);
+    const svg = svgUit(doc, "0 0 60 10", d);
     svg.setAttribute("preserveAspectRatio", "none");
     svg.setAttribute("aria-hidden", "true");
     return svg;
@@ -3482,24 +3482,24 @@
     ] }
   };
   function feestdagAnimatie(naam) {
-    var a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
+    const a = ANIMATIES[feestdagSleutel(naam)] || ANIMATIES.standaard;
     return { origin: a.origin, duur: a.duur, frames: a.frames };
   }
 
   // src/sidepanel/kiezers.js
   function maandKalender(p, huidig2, kies) {
-    var start = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
-    var toon2 = new Date(start.getFullYear(), start.getMonth(), 1);
+    const start = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
+    let toon2 = new Date(start.getFullYear(), start.getMonth(), 1);
     function teken() {
       p.innerHTML = "";
-      var kop = el("div", { display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" });
-      var vorige = chipKnop("", false, function() {
+      const kop = el("div", { display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" });
+      const vorige = chipKnop("", false, function() {
         toon2 = new Date(toon2.getFullYear(), toon2.getMonth() - 1, 1);
         teken();
       }, { width: "32px", color: T.brand });
       vorige.appendChild(svgPath("M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z", 18));
       vorige.setAttribute("aria-label", "Vorige maand");
-      var volgende = chipKnop("", false, function() {
+      const volgende = chipKnop("", false, function() {
         toon2 = new Date(toon2.getFullYear(), toon2.getMonth() + 1, 1);
         teken();
       }, { width: "32px", color: T.brand });
@@ -3509,29 +3509,29 @@
       kop.appendChild(el("div", Object.assign({}, TYPE.section, { margin: "0", flex: "1 1 auto", textAlign: "center" }), maandJaar(toon2)));
       kop.appendChild(volgende);
       p.appendChild(kop);
-      var rooster = el("div", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" });
+      const rooster = el("div", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" });
       ["ma", "di", "wo", "do", "vr", "za", "zo"].forEach(function(w) {
         rooster.appendChild(el("div", Object.assign({}, TYPE.small, { color: T.inkSoft, textAlign: "center", padding: "4px 0", fontWeight: "600" }), w));
       });
-      var eerste = new Date(toon2.getFullYear(), toon2.getMonth(), 1);
-      var begin = new Date(eerste);
+      const eerste = new Date(toon2.getFullYear(), toon2.getMonth(), 1);
+      const begin = new Date(eerste);
       begin.setDate(1 - (eerste.getDay() + 6) % 7);
-      var vandaag = ymdVan(/* @__PURE__ */ new Date());
-      for (var i = 0; i < 42; i++) {
-        var d = new Date(begin);
+      const vandaag = ymdVan(/* @__PURE__ */ new Date());
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(begin);
         d.setDate(begin.getDate() + i);
         if (i >= 35 && d.getMonth() !== toon2.getMonth()) break;
         (function(d2) {
-          var ymd2 = ymdVan(d2);
-          var buiten = d2.getMonth() !== toon2.getMonth();
-          var gekozen = ymd2 === huidig2;
-          var extra = { width: "100%" };
+          const ymd2 = ymdVan(d2);
+          const buiten = d2.getMonth() !== toon2.getMonth();
+          const gekozen = ymd2 === huidig2;
+          const extra = { width: "100%" };
           if (buiten) extra.color = "#b9b1b5";
           if (!gekozen && ymd2 === vandaag) {
             extra.border = "1px solid " + T.brand;
             extra.fontWeight = "600";
           }
-          var dag = chipKnop(String(d2.getDate()), gekozen, function() {
+          const dag = chipKnop(String(d2.getDate()), gekozen, function() {
             kies(ymd2);
           }, extra);
           dag.setAttribute("aria-label", datumTekst(ymd2) + (ymd2 === vandaag ? " (vandaag)" : ""));
@@ -3541,8 +3541,8 @@
         })(d);
       }
       p.appendChild(rooster);
-      var voet = el("div", { display: "flex", justifyContent: "flex-end", marginTop: "6px" });
-      var nu = chipKnop("Vandaag", false, function() {
+      const voet = el("div", { display: "flex", justifyContent: "flex-end", marginTop: "6px" });
+      const nu = chipKnop("Vandaag", false, function() {
         kies(vandaag);
       }, { padding: "0 10px", color: T.brand, fontWeight: "600" });
       voet.appendChild(nu);
@@ -3551,8 +3551,8 @@
     teken();
   }
   function maakKiezers() {
-    var host2 = el("div");
-    var open = null;
+    const host2 = el("div");
+    let open = null;
     function sluit() {
       if (!open) return;
       open.knop.setAttribute("aria-expanded", "false");
@@ -3562,7 +3562,7 @@
       open = null;
     }
     function paneel() {
-      var p = el("div", {
+      const p = el("div", {
         margin: "8px 0 2px",
         padding: "10px",
         borderRadius: "12px",
@@ -3573,7 +3573,7 @@
       p.addEventListener("keydown", function(e) {
         if (e.key === "Escape") {
           e.preventDefault();
-          var k = open && open.knop;
+          const k = open && open.knop;
           sluit();
           if (k) k.focus();
         }
@@ -3581,20 +3581,20 @@
       return p;
     }
     function openVoor(knop, bouw) {
-      var was = open && open.knop === knop;
+      const was = open && open.knop === knop;
       sluit();
       if (was) return;
       open = { knop };
       knop.setAttribute("aria-expanded", "true");
       knop.style.borderColor = T.brand;
       knop.style.boxShadow = "0 0 0 3px " + T.brandWash;
-      var p = paneel();
+      const p = paneel();
       bouw(p);
       host2.appendChild(p);
     }
     function datum(waarde, onChange) {
-      var huidig2 = waarde;
-      var knop = veldKnop(datumTekst(huidig2) || "Kies een datum", !huidig2, ICON_KALENDER);
+      let huidig2 = waarde;
+      const knop = veldKnop(datumTekst(huidig2) || "Kies een datum", !huidig2, ICON_KALENDER);
       knop.setAttribute("aria-haspopup", "dialog");
       knop.setAttribute("aria-expanded", "false");
       knop.setAttribute("data-datum", huidig2 || "");
@@ -3619,13 +3619,13 @@
     }
     function tijd(waarde, onChange, opties) {
       opties = opties || {};
-      var stap = opties.minutenStap || 5;
-      var huidig2 = waarde;
-      var knop = veldKnop(huidig2 || "Kies een tijd", !huidig2, ICON_QUICK);
+      const stap = opties.minutenStap || 5;
+      let huidig2 = waarde;
+      const knop = veldKnop(huidig2 || "Kies een tijd", !huidig2, ICON_QUICK);
       knop.setAttribute("aria-haspopup", "dialog");
       knop.setAttribute("aria-expanded", "false");
       function delen() {
-        var m = /^(\d{1,2}):(\d{2})$/.exec(huidig2 || "");
+        const m = /^(\d{1,2}):(\d{2})$/.exec(huidig2 || "");
         return m ? { u: +m[1], m: +m[2] } : { u: null, m: null };
       }
       function zet(u, m) {
@@ -3635,7 +3635,7 @@
         onChange(huidig2);
       }
       function itemKnop(tekst, gekozen, onClick) {
-        var b = document.createElement("button");
+        const b = document.createElement("button");
         b.type = "button";
         b.textContent = tekst;
         b.setAttribute("data-gekozen", gekozen ? "1" : "0");
@@ -3673,9 +3673,9 @@
         return b;
       }
       function kolom(titel) {
-        var col = el("div", { flex: "1 1 0", minWidth: "0", display: "flex", flexDirection: "column" });
+        const col = el("div", { flex: "1 1 0", minWidth: "0", display: "flex", flexDirection: "column" });
         col.appendChild(txt("label", titel, { textAlign: "center", margin: "0 0 6px" }));
-        var lijst2 = el("div", {
+        const lijst2 = el("div", {
           height: "196px",
           overflowY: "auto",
           display: "flex",
@@ -3697,18 +3697,18 @@
         openVoor(knop, function(p) {
           p.setAttribute("role", "dialog");
           p.setAttribute("aria-label", "Kies een tijd");
-          var urenKol, minKol;
+          let urenKol, minKol;
           function scrollNaarKeuze(lijst2, terug) {
-            var doel = lijst2.querySelector('[data-gekozen="1"]') || lijst2.children[terug] || null;
+            const doel = lijst2.querySelector('[data-gekozen="1"]') || lijst2.children[terug] || null;
             if (doel) lijst2.scrollTop = Math.max(0, doel.offsetTop - lijst2.offsetTop - 70);
           }
           function teken(behoudScroll) {
-            var su = urenKol ? urenKol._lijst.scrollTop : 0, sm = minKol ? minKol._lijst.scrollTop : 0;
+            const su = urenKol ? urenKol._lijst.scrollTop : 0, sm = minKol ? minKol._lijst.scrollTop : 0;
             p.innerHTML = "";
-            var dl = delen();
-            var rij = el("div", { display: "flex", gap: "10px" });
+            const dl = delen();
+            const rij = el("div", { display: "flex", gap: "10px" });
             urenKol = kolom("Uur");
-            for (var u = 0; u < 24; u++) {
+            for (let u = 0; u < 24; u++) {
               (function(u2) {
                 urenKol._lijst.appendChild(itemKnop(("0" + u2).slice(-2), dl.u === u2, function() {
                   zet(u2, dl.m == null ? 0 : dl.m);
@@ -3717,7 +3717,7 @@
               })(u);
             }
             minKol = kolom("Minuten");
-            for (var m = 0; m < 60; m += stap) {
+            for (let m = 0; m < 60; m += stap) {
               (function(m2) {
                 minKol._lijst.appendChild(itemKnop(("0" + m2).slice(-2), dl.m === m2 && dl.u != null, function() {
                   zet(dl.u == null ? 9 : dl.u, m2);
@@ -3761,14 +3761,14 @@
     }).join(", ");
   }
   function kopieUitslag() {
-    var k = BEWAARD.kopie;
+    const k = BEWAARD.kopie;
     if (!k) return null;
-    var lbl = function(m) {
+    const lbl = function(m) {
       return dayLabel(m.date) + " " + hm(m.startMin);
     };
     if (k.reason) return noteBox("Geen kopieën gemaakt: " + (k.reason === "herhalende afspraak" ? "het is een herhalende afspraak." : "de afspraak was niet te lezen."), "warn");
     if (k.failed && k.failed.length) return noteBox((k.made || []).length + " kopieën gemaakt. Niet gelukt: " + k.failed.map(lbl).join(", ") + ". Maak die zelf aan in ONS.", "warn");
-    var verder = k.next ? " Nu het formulier voor " + lbl(k.next) + (k.left > 1 ? " (nog " + k.left + " met eigen instellingen)." : " (eigen instellingen).") : "";
+    const verder = k.next ? " Nu het formulier voor " + lbl(k.next) + (k.left > 1 ? " (nog " + k.left + " met eigen instellingen)." : " (eigen instellingen).") : "";
     if (k.made && k.made.length) return noteBox("Afspraak ook gemaakt op " + k.made.map(lbl).join(", ") + "." + verder, "ok");
     if (verder) return noteBox("Afspraak opgeslagen." + verder, "ok");
     return null;
@@ -3776,7 +3776,7 @@
   var ONS_TTL = 5 * 6e4;
   var ONS_NAKIJK_MAX = 12;
   function dagenVan(res) {
-    var dagen = [], per = {};
+    const dagen = [], per = {};
     res.gaps.forEach(function(g) {
       if (!per[g.date]) {
         per[g.date] = [];
@@ -3788,12 +3788,12 @@
   }
   function feestdagenOpWerkdag(res) {
     return (res && res.holidays || []).filter(function(h) {
-      var w = datumUitYmd(h.date).getDay();
+      const w = datumUitYmd(h.date).getDay();
       return w > 0 && w < 6 && !/goede\s*vrijdag/i.test(String(h.name || ""));
     });
   }
   function feestdagPer(res) {
-    var per = {};
+    const per = {};
     feestdagenOpWerkdag(res).forEach(function(h) {
       per[h.date] = h;
     });
@@ -3801,24 +3801,24 @@
   }
   var TOON_TIJDEN = 8;
   function maandag(ymd2) {
-    var d = datumUitYmd(ymd2);
+    const d = datumUitYmd(ymd2);
     d.setDate(d.getDate() - (d.getDay() + 6) % 7);
     return d;
   }
   function maakPlanhulp(ctx) {
     const { actions, fAan, naarPagina, renderPagina } = ctx;
-    var planNr = 0;
+    let planNr = 0;
     function startPlan(houd) {
       if (!actions.onFreeSlots) return;
-      var jaar = /* @__PURE__ */ new Date();
+      const jaar = /* @__PURE__ */ new Date();
       jaar.setDate(jaar.getDate() + 365);
       if (ctx.plan.tot && ctx.plan.tot > ymdVan(jaar)) ctx.plan.tot = ymdVan(jaar);
-      var mijn = ++planNr;
+      const mijn = ++planNr;
       ctx.plan.busy = true;
       ctx.plan.error = "";
       if (!houd) ctx.plan.result = null;
       if (ctx.pagina === "plan") renderPagina();
-      var voor = ctx.plan;
+      const voor = ctx.plan;
       actions.onFreeSlots(ctx.plan.minutes, ctx.plan.weeks, function(res) {
         if (BEWAARD.plan !== voor || mijn !== planNr) return;
         ctx.plan.busy = false;
@@ -3836,7 +3836,7 @@
         }, 0);
       }, ctx.plan.tot, false, false, "", gekozenDagen(), ctx.plan.limit || PLAN_STAP);
     }
-    var dagenTimer = null;
+    let dagenTimer = null;
     function dagenGewijzigd() {
       renderPagina();
       clearTimeout(dagenTimer);
@@ -3847,14 +3847,14 @@
     }
     function meerLaden(res) {
       if (!actions.onFreeSlots || !res) return;
-      var gaps = res.gaps || [];
-      var afgekapt = res.afgekapt != null ? res.afgekapt : gaps.length >= (ctx.plan.limit || PLAN_STAP);
-      var laatste = datumUitYmd(res.lastDate || res.to || ymdVan(/* @__PURE__ */ new Date()));
-      var tot = new Date(laatste);
+      const gaps = res.gaps || [];
+      const afgekapt = res.afgekapt != null ? res.afgekapt : gaps.length >= (ctx.plan.limit || PLAN_STAP);
+      const laatste = datumUitYmd(res.lastDate || res.to || ymdVan(/* @__PURE__ */ new Date()));
+      const tot = new Date(laatste);
       tot.setDate(tot.getDate() + 7);
-      var van = afgekapt && gaps.length ? gaps[gaps.length - 1].date : ymdVan(new Date(laatste.getFullYear(), laatste.getMonth(), laatste.getDate() + 1));
-      var totYmd = ymdVan(tot);
-      var mijn = ++planNr, voor = ctx.plan;
+      const van = afgekapt && gaps.length ? gaps[gaps.length - 1].date : ymdVan(new Date(laatste.getFullYear(), laatste.getMonth(), laatste.getDate() + 1));
+      const totYmd = ymdVan(tot);
+      const mijn = ++planNr, voor = ctx.plan;
       ctx.plan.meerBezig = true;
       ctx.plan.error = "";
       if (ctx.pagina === "plan") renderPagina();
@@ -3866,14 +3866,14 @@
           if (ctx.pagina === "plan") renderPagina();
           return;
         }
-        var bekend = {};
+        const bekend = {};
         gaps.forEach(function(g) {
           bekend[g.date + "|" + g.startMin] = true;
         });
-        var nieuw = (r.result.gaps || []).filter(function(g) {
+        const nieuw = (r.result.gaps || []).filter(function(g) {
           return !bekend[g.date + "|" + g.startMin];
         });
-        var feest = (res.holidays || []).slice();
+        const feest = (res.holidays || []).slice();
         (r.result.holidays || []).forEach(function(h) {
           if (!feest.some(function(x) {
             return x.date === h.date;
@@ -3894,7 +3894,7 @@
       }, totYmd, false, false, van, gekozenDagen(), MEER_MAX);
     }
     function opGekozenDag(date) {
-      var a = gekozenDagen();
+      const a = gekozenDagen();
       return !a || a.indexOf(datumUitYmd(date).getDay()) >= 0;
     }
     function metDagen(res) {
@@ -3909,11 +3909,11 @@
       return ctx.plan.dagen && ctx.plan.dagen.length && ctx.plan.dagen.length < 5 ? ctx.plan.dagen.slice() : null;
     }
     function wisselMoment(date, startMin) {
-      var i = momentIndex(date, startMin);
+      const i = momentIndex(date, startMin);
       if (i >= 0) BEWAARD.momenten.splice(i, 1);
       else if (!fAan("plannerCopies")) BEWAARD.momenten = [{ date, startMin }];
       else {
-        var duur = ctx.plan.minutes;
+        const duur = ctx.plan.minutes;
         BEWAARD.momenten = BEWAARD.momenten.filter(function(m) {
           return !(m.date === date && m.startMin < startMin + duur && m.startMin + duur > startMin);
         });
@@ -3926,8 +3926,8 @@
       BEWAARD.kopie = null;
     }
     function eigenVinkje(m, tekst) {
-      var lab = el("label", { display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", color: T.ink, cursor: "pointer", userSelect: "none" });
-      var cb = document.createElement("input");
+      const lab = el("label", { display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", color: T.ink, cursor: "pointer", userSelect: "none" });
+      const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = !!m.eigen;
       cb.setAttribute("data-eigen", m.date + " " + hm(m.startMin));
@@ -3944,16 +3944,16 @@
       return lab;
     }
     function maakOpMomenten(fout) {
-      var ms = BEWAARD.momenten;
+      const ms = BEWAARD.momenten;
       if (!ms.length || !actions.onNewEvent) return;
-      var eerste = ms[0];
-      var zelfde = ms.slice(1).filter(function(m) {
+      const eerste = ms[0];
+      const zelfde = ms.slice(1).filter(function(m) {
         return !m.eigen;
       });
-      var eigen = ms.slice(1).filter(function(m) {
+      const eigen = ms.slice(1).filter(function(m) {
         return m.eigen;
       });
-      var tijd = function(m) {
+      const tijd = function(m) {
         return { date: m.date, time: hm(m.startMin) };
       };
       actions.onNewEvent({
@@ -3969,8 +3969,8 @@
       });
     }
     function momentenBalk() {
-      var n = BEWAARD.momenten.length;
-      var balk = el("div", {
+      const n = BEWAARD.momenten.length;
+      const balk = el("div", {
         background: "#fff",
         padding: "10px 12px 12px",
         borderTop: "1px solid " + T.line,
@@ -3978,12 +3978,12 @@
       });
       balk.setAttribute("data-selectie", String(n));
       if (BEWAARD.balkOpen) {
-        var lijst2 = el("div", { display: "flex", flexDirection: "column", margin: "0 0 6px" });
+        const lijst2 = el("div", { display: "flex", flexDirection: "column", margin: "0 0 6px" });
         BEWAARD.momenten.forEach(function(m, i) {
-          var rij = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: T.ink, minHeight: "30px", borderBottom: "1px solid " + T.lineSoft });
+          const rij = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: T.ink, minHeight: "30px", borderBottom: "1px solid " + T.lineSoft });
           rij.appendChild(el("span", { flex: "0 0 74px", fontWeight: "600" }, dayLabel(m.date)));
           rij.appendChild(el("span", { flex: "0 0 auto", fontVariantNumeric: "tabular-nums" }, hm(m.startMin) + " tot " + hm(m.startMin + ctx.plan.minutes)));
-          var vink = i === 0 || ctx.kanDirect() ? el("span", { flex: "1 1 auto" }) : eigenVinkje(m, "Apart formulier");
+          const vink = i === 0 || ctx.kanDirect() ? el("span", { flex: "1 1 auto" }) : eigenVinkje(m, "Apart formulier");
           if (i > 0) {
             vink.style.flex = "1 1 auto";
             vink.style.justifyContent = "flex-end";
@@ -3991,7 +3991,7 @@
             vink.style.fontSize = "12px";
           }
           rij.appendChild(vink);
-          var weg = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 6px", borderRadius: "6px" }, "×");
+          const weg = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 6px", borderRadius: "6px" }, "×");
           weg.type = "button";
           weg.title = "Uit selectie halen";
           weg.setAttribute("aria-label", "Uit selectie halen: " + dayLabel(m.date) + " " + hm(m.startMin));
@@ -4004,7 +4004,7 @@
           lijst2.appendChild(rij);
         });
         balk.appendChild(lijst2);
-        var wis = el("button", { display: "block", margin: "0 0 8px auto", border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", font: "400 12px " + FONT, textDecoration: "underline", padding: "2px 0" }, "Alles wissen");
+        const wis = el("button", { display: "block", margin: "0 0 8px auto", border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", font: "400 12px " + FONT, textDecoration: "underline", padding: "2px 0" }, "Alles wissen");
         wis.type = "button";
         wis.addEventListener("click", function() {
           BEWAARD.momenten = [];
@@ -4014,8 +4014,8 @@
         });
         balk.appendChild(wis);
       }
-      var rij2 = el("div", { display: "flex", alignItems: "center", gap: "10px" });
-      var teller = el("button", { display: "flex", alignItems: "center", gap: "6px", border: "0", background: "transparent", cursor: "pointer", padding: "0", font: "700 13px " + FONT, color: T.ink, whiteSpace: "nowrap" });
+      const rij2 = el("div", { display: "flex", alignItems: "center", gap: "10px" });
+      const teller = el("button", { display: "flex", alignItems: "center", gap: "6px", border: "0", background: "transparent", cursor: "pointer", padding: "0", font: "700 13px " + FONT, color: T.ink, whiteSpace: "nowrap" });
       teller.type = "button";
       teller.setAttribute("aria-expanded", BEWAARD.balkOpen ? "true" : "false");
       teller.setAttribute("data-teller", "");
@@ -4027,9 +4027,9 @@
         renderPagina();
       });
       rij2.appendChild(teller);
-      var foutHost = el("div");
-      var knop = primaryBtn(n > 1 ? "Afspraak maken op " + n + " momenten" : "Afspraak maken", function() {
-        var viaForm = function() {
+      const foutHost = el("div");
+      const knop = primaryBtn(n > 1 ? "Afspraak maken op " + n + " momenten" : "Afspraak maken", function() {
+        const viaForm = function() {
           maakOpMomenten(function(f) {
             foutHost.innerHTML = "";
             foutHost.appendChild(noteBox(f, "bad"));
@@ -4042,7 +4042,7 @@
         viaForm();
       });
       Object.assign(knop.style, { marginTop: "0", flex: "1 1 auto", width: "auto" });
-      var aantalEigen = BEWAARD.momenten.filter(function(m) {
+      const aantalEigen = BEWAARD.momenten.filter(function(m) {
         return m.eigen;
       }).length;
       if (ctx.kanDirect()) knop.title = "Kies cliënt(en), afspraaktype en uursoort; de hulp maakt " + (n > 1 ? "de afspraken" : "de afspraak") + " meteen in ONS.";
@@ -4053,8 +4053,8 @@
       return balk;
     }
     function agendasGewijzigd(oud, nieuw) {
-      var nOud = oud.split(",").length, nNieuw = nieuw.split(",").length;
-      var bezig = BEWAARD.momenten.length > 0 || ctx.pagina === "maken" && BEWAARD.maak && !BEWAARD.maak.uitslag;
+      const nOud = oud.split(",").length, nNieuw = nieuw.split(",").length;
+      const bezig = BEWAARD.momenten.length > 0 || ctx.pagina === "maken" && BEWAARD.maak && !BEWAARD.maak.uitslag;
       if (bezig) {
         BEWAARD.agendaMelding = { meer: nNieuw > nOud, minder: nNieuw < nOud, aantal: nNieuw };
         if (ctx.pagina === "plan" || ctx.pagina === "maken") renderPagina();
@@ -4073,15 +4073,15 @@
       }
     }
     function agendaMeldingBlok() {
-      var m = BEWAARD.agendaMelding;
+      const m = BEWAARD.agendaMelding;
       if (!m) return null;
-      var box = el("div", { border: "1px solid #f0d6a8", background: "#fdf3e2", borderRadius: "12px", padding: "10px 12px", margin: "0 0 10px" });
+      const box = el("div", { border: "1px solid #f0d6a8", background: "#fdf3e2", borderRadius: "12px", padding: "10px 12px", margin: "0 0 10px" });
       box.setAttribute("data-agenda-melding", "");
-      var wat = m.meer ? "Er is een agenda geopend" : m.minder ? "Er is een agenda gesloten" : "Er staan andere agenda’s open";
+      const wat = m.meer ? "Er is een agenda geopend" : m.minder ? "Er is een agenda gesloten" : "Er staan andere agenda’s open";
       box.appendChild(el("div", { fontWeight: "700", fontSize: "13px", color: T.warn }, wat + (m.aantal > 1 ? " (nu " + m.aantal + " agenda’s)." : ".")));
       box.appendChild(el("div", { fontSize: "12px", color: T.ink, margin: "2px 0 8px" }, "Je gekozen momenten zijn gezocht met de vorige agenda’s. Opnieuw beginnen zoekt tijd die nu voor iedereen vrij is."));
-      var rij = el("div", { display: "flex", gap: "8px" });
-      var opnieuw = primaryBtn("Opnieuw beginnen", function() {
+      const rij = el("div", { display: "flex", gap: "8px" });
+      const opnieuw = primaryBtn("Opnieuw beginnen", function() {
         BEWAARD.momenten = [];
         BEWAARD.balkOpen = false;
         BEWAARD.maak = null;
@@ -4093,7 +4093,7 @@
       });
       Object.assign(opnieuw.style, { marginTop: "0", flex: "1 1 0" });
       opnieuw.setAttribute("data-agenda-opnieuw", "");
-      var negeer = secondaryBtn("Negeren", function() {
+      const negeer = secondaryBtn("Negeren", function() {
         BEWAARD.agendaMelding = null;
         renderPagina();
       });
@@ -4105,18 +4105,18 @@
       return box;
     }
     function pagePlan() {
-      var planBox = el("div");
-      var melding = agendaMeldingBlok();
+      const planBox = el("div");
+      const melding = agendaMeldingBlok();
       if (melding) planBox.appendChild(melding);
-      var meer = ctx.state && ctx.state.inviteeCount > 1 ? ctx.state.inviteeCount : 0;
+      const meer = ctx.state && ctx.state.inviteeCount > 1 ? ctx.state.inviteeCount : 0;
       if (meer) {
         planBox.appendChild(noteBox("Er staan " + meer + " agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.", "ok"));
         planBox.lastChild.style.margin = "0 0 10px";
       }
-      var seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "10px" });
+      const seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "10px" });
       [["lijst", "Lijst"], ["raster", "Weekplanning"]].forEach(function(o) {
-        var aan = (ctx.plan.weergave || "lijst") === o[0];
-        var b = el("button", {
+        const aan = (ctx.plan.weergave || "lijst") === o[0];
+        const b = el("button", {
           flex: "1 1 0",
           border: "0",
           borderRadius: "8px",
@@ -4137,25 +4137,25 @@
         seg.appendChild(b);
       });
       planBox.appendChild(seg);
-      var opnieuw = function() {
+      const opnieuw = function() {
         ctx.plan.result = null;
         ctx.plan.limit = PLAN_STAP;
         startPlan();
       };
-      var inst = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "0 12px" });
+      const inst = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "0 12px" });
       inst.setAttribute("data-plan-instellingen", "");
-      var instRij = function(label, keuzes) {
-        var r = el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "46px", borderTop: inst.firstChild ? "1px solid " + T.line : "0" });
+      const instRij = function(label, keuzes) {
+        const r = el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "46px", borderTop: inst.firstChild ? "1px solid " + T.line : "0" });
         r.appendChild(el("span", { flex: "0 0 52px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, label));
-        var k = el("div", { display: "flex", gap: "5px", flex: "1 1 auto", minWidth: "0" });
+        const k = el("div", { display: "flex", gap: "5px", flex: "1 1 auto", minWidth: "0" });
         keuzes.forEach(function(c) {
           k.appendChild(c);
         });
         r.appendChild(k);
         inst.appendChild(r);
       };
-      var keuze = function(tekst, voluit, aan, fn, attr) {
-        var c = chipKnop(tekst, aan, fn, { flex: "1 1 0", minWidth: "0", height: "30px", fontSize: "12.5px", border: "1px solid " + (aan ? T.brand : T.line) });
+      const keuze = function(tekst, voluit, aan, fn, attr) {
+        const c = chipKnop(tekst, aan, fn, { flex: "1 1 0", minWidth: "0", height: "30px", fontSize: "12.5px", border: "1px solid " + (aan ? T.brand : T.line) });
         c.setAttribute(attr[0], attr[1]);
         c.setAttribute("aria-pressed", aan ? "true" : "false");
         c.setAttribute("aria-label", voluit);
@@ -4169,7 +4169,7 @@
         }, ["data-plan-duur", String(d[0])]);
       }));
       if ((ctx.plan.weergave || "lijst") === "lijst") {
-        var per = [[1, "1 wk", "1 week"], [2, "2 wk", "2 weken"], [4, "4 wk", "4 weken"]].map(function(w) {
+        const per = [[1, "1 wk", "1 week"], [2, "2 wk", "2 weken"], [4, "4 wk", "4 weken"]].map(function(w) {
           return keuze(w[1], w[2], !ctx.plan.tot && !ctx.plan.totOpen && ctx.plan.weeks === w[0], function() {
             ctx.plan.weeks = w[0];
             ctx.plan.tot = "";
@@ -4177,8 +4177,8 @@
             opnieuw();
           }, ["data-plan-weken", String(w[0])]);
         });
-        var totDag = ctx.plan.tot ? dagLang2(ctx.plan.tot, true).replace(/^\S+ /, "") : "";
-        var tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, "$1"), ctx.plan.tot ? "Tot en met " + totDag : "Tot een datum", !!(ctx.plan.tot || ctx.plan.totOpen), function() {
+        const totDag = ctx.plan.tot ? dagLang2(ctx.plan.tot, true).replace(/^\S+ /, "") : "";
+        const tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, "$1"), ctx.plan.tot ? "Tot en met " + totDag : "Tot een datum", !!(ctx.plan.tot || ctx.plan.totOpen), function() {
           ctx.plan.totOpen = !ctx.plan.totOpen;
           renderPagina();
         }, ["data-plan-tot", ""]);
@@ -4190,11 +4190,11 @@
         per.push(tot);
         instRij("Vooruit", per);
       }
-      var gek = gekozenDagen() || [1, 2, 3, 4, 5];
+      const gek = gekozenDagen() || [1, 2, 3, 4, 5];
       if ((ctx.plan.weergave || "lijst") === "lijst") instRij("Dagen", ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"].map(function(naam, i) {
-        var wd = i + 1, aan = gek.indexOf(wd) >= 0;
-        var c = keuze(naam.slice(0, 2), naam, aan, function() {
-          var nieuw = aan ? gek.filter(function(x) {
+        const wd = i + 1, aan = gek.indexOf(wd) >= 0;
+        const c = keuze(naam.slice(0, 2), naam, aan, function() {
+          const nieuw = aan ? gek.filter(function(x) {
             return x !== wd;
           }) : gek.concat([wd]).sort();
           if (!nieuw.length) return;
@@ -4206,12 +4206,12 @@
       }));
       planBox.appendChild(inst);
       if ((ctx.plan.weergave || "lijst") === "lijst" && ctx.plan.totOpen) {
-        var kal = el("div", { margin: "8px 0 2px", padding: "10px", borderRadius: "12px", border: "1px solid " + T.line, background: "#fff", boxShadow: "0 10px 28px -14px rgba(32,20,15,.35)" });
+        const kal = el("div", { margin: "8px 0 2px", padding: "10px", borderRadius: "12px", border: "1px solid " + T.line, background: "#fff", boxShadow: "0 10px 28px -14px rgba(32,20,15,.35)" });
         kal.setAttribute("data-plan-kalender", "");
         kal.setAttribute("role", "dialog");
         kal.setAttribute("aria-label", "Zoek tot en met");
         kal.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, margin: "0 2px 6px" }, "Zoek tot en met"));
-        var maand = el("div");
+        const maand = el("div");
         maandKalender(maand, ctx.plan.tot, function(ymd2) {
           ctx.plan.tot = ymd2;
           ctx.plan.totOpen = false;
@@ -4227,7 +4227,7 @@
         });
         planBox.appendChild(kal);
       }
-      var uitslag = kopieUitslag();
+      const uitslag = kopieUitslag();
       if (ctx.plan.weergave === "raster") {
         if (uitslag) planBox.appendChild(uitslag);
         planBox.appendChild(planRaster());
@@ -4235,7 +4235,7 @@
       }
       if (ctx.plan.busy && !ctx.plan.meerBezig) {
         zorgVoorStijl();
-        var lb = laadBalk();
+        const lb = laadBalk();
         lb.style.marginTop = "10px";
         planBox.appendChild(lb);
       }
@@ -4246,7 +4246,7 @@
         }));
       }
       if (uitslag) planBox.appendChild(uitslag);
-      var res = metDagen(ctx.plan.result);
+      const res = metDagen(ctx.plan.result);
       if (!res && !ctx.plan.busy && !ctx.plan.error) planBox.appendChild(primaryBtn("Vrije tijd zoeken", function() {
         startPlan();
       }));
@@ -4265,14 +4265,14 @@
     }
     function meerKnop() {
       zorgVoorStijl();
-      var bezig = !!ctx.plan.meerBezig;
-      var b = secondaryBtn("", function() {
+      const bezig = !!ctx.plan.meerBezig;
+      const b = secondaryBtn("", function() {
         if (!ctx.plan.meerBezig) meerLaden(ctx.plan.result);
       });
       b.textContent = "";
       Object.assign(b.style, { marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" });
       if (bezig) {
-        var cirkel = el("span", {
+        const cirkel = el("span", {
           width: "14px",
           height: "14px",
           borderRadius: "50%",
@@ -4294,18 +4294,18 @@
     }
     ctx.onsGezien = {};
     function vraagOns(date, startMin, duur, cb) {
-      var k = date + "|" + startMin + "|" + duur, c = ctx.onsGezien[k];
+      const k = date + "|" + startMin + "|" + duur, c = ctx.onsGezien[k];
       if (c && Date.now() - c.ts < ONS_TTL) {
         cb(c.overlap);
         return;
       }
       actions.onSlotCheck({ date, startMin, minutes: duur }, function(r) {
-        var klaar = r && r.status === "ready";
+        const klaar = r && r.status === "ready";
         if (klaar) ctx.onsGezien[k] = { ts: Date.now(), overlap: r.overlap };
         cb(klaar ? r.overlap : null);
       });
     }
-    var onsTekenTimer = null;
+    let onsTekenTimer = null;
     function onsTekenen() {
       if (onsTekenTimer) return;
       onsTekenTimer = setTimeout(function() {
@@ -4315,13 +4315,13 @@
     }
     function nakijkenBijOns(gaps, duur, status) {
       if (status !== "ready" || !actions.onSlotCheck || !(duur > 0)) return;
-      var rij = (gaps || []).slice(0, ONS_NAKIJK_MAX).filter(function(g) {
+      const rij = (gaps || []).slice(0, ONS_NAKIJK_MAX).filter(function(g) {
         return g.ons === void 0;
       });
-      var bezig = 0;
+      let bezig = 0;
       (function volgende() {
         while (bezig < 3 && rij.length) {
-          var g = rij.shift();
+          const g = rij.shift();
           bezig++;
           (function(g2) {
             vraagOns(g2.date, g2.startMin, duur, function(o) {
@@ -4335,9 +4335,9 @@
       })();
     }
     function tikMoment(date, m, duur) {
-      var aan = momentIndex(date, m) < 0;
+      const aan = momentIndex(date, m) < 0;
       wisselMoment(date, m);
-      var mo = BEWAARD.momenten[momentIndex(date, m)];
+      const mo = BEWAARD.momenten[momentIndex(date, m)];
       if (aan && mo && actions.onSlotCheck) {
         vraagOns(date, m, duur, function(o) {
           mo.ons = o;
@@ -4348,26 +4348,26 @@
       }
       renderPagina();
     }
-    var feestStart = {};
+    const feestStart = {};
     function animeerFeestdag(ic, naam, sleutel, houder) {
       if (!ic.animate) return;
-      var rustig = false;
+      let rustig = false;
       try {
         rustig = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       } catch (e) {
       }
       if (rustig) return;
-      var a = feestdagAnimatie(naam);
+      const a = feestdagAnimatie(naam);
       ic.style.transformOrigin = a.origin;
       ic.style.transformBox = "fill-box";
       ic.setAttribute("data-feestdag-animatie", "");
-      var speel = function(vanaf) {
+      const speel = function(vanaf) {
         try {
           ic.animate(a.frames, { duration: a.duur, delay: -(vanaf || 0) + (vanaf ? 0 : 250), easing: "ease-in-out" });
         } catch (e) {
         }
       };
-      var nu = Date.now();
+      const nu = Date.now();
       if (!feestStart[sleutel]) {
         feestStart[sleutel] = nu;
         speel(0);
@@ -4377,25 +4377,25 @@
       });
     }
     function feestdagRegel(h) {
-      var st = feestdagStijl(h.name);
-      var r = el("div", { display: "flex", alignItems: "center", gap: "10px", borderRadius: "10px", padding: "8px 10px", margin: "14px 0 6px", background: st.achtergrond, color: st.ink });
+      const st = feestdagStijl(h.name);
+      const r = el("div", { display: "flex", alignItems: "center", gap: "10px", borderRadius: "10px", padding: "8px 10px", margin: "14px 0 6px", background: st.achtergrond, color: st.ink });
       r.setAttribute("data-feestdag", h.date);
       r.setAttribute("data-feestdag-stijl", st.sleutel);
-      var ic = feestdagIcoon(document, h.name);
+      const ic = feestdagIcoon(document, h.name);
       ic.setAttribute("width", "32");
       ic.setAttribute("height", "32");
       ic.style.flex = "0 0 auto";
       r.appendChild(ic);
       animeerFeestdag(ic, h.name, "regel|" + h.date, r);
-      var t = el("div", { minWidth: "0" });
+      const t = el("div", { minWidth: "0" });
       t.appendChild(el("div", { fontWeight: "700", fontSize: "13.5px" }, dagLang2(h.date)));
       t.appendChild(el("div", { fontSize: "11.5px", opacity: ".9" }, h.name + ", geen tijden"));
       r.appendChild(t);
       return r;
     }
     function feestdagKolom(h, hoog) {
-      var st = feestdagStijl(h.name);
-      var k = el("div", {
+      const st = feestdagStijl(h.name);
+      const k = el("div", {
         position: "relative",
         height: hoog + "px",
         borderRadius: "6px",
@@ -4412,24 +4412,24 @@
       k.setAttribute("data-feestdag-stijl", st.sleutel);
       k.title = h.name;
       if (st.slinger) {
-        var sl = feestdagSlinger(document);
+        const sl = feestdagSlinger(document);
         Object.assign(sl.style, { position: "absolute", top: "0", left: "0", width: "100%", height: "10px" });
         k.appendChild(sl);
       }
-      var ic = feestdagIcoon(document, h.name);
+      const ic = feestdagIcoon(document, h.name);
       Object.assign(ic.style, { width: "78%", maxWidth: "44px", marginTop: "14px", flex: "0 0 auto", filter: "drop-shadow(0 2px 2px rgba(0,0,0,.12))" });
       k.appendChild(ic);
       animeerFeestdag(ic, h.name, "kolom|" + h.date + "|" + ctx.plan.rasterWeek, k);
-      var nm = el("div", { writingMode: "vertical-rl", transform: "rotate(180deg)", fontWeight: "800", fontSize: "13px", letterSpacing: ".3px", margin: "12px 0 12px", flex: "1 1 auto", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }, h.name);
+      const nm = el("div", { writingMode: "vertical-rl", transform: "rotate(180deg)", fontWeight: "800", fontSize: "13px", letterSpacing: ".3px", margin: "12px 0 12px", flex: "1 1 auto", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden" }, h.name);
       k.appendChild(nm);
       return k;
     }
     function planLijst(res) {
-      var box = el("div");
-      var duur = res.minutes, d = dagenVan(res);
+      const box = el("div");
+      const duur = res.minutes, d = dagenVan(res);
       ctx.plan.open = ctx.plan.open || {};
-      var feest = feestdagPer(res);
-      var alleDagen = d.dagen.concat(Object.keys(feest).filter(function(k) {
+      const feest = feestdagPer(res);
+      const alleDagen = d.dagen.concat(Object.keys(feest).filter(function(k) {
         return !d.per[k];
       })).sort();
       alleDagen.forEach(function(date) {
@@ -4437,16 +4437,16 @@
           box.appendChild(feestdagRegel(feest[date]));
           return;
         }
-        var gaps = d.per[date];
-        var kop = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", margin: "14px 0 6px", paddingBottom: "5px", borderBottom: "1px solid " + T.line });
-        var kopTekst = el("div", { flex: "1 1 auto", minWidth: "0" });
+        const gaps = d.per[date];
+        const kop = el("div", { display: "flex", alignItems: "flex-end", gap: "8px", margin: "14px 0 6px", paddingBottom: "5px", borderBottom: "1px solid " + T.line });
+        const kopTekst = el("div", { flex: "1 1 auto", minWidth: "0" });
         kopTekst.appendChild(el("div", { fontWeight: "700", fontSize: "13.5px", color: T.ink }, dagLang2(date)));
-        var vrij = gaps.map(function(g) {
+        const vrij = gaps.map(function(g) {
           return vanTot(g.startMin, g.endMin);
         });
         kopTekst.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft }, "Vrij " + (vrij.length > 1 ? vrij.slice(0, -1).join(", ") + " en " + vrij[vrij.length - 1] : vrij[0])));
         kop.appendChild(kopTekst);
-        var naar = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 11.5px " + FONT, padding: "0", whiteSpace: "nowrap" }, "Naar dag");
+        const naar = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 11.5px " + FONT, padding: "0", whiteSpace: "nowrap" }, "Naar dag");
         naar.type = "button";
         naar.title = "Deze dag openen in de agenda";
         naar.addEventListener("click", function() {
@@ -4454,22 +4454,22 @@
         });
         kop.appendChild(naar);
         box.appendChild(kop);
-        var tijden = [];
+        const tijden = [];
         gaps.forEach(function(g) {
-          for (var m = g.startMin; m + duur <= g.endMin; m += 15) tijden.push({ g, m });
+          for (let m = g.startMin; m + duur <= g.endMin; m += 15) tijden.push({ g, m });
         });
-        var alle = ctx.plan.open[date];
-        var zicht = tijden.filter(function(t, i) {
+        const alle = ctx.plan.open[date];
+        const zicht = tijden.filter(function(t, i) {
           return alle || i < TOON_TIJDEN || momentIndex(date, t.m) >= 0;
         });
-        var rij = el("div", { display: "flex", flexWrap: "wrap", gap: "5px" });
-        var meldingen = [];
+        const rij = el("div", { display: "flex", flexWrap: "wrap", gap: "5px" });
+        const meldingen = [];
         zicht.forEach(function(t) {
-          var gek = momentIndex(date, t.m) >= 0;
-          var mo = gek ? BEWAARD.momenten[momentIndex(date, t.m)] : null;
-          var resIn = reserveringenIn(t.g, t.m, duur);
-          var onsOverlap = mo && mo.ons === true || !gek && t.m === t.g.startMin && t.g.ons === true;
-          var c = chipKnop(
+          const gek = momentIndex(date, t.m) >= 0;
+          const mo = gek ? BEWAARD.momenten[momentIndex(date, t.m)] : null;
+          const resIn = reserveringenIn(t.g, t.m, duur);
+          const onsOverlap = mo && mo.ons === true || !gek && t.m === t.g.startMin && t.g.ons === true;
+          const c = chipKnop(
             hm(t.m),
             gek,
             function() {
@@ -4494,7 +4494,7 @@
         });
         box.appendChild(rij);
         if (tijden.length > zicht.length) {
-          var meer = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "Nog " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
+          const meer = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12px " + FONT, padding: "4px 0 0" }, "Nog " + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? " tijd" : " tijden"));
           meer.type = "button";
           meer.setAttribute("data-meer-tijden", date);
           meer.addEventListener("click", function() {
@@ -4504,21 +4504,21 @@
           box.appendChild(meer);
         }
         if (meldingen.length) {
-          var nb = noteBox("ONS meldt overlap op " + meldingen.join(", ") + ".", "warn");
+          const nb = noteBox("ONS meldt overlap op " + meldingen.join(", ") + ".", "warn");
           nb.style.margin = "6px 0 0";
           box.appendChild(nb);
         }
       });
-      var metRes = res.gaps.some(function(g) {
+      const metRes = res.gaps.some(function(g) {
         return (g.reservations || []).length;
       });
       if (metRes) box.appendChild(txt("help", "R = valt in een reservering (tijd vastgehouden voor een soort werk).", { margin: "10px 0 0", fontSize: "11.5px" }));
       return box;
     }
     function laadRaster() {
-      var vandaag = ymdVan(/* @__PURE__ */ new Date());
-      var ma = ctx.plan.rasterWeek, vr = ymdVan(new Date(datumUitYmd(ma).getFullYear(), datumUitYmd(ma).getMonth(), datumUitYmd(ma).getDate() + 4));
-      var rs = ctx.plan.raster = { key: ma + "|" + ctx.plan.minutes, busy: true, result: null, error: "" };
+      const vandaag = ymdVan(/* @__PURE__ */ new Date());
+      const ma = ctx.plan.rasterWeek, vr = ymdVan(new Date(datumUitYmd(ma).getFullYear(), datumUitYmd(ma).getMonth(), datumUitYmd(ma).getDate() + 4));
+      const rs = ctx.plan.raster = { key: ma + "|" + ctx.plan.minutes, busy: true, result: null, error: "" };
       if (vr < vandaag) {
         rs.busy = false;
         rs.result = { gaps: [] };
@@ -4535,41 +4535,41 @@
       }, vr, false, false, ma > vandaag ? ma : vandaag);
     }
     function planRaster() {
-      var box = el("div");
-      var huidigeWeek = ymdVan(maandag(ymdVan(/* @__PURE__ */ new Date())));
+      const box = el("div");
+      const huidigeWeek = ymdVan(maandag(ymdVan(/* @__PURE__ */ new Date())));
       if (!ctx.plan.rasterWeek || ctx.plan.rasterWeek < huidigeWeek) ctx.plan.rasterWeek = huidigeWeek;
-      var rs = ctx.plan.raster;
+      let rs = ctx.plan.raster;
       if ((!rs || rs.key !== ctx.plan.rasterWeek + "|" + ctx.plan.minutes) && actions.onFreeSlots) {
         laadRaster();
         rs = ctx.plan.raster;
       }
-      var res = rs && rs.result || { gaps: [] };
-      var duur = ctx.plan.minutes, d = dagenVan(res);
-      var ma = datumUitYmd(ctx.plan.rasterWeek);
-      var vr = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + 4);
-      var nav = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", margin: "12px 0 6px" });
-      var pijl = function(tekst, delta, attr) {
-        var verborgen = delta < 0 && ctx.plan.rasterWeek <= huidigeWeek;
-        var b = el("button", { border: "0", background: "transparent", color: T.ink, cursor: "pointer", font: "700 16px " + FONT, padding: "0 6px", visibility: verborgen ? "hidden" : "visible" }, tekst);
+      const res = rs && rs.result || { gaps: [] };
+      const duur = ctx.plan.minutes, d = dagenVan(res);
+      const ma = datumUitYmd(ctx.plan.rasterWeek);
+      const vr = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + 4);
+      const nav = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", margin: "12px 0 6px" });
+      const pijl = function(tekst, delta, attr) {
+        const verborgen = delta < 0 && ctx.plan.rasterWeek <= huidigeWeek;
+        const b = el("button", { border: "0", background: "transparent", color: T.ink, cursor: "pointer", font: "700 16px " + FONT, padding: "0 6px", visibility: verborgen ? "hidden" : "visible" }, tekst);
         b.type = "button";
         b.setAttribute(attr, "");
         b.setAttribute("aria-label", delta < 0 ? "Vorige week" : "Volgende week");
         b.addEventListener("click", function() {
-          var m = datumUitYmd(ctx.plan.rasterWeek);
+          const m = datumUitYmd(ctx.plan.rasterWeek);
           ctx.plan.rasterWeek = ymdVan(new Date(m.getFullYear(), m.getMonth(), m.getDate() + 7 * delta));
           renderPagina();
         });
         return b;
       };
       nav.appendChild(pijl("‹", -1, "data-week-terug"));
-      var titel = el("div", { textAlign: "center", flex: "1 1 auto", minWidth: "0" });
+      const titel = el("div", { textAlign: "center", flex: "1 1 auto", minWidth: "0" });
       titel.appendChild(el("div", { fontWeight: "700", fontSize: "13px", color: T.ink }, "Week " + isoWeek2(ctx.plan.rasterWeek)));
       titel.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft }, werkweekTekst(ctx.plan.rasterWeek, true)));
       titel.setAttribute("data-week-titel", "");
       nav.appendChild(titel);
       nav.appendChild(pijl("›", 1, "data-week-verder"));
-      var hier = ctx.plan.rasterWeek === huidigeWeek;
-      var vk = el("button", {
+      const hier = ctx.plan.rasterWeek === huidigeWeek;
+      const vk = el("button", {
         flex: "none",
         display: "inline-flex",
         alignItems: "center",
@@ -4589,7 +4589,7 @@
       vk.disabled = hier;
       vk.setAttribute("data-week-vandaag", "");
       vk.title = hier ? "Je bekijkt de week van vandaag" : "Naar de week van vandaag";
-      var kal = document.createElementNS(SVG_NS, "svg");
+      const kal = document.createElementNS(SVG_NS, "svg");
       kal.setAttribute("viewBox", "0 0 16 16");
       kal.setAttribute("width", "14");
       kal.setAttribute("height", "14");
@@ -4598,7 +4598,7 @@
       kal.setAttribute("stroke", "currentColor");
       kal.setAttribute("stroke-width", "1.6");
       [["rect", { x: "2", y: "3", width: "12", height: "11", rx: "2" }], ["path", { d: "M2 7h12M5 1.5v3M11 1.5v3" }], ["circle", { cx: "8", cy: "10.5", r: "1.4", fill: "currentColor", stroke: "none" }]].forEach(function(v) {
-        var n = document.createElementNS(SVG_NS, v[0]);
+        const n = document.createElementNS(SVG_NS, v[0]);
         Object.keys(v[1]).forEach(function(k) {
           n.setAttribute(k, v[1][k]);
         });
@@ -4616,28 +4616,28 @@
       box.appendChild(nav);
       if (rs && rs.busy) {
         zorgVoorStijl();
-        var lb = laadBalk();
+        const lb = laadBalk();
         lb.style.margin = "0 0 8px";
         box.appendChild(lb);
       }
       if (rs && rs.error) {
-        var fb = noteBox(rs.error, "bad");
+        const fb = noteBox(rs.error, "bad");
         fb.style.margin = "0 0 8px";
         box.appendChild(fb);
       }
-      var ws = Math.floor((res.windowStart != null ? res.windowStart : 480) / 60) * 60;
-      var we = Math.ceil((res.windowEnd != null ? res.windowEnd : 1020) / 60) * 60;
-      var PX = 0.75, hoog = (we - ws) * PX;
-      var raster = el("div", { display: "grid", gridTemplateColumns: "26px repeat(5, 1fr)", gap: "3px", fontSize: "11px" });
+      const ws = Math.floor((res.windowStart != null ? res.windowStart : 480) / 60) * 60;
+      const we = Math.ceil((res.windowEnd != null ? res.windowEnd : 1020) / 60) * 60;
+      const PX = 0.75, hoog = (we - ws) * PX;
+      const raster = el("div", { display: "grid", gridTemplateColumns: "26px repeat(5, 1fr)", gap: "3px", fontSize: "11px" });
       raster.setAttribute("data-raster", "");
       raster.appendChild(el("div"));
-      var feest = feestdagPer(res);
-      var nuD = /* @__PURE__ */ new Date(), vandaagYmd = ymdVan(nuD), nuMin = nuD.getHours() * 60 + nuD.getMinutes();
-      ["ma", "di", "wo", "do", "vr"].forEach(function(n, i2) {
-        var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
-        var fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
-        var isVandaag = ymdVan(dag) === vandaagYmd;
-        var hk = el("div", { textAlign: "center", color: isVandaag ? "#fff" : fst ? fst.kop : T.inkSoft, fontWeight: "600", lineHeight: "1.2" }, n);
+      const feest = feestdagPer(res);
+      const nuD = /* @__PURE__ */ new Date(), vandaagYmd = ymdVan(nuD), nuMin = nuD.getHours() * 60 + nuD.getMinutes();
+      ["ma", "di", "wo", "do", "vr"].forEach(function(n, i) {
+        const dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
+        const fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
+        const isVandaag = ymdVan(dag) === vandaagYmd;
+        const hk = el("div", { textAlign: "center", color: isVandaag ? "#fff" : fst ? fst.kop : T.inkSoft, fontWeight: "600", lineHeight: "1.2" }, n);
         hk.appendChild(el("div", { color: isVandaag ? "#fff" : fst ? fst.kop : T.ink, fontWeight: "700" }, String(dag.getDate())));
         if (isVandaag) {
           Object.assign(hk.style, { background: T.brand, borderRadius: "6px", padding: "1px 0" });
@@ -4650,21 +4650,21 @@
         }
         raster.appendChild(hk);
       });
-      var uren = el("div", { position: "relative", height: hoog + "px" });
-      for (var u = ws; u < we; u += 60) uren.appendChild(el("span", { position: "absolute", top: Math.max(0, (u - ws) * PX - 7) + "px", color: T.inkSoft, fontVariantNumeric: "tabular-nums", lineHeight: "14px" }, String(u / 60)));
+      const uren = el("div", { position: "relative", height: hoog + "px" });
+      for (let u = ws; u < we; u += 60) uren.appendChild(el("span", { position: "absolute", top: Math.max(0, (u - ws) * PX - 7) + "px", color: T.inkSoft, fontVariantNumeric: "tabular-nums", lineHeight: "14px" }, String(u / 60)));
       raster.appendChild(uren);
-      for (var i = 0; i < 5; i++) {
+      for (let i = 0; i < 5; i++) {
         (function(i2) {
-          var dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
-          var date = ymdVan(dag);
+          const dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i2);
+          const date = ymdVan(dag);
           if (feest[date]) {
             raster.appendChild(feestdagKolom(feest[date], hoog));
             return;
           }
-          var kol = el("div", { position: "relative", height: hoog + "px", borderRadius: "6px", background: "#ece7e5" });
+          const kol = el("div", { position: "relative", height: hoog + "px", borderRadius: "6px", background: "#ece7e5" });
           kol.setAttribute("data-raster-dag", date);
           (d.per[date] || []).forEach(function(g) {
-            var vrij = el("div", {
+            const vrij = el("div", {
               position: "absolute",
               left: "2px",
               right: "2px",
@@ -4677,15 +4677,15 @@
             });
             vrij.setAttribute("data-raster-vrij", hm(g.startMin) + "-" + hm(g.endMin));
             (g.reservations || []).forEach(function(r) {
-              var a = Math.max(r.startMin, g.startMin), b = Math.min(r.endMin, g.endMin);
+              const a = Math.max(r.startMin, g.startMin), b = Math.min(r.endMin, g.endMin);
               if (b <= a) return;
-              var rb = el("div", { position: "absolute", left: "0", right: "0", top: (a - g.startMin) * PX + "px", height: (b - a) * PX + "px", background: "#fdf3e2", color: "#8a5a00", fontSize: "9px", fontWeight: "800", padding: "1px 3px", boxSizing: "border-box", pointerEvents: "none" }, "R");
+              const rb = el("div", { position: "absolute", left: "0", right: "0", top: (a - g.startMin) * PX + "px", height: (b - a) * PX + "px", background: "#fdf3e2", color: "#8a5a00", fontSize: "9px", fontWeight: "800", padding: "1px 3px", boxSizing: "border-box", pointerEvents: "none" }, "R");
               rb.title = "Reservering: " + reserveringTekst([r]);
               vrij.appendChild(rb);
             });
-            for (var m = g.startMin; m + duur <= g.endMin; m += 15) {
+            for (let m = g.startMin; m + duur <= g.endMin; m += 15) {
               (function(m2) {
-                var s = el("button", { position: "absolute", left: "0", right: "0", top: (m2 - g.startMin) * PX + "px", height: 15 * PX + "px", border: "0", padding: "0", background: "transparent", cursor: "pointer" });
+                const s = el("button", { position: "absolute", left: "0", right: "0", top: (m2 - g.startMin) * PX + "px", height: 15 * PX + "px", border: "0", padding: "0", background: "transparent", cursor: "pointer" });
                 s.type = "button";
                 s.title = hm(m2) + " tot " + hm(m2 + duur) + " kiezen";
                 s.setAttribute("aria-label", dayLabel(date) + " " + hm(m2) + " kiezen");
@@ -4708,7 +4708,7 @@
           BEWAARD.momenten.filter(function(mo) {
             return mo.date === date;
           }).forEach(function(mo) {
-            var b = el("button", {
+            const b = el("button", {
               position: "absolute",
               left: "2px",
               right: "2px",
@@ -4733,7 +4733,7 @@
             kol.appendChild(b);
           });
           if (date === vandaagYmd && nuMin > ws) {
-            var voorbij = el("div", {
+            const voorbij = el("div", {
               position: "absolute",
               left: "0",
               right: "0",
@@ -4747,24 +4747,24 @@
             voorbij.setAttribute("data-raster-voorbij", "");
             kol.appendChild(voorbij);
             if (nuMin < we) {
-              var nuLijn = el("div", { position: "absolute", left: "-2px", right: "0", top: (nuMin - ws) * PX - 1 + "px", height: "2px", background: T.brand, pointerEvents: "none", zIndex: "3" });
+              const nuLijn = el("div", { position: "absolute", left: "-2px", right: "0", top: (nuMin - ws) * PX - 1 + "px", height: "2px", background: T.brand, pointerEvents: "none", zIndex: "3" });
               nuLijn.appendChild(el("i", { position: "absolute", left: "-3px", top: "-3px", width: "8px", height: "8px", borderRadius: "4px", background: T.brand }));
               nuLijn.setAttribute("data-raster-nu", hm(nuMin));
               nuLijn.title = "Nu " + hm(nuMin);
               kol.appendChild(nuLijn);
             }
           }
-          for (var uu = ws + 60; uu < we; uu += 60) kol.appendChild(el("div", { position: "absolute", left: "0", right: "0", top: (uu - ws) * PX + "px", height: "1px", background: "rgba(32,29,31,.16)", pointerEvents: "none", zIndex: "1" }));
+          for (let uu = ws + 60; uu < we; uu += 60) kol.appendChild(el("div", { position: "absolute", left: "0", right: "0", top: (uu - ws) * PX + "px", height: "1px", background: "rgba(32,29,31,.16)", pointerEvents: "none", zIndex: "1" }));
           if (!(d.per[date] || []).length && !(rs && rs.busy)) kol.appendChild(el("div", { position: "absolute", top: "4px", left: "0", right: "0", textAlign: "center", color: T.inkSoft, fontSize: "10px" }, date < ymdVan(/* @__PURE__ */ new Date()) ? "Voorbij" : "Bezet"));
           raster.appendChild(kol);
         })(i);
       }
       box.appendChild(raster);
-      var leg = el("div", { display: "flex", gap: "10px", flexWrap: "wrap", fontSize: "11px", color: T.inkSoft, marginTop: "8px" });
-      var legenda = [["#ece7e5", "Bezet"], ["#e6f4ec", "Vrij"], ["#fdf3e2", "Reservering"], [T.brand, "Gekozen"]];
+      const leg = el("div", { display: "flex", gap: "10px", flexWrap: "wrap", fontSize: "11px", color: T.inkSoft, marginTop: "8px" });
+      const legenda = [["#ece7e5", "Bezet"], ["#e6f4ec", "Vrij"], ["#fdf3e2", "Reservering"], [T.brand, "Gekozen"]];
       if (Object.keys(feest).length) legenda.push(["linear-gradient(135deg,#ff9a33,#cfe8fd,#24684a)", "Feestdag"]);
       legenda.forEach(function(l) {
-        var s = el("span");
+        const s = el("span");
         s.appendChild(el("i", { display: "inline-block", width: "10px", height: "10px", borderRadius: "3px", background: l[0], marginRight: "4px", verticalAlign: "-1px" }));
         s.appendChild(document.createTextNode(l[1]));
         leg.appendChild(s);
@@ -4788,10 +4788,10 @@
     });
   }
   function dagKm(stops, afstand, thuisPc) {
-    var lijst2 = opVolgorde(stops).filter(function(s) {
+    const lijst2 = opVolgorde(stops).filter(function(s) {
       return s.pc;
     });
-    var tot = 0, vorige = thuisPc || "";
+    let tot = 0, vorige = thuisPc || "";
     lijst2.forEach(function(s) {
       if (vorige) tot += afstand(vorige, s.pc) || 0;
       vorige = s.pc;
@@ -4801,26 +4801,26 @@
   }
   function kandidaten(gaps, duur, stap) {
     stap = stap || 15;
-    var uit = [];
+    const uit = [];
     (gaps || []).forEach(function(g) {
-      for (var t = g.startMin; t + duur <= g.endMin; t += stap) uit.push({ date: g.date, startMin: t, gap: g });
+      for (let t = g.startMin; t + duur <= g.endMin; t += stap) uit.push({ date: g.date, startMin: t, gap: g });
     });
     return uit;
   }
   function planMany(verzoeken, gaps, visits, opts) {
     opts = opts || {};
-    var afstand = opts.afstand || function() {
+    const afstand = opts.afstand || function() {
       return null;
     };
-    var thuis = opts.thuisPc || "";
-    var reis = opts.reistijd || function(a, b) {
+    const thuis = opts.thuisPc || "";
+    const reis = opts.reistijd || function(a, b) {
       return reisMin(afstand(a, b));
     };
-    var nieuweDag = opts.nieuweDag != null ? opts.nieuweDag : NIEUWE_DAG_KM;
-    var maxPerDag = opts.maxPerDag > 0 ? opts.maxPerDag : Infinity;
-    var stap = opts.stap || 15;
+    const nieuweDag = opts.nieuweDag != null ? opts.nieuweDag : NIEUWE_DAG_KM;
+    const maxPerDag = opts.maxPerDag > 0 ? opts.maxPerDag : Infinity;
+    const stap = opts.stap || 15;
     visits = visits || {};
-    var dagIndex = {};
+    const dagIndex = {};
     (gaps || []).map(function(g) {
       return g.date;
     }).filter(function(d, i, a) {
@@ -4828,12 +4828,12 @@
     }).sort().forEach(function(d, i) {
       dagIndex[d] = i;
     });
-    var plek2 = [];
-    var kand = verzoeken.map(function(v) {
+    const plek2 = [];
+    const kand = verzoeken.map(function(v) {
       return kandidaten(gaps, v.minutes, stap);
     });
     function nieuwOp(date, behalve) {
-      var uit = [];
+      const uit = [];
       plek2.forEach(function(p, i) {
         if (p && p.date === date && i !== behalve) uit.push({ startMin: p.startMin, endMin: p.startMin + verzoeken[i].minutes, pc: verzoeken[i].pc, nieuw: true });
       });
@@ -4845,14 +4845,14 @@
       });
     }
     function past(i, date, t, andere) {
-      var duur = verzoeken[i].minutes, eind = t + duur;
+      const duur = verzoeken[i].minutes, eind = t + duur;
       if (andere.length >= maxPerDag) return false;
-      for (var k = 0; k < andere.length; k++) {
+      for (let k = 0; k < andere.length; k++) {
         if (andere[k].startMin < eind && andere[k].endMin > t) return false;
       }
-      var alle = opVolgorde(vast(date).concat(andere).concat([{ startMin: t, endMin: eind, pc: verzoeken[i].pc, nieuw: true, zelf: true }]));
-      for (var j = 1; j < alle.length; j++) {
-        var a = alle[j - 1], b = alle[j];
+      const alle = opVolgorde(vast(date).concat(andere).concat([{ startMin: t, endMin: eind, pc: verzoeken[i].pc, nieuw: true, zelf: true }]));
+      for (let j = 1; j < alle.length; j++) {
+        const a = alle[j - 1], b = alle[j];
         if (b.startMin < a.endMin) {
           if (a.nieuw || b.nieuw) return false;
           continue;
@@ -4863,35 +4863,35 @@
       return true;
     }
     function kosten(i, date, t, andere) {
-      var basis = vast(date).concat(andere);
-      var met = basis.concat([{ startMin: t, endMin: t + verzoeken[i].minutes, pc: verzoeken[i].pc }]);
-      var extra = dagKm(met, afstand, thuis) - dagKm(basis, afstand, thuis);
-      var leeg2 = !basis.some(function(s) {
+      const basis = vast(date).concat(andere);
+      const met = basis.concat([{ startMin: t, endMin: t + verzoeken[i].minutes, pc: verzoeken[i].pc }]);
+      let extra = dagKm(met, afstand, thuis) - dagKm(basis, afstand, thuis);
+      const leeg2 = !basis.some(function(s) {
         return s.pc;
       });
       if (leeg2 && !thuis) extra += nieuweDag;
       return extra + (dagIndex[date] || 0) * 0.01 + t * 1e-5;
     }
     function beste(i) {
-      var best = null;
-      var perDag = {};
+      let best = null;
+      const perDag = {};
       kand[i].forEach(function(c) {
-        var andere = perDag[c.date] || (perDag[c.date] = nieuwOp(c.date, i));
+        const andere = perDag[c.date] || (perDag[c.date] = nieuwOp(c.date, i));
         if (!past(i, c.date, c.startMin, andere)) return;
-        var k = kosten(i, c.date, c.startMin, andere);
+        const k = kosten(i, c.date, c.startMin, andere);
         if (!best || k < best.k) best = { date: c.date, startMin: c.startMin, k };
       });
       return best;
     }
     function totaal() {
-      var dagen2 = {};
+      const dagen2 = {};
       plek2.forEach(function(p) {
         if (p) dagen2[p.date] = true;
       });
-      var som = 0;
+      let som = 0;
       Object.keys(dagen2).forEach(function(d) {
-        var nieuw = nieuwOp(d, -1);
-        var met = vast(d).concat(nieuw);
+        const nieuw = nieuwOp(d, -1);
+        const met = vast(d).concat(nieuw);
         som += dagKm(met, afstand, thuis) - dagKm(vast(d), afstand, thuis);
         if (!thuis && !vast(d).some(function(s) {
           return s.pc;
@@ -4903,7 +4903,7 @@
       });
       return som;
     }
-    var volgorde = verzoeken.map(function(_, i) {
+    const volgorde = verzoeken.map(function(_, i) {
       return i;
     }).sort(function(a, b) {
       return verzoeken[b].minutes - verzoeken[a].minutes || a - b;
@@ -4912,15 +4912,15 @@
       plek2.push(null);
     });
     volgorde.forEach(function(i) {
-      var b = beste(i);
+      const b = beste(i);
       plek2[i] = b ? { date: b.date, startMin: b.startMin } : null;
     });
-    for (var ronde = 0; ronde < 6; ronde++) {
-      var beter = false;
+    for (let ronde = 0; ronde < 6; ronde++) {
+      let beter = false;
       volgorde.forEach(function(i) {
-        var oud = plek2[i], voor = totaal();
+        const oud = plek2[i], voor = totaal();
         plek2[i] = null;
-        var b = beste(i);
+        const b = beste(i);
         if (!b) {
           plek2[i] = oud;
           return;
@@ -4930,14 +4930,14 @@
           if (oud) beter = true;
         } else plek2[i] = oud;
       });
-      for (var x = 0; x < verzoeken.length; x++) {
-        for (var y = x + 1; y < verzoeken.length; y++) {
-          var px = plek2[x], py = plek2[y];
+      for (let x = 0; x < verzoeken.length; x++) {
+        for (let y = x + 1; y < verzoeken.length; y++) {
+          const px = plek2[x], py = plek2[y];
           if (!px || !py || px.date === py.date && px.startMin === py.startMin) continue;
-          var voorRuil = totaal();
+          const voorRuil = totaal();
           plek2[x] = null;
           plek2[y] = null;
-          var ok = past(x, py.date, py.startMin, nieuwOp(py.date, x)) && kandOk(x, py);
+          let ok = past(x, py.date, py.startMin, nieuwOp(py.date, x)) && kandOk(x, py);
           if (ok) {
             plek2[x] = { date: py.date, startMin: py.startMin };
             ok = past(y, px.date, px.startMin, nieuwOp(px.date, y)) && kandOk(y, px);
@@ -4960,7 +4960,7 @@
         return c.date === p.date && c.startMin === p.startMin;
       });
     }
-    var placed = [], unplaced = [];
+    const placed = [], unplaced = [];
     plek2.forEach(function(p, i) {
       if (p) placed.push({ i, date: p.date, startMin: p.startMin, minutes: verzoeken[i].minutes, pc: verzoeken[i].pc });
       else unplaced.push(i);
@@ -4968,8 +4968,8 @@
     placed.sort(function(a, b) {
       return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin;
     });
-    var extraKm = 0;
-    var dagen = {};
+    let extraKm = 0;
+    const dagen = {};
     placed.forEach(function(p) {
       dagen[p.date] = true;
     });
@@ -4980,14 +4980,14 @@
   }
   function buren(placed, visits, thuisPc) {
     return placed.map(function(p) {
-      var stops = opVolgorde((visits[p.date] || []).concat(placed.filter(function(q) {
+      const stops = opVolgorde((visits[p.date] || []).concat(placed.filter(function(q) {
         return q.date === p.date;
       }).map(function(q) {
         return { startMin: q.startMin, endMin: q.startMin + q.minutes, pc: q.pc };
       }))).filter(function(s) {
         return s.pc;
       });
-      var idx = -1;
+      let idx = -1;
       stops.forEach(function(s, k) {
         if (s.startMin === p.startMin && s.pc === p.pc) idx = k;
       });
@@ -5001,13 +5001,13 @@
   }
   function extraKmVan(placed, visits, afstand, thuisPc) {
     visits = visits || {};
-    var dagen = {};
+    const dagen = {};
     (placed || []).forEach(function(p) {
       (dagen[p.date] = dagen[p.date] || []).push({ startMin: p.startMin, endMin: p.startMin + p.minutes, pc: p.pc });
     });
-    var som = 0;
+    let som = 0;
     Object.keys(dagen).forEach(function(d) {
-      var vast = (visits[d] || []).map(function(b) {
+      const vast = (visits[d] || []).map(function(b) {
         return { startMin: b.startMin, endMin: b.endMin, pc: b.pc };
       });
       som += dagKm(vast.concat(dagen[d]), afstand, thuisPc) - dagKm(vast, afstand, thuisPc);
@@ -5017,7 +5017,7 @@
 
   // src/sidepanel/geo.js
   function normPostcode(v) {
-    var m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ""));
+    const m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ""));
     return m ? m[1] + m[2].toUpperCase() : "";
   }
   function postProxy(proxy, pad, body, fetchFn) {
@@ -5050,35 +5050,35 @@
   }
   var paarCache = /* @__PURE__ */ Object.create(null);
   function roadMatrix(proxy, pcs, fetchFn) {
-    var lijst2 = pcs.filter(function(p, i) {
+    const lijst2 = pcs.filter(function(p, i) {
       return p && pcs.indexOf(p) === i && PC6.test(p);
     }).slice(0, 25);
-    var lees = function(a, b) {
+    const lees = function(a, b) {
       return a === b ? { m: 0, s: 0 } : paarCache[a + "|" + b] || null;
     };
-    var bekend = lijst2.every(function(a) {
+    const bekend = lijst2.every(function(a) {
       return lijst2.every(function(b) {
         return a === b || paarCache[a + "|" + b];
       });
     });
     if (!proxy || lijst2.length < 2 || bekend) return Promise.resolve(lees);
-    var vraag = proxy.key ? postGoogle(
+    const vraag = proxy.key ? postGoogle(
       proxy.key,
       "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
       "originIndex,destinationIndex,distanceMeters,duration,condition",
       { origins: lijst2.map(plek), destinations: lijst2.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
       fetchFn
     ).then(function(rijen) {
-      var pairs = {};
+      const pairs = {};
       (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
         if (e.condition !== "ROUTE_EXISTS" || e.originIndex == null || e.destinationIndex == null) return;
-        var a = lijst2[e.originIndex], b = lijst2[e.destinationIndex];
+        const a = lijst2[e.originIndex], b = lijst2[e.destinationIndex];
         if (a && b && a !== b) pairs[a + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
       });
       return { pairs };
     }) : postProxy(proxy, "/matrix", { pcs: lijst2 }, fetchFn);
     return vraag.then(function(j) {
-      var pairs = j && j.pairs || {};
+      const pairs = j && j.pairs || {};
       Object.keys(pairs).forEach(function(k) {
         paarCache[k] = pairs[k];
       });
@@ -5090,7 +5090,7 @@
     if (!PC6.test(origin) || !stops.every(function(s) {
       return PC6.test(s);
     })) return Promise.reject(new Error("Alleen postcodes"));
-    var adres = function(pc) {
+    const adres = function(pc) {
       return { address: pc + ", Nederland" };
     };
     return postGoogle(
@@ -5100,7 +5100,7 @@
       { origin: adres(origin), destination: adres(origin), intermediates: stops.map(adres), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE", optimizeWaypointOrder: true },
       fetchFn
     ).then(function(j) {
-      var route = j && j.routes && j.routes[0];
+      const route = j && j.routes && j.routes[0];
       if (!route) throw new Error("Geen route");
       return { order: Array.isArray(route.optimizedIntermediateWaypointIndex) ? route.optimizedIntermediateWaypointIndex : stops.map(function(_, i) {
         return i;
@@ -5122,12 +5122,12 @@
     }
   }
   function mapsUrls(adressen, origin, terug) {
-    var stops = (adressen || []).filter(Boolean);
+    let stops = (adressen || []).filter(Boolean);
     if (terug && origin) stops = stops.concat([origin]);
-    var uit = [], start = origin || "";
-    for (var i = 0; i < stops.length; i += 10) {
-      var deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
-      var q = ["api=1"];
+    let uit = [], start = origin || "";
+    for (let i = 0; i < stops.length; i += 10) {
+      const deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
+      const q = ["api=1"];
       if (start) q.push("origin=" + encodeURIComponent(start));
       q.push("destination=" + encodeURIComponent(dest));
       if (tussen.length) q.push("waypoints=" + tussen.map(encodeURIComponent).join("%7C"));
@@ -5138,12 +5138,12 @@
     return uit;
   }
   function embedUrl(key, adressen, origin) {
-    var stops = (adressen || []).filter(Boolean);
+    const stops = (adressen || []).filter(Boolean);
     if (!key || !stops.length) return "";
-    var start = origin || stops[0];
-    var rest = origin ? stops : stops.slice(1);
+    const start = origin || stops[0];
+    const rest = origin ? stops : stops.slice(1);
     if (!rest.length) return "https://www.google.com/maps/embed/v1/place?key=" + encodeURIComponent(key) + "&q=" + encodeURIComponent(start);
-    var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+    const dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
     return "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(key) + "&origin=" + encodeURIComponent(start) + "&destination=" + encodeURIComponent(dest) + (tussen.length ? "&waypoints=" + tussen.map(encodeURIComponent).join("%7C") : "") + "&mode=driving";
   }
 
@@ -5158,27 +5158,27 @@
     })[0];
   }
   function typeNaamVan(mk, id) {
-    var l = mk.labels.filter(function(x) {
+    const l = mk.labels.filter(function(x) {
       return String(x.id) === String(id);
     })[0];
     return l ? l.name : "";
   }
   function aanwezigRij(aan, attr, fn) {
-    var r = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "8px 0 6px", borderTop: "1px solid " + T.lineSoft });
+    const r = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "8px 0 6px", borderTop: "1px solid " + T.lineSoft });
     r.appendChild(el("span", { fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Cliënten zijn aanwezig"));
-    var sch = schakelaar(aan, attr[0], "Cliënten zijn aanwezig", fn);
+    const sch = schakelaar(aan, attr[0], "Cliënten zijn aanwezig", fn);
     sch.setAttribute(attr[0], attr[1] || "");
     r.appendChild(sch);
     return r;
   }
   function labelRij(label, inhoud) {
-    var r = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
+    const r = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
     r.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, label));
     r.appendChild(inhoud);
     return r;
   }
   function kaartKnop(icoon, tekst, kleur, vol, fn) {
-    var b = el("button", {
+    const b = el("button", {
       flex: "1 1 0",
       height: "30px",
       display: "inline-flex",
@@ -5200,7 +5200,7 @@
     return b;
   }
   function schakelaar(aan, attr, label, fn) {
-    var b = el("button", {
+    const b = el("button", {
       position: "relative",
       width: "38px",
       height: "22px",
@@ -5228,7 +5228,7 @@
     });
   }
   function ncNaam(mk) {
-    var t = (Array.isArray(mk.ncTypes) ? mk.ncTypes : []).filter(function(x) {
+    const t = (Array.isArray(mk.ncTypes) ? mk.ncTypes : []).filter(function(x) {
       return String(x.id) === String(mk.ncUursoort);
     })[0];
     return t ? t.name : "";
@@ -5239,28 +5239,28 @@
     return autoTitel(mk, it);
   }
   function autoTitel(mk, it) {
-    var namen = namenVan(mk, it);
-    var t = typeNaamVan(mk, it.labelId);
+    const namen = namenVan(mk, it);
+    const t = typeNaamVan(mk, it.labelId);
     return t && namen ? t + " " + namen : t || namen || "Afspraak";
   }
   function namenVan(mk, it) {
-    var n = clientsVan(mk, it).map(function(c) {
+    const n = clientsVan(mk, it).map(function(c) {
       return String(c.name || "").trim().split(/\s+/)[0];
     }).filter(Boolean);
     return n.length > 1 ? n.slice(0, -1).join(", ") + " en " + n[n.length - 1] : n[0] || "";
   }
   function selectEl(attr, opties, waarde, onChange, leeg2) {
-    var sel = document.createElement("select");
+    const sel = document.createElement("select");
     sel.setAttribute(attr[0], attr[1]);
     Object.assign(sel.style, { height: "34px", width: "100%", border: "1px solid " + T.line, borderRadius: "8px", padding: "0 8px", font: "400 13px " + FONT, color: T.ink, background: "#fff", boxSizing: "border-box" });
     if (leeg2) {
-      var o0 = document.createElement("option");
+      const o0 = document.createElement("option");
       o0.value = "";
       o0.textContent = leeg2;
       sel.appendChild(o0);
     }
     opties.forEach(function(o) {
-      var host2 = sel;
+      let host2 = sel;
       if (o.groep) {
         host2 = sel.querySelector('optgroup[label="' + o.groep + '"]');
         if (!host2) {
@@ -5269,7 +5269,7 @@
           sel.appendChild(host2);
         }
       }
-      var op = document.createElement("option");
+      const op = document.createElement("option");
       op.value = String(o.id);
       op.textContent = o.name;
       if (String(o.id) === String(waarde)) op.selected = true;
@@ -5281,7 +5281,7 @@
     return sel;
   }
   function labels(teksten, attr) {
-    var rij = el("span", { display: "flex", flexWrap: "nowrap", overflow: "hidden", gap: "4px", marginTop: "2px" });
+    const rij = el("span", { display: "flex", flexWrap: "nowrap", overflow: "hidden", gap: "4px", marginTop: "2px" });
     if (attr) rij.setAttribute(attr, "");
     teksten.filter(Boolean).forEach(function(t) {
       rij.appendChild(el("span", { fontSize: "10.5px", color: T.inkSoft, background: T.lineSoft, borderRadius: "5px", padding: "1px 5px", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontWeight: "400" }, t));
@@ -5293,7 +5293,7 @@
     return pc ? pc.slice(0, 4) + " " + pc.slice(4) : "";
   }
   function wegKnop(fn, label) {
-    var x = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 4px", borderRadius: "6px", flex: "0 0 auto" }, "×");
+    const x = el("button", { border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", fontSize: "16px", lineHeight: "1", padding: "2px 4px", borderRadius: "6px", flex: "0 0 auto" }, "×");
     x.type = "button";
     x.setAttribute("aria-label", label);
     x.addEventListener("click", fn);
@@ -5308,7 +5308,7 @@
   var ICON_POTLOOD = "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z";
   var ICON_PRULLENBAK = "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z";
   function pcVan(mk, it) {
-    var c = clientsVan(mk, it)[0];
+    const c = clientsVan(mk, it)[0];
     return c ? normPostcode(c.pc) : "";
   }
   function reisInvullen(mk, reis) {
@@ -5322,20 +5322,20 @@
   function maakAfspraakMaken(ctx) {
     const { actions, fAan, naarPagina, renderPagina, straksTekenen } = ctx;
     function clientZoeker(r, nr, naKiezen) {
-      var wrap = el("div", { flex: "1 1 auto", minWidth: "0" });
-      var veld = el("div", { position: "relative" });
-      var inp = inputEl("text", r.name || r.zoek, function() {
+      const wrap = el("div", { flex: "1 1 auto", minWidth: "0" });
+      const veld = el("div", { position: "relative" });
+      const inp = inputEl("text", r.name || r.zoek, function() {
       });
       inp.placeholder = "Naam cliënt";
       inp.setAttribute("data-client-zoek", String(nr));
       inp.setAttribute("autocomplete", "off");
       inp.style.width = "100%";
-      var lijst2 = el("div", { position: "absolute", left: "0", right: "0", top: "100%", zIndex: "5", background: "#fff", border: "1px solid " + T.line, borderRadius: "8px", boxShadow: "0 10px 24px -14px rgba(32,20,15,.45)", marginTop: "2px", display: "none", maxHeight: "220px", overflowY: "auto" });
+      const lijst2 = el("div", { position: "absolute", left: "0", right: "0", top: "100%", zIndex: "5", background: "#fff", border: "1px solid " + T.line, borderRadius: "8px", boxShadow: "0 10px 24px -14px rgba(32,20,15,.45)", marginTop: "2px", display: "none", maxHeight: "220px", overflowY: "auto" });
       lijst2.setAttribute("role", "listbox");
-      var timer = null, vraagNr = 0;
+      let timer = null, vraagNr = 0;
       function toon2() {
         lijst2.innerHTML = "";
-        var t = r.treffers;
+        const t = r.treffers;
         if (!t) {
           lijst2.style.display = "none";
           return;
@@ -5354,7 +5354,7 @@
           return;
         }
         t.lijst.forEach(function(c) {
-          var b = el("button", { display: "flex", flexDirection: "column", width: "100%", gap: "1px", border: "0", background: "#fff", padding: "7px 10px", cursor: "pointer", font: "400 13px " + FONT, color: T.ink, textAlign: "left" });
+          const b = el("button", { display: "flex", flexDirection: "column", width: "100%", gap: "1px", border: "0", background: "#fff", padding: "7px 10px", cursor: "pointer", font: "400 13px " + FONT, color: T.ink, textAlign: "left" });
           b.type = "button";
           b.setAttribute("role", "option");
           b.setAttribute("data-client-id", c.id);
@@ -5385,14 +5385,14 @@
       }
       function zoek(wacht) {
         clearTimeout(timer);
-        var term = inp.value.trim();
+        const term = inp.value.trim();
         if (term.length < 2 || !actions.onClientSearch) {
           r.treffers = null;
           toon2();
           return;
         }
         timer = setTimeout(function() {
-          var mijn = ++vraagNr;
+          const mijn = ++vraagNr;
           r.treffers = { zoekt: true, lijst: [] };
           toon2();
           actions.onClientSearch(term, function(res) {
@@ -5424,8 +5424,8 @@
       veld.appendChild(inp);
       veld.appendChild(lijst2);
       wrap.appendChild(veld);
-      var vink = el("label", { display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", fontSize: "12px", color: T.inkSoft, cursor: "pointer", userSelect: "none" });
-      var cb = document.createElement("input");
+      const vink = el("label", { display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", fontSize: "12px", color: T.inkSoft, cursor: "pointer", userSelect: "none" });
+      const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = !!r.uitZorg;
       cb.setAttribute("data-client-uit-zorg", String(nr));
@@ -5448,12 +5448,12 @@
       return fAan("plannerDirect") && !!actions.onEventOptions && !!actions.onCreateEvents;
     }
     function naarMaken(momenten, minutes) {
-      var items = momenten.map(function(m) {
+      const items = momenten.map(function(m) {
         return { date: m.date, startMin: m.startMin, minutes, labelId: "", typeAangepast: false, titel: "", titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
       });
       BEWAARD.maak = { items, modus: "dup", clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: "", uitslag: null, eff: null };
       naarPagina("maken");
-      var mk = BEWAARD.maak;
+      const mk = BEWAARD.maak;
       actions.onEventOptions([], function(res) {
         if (BEWAARD.maak !== mk) return;
         mk.laden = false;
@@ -5467,7 +5467,7 @@
       });
     }
     function standaardType(mk) {
-      var l = labelMet(mk, "Face to face");
+      const l = labelMet(mk, "Face to face");
       zetTypeAlle(mk, l ? String(l.id) : "");
     }
     function zetTypeAlle(mk, v) {
@@ -5488,10 +5488,10 @@
       pasReisAlleToe(mk);
     }
     function typeInstelling(mk, labelId) {
-      var naam = String(typeNaamVan(mk, labelId) || "").trim().toLowerCase();
+      const naam = String(typeNaamVan(mk, labelId) || "").trim().toLowerCase();
       if (!naam) return null;
-      var types = ctx.state && ctx.state.afspraakTypes || [];
-      var namen = function(t) {
+      const types = ctx.state && ctx.state.afspraakTypes || [];
+      const namen = function(t) {
         return [t.label].concat(t.etiketten || []).map(function(x) {
           return String(x || "").trim().toLowerCase();
         }).filter(Boolean);
@@ -5505,11 +5505,11 @@
       })[0] || null;
     }
     function standaardAanwezig(mk, labelId) {
-      var t = typeInstelling(mk, labelId);
+      const t = typeInstelling(mk, labelId);
       return t ? t.clientPresent !== false : true;
     }
     function metReistijd(mk, labelId) {
-      var t = typeInstelling(mk, labelId);
+      const t = typeInstelling(mk, labelId);
       return t ? !!t.addTravelTime : /huisbezoek/i.test(typeNaamVan(mk, labelId));
     }
     function aanwezigVan(mk, it) {
@@ -5519,7 +5519,7 @@
       return mk.geavanceerd || metReistijd(mk, it.labelId);
     }
     function pasReisAlleToe(mk) {
-      var r = mk.reisAlle || { heen: 0, terug: 0 };
+      const r = mk.reisAlle || { heen: 0, terug: 0 };
       mk.items.forEach(function(it) {
         if (!it.reisAangepast && metReistijd(mk, it.labelId)) {
           it.reisHeen = r.heen;
@@ -5528,10 +5528,10 @@
       });
     }
     function verwijderMoment(mk, k) {
-      var it = mk.items[k];
+      const it = mk.items[k];
       if (!it) return;
       mk.items.splice(k, 1);
-      var open = {};
+      const open = {};
       Object.keys(mk.open || {}).forEach(function(i) {
         i = +i;
         if (i < k) open[i] = mk.open[i];
@@ -5551,18 +5551,18 @@
       renderPagina();
     }
     function reisInvoer(heen, terug, attrVan, zet) {
-      var r = el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
+      const r = el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "6px 0", borderTop: "1px solid " + T.lineSoft });
       r.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Reistijd"));
       [["heen", heen], ["terug", terug]].forEach(function(rv) {
-        var inp = inputEl("number", rv[1] ? String(rv[1]) : "", function(v) {
-          var nn = parseInt(v, 10);
+        const inp = inputEl("number", rv[1] ? String(rv[1]) : "", function(v) {
+          const nn = parseInt(v, 10);
           zet(rv[0], nn > 0 ? Math.min(nn, 240) : 0);
         });
         inp.min = "0";
         inp.max = "240";
         inp.step = "5";
         inp.placeholder = "0";
-        var a = attrVan(rv[0]);
+        const a = attrVan(rv[0]);
         inp.setAttribute(a[0], a[1]);
         inp.setAttribute("aria-label", "Reistijd " + rv[0] + " in minuten");
         Object.assign(inp.style, { width: "62px", flex: "0 0 62px", height: "30px", margin: "0" });
@@ -5589,8 +5589,8 @@
       renderPagina();
     }
     function nietClientKnop(mk) {
-      var aan = !!mk.nietClient;
-      var b = el("button", {
+      const aan = !!mk.nietClient;
+      const b = el("button", {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -5609,9 +5609,9 @@
       b.type = "button";
       b.setAttribute("data-maak-niet-client", "");
       b.setAttribute("aria-pressed", aan ? "true" : "false");
-      var vak = el("span", { width: "14px", height: "14px", borderRadius: "4px", boxSizing: "border-box", border: "1.5px solid " + (aan ? "#fff" : "#cfc6c9"), display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" });
+      const vak = el("span", { width: "14px", height: "14px", borderRadius: "4px", boxSizing: "border-box", border: "1.5px solid " + (aan ? "#fff" : "#cfc6c9"), display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" });
       if (aan) {
-        var v = svgPath("M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z", 12);
+        const v = svgPath("M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z", 12);
         vak.appendChild(v);
       }
       b.appendChild(vak);
@@ -5633,8 +5633,8 @@
     }
     function clientBlok(mk, c, sleutel, weg) {
       if (!c.clientId) {
-        var leeg2 = el("div", { display: "flex", alignItems: "flex-start", gap: "6px", padding: "4px 0" });
-        var zoeker = clientZoeker(c, sleutel, function() {
+        const leeg2 = el("div", { display: "flex", alignItems: "flex-start", gap: "6px", padding: "4px 0" });
+        const zoeker = clientZoeker(c, sleutel, function() {
           haalUursoorten(mk, c.clientId);
           mk.eff = null;
         });
@@ -5643,34 +5643,34 @@
         if (weg) leeg2.appendChild(wegKnop(weg, "Cliënt weghalen"));
         return leeg2;
       }
-      var rij = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" });
+      const rij = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" });
       rij.setAttribute("data-maak-client", sleutel);
-      var ini = String(c.name || "?").split(/\s+/).filter(Boolean).map(function(w) {
+      const ini = String(c.name || "?").split(/\s+/).filter(Boolean).map(function(w) {
         return w[0];
       }).slice(0, 2).join("").toUpperCase();
       rij.appendChild(el("span", { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "13px", background: T.brandWash, color: T.brand, fontWeight: "800", fontSize: "11px", display: "inline-flex", alignItems: "center", justifyContent: "center" }, ini));
-      var nm = el("span", { flex: "1 1 auto", minWidth: "0" });
+      const nm = el("span", { flex: "1 1 auto", minWidth: "0" });
       nm.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px", color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, c.name));
       if (c.number || c.pc) nm.appendChild(labels([c.number ? "Cl " + c.number : "", pcTekst(c.pc)]));
       rij.appendChild(nm);
-      var types = mk.hourTypes[c.clientId];
+      const types = mk.hourTypes[c.clientId];
       if (types === "laden" || types == null) rij.appendChild(el("span", { fontSize: "11.5px", color: T.inkSoft }, "uursoorten…"));
       else if (!types.length) {
-        var g = el("span", { fontSize: "11.5px", color: T.warn, fontWeight: "600" }, "geen uursoort");
+        const g = el("span", { fontSize: "11.5px", color: T.warn, fontWeight: "600" }, "geen uursoort");
         g.title = "ONS geeft geen uursoorten voor deze cliënt; maak deze via het ONS Afspraakformulier.";
         rij.appendChild(g);
       } else {
-        var opts = types.map(function(t) {
+        const opts = types.map(function(t) {
           return { id: t.id, name: t.name, groep: t.recent ? "Onlangs gebruikt" : "Toegestaan" };
         });
-        var sel = selectEl(["data-maak-uursoort", c.clientId], opts, mk.uursoort[c.clientId] || "", function(v) {
+        const sel = selectEl(["data-maak-uursoort", c.clientId], opts, mk.uursoort[c.clientId] || "", function(v) {
           mk.uursoort[c.clientId] = v;
           renderPagina();
         }, "Uursoort");
         sel.setAttribute("aria-label", "Uursoort " + c.name);
         Object.assign(sel.style, { width: "128px", flex: "0 0 128px", height: "30px", fontSize: "12px" });
         rij.appendChild(sel);
-        var uitroep = el("span", { flex: "0 0 auto", width: "10px", color: T.bad, fontWeight: "800", fontSize: "15px", textAlign: "center", visibility: mk.uursoort[c.clientId] ? "hidden" : "visible" }, "!");
+        const uitroep = el("span", { flex: "0 0 auto", width: "10px", color: T.bad, fontWeight: "800", fontSize: "15px", textAlign: "center", visibility: mk.uursoort[c.clientId] ? "hidden" : "visible" }, "!");
         uitroep.title = "Kies een uursoort";
         uitroep.setAttribute("data-uursoort-ontbreekt", mk.uursoort[c.clientId] ? "" : c.clientId);
         rij.appendChild(uitroep);
@@ -5691,7 +5691,7 @@
     }
     function clientsLijst(mk, lijst2, prefix, host2) {
       lijst2.forEach(function(c, i) {
-        var r = clientBlok(mk, c, prefix + i, lijst2.length > 1 ? function() {
+        const r = clientBlok(mk, c, prefix + i, lijst2.length > 1 ? function() {
           lijst2.splice(i, 1);
           mk.eff = null;
           renderPagina();
@@ -5702,7 +5702,7 @@
       if (lijst2.length < 6 && lijst2.every(function(c) {
         return c.clientId;
       })) {
-        var plus = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12.5px " + FONT, padding: "4px 0 2px", textAlign: "left" }, "+ Cliënt");
+        const plus = el("button", { border: "0", background: "transparent", color: T.brand, cursor: "pointer", font: "600 12.5px " + FONT, padding: "4px 0 2px", textAlign: "left" }, "+ Cliënt");
         plus.type = "button";
         plus.setAttribute("data-maak-plus", prefix);
         plus.addEventListener("click", function() {
@@ -5713,11 +5713,11 @@
       }
     }
     function pageMaken() {
-      var mk = BEWAARD.maak, box = el("div");
+      const mk = BEWAARD.maak, box = el("div");
       if (!mk) return box;
-      var meldingM = ctx.agendaMeldingBlok();
+      const meldingM = ctx.agendaMeldingBlok();
       if (meldingM) box.appendChild(meldingM);
-      var n = mk.items.length, klaar = !!mk.uitslag;
+      const n = mk.items.length, klaar = !!mk.uitslag;
       mk.open = mk.open || {};
       if (mk.laden) {
         zorgVoorStijl();
@@ -5730,10 +5730,10 @@
       }
       if (!klaar) onsMetClienten(mk);
       if (klaar) {
-        var goed = mk.uitslag.filter(function(r) {
+        const goed = mk.uitslag.filter(function(r) {
           return r && r.ok;
         }).length;
-        var misN = n - goed;
+        const misN = n - goed;
         box.appendChild(noteBox(misN ? goed + " van " + n + " gemaakt. Niet gelukt: " + mk.items.filter(function(_, k) {
           return !(mk.uitslag[k] && mk.uitslag[k].ok);
         }).map(function(it) {
@@ -5742,10 +5742,10 @@
       }
       if (!klaar) box.appendChild(nietClientKnop(mk));
       if (n > 1 && !klaar && !mk.nietClient) {
-        var seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "2px" });
+        const seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "2px" });
         [["dup", "Zelfde cliënt(en)"], ["los", "Per afspraak anders"]].forEach(function(o) {
-          var aan = mk.modus === o[0];
-          var b = el("button", {
+          const aan = mk.modus === o[0];
+          const b = el("button", {
             flex: "1 1 0",
             border: "0",
             borderRadius: "8px",
@@ -5771,20 +5771,20 @@
       if (n === 1) mk.modus = "dup";
       if (!klaar && mk.nietClient) {
         box.appendChild(sectieKop(n > 1 ? "Voor alle " + n + " afspraken" : "Afspraak"));
-        var nc = kaartDoos();
+        const nc = kaartDoos();
         nc.setAttribute("data-maak-alle", "");
-        var ncRij = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" });
+        const ncRij = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" });
         ncRij.appendChild(el("span", { flex: "0 0 74px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Uursoort"));
         if (mk.ncTypes === "laden" || mk.ncTypes == null) ncRij.appendChild(el("span", { fontSize: "12px", color: T.inkSoft }, "uursoorten…"));
         else if (!mk.ncTypes.length) {
-          var gn = el("span", { fontSize: "12px", color: T.warn, fontWeight: "600" }, mk.ncFout || "ONS geeft geen uursoorten zonder cliënt.");
+          const gn = el("span", { fontSize: "12px", color: T.warn, fontWeight: "600" }, mk.ncFout || "ONS geeft geen uursoorten zonder cliënt.");
           gn.setAttribute("data-maak-nc-leeg", "");
           ncRij.appendChild(gn);
         } else {
-          var ncOpts = mk.ncTypes.map(function(t) {
+          const ncOpts = mk.ncTypes.map(function(t) {
             return { id: t.id, name: t.name, groep: t.recent ? "Onlangs gebruikt" : "Uursoorten" };
           });
-          var ncSel = selectEl(["data-maak-nc-uursoort", ""], ncOpts, mk.ncUursoort || "", function(v) {
+          const ncSel = selectEl(["data-maak-nc-uursoort", ""], ncOpts, mk.ncUursoort || "", function(v) {
             mk.ncUursoort = v;
             renderPagina();
           }, "Kies een uursoort");
@@ -5796,26 +5796,26 @@
       }
       if (!klaar && !mk.nietClient) {
         box.appendChild(sectieKop(n > 1 ? "Voor alle " + n + " afspraken" : "Afspraak"));
-        var alle = kaartDoos();
+        const alle = kaartDoos();
         alle.setAttribute("data-maak-alle", "");
-        var losAlle = mk.modus === "los";
+        const losAlle = mk.modus === "los";
         if (!losAlle) clientsLijst(mk, mk.clients, "dup", alle);
-        var typeAlle = selectEl(["data-maak-type-alle", ""], mk.labels, mk.typeAlle || "", function(v) {
+        const typeAlle = selectEl(["data-maak-type-alle", ""], mk.labels, mk.typeAlle || "", function(v) {
           zetTypeAlle(mk, v);
           renderPagina();
         }, "Geen afspraaktype");
-        var typeRij = labelRij("Type", typeAlle);
+        const typeRij = labelRij("Type", typeAlle);
         if (losAlle) typeRij.style.borderTop = "0";
         alle.appendChild(typeRij);
         if (losAlle) alle.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft, padding: "0 0 6px" }, "Cliënten, type, aanwezig en reistijd stel je hieronder per afspraak in."));
         else {
-          var titelA = inputEl("text", String(mk.titelAlle || "").trim() ? mk.titelAlle : autoTitel(mk, { labelId: mk.typeAlle }), function(v) {
+          const titelA = inputEl("text", String(mk.titelAlle || "").trim() ? mk.titelAlle : autoTitel(mk, { labelId: mk.typeAlle }), function(v) {
             mk.titelAlle = String(v || "").trim() ? v : "";
           });
           titelA.setAttribute("data-maak-titel-alle", "");
           titelA.addEventListener("change", straksTekenen);
           alle.appendChild(labelRij("Titel", titelA));
-          var aanw = mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, mk.typeAlle);
+          const aanw = mk.aanwezig != null ? mk.aanwezig : standaardAanwezig(mk, mk.typeAlle);
           alle.appendChild(aanwezigRij(aanw, ["data-maak-aanwezig", ""], function() {
             mk.aanwezig = !aanw;
             mk.items.forEach(function(it) {
@@ -5824,8 +5824,8 @@
             renderPagina();
           }));
           if (metReistijd(mk, mk.typeAlle)) {
-            var rr = mk.reisAlle || { heen: 0, terug: 0 };
-            var reisA = reisInvoer(rr.heen, rr.terug, function(soort) {
+            const rr = mk.reisAlle || { heen: 0, terug: 0 };
+            const reisA = reisInvoer(rr.heen, rr.terug, function(soort) {
               return ["data-maak-reis-alle-" + soort, ""];
             }, function(soort, w) {
               mk.reisAlle = Object.assign({ heen: 0, terug: 0 }, mk.reisAlle);
@@ -5839,19 +5839,19 @@
         box.appendChild(alle);
       }
       box.appendChild(sectieKop(n > 1 ? n + " afspraken" : "Moment"));
-      var lijst2 = el("div");
+      const lijst2 = el("div");
       mk.items.forEach(function(it, k) {
         lijst2.appendChild(afspraakKaart(mk, it, k, n, klaar));
       });
       box.appendChild(lijst2);
       if (!klaar && mk.nietClient && mk.error) box.appendChild(noteBox(mk.error, "bad"));
       if (!klaar && !mk.nietClient) {
-        var adv = el("label", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "12px", padding: "9px 12px", border: "1px dashed " + T.line, borderRadius: "12px", color: T.inkSoft, fontWeight: "600", fontSize: "12.5px", cursor: "pointer", userSelect: "none" });
-        var advT = el("span");
+        const adv = el("label", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "12px", padding: "9px 12px", border: "1px dashed " + T.line, borderRadius: "12px", color: T.inkSoft, fontWeight: "600", fontSize: "12.5px", cursor: "pointer", userSelect: "none" });
+        const advT = el("span");
         advT.appendChild(el("span", { display: "block", color: T.ink, fontWeight: "700" }, "Geavanceerd"));
         advT.appendChild(el("span", { display: "block", fontSize: "11px", fontWeight: "400" }, "Reistijd en efficiënter indelen"));
         adv.appendChild(advT);
-        var cb = document.createElement("input");
+        const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!mk.geavanceerd;
         cb.setAttribute("data-maak-geavanceerd", "");
@@ -5874,45 +5874,45 @@
       return box;
     }
     function afspraakKaart(mk, it, k, n, klaar) {
-      var los = mk.modus === "los" && !mk.nietClient;
-      var open = !klaar && !mk.nietClient && !los && !!mk.open[k];
-      var u = mk.uitslag && mk.uitslag[k];
-      var kaart2 = el("div", { border: "1px solid " + (open ? "#f0b6d6" : T.line), borderRadius: "12px", background: "#fff", marginBottom: "10px", overflow: "hidden", boxShadow: open ? "0 0 0 3px " + T.brandWash : "none" });
+      const los = mk.modus === "los" && !mk.nietClient;
+      const open = !klaar && !mk.nietClient && !los && !!mk.open[k];
+      const u = mk.uitslag && mk.uitslag[k];
+      const kaart2 = el("div", { border: "1px solid " + (open ? "#f0b6d6" : T.line), borderRadius: "12px", background: "#fff", marginBottom: "10px", overflow: "hidden", boxShadow: open ? "0 0 0 3px " + T.brandWash : "none" });
       kaart2.setAttribute("data-maak-afspraak", String(k));
-      var kop = el("div", { display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: T.lineSoft, borderBottom: "1px solid " + T.line });
+      const kop = el("div", { display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: T.lineSoft, borderBottom: "1px solid " + T.line });
       kop.setAttribute("data-maak-regel", String(k));
       kop.appendChild(el("span", { width: "24px", height: "24px", borderRadius: "12px", background: T.brand, color: "#fff", fontWeight: "800", fontSize: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }, String(k + 1)));
-      var wanneer = el("span", { flex: "1 1 auto", minWidth: "0", lineHeight: "1.25" });
+      const wanneer = el("span", { flex: "1 1 auto", minWidth: "0", lineHeight: "1.25" });
       if (n > 1) wanneer.appendChild(el("span", { display: "block", fontSize: "10.5px", fontWeight: "600", color: T.inkSoft }, "Afspraak " + (k + 1) + " van " + n));
       wanneer.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px" }, dagLang2(it.date, true)));
       wanneer.appendChild(el("span", { display: "block", fontSize: "12px", color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, hm(it.startMin) + " tot " + hm(it.startMin + it.minutes)));
       kop.appendChild(wanneer);
       if (u) {
-        var st = el("span", { flex: "0 0 auto", fontWeight: "700", fontSize: "12px", color: u.ok ? T.ok : T.bad }, u.ok ? "✓ gemaakt" : "mislukt");
+        const st = el("span", { flex: "0 0 auto", fontWeight: "700", fontSize: "12px", color: u.ok ? T.ok : T.bad }, u.ok ? "✓ gemaakt" : "mislukt");
         if (!u.ok && u.error) st.title = u.error;
         st.setAttribute("data-maak-uitslag", u.ok ? "ok" : "fout");
         kop.appendChild(st);
       } else if (it.onsCl && it.onsCl.overlap === true) {
-        var ob = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: "#fdf3e2", color: T.warn }, "ONS: overlap");
+        const ob = el("span", { flex: "0 0 auto", fontSize: "10.5px", fontWeight: "700", borderRadius: "6px", padding: "2px 6px", background: "#fdf3e2", color: T.warn }, "ONS: overlap");
         ob.setAttribute("data-maak-ons-overlap", String(k));
         ob.title = "ONS meldt overlap met de gekozen cliënt(en) op dit tijdstip.";
         kop.appendChild(ob);
       }
       kaart2.appendChild(kop);
-      var body = el("div", { padding: "4px 12px 6px" });
-      var typeSel = function() {
+      const body = el("div", { padding: "4px 12px 6px" });
+      const typeSel = function() {
         return labelRij("Type", selectEl(["data-maak-type", String(k)], mk.labels, it.labelId, function(v) {
           zetType(mk, k, v);
           renderPagina();
         }, "Geen afspraaktype"));
       };
-      var aanwezigHier = function() {
+      const aanwezigHier = function() {
         return aanwezigRij(aanwezigVan(mk, it), ["data-maak-aanwezig-afspraak", String(k)], function() {
           it.aanwezig = !aanwezigVan(mk, it);
           renderPagina();
         });
       };
-      var reisHier = function() {
+      const reisHier = function() {
         return reisInvoer(it.reisHeen, it.reisTerug, function(soort) {
           return ["data-maak-" + soort, String(k)];
         }, function(soort, w) {
@@ -5921,8 +5921,8 @@
           it.reisAangepast = true;
         });
       };
-      var titelHier = function() {
-        var t = inputEl("text", titelVan(mk, it), function(v) {
+      const titelHier = function() {
+        const t = inputEl("text", titelVan(mk, it), function(v) {
           it.titel = v;
           it.titelAangepast = !!String(v || "").trim();
         });
@@ -5939,19 +5939,19 @@
         if (reisVan(mk, it)) body.appendChild(reisHier());
       } else if (open) {
         body.appendChild(el("div", { fontSize: "11.5px", color: T.inkSoft, padding: "4px 0" }, "Alleen voor deze afspraak:"));
-        var tr = typeSel();
+        const tr = typeSel();
         tr.style.borderTop = "0";
         body.appendChild(tr);
         body.appendChild(titelHier());
         body.appendChild(aanwezigHier());
         if (reisVan(mk, it)) body.appendChild(reisHier());
       } else {
-        var sam = el("div", { padding: "4px 0 2px" });
+        const sam = el("div", { padding: "4px 0 2px" });
         sam.setAttribute("data-maak-samenvatting", String(k));
         sam.appendChild(el("div", { fontWeight: "600", fontSize: "13px", padding: "2px 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, titelVan(mk, it)));
-        var chips = el("div", { display: "flex", flexWrap: "wrap", gap: "5px", padding: "0 0 4px" });
-        var chip = function(t, soort) {
-          var c = el("span", {
+        const chips = el("div", { display: "flex", flexWrap: "wrap", gap: "5px", padding: "0 0 4px" });
+        const chip = function(t, soort) {
+          const c = el("span", {
             fontSize: "11px",
             fontWeight: "600",
             borderRadius: "6px",
@@ -5963,11 +5963,11 @@
           chips.appendChild(c);
           return c;
         };
-        var aw = aanwezigVan(mk, it);
+        const aw = aanwezigVan(mk, it);
         chip(aw ? "Cliënten aanwezig" : "Cliënten niet aanwezig", aw ? "" : "uit").setAttribute("data-maak-aanwezig-label", aw ? "ja" : "nee");
         if (reisVan(mk, it) && (it.reisHeen || it.reisTerug)) chip("Reistijd " + (it.reisHeen || 0) + " min heen en " + (it.reisTerug || 0) + " min terug");
         if (it.typeAangepast || it.aanwezig != null || it.reisAangepast || it.titelAangepast) {
-          var eig = chip("Eigen keuze", "eigen");
+          const eig = chip("Eigen keuze", "eigen");
           eig.setAttribute("data-eigen-keuze", String(k));
           if (it.typeAangepast && it.labelId !== mk.typeAlle) eig.setAttribute("data-eigen-type", String(k));
         }
@@ -5975,21 +5975,21 @@
         body.appendChild(sam);
       }
       if (!klaar && it.onsCl && it.onsCl.overlap === true) {
-        var on = noteBox("ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak.", "warn");
+        const on = noteBox("ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak.", "warn");
         on.style.margin = "4px 0 6px";
         body.appendChild(on);
       }
       if (!klaar) reisProblemen(mk, it).forEach(function(t) {
-        var rn = noteBox(t, "warn");
+        const rn = noteBox(t, "warn");
         rn.style.margin = "4px 0 6px";
         rn.setAttribute("data-maak-reis-conflict", String(k));
         body.appendChild(rn);
       });
       kaart2.appendChild(body);
       if (!klaar) {
-        var voetK = el("div", { display: "flex", gap: "8px", padding: "8px 12px 10px", borderTop: "1px solid " + T.lineSoft });
+        const voetK = el("div", { display: "flex", gap: "8px", padding: "8px 12px 10px", borderTop: "1px solid " + T.lineSoft });
         if (!mk.nietClient && !los) {
-          var aanp = kaartKnop(ICON_POTLOOD, open ? "Klaar" : "Aanpassen", T.ink, open, function() {
+          const aanp = kaartKnop(ICON_POTLOOD, open ? "Klaar" : "Aanpassen", T.ink, open, function() {
             mk.open[k] = !mk.open[k];
             renderPagina();
           });
@@ -5998,8 +5998,8 @@
           aanp.title = "Type, titel, aanwezig en reistijd van alleen deze afspraak";
           voetK.appendChild(aanp);
         }
-        var weg = kaartKnop(ICON_PRULLENBAK, "Verwijderen", T.bad, false, function() {
-          var ok = false;
+        const weg = kaartKnop(ICON_PRULLENBAK, "Verwijderen", T.bad, false, function() {
+          let ok = false;
           try {
             ok = window.confirm("Weet je het zeker?");
           } catch (e) {
@@ -6016,14 +6016,14 @@
     function onsMetClienten(mk) {
       if (!actions.onSlotCheck) return;
       mk.items.forEach(function(it) {
-        var ids = clientsVan(mk, it).map(function(c) {
+        const ids = clientsVan(mk, it).map(function(c) {
           return c.clientId;
         }).sort();
         if (!ids.length) {
           it.onsCl = null;
           return;
         }
-        var sleutel = it.date + "|" + it.startMin + "|" + it.minutes + "|" + ids.join(",");
+        const sleutel = it.date + "|" + it.startMin + "|" + it.minutes + "|" + ids.join(",");
         if (it.onsCl && it.onsCl.key === sleutel) return;
         it.onsCl = { key: sleutel, busy: true };
         actions.onSlotCheck({ date: it.date, startMin: it.startMin, minutes: it.minutes, clientIds: ids }, function(r) {
@@ -6037,46 +6037,46 @@
     }
     function reisProblemen(mk, it) {
       if (!reisVan(mk, it) || !(it.reisHeen > 0 || it.reisTerug > 0)) return [];
-      var gaps = (mk.gaps || []).concat(ctx.plan.result && ctx.plan.result.gaps || [], ctx.plan.raster && ctx.plan.raster.result && ctx.plan.raster.result.gaps || []);
-      var eind = it.startMin + it.minutes;
-      var g = gaps.filter(function(x) {
+      const gaps = (mk.gaps || []).concat(ctx.plan.result && ctx.plan.result.gaps || [], ctx.plan.raster && ctx.plan.raster.result && ctx.plan.raster.result.gaps || []);
+      const eind = it.startMin + it.minutes;
+      const g = gaps.filter(function(x) {
         return x.date === it.date && x.startMin <= it.startMin && eind <= x.endMin;
       })[0];
       if (!g) return [];
-      var vanaf = g.startMin, tot = g.endMin;
+      let vanaf = g.startMin, tot = g.endMin;
       mk.items.forEach(function(o) {
         if (o === it || o.date !== it.date) return;
-        var oReis = reisVan(mk, o);
-        var oStart = o.startMin - (oReis ? o.reisHeen || 0 : 0), oEind = o.startMin + o.minutes + (oReis ? o.reisTerug || 0 : 0);
+        const oReis = reisVan(mk, o);
+        const oStart = o.startMin - (oReis ? o.reisHeen || 0 : 0), oEind = o.startMin + o.minutes + (oReis ? o.reisTerug || 0 : 0);
         if (oEind <= it.startMin) vanaf = Math.max(vanaf, oEind);
         if (oStart >= eind) tot = Math.min(tot, oStart);
       });
-      var uit = [];
+      const uit = [];
       if (it.reisHeen > it.startMin - vanaf) uit.push("Reistijd heen (" + it.reisHeen + " min) past niet: er is " + (it.startMin - vanaf) + " min vrij voor " + hm(it.startMin) + ".");
       if (it.reisTerug > tot - eind) uit.push("Reistijd terug (" + it.reisTerug + " min) past niet: er is " + (tot - eind) + " min vrij na " + hm(eind) + ".");
       return uit;
     }
     function maakBalk() {
-      var mk = BEWAARD.maak;
-      var balk = el("div", { background: "#fff", padding: "10px 12px 12px", borderTop: "1px solid " + T.line, boxShadow: "0 -10px 24px -18px rgba(32,20,15,.35)" });
+      const mk = BEWAARD.maak;
+      const balk = el("div", { background: "#fff", padding: "10px 12px 12px", borderTop: "1px solid " + T.line, boxShadow: "0 -10px 24px -18px rgba(32,20,15,.35)" });
       if (!mk || mk.laden) return balk;
-      var n = mk.items.length;
-      var link = function(tekst, fn, attr) {
-        var a = el("button", { display: "block", margin: "6px auto 0", border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", font: "400 12px " + FONT, textDecoration: "underline" }, tekst);
+      const n = mk.items.length;
+      const link = function(tekst, fn, attr) {
+        const a = el("button", { display: "block", margin: "6px auto 0", border: "0", background: "transparent", color: T.inkSoft, cursor: "pointer", font: "400 12px " + FONT, textDecoration: "underline" }, tekst);
         a.type = "button";
         if (attr) a.setAttribute(attr, "");
         a.addEventListener("click", fn);
         return a;
       };
       if (mk.uitslag) {
-        var goed = mk.uitslag.some(function(r) {
+        const goed = mk.uitslag.some(function(r) {
           return r && r.ok;
         });
-        var mis = mk.items.filter(function(_, k) {
+        const mis = mk.items.filter(function(_, k) {
           return !(mk.uitslag[k] && mk.uitslag[k].ok);
         });
         if (goed && actions.onReloadAgenda) {
-          var v = primaryBtn("Agenda verversen", function() {
+          const v = primaryBtn("Agenda verversen", function() {
             actions.onReloadAgenda();
           });
           v.style.marginTop = "0";
@@ -6088,20 +6088,20 @@
         return balk;
       }
       if (mk.error && !mk.labels.length) {
-        var f = primaryBtn("ONS Afspraakformulier", function() {
+        const f = primaryBtn("ONS Afspraakformulier", function() {
           viaFormulier(mk);
         });
         f.style.marginTop = "0";
         balk.appendChild(f);
         return balk;
       }
-      var compleet = mk.nietClient ? !!mk.ncUursoort : mk.items.every(function(it) {
-        var cs = clientsVan(mk, it);
+      const compleet = mk.nietClient ? !!mk.ncUursoort : mk.items.every(function(it) {
+        const cs = clientsVan(mk, it);
         return cs.length && cs.every(function(c) {
           return !!mk.uursoort[c.clientId];
         });
       });
-      var knop = primaryBtn(mk.busy ? "Bezig met maken…" : n === 1 ? "Afspraak maken in ONS" : n + " afspraken maken in ONS", function() {
+      const knop = primaryBtn(mk.busy ? "Bezig met maken…" : n === 1 ? "Afspraak maken in ONS" : n + " afspraken maken in ONS", function() {
         maakInOns(mk);
       }, mk.busy || !compleet);
       knop.style.marginTop = "0";
@@ -6117,7 +6117,7 @@
       mk.busy = true;
       mk.error = "";
       renderPagina();
-      var lijst2 = mk.items.map(function(it) {
+      const lijst2 = mk.items.map(function(it) {
         if (mk.nietClient) return { date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || "Afspraak" };
         return {
           date: it.date,
@@ -6153,27 +6153,27 @@
       });
     }
     function viaFormulier(mk, alleen) {
-      var items = alleen || mk.items;
+      const items = alleen || mk.items;
       if (!items.length || !actions.onNewEvent) return;
-      var ids = function(it) {
+      const ids = function(it) {
         return clientsVan(mk, it).map(function(c) {
           return c.clientId;
         });
       };
-      var tijd = function(it) {
+      const tijd = function(it) {
         return { date: it.date, time: hm(it.startMin) };
       };
-      var metType = function(uit, it) {
-        var naam = !mk.nietClient && it.labelId ? typeNaamVan(mk, it.labelId) : "";
+      const metType = function(uit, it) {
+        const naam = !mk.nietClient && it.labelId ? typeNaamVan(mk, it.labelId) : "";
         if (naam) uit.label = { id: Number(it.labelId), name: naam };
         if (mk.nietClient) {
           if (mk.ncUursoort) uit.uursoortAfspraak = { hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) };
           return uit;
         }
-        var us = clientsVan(mk, it).map(function(c) {
-          var id = mk.uursoort[c.clientId];
+        const us = clientsVan(mk, it).map(function(c) {
+          const id = mk.uursoort[c.clientId];
           if (!id) return null;
-          var t = (Array.isArray(mk.hourTypes[c.clientId]) ? mk.hourTypes[c.clientId] : []).filter(function(x) {
+          const t = (Array.isArray(mk.hourTypes[c.clientId]) ? mk.hourTypes[c.clientId] : []).filter(function(x) {
             return String(x.id) === String(id);
           })[0];
           return { clientId: String(c.clientId), hourTypeId: Number(id), name: t ? t.name : "" };
@@ -6181,12 +6181,12 @@
         if (us.length) uit.uursoorten = us;
         return uit;
       };
-      var eerste = items[0];
+      const eerste = items[0];
       onthoudFormulierTitels(items.map(function(it) {
-        var t = mk.nietClient ? ncNaam(mk) || "" : String(titelVan(mk, it) || "").trim();
+        const t = mk.nietClient ? ncNaam(mk) || "" : String(titelVan(mk, it) || "").trim();
         return { date: it.date, time: hm(it.startMin), titel: t };
       }));
-      var req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
+      const req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
       if (mk.modus === "los") {
         req.multi = true;
         req.eigen = items.slice(1).map(function(it) {
@@ -6204,20 +6204,20 @@
       return ctx.state && ctx.state.routesProxy && (ctx.state.routesProxy.key || ctx.state.routesProxy.url) ? ctx.state.routesProxy : null;
     }
     function effBlok(mk) {
-      var box = el("div", { marginTop: "8px" });
+      const box = el("div", { marginTop: "8px" });
       if (!routesBron()) {
         box.appendChild(txt("help", "Efficiënter indelen gebruikt de Google Routes API: vul in het beheerscherm (Functies → Google Maps) een Routes-sleutel in.", { margin: "0", fontSize: "11.5px" }));
         return box;
       }
-      var ontbreekt = mk.items.filter(function(it) {
+      const ontbreekt = mk.items.filter(function(it) {
         return !pcVan(mk, it);
       }).length;
-      var e = mk.eff;
-      var knop = baseButton("", function() {
+      const e = mk.eff;
+      const knop = baseButton("", function() {
         startEff(mk);
       }, false, !!(e && e.busy) || ontbreekt > 0);
       knop.textContent = "";
-      var ico = svgPath(ICON_PAD, 16);
+      const ico = svgPath(ICON_PAD, 16);
       ico.style.marginRight = "6px";
       ico.style.verticalAlign = "-3px";
       knop.appendChild(ico);
@@ -6232,25 +6232,25 @@
         return box;
       }
       if (!e.voorstel) return box;
-      var v = e.voorstel;
-      var anders = v.placed.some(function(p) {
-        var it = mk.items[p.i];
+      const v = e.voorstel;
+      const anders = v.placed.some(function(p) {
+        const it = mk.items[p.i];
         return it.date !== p.date || it.startMin !== p.startMin;
       });
-      var kmTekst = function(m) {
+      const kmTekst = function(m) {
         return m < 1e3 ? "< 1 km" : Math.round(m / 1e3) + " km";
       };
       if (anders && v.nieuwMin < v.nuMin - 1) {
-        var nb = noteBox("Efficiënter: ≈ " + Math.round(v.nuMin - v.nieuwMin) + " min minder rijden (" + kmTekst(Math.max(0, v.nuM - v.nieuwM)) + "). Nu ≈ " + Math.round(v.nuMin) + " min extra, voorstel ≈ " + Math.round(v.nieuwMin) + " min.", "ok");
+        const nb = noteBox("Efficiënter: ≈ " + Math.round(v.nuMin - v.nieuwMin) + " min minder rijden (" + kmTekst(Math.max(0, v.nuM - v.nieuwM)) + "). Nu ≈ " + Math.round(v.nuMin) + " min extra, voorstel ≈ " + Math.round(v.nieuwMin) + " min.", "ok");
         nb.setAttribute("data-eff-voorstel", "");
         box.appendChild(nb);
-        var lijst2 = el("div", { display: "flex", flexDirection: "column", gap: "2px", margin: "6px 0" });
+        const lijst2 = el("div", { display: "flex", flexDirection: "column", gap: "2px", margin: "6px 0" });
         v.placed.slice().sort(function(a, b) {
           return a.i - b.i;
         }).forEach(function(p) {
-          var it = mk.items[p.i];
-          var c = clientsVan(mk, it)[0];
-          var zelfde = it.date === p.date && it.startMin === p.startMin;
+          const it = mk.items[p.i];
+          const c = clientsVan(mk, it)[0];
+          const zelfde = it.date === p.date && it.startMin === p.startMin;
           lijst2.appendChild(el(
             "div",
             { fontSize: "12.5px", color: zelfde ? T.inkSoft : T.ink },
@@ -6258,13 +6258,13 @@
           ));
         });
         box.appendChild(lijst2);
-        var rij = el("div", { display: "flex", gap: "8px" });
-        var neem = primaryBtn("Voorstel overnemen", function() {
+        const rij = el("div", { display: "flex", gap: "8px" });
+        const neem = primaryBtn("Voorstel overnemen", function() {
           overnemen(mk, v.placed, v.reisNieuw);
         });
         neem.style.marginTop = "0";
         neem.setAttribute("data-eff-overnemen", "");
-        var laat = secondaryBtn("Zo laten", function() {
+        const laat = secondaryBtn("Zo laten", function() {
           reisInvullen(mk, v.reisNu);
           mk.eff = null;
           renderPagina();
@@ -6273,7 +6273,7 @@
         rij.appendChild(laat);
         box.appendChild(rij);
       } else {
-        var ok = noteBox("Je indeling is al efficiënt (≈ " + Math.round(v.nuMin) + " min extra rijden). De reistijd is ingevuld.", "ok");
+        const ok = noteBox("Je indeling is al efficiënt (≈ " + Math.round(v.nuMin) + " min extra rijden). De reistijd is ingevuld.", "ok");
         ok.setAttribute("data-eff-al-goed", "");
         box.appendChild(ok);
       }
@@ -6295,16 +6295,16 @@
       renderPagina();
     }
     function startEff(mk) {
-      var bron = routesBron();
+      const bron = routesBron();
       if (!bron) return;
-      var e = mk.eff = { busy: true };
+      const e = mk.eff = { busy: true };
       renderPagina();
-      var klaar = function() {
+      const klaar = function() {
         e.busy = false;
         if (BEWAARD.maak === mk && ctx.pagina === "maken") renderPagina();
       };
-      var reken = function() {
-        var kortste = Math.min.apply(null, mk.items.map(function(it) {
+      const reken = function() {
+        const kortste = Math.min.apply(null, mk.items.map(function(it) {
           return it.minutes;
         }));
         actions.onFreeSlots(kortste, ctx.plan.weeks, function(res) {
@@ -6313,24 +6313,24 @@
             klaar();
             return;
           }
-          var dagen = {}, perDag = {};
+          const dagen = {}, perDag = {};
           mk.items.forEach(function(it) {
             dagen[it.date] = true;
             perDag[it.date] = (perDag[it.date] || 0) + 1;
           });
           mk.gaps = res.result.gaps;
-          var gaps = res.result.gaps.filter(function(g) {
+          const gaps = res.result.gaps.filter(function(g) {
             return dagen[g.date];
           });
-          var visits = {};
+          const visits = {};
           Object.keys(res.result.visits || {}).forEach(function(d) {
             if (dagen[d]) visits[d] = res.result.visits[d];
           });
-          var thuisPc = normPostcode((String(ctx.leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
-          var verzoeken = mk.items.map(function(it) {
+          const thuisPc = normPostcode((String(ctx.leesVertrek()).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
+          const verzoeken = mk.items.map(function(it) {
             return { pc: pcVan(mk, it), minutes: it.minutes };
           });
-          var pcs = verzoeken.map(function(v) {
+          const pcs = verzoeken.map(function(v) {
             return v.pc;
           }).concat([thuisPc]);
           Object.keys(visits).forEach(function(d) {
@@ -6339,15 +6339,15 @@
             });
           });
           roadMatrix(bron, pcs.filter(Boolean)).then(function(pair) {
-            var minuten = function(a, b) {
-              var x = pair(a, b);
+            const minuten = function(a, b) {
+              const x = pair(a, b);
               return x ? x.s / 60 : null;
             };
-            var meters = function(a, b) {
-              var x = pair(a, b);
+            const meters = function(a, b) {
+              const x = pair(a, b);
               return x ? x.m : null;
             };
-            var ontbreekt = verzoeken.some(function(v) {
+            const ontbreekt = verzoeken.some(function(v) {
               return verzoeken.some(function(w) {
                 return v.pc !== w.pc && minuten(v.pc, w.pc) == null;
               });
@@ -6357,20 +6357,20 @@
               klaar();
               return;
             }
-            var nu = mk.items.map(function(it, i) {
+            const nu = mk.items.map(function(it, i) {
               return { i, date: it.date, startMin: it.startMin, minutes: it.minutes, pc: verzoeken[i].pc };
             });
-            var max = Math.max.apply(null, Object.keys(perDag).map(function(d) {
+            const max = Math.max.apply(null, Object.keys(perDag).map(function(d) {
               return perDag[d];
             }));
-            var r = planMany(verzoeken, gaps, visits, { afstand: minuten, reistijd: function(a, b) {
-              var x = minuten(a, b);
+            const r = planMany(verzoeken, gaps, visits, { afstand: minuten, reistijd: function(a, b) {
+              const x = minuten(a, b);
               return x == null ? 0 : Math.ceil(x);
             }, nieuweDag: 20, thuisPc, maxPerDag: max });
-            var reis = function(placed) {
-              var br = buren(placed, visits, thuisPc), uit = [];
-              var leg = function(a, b) {
-                var x = a && b && a !== b ? minuten(a, b) : 0;
+            const reis = function(placed) {
+              const br = buren(placed, visits, thuisPc), uit = [];
+              const leg = function(a, b) {
+                const x = a && b && a !== b ? minuten(a, b) : 0;
                 return x > 0 ? Math.ceil(x / 5) * 5 : 0;
               };
               placed.forEach(function(p, k) {
@@ -6378,7 +6378,7 @@
               });
               return uit;
             };
-            var gekozen = r.unplaced.length ? nu : r.placed;
+            const gekozen = r.unplaced.length ? nu : r.placed;
             e.voorstel = {
               placed: gekozen,
               nuMin: extraKmVan(nu, visits, minuten, thuisPc),
@@ -6410,26 +6410,26 @@
 
   // src/sidepanel/productie-grafiek.js
   function niceStep(maxH) {
-    var steps = [1, 2, 4, 5, 10, 20, 25, 50];
-    for (var i = 0; i < steps.length; i++) if (maxH / steps[i] <= 4) return steps[i];
+    const steps = [1, 2, 4, 5, 10, 20, 25, 50];
+    for (let i = 0; i < steps.length; i++) if (maxH / steps[i] <= 4) return steps[i];
     return 100;
   }
   function svgEl(tag2, attrs, parent) {
-    var n = document.createElementNS(SVG_NS, tag2);
-    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    const n = document.createElementNS(SVG_NS, tag2);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
     if (parent) parent.appendChild(n);
     return n;
   }
   function productionChart(weeks) {
-    var wrap = el("div", { position: "relative" });
-    var reeksen = [
+    const wrap = el("div", { position: "relative" });
+    const reeksen = [
       { key: "directMinutes", naam: "Direct", kleur: SERIE.direct },
       { key: "indirectMinutes", naam: "Indirect", kleur: SERIE.indirect },
       { key: "travelMinutes", naam: "Reistijd", kleur: SERIE.travel }
     ];
-    var legenda = el("div", { display: "flex", flexWrap: "wrap", gap: "4px 14px", margin: "0 0 6px" });
+    const legenda = el("div", { display: "flex", flexWrap: "wrap", gap: "4px 14px", margin: "0 0 6px" });
     reeksen.forEach(function(r) {
-      var item = el("span", Object.assign({}, TYPE.label, { display: "inline-flex", alignItems: "center", gap: "6px", color: T.ink, fontWeight: "400" }));
+      const item = el("span", Object.assign({}, TYPE.label, { display: "inline-flex", alignItems: "center", gap: "6px", color: T.ink, fontWeight: "400" }));
       item.appendChild(el("span", { width: "14px", height: "2px", borderRadius: "2px", background: r.kleur, display: "inline-block" }));
       item.appendChild(document.createTextNode(r.naam));
       legenda.appendChild(item);
@@ -6437,32 +6437,32 @@
     if (weeks.some(function(w) {
       return w.planned;
     })) {
-      var gepl = el("span", Object.assign({}, TYPE.label, { display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "400" }));
-      var streep = svgEl("svg", { width: 16, height: 4, "aria-hidden": "true" });
+      const gepl = el("span", Object.assign({}, TYPE.label, { display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "400" }));
+      const streep = svgEl("svg", { width: 16, height: 4, "aria-hidden": "true" });
       svgEl("line", { x1: 0, x2: 16, y1: 2, y2: 2, stroke: T.inkSoft, "stroke-width": 2, "stroke-dasharray": "4 3" }, streep);
       gepl.appendChild(streep);
       gepl.appendChild(document.createTextNode("gepland"));
       legenda.appendChild(gepl);
     }
     wrap.appendChild(legenda);
-    var W = 300, H = 170, ml = 30, mr = 52, mt = 8, mb = 22;
-    var pw = W - ml - mr, ph = H - mt - mb;
-    var maxMin = 0;
+    const W = 300, H = 170, ml = 30, mr = 52, mt = 8, mb = 22;
+    const pw = W - ml - mr, ph = H - mt - mb;
+    let maxMin = 0;
     weeks.forEach(function(w) {
       reeksen.forEach(function(r) {
         maxMin = Math.max(maxMin, w[r.key] || 0);
       });
     });
-    var maxH = Math.max(1, maxMin / 60);
-    var step = niceStep(maxH);
-    var top = Math.ceil(maxH / step) * step;
-    var x = function(i) {
+    const maxH = Math.max(1, maxMin / 60);
+    const step = niceStep(maxH);
+    const top = Math.ceil(maxH / step) * step;
+    const x = function(i) {
       return weeks.length === 1 ? ml + pw / 2 : ml + i * (pw / (weeks.length - 1));
     };
-    var y = function(min) {
+    const y = function(min) {
       return mt + ph - min / 60 / top * ph;
     };
-    var svg = svgEl("svg", {
+    const svg = svgEl("svg", {
       viewBox: "0 0 " + W + " " + H,
       width: "100%",
       role: "img",
@@ -6470,27 +6470,27 @@
     });
     svg.style.display = "block";
     svg.style.overflow = "visible";
-    for (var v = 0; v <= top; v += step) {
-      var gy = y(v * 60);
+    for (let v = 0; v <= top; v += step) {
+      const gy = y(v * 60);
       svgEl("line", { x1: ml, x2: ml + pw, y1: gy, y2: gy, stroke: T.line, "stroke-width": 1 }, svg);
-      var t = svgEl("text", { x: ml - 6, y: gy + 3.5, "text-anchor": "end", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
+      const t = svgEl("text", { x: ml - 6, y: gy + 3.5, "text-anchor": "end", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
       t.textContent = v + " u";
     }
-    var elke = Math.max(1, Math.ceil(weeks.length / 7));
+    const elke = Math.max(1, Math.ceil(weeks.length / 7));
     weeks.forEach(function(w, i) {
       if ((weeks.length - 1 - i) % elke !== 0) return;
-      var lt = svgEl("text", { x: x(i), y: H - 6, "text-anchor": "middle", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
+      const lt = svgEl("text", { x: x(i), y: H - 6, "text-anchor": "middle", "font-size": 10, fill: T.inkSoft, "font-family": FONT }, svg);
       lt.textContent = "wk " + (w.week || "");
     });
-    var cross = svgEl("line", { x1: 0, x2: 0, y1: mt, y2: mt + ph, stroke: T.inkSoft, "stroke-width": 1, opacity: 0 }, svg);
-    var eind = [];
-    var eersteGepland = weeks.findIndex(function(w) {
+    const cross = svgEl("line", { x1: 0, x2: 0, y1: mt, y2: mt + ph, stroke: T.inkSoft, "stroke-width": 1, opacity: 0 }, svg);
+    const eind = [];
+    let eersteGepland = weeks.findIndex(function(w) {
       return w.planned;
     });
     if (eersteGepland < 0) eersteGepland = weeks.length;
-    var pad = function(r, van, tot) {
-      var d = "";
-      for (var i = van; i <= tot; i++) d += (i === van ? "M" : "L") + x(i).toFixed(1) + " " + y(weeks[i][r.key] || 0).toFixed(1) + " ";
+    const pad = function(r, van, tot) {
+      let d = "";
+      for (let i = van; i <= tot; i++) d += (i === van ? "M" : "L") + x(i).toFixed(1) + " " + y(weeks[i][r.key] || 0).toFixed(1) + " ";
       return d;
     };
     reeksen.forEach(function(r) {
@@ -6511,24 +6511,24 @@
         if (w.planned) svgEl("circle", { cx: x(i), cy: y(w[r.key] || 0), r: 4, fill: "#fff", stroke: r.kleur, "stroke-width": 2 }, svg);
         else svgEl("circle", { cx: x(i), cy: y(w[r.key] || 0), r: 4, fill: r.kleur, stroke: "#fff", "stroke-width": 2 }, svg);
       });
-      var last = weeks.length - 1;
+      const last = weeks.length - 1;
       eind.push({ naam: r.naam, y: y(weeks[last][r.key] || 0) });
     });
-    var gesorteerd = eind.slice().sort(function(a, b) {
+    const gesorteerd = eind.slice().sort(function(a, b) {
       return a.y - b.y;
     });
-    for (var g = 1; g < gesorteerd.length; g++) {
+    for (let g = 1; g < gesorteerd.length; g++) {
       if (gesorteerd[g].y - gesorteerd[g - 1].y < 12) gesorteerd[g].y = gesorteerd[g - 1].y + 12;
     }
-    var overloop = gesorteerd.length ? gesorteerd[gesorteerd.length - 1].y - (mt + ph) : 0;
+    const overloop = gesorteerd.length ? gesorteerd[gesorteerd.length - 1].y - (mt + ph) : 0;
     if (overloop > 0) gesorteerd.forEach(function(e) {
       e.y -= overloop;
     });
     eind.forEach(function(e) {
-      var et = svgEl("text", { x: x(weeks.length - 1) + 8, y: e.y + 3.5, "font-size": 11, fill: T.ink, "font-family": FONT }, svg);
+      const et = svgEl("text", { x: x(weeks.length - 1) + 8, y: e.y + 3.5, "font-size": 11, fill: T.ink, "font-family": FONT }, svg);
       et.textContent = e.naam;
     });
-    var tip = el("div", {
+    const tip = el("div", {
       position: "absolute",
       pointerEvents: "none",
       display: "none",
@@ -6543,23 +6543,23 @@
       whiteSpace: "nowrap"
     });
     function toonTip(i) {
-      var w = weeks[i];
+      const w = weeks[i];
       cross.setAttribute("x1", x(i));
       cross.setAttribute("x2", x(i));
       cross.setAttribute("opacity", "0.5");
       tip.innerHTML = "";
       tip.appendChild(el("div", { fontWeight: "700", marginBottom: "3px" }, "Week " + (w.week || "") + ", vanaf " + dayLabel(w.weekStart) + (w.planned ? " (gepland)" : "")));
       reeksen.forEach(function(r) {
-        var rij = el("div", { display: "flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums" });
+        const rij = el("div", { display: "flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums" });
         rij.appendChild(el("span", { width: "10px", height: "2px", background: r.kleur, display: "inline-block" }));
         rij.appendChild(document.createTextNode(r.naam + " " + fmtMin(w[r.key])));
         tip.appendChild(rij);
       });
       tip.style.display = "block";
-      var rect = svg.getBoundingClientRect();
-      var schaal = rect.width ? rect.width / W : 1;
-      var px = x(i) * schaal;
-      var links = px + 10;
+      const rect = svg.getBoundingClientRect();
+      const schaal = rect.width ? rect.width / W : 1;
+      const px = x(i) * schaal;
+      let links = px + 10;
       if (rect.width && links + 150 > rect.width - mr * schaal) links = Math.max(0, px - 160);
       tip.style.left = links + "px";
       tip.style.top = legenda.offsetHeight + mt * schaal + "px";
@@ -6568,9 +6568,9 @@
       tip.style.display = "none";
       cross.setAttribute("opacity", "0");
     }
-    var band = weeks.length === 1 ? pw : pw / (weeks.length - 1);
+    const band = weeks.length === 1 ? pw : pw / (weeks.length - 1);
     weeks.forEach(function(w, i) {
-      var hit = svgEl("rect", { x: x(i) - band / 2, y: mt, width: band, height: ph, fill: "transparent" }, svg);
+      const hit = svgEl("rect", { x: x(i) - band / 2, y: mt, width: band, height: ph, fill: "transparent" }, svg);
       hit.addEventListener("mouseenter", function() {
         toonTip(i);
       });
@@ -6581,20 +6581,20 @@
     return wrap;
   }
   function productionTable(weeks) {
-    var t = document.createElement("table");
+    const t = document.createElement("table");
     Object.assign(t.style, { width: "100%", borderCollapse: "collapse", marginTop: "12px", fontSize: "12px", color: T.ink, fontVariantNumeric: "tabular-nums" });
-    var kop = t.createTHead().insertRow();
+    const kop = t.createTHead().insertRow();
     ["Week", "Direct", "Indirect", "Reistijd", "Cliënttijd"].forEach(function(k, i) {
-      var th = document.createElement("th");
+      const th = document.createElement("th");
       th.textContent = k;
       Object.assign(th.style, { textAlign: i ? "right" : "left", fontWeight: "600", color: T.inkSoft, padding: "0 0 6px", borderBottom: "1px solid " + T.line });
       kop.appendChild(th);
     });
-    var tb = t.createTBody();
+    const tb = t.createTBody();
     weeks.slice().reverse().forEach(function(w) {
-      var r = tb.insertRow();
+      const r = tb.insertRow();
       [String(w.week || ""), fmtMin(w.directMinutes), fmtMin(w.indirectMinutes), fmtMin(w.travelMinutes), fmtMin(w.clientMinutes)].forEach(function(v, i) {
-        var td = r.insertCell();
+        const td = r.insertCell();
         td.textContent = v;
         Object.assign(td.style, { textAlign: i ? "right" : "left", padding: "6px 0", borderBottom: "1px solid " + T.lineSoft, color: w.planned ? T.inkSoft : T.ink });
         if (!i && w.planned) td.appendChild(el("span", { fontSize: "11px", marginLeft: "4px" }, "gepland"));
@@ -6607,24 +6607,24 @@
   function maakClienttijd(ctx) {
     const { actions, fAan, renderPagina } = ctx;
     function weekNaam() {
-      var w = ctx.state && ctx.state.week;
+      const w = ctx.state && ctx.state.week;
       return w && w.opts && w.opts.week ? "week " + w.opts.week : "deze week";
     }
     function pageClientTime() {
-      var box = el("div");
-      var wo = ctx.state && ctx.state.week && ctx.state.week.opts || {};
+      let box = el("div");
+      const wo = ctx.state && ctx.state.week && ctx.state.week.opts || {};
       box.appendChild(sectionHead("Opbouw " + weekNaam(), true, "", wo.headerHint || ""));
       ctx.liveHost = el("div");
       box.appendChild(ctx.liveHost);
       if (!fAan("production")) return box;
       box.appendChild(sectionHead("Productieverloop", false, "uren per week"));
-      var pk = kaart();
+      const pk = kaart();
       box.appendChild(pk);
-      var buiten = box;
+      const buiten = box;
       box = pk;
       box.appendChild(txt("help", "Tot en met deze week uit je registraties, latere weken uit de planning (gestippeld). Hooguit 26 weken.", { margin: "0 0 10px" }));
-      var rij = el("div", { display: "flex", gap: "8px" });
-      var k = maakKiezers();
+      const rij = el("div", { display: "flex", gap: "8px" });
+      const k = maakKiezers();
       rij.appendChild(fieldLabel("Van", k.datum(ctx.prod.from, function(v) {
         ctx.prod.from = v;
       })));
@@ -6637,25 +6637,25 @@
       if (ctx.prod.busy) box.appendChild(voortgang(ctx.prod.done, ctx.prod.total));
       if (ctx.prod.error) box.appendChild(noteBox(ctx.prod.error, "bad"));
       if (ctx.prod.result && !ctx.prod.busy) {
-        var weken = ctx.prod.result.weeks || [];
+        const weken = ctx.prod.result.weeks || [];
         if (!weken.length) box.appendChild(noteBox("Geen weken in deze periode.", "warn"));
         else {
-          var personen = ctx.prod.result.persons && ctx.prod.result.persons.length > 1 ? ctx.prod.result.persons : [{ id: "", name: "", weeks: weken }];
+          const personen = ctx.prod.result.persons && ctx.prod.result.persons.length > 1 ? ctx.prod.result.persons : [{ id: "", name: "", weeks: weken }];
           ctx.prod.tabelOpen = ctx.prod.tabelOpen || {};
           personen.forEach(function(p, i) {
-            var grafiek = el("div", { marginTop: "14px", paddingTop: i ? "14px" : "0", borderTop: i ? "1px solid " + T.line : "0" });
+            const grafiek = el("div", { marginTop: "14px", paddingTop: i ? "14px" : "0", borderTop: i ? "1px solid " + T.line : "0" });
             grafiek.setAttribute("data-grafiek-persoon", p.id || "een");
             if (p.name) grafiek.appendChild(txt("section", p.name));
             grafiek.appendChild(productionChart(p.weeks));
-            var sleutel = p.id || "een";
-            var open = !!ctx.prod.tabelOpen[sleutel];
-            var wissel = tekstKnop(CHEV_RECHTS, open ? "Tabel verbergen" : "Tabel tonen", function() {
+            const sleutel = p.id || "een";
+            const open = !!ctx.prod.tabelOpen[sleutel];
+            const wissel = tekstKnop(CHEV_RECHTS, open ? "Tabel verbergen" : "Tabel tonen", function() {
               ctx.prod.tabelOpen[sleutel] = !open;
               renderPagina();
             });
             wissel.setAttribute("aria-expanded", open ? "true" : "false");
             wissel.style.margin = "8px 0 0 -6px";
-            var pijl = wissel.querySelector("svg");
+            const pijl = wissel.querySelector("svg");
             if (pijl) {
               pijl.style.transition = "transform .15s ease";
               pijl.style.transform = open ? "rotate(90deg)" : "none";
@@ -6688,7 +6688,7 @@
 
   // src/sidepanel/pagina-verhouding.js
   function bladerKnop(icoon, label, onClick) {
-    var b = document.createElement("button");
+    const b = document.createElement("button");
     b.type = "button";
     b.setAttribute("aria-label", label);
     b.title = label;
@@ -6721,11 +6721,11 @@
   }
   function ratioSkelet() {
     zorgVoorStijl();
-    var wrap = el("div", { animation: "onsAhPuls 1.4s ease-in-out infinite" });
+    const wrap = el("div", { animation: "onsAhPuls 1.4s ease-in-out infinite" });
     wrap.setAttribute("aria-hidden", "true");
     wrap.appendChild(el("div", { height: "9px", width: "80%", borderRadius: "6px", background: T.lineSoft, margin: "0 0 14px" }));
     [0, 1].forEach(function() {
-      var kaart2 = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "12px", marginBottom: "8px" });
+      const kaart2 = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "12px", marginBottom: "8px" });
       kaart2.appendChild(el("div", { height: "11px", width: "60%", borderRadius: "6px", background: T.lineSoft, margin: "0 0 12px" }));
       ["85%", "40%", "20%"].forEach(function(bw) {
         kaart2.appendChild(el("div", { height: "8px", width: "35%", borderRadius: "6px", background: T.lineSoft, margin: "0 0 6px" }));
@@ -6738,9 +6738,9 @@
   function maakVerhouding(ctx) {
     const { actions, bridge, renderPagina } = ctx;
     ctx.liveHost = null;
-    var liveSubs = {}, liveSleutel = "";
+    let liveSubs = {}, liveSleutel = "";
     function subsLos() {
-      var b = bridge();
+      const b = bridge();
       Object.keys(liveSubs).forEach(function(k) {
         if (b && b.unmount) b.unmount(liveSubs[k]);
       });
@@ -6752,16 +6752,16 @@
       ctx.liveHost = null;
     }
     function subsVoor(personen) {
-      var sleutel = personen.map(function(p) {
+      const sleutel = personen.map(function(p) {
         return p.id + ":" + p.name;
       }).join("|");
       if (sleutel !== liveSleutel) {
         subsLos();
         ctx.liveHost.innerHTML = "";
         personen.forEach(function(p, i) {
-          var blok = el("div", { marginTop: i ? "14px" : "0" });
+          const blok = el("div", { marginTop: i ? "14px" : "0" });
           if (p.name) blok.appendChild(el("div", Object.assign({}, TYPE.label, { margin: "0 0 6px", color: T.ink }), p.name));
-          var sub = el("div");
+          const sub = el("div");
           blok.appendChild(sub);
           ctx.liveHost.appendChild(blok);
           liveSubs[p.id || "p" + i] = sub;
@@ -6774,7 +6774,7 @@
     }
     function renderLive() {
       if (!ctx.liveHost) return;
-      var b = bridge();
+      const b = bridge();
       if (ctx.pagina === "verhouding") {
         if (!ctx.ratio.result) return;
         if (!b) {
@@ -6782,13 +6782,13 @@
           ctx.liveHost.appendChild(noteBox("Kon niet laden (bundel ontbreekt).", "bad"));
           return;
         }
-        var rp = ctx.ratio.result.persons && ctx.ratio.result.persons.length > 1 ? ctx.ratio.result.persons : [{ id: "", name: "", rows: ctx.ratio.result.rows || [] }];
+        const rp = ctx.ratio.result.persons && ctx.ratio.result.persons.length > 1 ? ctx.ratio.result.persons : [{ id: "", name: "", rows: ctx.ratio.result.rows || [] }];
         subsVoor(rp).forEach(function(sub, i) {
           b.renderCalcBody(sub, rp[i].rows || [], ctx.state && ctx.state.nonClientMarker || "*", fmtMin, T, ctx.ratio.result.mode);
         });
         return;
       }
-      var w = ctx.state && ctx.state.week;
+      const w = ctx.state && ctx.state.week;
       if (!w || !w.summary) {
         subsLos();
         ctx.liveHost.innerHTML = "";
@@ -6801,7 +6801,7 @@
         return;
       }
       if (ctx.pagina === "clienttijd") {
-        var cp = w.perInvitee && w.perInvitee.length > 1 ? w.perInvitee : [{ id: "", name: "", summary: w.summary }];
+        const cp = w.perInvitee && w.perInvitee.length > 1 ? w.perInvitee : [{ id: "", name: "", summary: w.summary }];
         subsVoor(cp).forEach(function(sub, i) {
           b.renderBreakdownBody(sub, cp[i].summary, w.opts || {}, fmtMin, T);
         });
@@ -6812,7 +6812,7 @@
     }
     function laadRatio() {
       if (!actions.onWeekRatio) return;
-      var datum = ratioDatum();
+      const datum = ratioDatum();
       ctx.ratio.busy = true;
       ctx.ratio.error = "";
       ctx.ratio.voor = datum;
@@ -6830,17 +6830,17 @@
       });
     }
     function pageRatio() {
-      var box = el("div");
-      var r0 = ctx.ratio.result;
-      var doel = maandagVan2(ratioDatum());
-      var nav = kaart({ display: "flex", alignItems: "center", gap: "8px", padding: "8px 6px", margin: "0 0 10px" });
+      const box = el("div");
+      const r0 = ctx.ratio.result;
+      const doel = maandagVan2(ratioDatum());
+      const nav = kaart({ display: "flex", alignItems: "center", gap: "8px", padding: "8px 6px", margin: "0 0 10px" });
       nav.appendChild(bladerKnop(CHEV_LINKS, "Vorige week", function() {
         ctx.ratio.offset--;
         laadRatio();
       }));
-      var midden = el("div", { flex: "1 1 auto", textAlign: "center", minWidth: "0" });
+      const midden = el("div", { flex: "1 1 auto", textAlign: "center", minWidth: "0" });
       midden.appendChild(el("div", { fontSize: "14px", fontWeight: "700", color: T.ink }, "Week " + (r0 && r0.week || isoWeek2(doel) || "")));
-      var sub = ctx.ratio.busy ? "ophalen…" : r0 ? r0.mode === "gepland" ? "gepland" : "geregistreerd" : "";
+      const sub = ctx.ratio.busy ? "ophalen…" : r0 ? r0.mode === "gepland" ? "gepland" : "geregistreerd" : "";
       midden.appendChild(txt("help", (sub ? sub + ", " : "") + werkweekTekst2(doel)));
       nav.appendChild(midden);
       nav.appendChild(bladerKnop(CHEV_RECHTS, "Volgende week", function() {
@@ -6866,18 +6866,18 @@
 
   // src/sidepanel/pagina-open.js
   function mergeOpenRange(oud, nieuw, afgewerkt) {
-    var open = {};
+    const open = {};
     (nieuw.days || []).forEach(function(d) {
       d.items.forEach(function(it) {
         open[it.key] = true;
       });
     });
-    var dagen = {};
+    const dagen = {};
     (oud.days || []).forEach(function(d) {
       dagen[d.date] = { date: d.date, items: d.items.slice() };
     });
     (nieuw.days || []).forEach(function(d) {
-      var dag = dagen[d.date] || (dagen[d.date] = { date: d.date, items: [] });
+      const dag = dagen[d.date] || (dagen[d.date] = { date: d.date, items: [] });
       d.items.forEach(function(it) {
         if (!dag.items.some(function(x) {
           return x.key === it.key;
@@ -6891,16 +6891,16 @@
       });
     });
     return { from: oud.from, to: oud.to, days: Object.keys(dagen).sort().map(function(dt) {
-      var items = dagen[dt].items.sort(function(a, b) {
+      const items = dagen[dt].items.sort(function(a, b) {
         return a.start - b.start;
       });
       return { date: dt, items };
     }) };
   }
   function telOpen(result, afgewerkt) {
-    var t = { count: 0, done: 0, openMinutes: 0, late: 0, days: 0 };
+    const t = { count: 0, done: 0, openMinutes: 0, late: 0, days: 0 };
     (result.days || []).forEach(function(d) {
-      var dagOpen = 0;
+      let dagOpen = 0;
       d.items.forEach(function(it) {
         t.count++;
         if (afgewerkt[it.key]) t.done++;
@@ -6915,23 +6915,23 @@
     return t;
   }
   function vinkje() {
-    var v = svgSpineCheck();
+    const v = svgSpineCheck();
     v.setAttribute("width", "14");
     v.setAttribute("height", "14");
     Object.assign(v.style, { color: T.ok, flex: "0 0 auto", width: "14px", height: "14px" });
     return v;
   }
   function itemId(it) {
-    var m = /^(?:[^:|]+:)?([\w-]+)\|/.exec(String(it.key || ""));
+    const m = /^(?:[^:|]+:)?([\w-]+)\|/.exec(String(it.key || ""));
     return m && m[1] !== "x" ? m[1] : "";
   }
   function maakOpenRegistraties(ctx) {
     const { actions, renderPagina, root } = ctx;
     function registreerKnop(it, date) {
-      var id = itemId(it);
+      const id = itemId(it);
       if (!id || !actions.onRegisterItem) return null;
-      var bezig = ctx.range.regBezig === it.key;
-      var b = el("button", {
+      const bezig = ctx.range.regBezig === it.key;
+      const b = el("button", {
         flex: "0 0 auto",
         height: "26px",
         padding: "0 10px",
@@ -6957,7 +6957,7 @@
         ctx.range.regBezig = it.key;
         ctx.range.regFout = null;
         if (ctx.pagina === "open") renderPagina();
-        var inv = /^(\d+):/.exec(String(it.key || ""));
+        const inv = /^(\d+):/.exec(String(it.key || ""));
         actions.onRegisterItem(id, date, function(res) {
           ctx.range.regBezig = null;
           if (!(res && res.ok)) ctx.range.regFout = { key: it.key, error: res && res.error || "Openen mislukt." };
@@ -6967,25 +6967,25 @@
       return b;
     }
     function rangeResultEl(r) {
-      var wrap = el("div", { marginTop: "12px" });
-      var t = telOpen(r, ctx.range.afgewerkt);
+      const wrap = el("div", { marginTop: "12px" });
+      const t = telOpen(r, ctx.range.afgewerkt);
       if (!t.count) {
         wrap.appendChild(noteBox("Alles geregistreerd van " + dayLabel(r.from) + " t/m " + dayLabel(r.to) + ".", "ok"));
         return wrap;
       }
-      var sam = kaart({ marginBottom: "12px" });
-      var kop = el("div", { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", margin: "0 0 8px" });
-      var open = t.count - t.done;
+      const sam = kaart({ marginBottom: "12px" });
+      const kop = el("div", { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", margin: "0 0 8px" });
+      const open = t.count - t.done;
       kop.appendChild(el("div", { fontSize: "14.5px", fontWeight: "700", color: T.ink, margin: "0" }, open ? open + (open === 1 ? " afspraak" : " afspraken") + " open, samen " + fmtMin(t.openMinutes) : "Alles afgewerkt"));
       if (t.late > 0) kop.firstChild.appendChild(tag("te laat: " + t.late, "bad"));
-      var teller = txt("label", null, { flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: "4px", fontVariantNumeric: "tabular-nums" });
+      const teller = txt("label", null, { flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: "4px", fontVariantNumeric: "tabular-nums" });
       teller.appendChild(vinkje());
       teller.appendChild(document.createTextNode(t.done + " van " + t.count));
       teller.title = t.done + " van " + t.count + " afgewerkt";
       kop.appendChild(teller);
       sam.appendChild(kop);
       wrap.appendChild(sam);
-      var spoor = el("div", { height: "6px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden", margin: "0" });
+      const spoor = el("div", { height: "6px", borderRadius: "999px", background: T.lineSoft, overflow: "hidden", margin: "0" });
       spoor.setAttribute("role", "progressbar");
       spoor.setAttribute("aria-label", "Afgewerkt");
       spoor.setAttribute("aria-valuemin", "0");
@@ -6993,42 +6993,42 @@
       spoor.setAttribute("aria-valuenow", String(t.done));
       spoor.appendChild(el("div", { height: "100%", width: Math.round(t.done / t.count * 100) + "%", background: T.ok, transition: "width .3s ease" }));
       sam.appendChild(spoor);
-      var list = el("div", { display: "flex", flexDirection: "column", gap: "8px" });
+      const list = el("div", { display: "flex", flexDirection: "column", gap: "8px" });
       r.days.forEach(function(d) {
-        var dagKlaar = d.items.every(function(it) {
+        const dagKlaar = d.items.every(function(it) {
           return ctx.range.afgewerkt[it.key];
         });
-        var card = clickCard(function() {
+        const card = clickCard(function() {
           if (actions.onJumpToDay) actions.onJumpToDay(d.date, true);
         }, "Klik om naar deze dag te gaan");
         card.style.padding = "10px 14px 6px";
         if (dagKlaar) card.style.background = T.okWash;
-        var head = el("div", { display: "flex", alignItems: "center", fontSize: "13.5px", fontWeight: "700", color: T.ink, marginBottom: "4px" });
+        const head = el("div", { display: "flex", alignItems: "center", fontSize: "13.5px", fontWeight: "700", color: T.ink, marginBottom: "4px" });
         if (dagKlaar) {
-          var ok = svgSpineCheck();
+          const ok = svgSpineCheck();
           ok.setAttribute("width", "13");
           ok.setAttribute("height", "13");
           Object.assign(ok.style, { color: T.ok, marginRight: "6px", flex: "0 0 auto" });
           head.appendChild(ok);
         }
         head.appendChild(document.createTextNode(dayLabel(d.date)));
-        var dagLaat = d.items.filter(function(it) {
+        const dagLaat = d.items.filter(function(it) {
           return it.late && !ctx.range.afgewerkt[it.key];
         }).length;
         if (dagLaat > 0) head.appendChild(tag("te laat: " + dagLaat, "bad"));
-        var ws = (ctx.state && ctx.state.windowStatus || {})[d.date];
+        const ws = (ctx.state && ctx.state.windowStatus || {})[d.date];
         if (ws === "soon" && !dagKlaar) head.appendChild(tag("verloopt binnenkort", "warn"));
         card.appendChild(head);
         d.items.forEach(function(it) {
-          var klaar = !!ctx.range.afgewerkt[it.key];
-          var row = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: klaar ? T.inkSoft : T.ink, padding: "7px 0", borderTop: "1px solid " + T.lineSoft, fontVariantNumeric: "tabular-nums" });
-          var dt = new Date(it.start);
-          var tijd = el("span", { fontWeight: "600", flex: "0 0 auto", textDecoration: klaar ? "line-through" : "none" }, ("0" + dt.getHours()).slice(-2) + ":" + ("0" + dt.getMinutes()).slice(-2));
+          const klaar = !!ctx.range.afgewerkt[it.key];
+          const row = el("div", { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: klaar ? T.inkSoft : T.ink, padding: "7px 0", borderTop: "1px solid " + T.lineSoft, fontVariantNumeric: "tabular-nums" });
+          const dt = new Date(it.start);
+          const tijd = el("span", { fontWeight: "600", flex: "0 0 auto", textDecoration: klaar ? "line-through" : "none" }, ("0" + dt.getHours()).slice(-2) + ":" + ("0" + dt.getMinutes()).slice(-2));
           row.appendChild(tijd);
           row.appendChild(el("span", { color: T.inkSoft, flex: "0 0 auto" }, fmtMin(it.minutes)));
           row.appendChild(el("span", { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: klaar ? "line-through" : "none" }, (it.persoon ? it.persoon + ": " : "") + (it.uursoort || "")));
           if (klaar) {
-            var v = vinkje();
+            const v = vinkje();
             v.setAttribute("data-afgewerkt", "1");
             v.setAttribute("aria-label", "Afgewerkt");
             v.setAttribute("role", "img");
@@ -7036,12 +7036,12 @@
             row.appendChild(v);
           } else {
             row.appendChild(tag(it.client ? "cliënt" : "overig", it.client ? "ok" : null));
-            var rk = registreerKnop(it, d.date);
+            const rk = registreerKnop(it, d.date);
             if (rk) row.appendChild(rk);
           }
           card.appendChild(row);
           if (ctx.range.regFout && ctx.range.regFout.key === it.key) {
-            var nf = noteBox(ctx.range.regFout.error, "warn");
+            const nf = noteBox(ctx.range.regFout.error, "warn");
             nf.style.margin = "2px 0 6px";
             card.appendChild(nf);
           }
@@ -7052,11 +7052,11 @@
       return wrap;
     }
     function pageOpen() {
-      var box = el("div");
+      const box = el("div");
       box.appendChild(txt("help", "Afgelopen afspraken in deze periode die nog niet geregistreerd zijn (hooguit 26 weken).", { margin: "0 2px 10px" }));
-      var pk = kaart();
-      var rij = el("div", { display: "flex", gap: "8px" });
-      var k = maakKiezers();
+      const pk = kaart();
+      const rij = el("div", { display: "flex", gap: "8px" });
+      const k = maakKiezers();
       rij.appendChild(fieldLabel("Van", k.datum(ctx.range.from, function(v) {
         ctx.range.from = v;
       })));
@@ -7071,9 +7071,9 @@
       if (ctx.range.error) box.appendChild(noteBox(ctx.range.error, "bad"));
       if (ctx.range.result && !ctx.range.busy) {
         box.appendChild(rangeResultEl(ctx.range.result));
-        var voet = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", margin: "12px 2px 0" });
+        const voet = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", margin: "12px 2px 0" });
         voet.appendChild(txt("help", "Registreer je een afspraak of zet je hem op ‘niet registreren’, dan wordt hij hier afgevinkt.", { flex: "1 1 auto" }));
-        var bij = tekstKnop(ICON_VERVERS, ctx.range.bijwerken ? "Bijwerken…" : "Bijwerken", function() {
+        const bij = tekstKnop(ICON_VERVERS, ctx.range.bijwerken ? "Bijwerken…" : "Bijwerken", function() {
           hercontrole();
         }, ctx.range.bijwerken);
         bij.style.flex = "0 0 auto";
@@ -7125,7 +7125,7 @@
       if (document.visibilityState === "visible") bijFocus();
     }
     document.addEventListener("visibilitychange", bijZichtbaar);
-    var planTimer = null;
+    let planTimer = null;
     function planHercontrole() {
       if (ctx.pagina !== "open" || !ctx.range.result) return;
       if (planTimer) clearTimeout(planTimer);
@@ -7146,12 +7146,12 @@
   function maakSnelRegistreren(ctx) {
     const { actions, quick, renderPagina } = ctx;
     function pageQuick() {
-      var buiten = el("div");
+      const buiten = el("div");
       buiten.appendChild(txt("help", "Opent het registratieformulier van ONS met datum en tijd ingevuld. Voor een afspraak: open de afspraak zelf, dan wordt de registratie eraan gekoppeld.", { margin: "0 2px 10px" }));
-      var box = kaart();
+      const box = kaart();
       buiten.appendChild(box);
-      var k = maakKiezers();
-      var rij = el("div", { display: "flex", gap: "8px" });
+      const k = maakKiezers();
+      const rij = el("div", { display: "flex", gap: "8px" });
       rij.appendChild(fieldLabel("Datum", k.datum(quick.date, function(v) {
         quick.date = v;
         quick.overlap = "";
@@ -7162,12 +7162,12 @@
       })));
       box.appendChild(rij);
       box.appendChild(k.host);
-      var rij2 = el("div", { display: "flex", gap: "8px", marginTop: "10px" });
+      const rij2 = el("div", { display: "flex", gap: "8px", marginTop: "10px" });
       function duurKiezer() {
-        var w = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
-        var vast = ["15", "30", "45", "60", "90", "120"];
+        const w = el("div", { display: "flex", flexWrap: "wrap", gap: "4px" });
+        const vast = ["15", "30", "45", "60", "90", "120"];
         vast.forEach(function(m) {
-          var g = String(quick.minutes) === m;
+          const g = String(quick.minutes) === m;
           w.appendChild(chipKnop(
             fmtMin(+m),
             g,
@@ -7179,7 +7179,7 @@
             { padding: "0 10px", border: "1px solid " + (g ? T.brand : T.line) }
           ));
         });
-        var eigen = inputEl("number", vast.indexOf(String(quick.minutes)) === -1 ? quick.minutes : "", function(v) {
+        const eigen = inputEl("number", vast.indexOf(String(quick.minutes)) === -1 ? quick.minutes : "", function(v) {
           quick.minutes = v;
           quick.overlap = "";
         });
@@ -7194,10 +7194,10 @@
       }
       rij2.appendChild(fieldLabel("Duur", duurKiezer()));
       box.appendChild(rij2);
-      var tm = /^(\d{1,2}):(\d{2})$/.exec(String(quick.time || "")), mins = parseInt(quick.minutes, 10);
+      const tm = /^(\d{1,2}):(\d{2})$/.exec(String(quick.time || "")), mins = parseInt(quick.minutes, 10);
       if (quick.date && tm && mins > 0) {
-        var start = +tm[1] * 60 + +tm[2];
-        var sam = el("div", { display: "flex", justifyContent: "space-between", gap: "8px", margin: "14px -14px -12px", padding: "10px 14px", borderTop: "1px solid " + T.line, fontSize: "13px" });
+        const start = +tm[1] * 60 + +tm[2];
+        const sam = el("div", { display: "flex", justifyContent: "space-between", gap: "8px", margin: "14px -14px -12px", padding: "10px 14px", borderTop: "1px solid " + T.line, fontSize: "13px" });
         sam.setAttribute("data-snel-samenvatting", "");
         sam.appendChild(el("span", { color: T.inkSoft }, dagLang2(quick.date)));
         sam.appendChild(el("span", { fontWeight: "700", color: T.ink, whiteSpace: "nowrap" }, vanTot(start, start + mins).replace(/^van /, "")));
@@ -7208,7 +7208,7 @@
       return buiten;
     }
     function snelBalk() {
-      var balk = el("div", { background: "#fff", padding: "12px", borderTop: "1px solid " + T.line });
+      const balk = el("div", { background: "#fff", padding: "12px", borderTop: "1px solid " + T.line });
       balk.appendChild(quick.overlap ? primaryBtn(quick.busy ? "Openen…" : "Toch openen", function() {
         startQuickRegister(true);
       }, quick.busy) : primaryBtn(quick.busy ? "Controleren…" : "Formulier openen", function() {
@@ -8874,10 +8874,10 @@
   var SVG_NS3 = "http://www.w3.org/2000/svg";
   function qrMatrix(tekst) {
     try {
-      var qr = qrcode_default(0, "L");
+      const qr = qrcode_default(0, "L");
       qr.addData(unescape(encodeURIComponent(String(tekst || ""))));
       qr.make();
-      var n = qr.getModuleCount();
+      const n = qr.getModuleCount();
       return { n, dark: function(r, c) {
         return qr.isDark(r, c);
       } };
@@ -8886,11 +8886,11 @@
     }
   }
   function qrSvg(doc, tekst, px) {
-    var m = qrMatrix(tekst);
+    const m = qrMatrix(tekst);
     if (!m) return null;
-    var rand = 4, totaal = m.n + rand * 2;
-    var maat = Math.max(px || 0, totaal * 3);
-    var svg = doc.createElementNS(SVG_NS3, "svg");
+    const rand = 4, totaal = m.n + rand * 2;
+    const maat = Math.max(px || 0, totaal * 3);
+    const svg = doc.createElementNS(SVG_NS3, "svg");
     svg.setAttribute("viewBox", "0 0 " + totaal + " " + totaal);
     svg.setAttribute("width", String(maat));
     svg.setAttribute("height", String(maat));
@@ -8898,14 +8898,14 @@
     svg.style.height = "auto";
     svg.setAttribute("shape-rendering", "crispEdges");
     svg.setAttribute("role", "img");
-    var bg = doc.createElementNS(SVG_NS3, "rect");
+    const bg = doc.createElementNS(SVG_NS3, "rect");
     bg.setAttribute("width", String(totaal));
     bg.setAttribute("height", String(totaal));
     bg.setAttribute("fill", "#fff");
     svg.appendChild(bg);
-    var d = [];
-    for (var r = 0; r < m.n; r++) for (var c = 0; c < m.n; c++) if (m.dark(r, c)) d.push("M" + (c + rand) + " " + (r + rand) + "h1v1h-1z");
-    var pad = doc.createElementNS(SVG_NS3, "path");
+    const d = [];
+    for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c)) d.push("M" + (c + rand) + " " + (r + rand) + "h1v1h-1z");
+    const pad = doc.createElementNS(SVG_NS3, "path");
     pad.setAttribute("d", d.join(""));
     pad.setAttribute("fill", "#000");
     svg.appendChild(pad);
@@ -8916,7 +8916,7 @@
   var VERTREK_KEY = "onsah.routeVertrekpunt";
   function maakRoute(ctx) {
     const { actions, renderPagina } = ctx;
-    var vertrekGeheugen = null;
+    let vertrekGeheugen = null;
     function leesVertrek() {
       if (vertrekGeheugen != null) return vertrekGeheugen;
       try {
@@ -8934,13 +8934,13 @@
       }
     }
     function startRoute() {
-      var rt = BEWAARD.route;
+      const rt = BEWAARD.route;
       if (!rt.date) rt.date = ctx.state && (ctx.state.viewDate || ctx.state.today) || "";
       if (rt.busy || !actions.onDayRoute || !rt.date) return;
       rt.busy = true;
       rt.error = "";
       if (ctx.pagina === "route") renderPagina();
-      var voor = rt.date;
+      const voor = rt.date;
       actions.onDayRoute(rt.date, leesVertrek(), function(res) {
         if (BEWAARD.route !== rt || rt.date !== voor) return;
         rt.busy = false;
@@ -8954,19 +8954,19 @@
       });
     }
     function pageRoute() {
-      var box = el("div");
-      var rt = BEWAARD.route;
+      const box = el("div");
+      const rt = BEWAARD.route;
       box.appendChild(txt("help", "Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. ‘Route openen’ opent Google Maps; de adressen gaan dan naar Google, net als met de kaartlink in ONS.", { margin: "0 2px 10px" }));
-      var vk = kaart();
-      var vrij = el("div", { display: "flex", gap: "8px" });
-      var k = maakKiezers();
+      const vk = kaart();
+      const vrij = el("div", { display: "flex", gap: "8px" });
+      const k = maakKiezers();
       vrij.appendChild(fieldLabel("Dag", k.datum(rt.date, function(v) {
         rt.date = v;
         rt.result = null;
         rt.busy = false;
         startRoute();
       })));
-      var vertrek = inputEl("text", leesVertrek(), function() {
+      const vertrek = inputEl("text", leesVertrek(), function() {
       });
       vertrek.placeholder = "Bijv. kantoor (optioneel)";
       vertrek.setAttribute("data-vertrekpunt", "");
@@ -8981,7 +8981,7 @@
       box.appendChild(vk);
       if (rt.busy) {
         zorgVoorStijl();
-        var lb = laadBalk();
+        const lb = laadBalk();
         lb.style.marginTop = "12px";
         box.appendChild(lb);
       }
@@ -9016,12 +9016,12 @@
           }
         }));
       }
-      var r = rt.result;
+      const r = rt.result;
       if (r && !rt.busy) {
         (r.persons || []).forEach(function(p, i) {
-          var blok = el("div");
+          const blok = el("div");
           blok.setAttribute("data-route-persoon", p.id || "");
-          var aantal = p.stops.length;
+          const aantal = p.stops.length;
           blok.appendChild(sectionHead(p.name || (aantal === 1 ? "1 huisbezoek" : aantal + " huisbezoeken"), false, p.name ? aantal === 1 ? "1 huisbezoek" : aantal + " huisbezoeken" : "op volgorde van tijd"));
           if (!p.stops.length) {
             if ((r.persons || []).length > 1) blok.appendChild(txt("help", "Geen afspraken bij cliënten op " + dayLabel(r.date) + ".", { margin: "0 2px" }));
@@ -9032,10 +9032,10 @@
             box.appendChild(blok);
             return;
           }
-          var lijst2 = kaart({ padding: "0 14px" });
-          var routeKleur = HULP_KLEUR.route[0];
+          const lijst2 = kaart({ padding: "0 14px" });
+          const routeKleur = HULP_KLEUR.route[0];
           p.stops.forEach(function(st, j) {
-            var rij = el("div", { display: "flex", gap: "12px", alignItems: "center", fontSize: "13px", color: T.ink, minHeight: "46px", padding: "6px 0", boxSizing: "border-box", borderTop: j ? "1px solid " + T.lineSoft : "0" });
+            const rij = el("div", { display: "flex", gap: "12px", alignItems: "center", fontSize: "13px", color: T.ink, minHeight: "46px", padding: "6px 0", boxSizing: "border-box", borderTop: j ? "1px solid " + T.lineSoft : "0" });
             rij.appendChild(el("span", { flex: "0 0 auto", width: "24px", height: "24px", borderRadius: "12px", background: st.address ? routeKleur : T.line, color: "#fff", fontSize: "12px", fontWeight: "700", display: "inline-flex", alignItems: "center", justifyContent: "center" }, String(j + 1)));
             rij.appendChild(el("span", { flex: "0 0 40px", fontWeight: "700", fontVariantNumeric: "tabular-nums" }, st.start));
             rij.appendChild(st.address ? el("span", { flex: "1 1 auto", minWidth: "0" }, st.address) : el("span", { flex: "1 1 auto", color: T.warn }, "Adres onbekend"));
@@ -9043,30 +9043,30 @@
           });
           blok.appendChild(lijst2);
           if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " afspraak zonder adres staat" : " afspraken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
-          var vertrekAdres = leesVertrek();
-          var pid = p.id || "p" + i;
+          const vertrekAdres = leesVertrek();
+          const pid = p.id || "p" + i;
           rt.qr = rt.qr || {};
-          var metPcQr = p.stops.filter(function(st) {
+          const metPcQr = p.stops.filter(function(st) {
             return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
           });
-          var kortVolg = p.kort && p.kort.order ? p.kort.order.map(function(k2) {
+          const kortVolg = p.kort && p.kort.order ? p.kort.order.map(function(k2) {
             return metPcQr[k2];
           }).filter(Boolean) : null;
-          var kaartStops = (kortVolg || p.stops.filter(function(st) {
+          const kaartStops = (kortVolg || p.stops.filter(function(st) {
             return st.address;
           })).map(function(st) {
             return st.address;
           });
-          var qrUrls = kortVolg ? mapsUrls(kortVolg.map(function(st) {
+          const qrUrls = kortVolg ? mapsUrls(kortVolg.map(function(st) {
             return st.address;
           }), vertrekAdres, true) : p.urls || [];
-          var kaartKey = ctx.state && ctx.state.mapsEmbedKey;
+          const kaartKey = ctx.state && ctx.state.mapsEmbedKey;
           if (rt.qr[pid] && qrUrls.length) {
-            var qrBox = el("div", { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginTop: "10px", padding: "12px", border: "1px solid " + T.line, borderRadius: "12px", background: "#fff" });
+            const qrBox = el("div", { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginTop: "10px", padding: "12px", border: "1px solid " + T.line, borderRadius: "12px", background: "#fff" });
             qrBox.setAttribute("data-route-qr", p.id || "");
             qrUrls.forEach(function(u, n) {
               if (qrUrls.length > 1) qrBox.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, marginTop: n ? "8px" : "0" }, "Deel " + (n + 1) + " van " + qrUrls.length));
-              var svg = qrSvg(document, u, 220);
+              const svg = qrSvg(document, u, 220);
               if (svg) {
                 svg.setAttribute("aria-label", "QR-code van de route" + (qrUrls.length > 1 ? ", deel " + (n + 1) : ""));
                 svg.setAttribute("data-qr-url", u);
@@ -9076,7 +9076,7 @@
             qrBox.appendChild(txt("help", "Scan met de camera van je telefoon; Google Maps opent met de route" + (kortVolg ? " in de kortste volgorde" : "") + ".", { margin: "4px 0 0", fontSize: "11.5px", textAlign: "center" }));
             blok.appendChild(qrBox);
           } else if (kaartKey && kaartStops.length) {
-            var ifr = document.createElement("iframe");
+            const ifr = document.createElement("iframe");
             ifr.src = embedUrl(kaartKey, kaartStops, vertrekAdres);
             ifr.title = "Kaart van de route";
             ifr.setAttribute("loading", "lazy");
@@ -9088,7 +9088,7 @@
             blok.appendChild(txt("help", "Voor de kaart: vul in het beheerscherm (Functies → Google Maps) een sleutel voor de Maps Embed API in.", { margin: "8px 0 0", fontSize: "11.5px" }));
           }
           if (qrUrls.length) {
-            var wissel = secondaryBtn(rt.qr[pid] ? "Kaart tonen" : "QR-code tonen", function() {
+            const wissel = secondaryBtn(rt.qr[pid] ? "Kaart tonen" : "QR-code tonen", function() {
               rt.qr[pid] = !rt.qr[pid];
               renderPagina();
             });
@@ -9096,41 +9096,41 @@
             wissel.setAttribute("data-route-qr-knop", p.id || "");
             blok.appendChild(wissel);
           }
-          var vertrekPc = normPostcode((String(vertrekAdres).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
-          var metPc = p.stops.filter(function(st) {
+          const vertrekPc = normPostcode((String(vertrekAdres).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
+          const metPc = p.stops.filter(function(st) {
             return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
           });
           if (ctx.state && ctx.state.routesProxy && metPc.length >= 2) {
             if (!vertrekPc) blok.appendChild(txt("help", "Vul een vertrekpunt met postcode in voor de kortste volgorde.", { margin: "6px 0 0" }));
             else {
-              var kort = p.kort;
+              const kort = p.kort;
               if (kort && kort.fout) blok.appendChild(noteBox(kort.fout, "warn"));
               if (kort && kort.order) {
-                var volg = kort.order.map(function(i2) {
+                const volg = kort.order.map(function(i2) {
                   return metPc[i2];
                 });
-                var regel = volg.map(function(st) {
+                const regel = volg.map(function(st) {
                   return st.start;
                 }).join(" → ");
-                var nb = noteBox("Kortste rondrit: ≈ " + Math.round(kort.m / 1e3) + " km en " + Math.round(kort.s / 60) + " min (" + regel + "). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.", "ok");
+                const nb = noteBox("Kortste rondrit: ≈ " + Math.round(kort.m / 1e3) + " km en " + Math.round(kort.s / 60) + " min (" + regel + "). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.", "ok");
                 nb.setAttribute("data-kortste", regel);
                 blok.appendChild(nb);
                 mapsUrls(volg.map(function(st) {
                   return st.address;
                 }), vertrekAdres, true).forEach(function(u, n, all) {
-                  var b2 = secondaryBtn(all.length > 1 ? "Kortste volgorde " + (n + 1) + " van " + all.length + " openen" : "Kortste volgorde openen in Google Maps", function() {
+                  const b2 = secondaryBtn(all.length > 1 ? "Kortste volgorde " + (n + 1) + " van " + all.length + " openen" : "Kortste volgorde openen in Google Maps", function() {
                     window.open(u, "_blank", "noopener");
                   });
                   b2.style.marginTop = "6px";
                   blok.appendChild(b2);
                 });
               } else {
-                var kb = secondaryBtn(kort && kort.busy ? "Kortste volgorde berekenen…" : "Kortste volgorde berekenen", function() {
+                const kb = secondaryBtn(kort && kort.busy ? "Kortste volgorde berekenen…" : "Kortste volgorde berekenen", function() {
                   if (p.kort && p.kort.busy) return;
-                  var pcs = metPc.map(function(st) {
+                  const pcs = metPc.map(function(st) {
                     return normPostcode(st.address.match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/)[0]);
                   });
-                  var reken = function() {
+                  const reken = function() {
                     p.kort = { busy: true };
                     renderPagina();
                     optimizeRoute(ctx.state.routesProxy, vertrekPc, pcs).then(function(r2) {
@@ -9156,8 +9156,8 @@
             }
           }
           (p.urls || []).forEach(function(u, n) {
-            var label = p.urls.length > 1 ? "Route " + (n + 1) + " van " + p.urls.length + " openen" : "Route openen in Google Maps";
-            var b = n === 0 ? primaryBtn(label, function() {
+            const label = p.urls.length > 1 ? "Route " + (n + 1) + " van " + p.urls.length + " openen" : "Route openen in Google Maps";
+            const b = n === 0 ? primaryBtn(label, function() {
               window.open(u, "_blank", "noopener");
             }) : secondaryBtn(label, function() {
               window.open(u, "_blank", "noopener");
@@ -9178,20 +9178,20 @@
   function maakInfo(ctx) {
     const { fAan, naarPagina } = ctx;
     function pageInfo() {
-      var box = el("div");
+      const box = el("div");
       box.appendChild(txt("help", "Gebruik de Agendahulp voor een duidelijk agenda-overzicht.", { margin: "0 2px 12px" }));
-      var lijstKaart = function() {
+      const lijstKaart = function() {
         return el("div", { border: "1px solid " + T.line, borderRadius: "12px", overflow: "hidden", background: "#fff" });
       };
-      var regel = function(eerste) {
+      const regel = function(eerste) {
         return el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "44px", padding: "0 12px", borderTop: eerste ? "0" : "1px solid " + T.line, fontSize: "13.5px", color: T.ink });
       };
-      var legenda = ctx.state && ctx.state.legend || [];
+      const legenda = ctx.state && ctx.state.legend || [];
       box.appendChild(sectionHead("Legenda", true, ctx.state && ctx.state.windowLabel || "08:00 tot 17:00"));
       if (legenda.length) {
-        var lk = lijstKaart();
+        const lk = lijstKaart();
         legenda.forEach(function(item, i) {
-          var row = regel(i === 0);
+          const row = regel(i === 0);
           row.appendChild(el("span", { width: "16px", height: "16px", borderRadius: "5px", background: item.color, border: "1px solid rgba(0,0,0,.08)", flex: "0 0 auto" }));
           row.appendChild(el("span", { fontWeight: "600" }, item.text));
           lk.appendChild(row);
@@ -9199,14 +9199,14 @@
         box.appendChild(lk);
       }
       box.appendChild(sectionHead("Rondleiding"));
-      var rl = lijstKaart();
-      var r1 = hulpRij("info", ICON_HELP, "Rondleiding zijpaneel", function() {
+      const rl = lijstKaart();
+      const r1 = hulpRij("info", ICON_HELP, "Rondleiding zijpaneel", function() {
         ctx.startHoofdRondleiding();
       }, null, true);
       r1.setAttribute("data-info-rondleiding", "zijpaneel");
       rl.appendChild(r1);
       if (fAan("planner")) {
-        var r2 = hulpRij("plan", ICON_PLAN, "Rondleiding Planhulp", function() {
+        const r2 = hulpRij("plan", ICON_PLAN, "Rondleiding Planhulp", function() {
           naarPagina("plan");
           ctx.startPlanRondleiding();
         });
@@ -9215,8 +9215,8 @@
       }
       box.appendChild(rl);
       box.appendChild(sectionHead("Over"));
-      var ov = lijstKaart();
-      var vr = regel(true);
+      const ov = lijstKaart();
+      const vr = regel(true);
       vr.appendChild(el("span", { flex: "1 1 auto", fontWeight: "600" }, "Versie"));
       vr.appendChild(el("span", { color: T.inkSoft, fontVariantNumeric: "tabular-nums" }, ctx.state && ctx.state.version || ""));
       ov.appendChild(vr);
@@ -9229,7 +9229,7 @@
   // src/sidepanel/rondleidingen.js
   function welkomIcoon(d) {
     return function() {
-      var i = svgPath(d, 24);
+      const i = svgPath(d, 24);
       i.style.color = T.brand;
       return i;
     };
@@ -9275,8 +9275,8 @@
         ]
       });
     }
-    var tourTijdelijk = null;
-    var planTourWacht = false;
+    let tourTijdelijk = null;
+    let planTourWacht = false;
     function startPlanRondleiding() {
       if (!fAan("planner")) return;
       if (ctx.pagina !== "plan") naarPagina("plan");
@@ -9286,7 +9286,7 @@
         return;
       }
       planTourWacht = false;
-      var oud = { weergave: ctx.plan.weergave || "lijst", momenten: BEWAARD.momenten.length, maak: BEWAARD.maak };
+      const oud = { weergave: ctx.plan.weergave || "lijst", momenten: BEWAARD.momenten.length, maak: BEWAARD.maak };
       tourTijdelijk = null;
       function naarPlan(w) {
         if (ctx.pagina !== "plan") naarPagina("plan");
@@ -9301,9 +9301,9 @@
       function eenMoment() {
         lijstKlaar();
         if (BEWAARD.momenten.length) return;
-        var c = paginaBox.querySelector("[data-dag][data-start]");
+        const c = paginaBox.querySelector("[data-dag][data-start]");
         if (!c) return;
-        var d = c.getAttribute("data-dag"), t = c.getAttribute("data-start").split(":");
+        const d = c.getAttribute("data-dag"), t = c.getAttribute("data-start").split(":");
         tourTijdelijk = { date: d, startMin: +t[0] * 60 + +t[1] };
         ctx.wisselMoment(tourTijdelijk.date, tourTijdelijk.startMin);
         renderPagina();
@@ -9313,10 +9313,10 @@
         if (!BEWAARD.momenten.length) eenMoment();
         if (BEWAARD.momenten.length && ctx.kanDirect()) ctx.naarMaken(BEWAARD.momenten, ctx.plan.minutes);
       }
-      var inst = function() {
+      const inst = function() {
         return paginaBox.querySelector("[data-plan-instellingen]");
       };
-      var alle = function(sel) {
+      const alle = function(sel) {
         return function() {
           return paginaBox.querySelectorAll(sel);
         };
@@ -9337,9 +9337,9 @@
             tekst: "Een tik kiest de tijd, nog een tik laat hem los. Je kunt meerdere momenten kiezen, ook op verschillende dagen. ONS kijkt meteen na of er overlap is.",
             voor: lijstKlaar,
             vind: function() {
-              var c = paginaBox.querySelector("[data-dag][data-start]");
+              const c = paginaBox.querySelector("[data-dag][data-start]");
               if (!c) return null;
-              var els = Array.prototype.slice.call(paginaBox.querySelectorAll('[data-dag="' + c.getAttribute("data-dag") + '"]'));
+              const els = Array.prototype.slice.call(paginaBox.querySelectorAll('[data-dag="' + c.getAttribute("data-dag") + '"]'));
               if (c.parentNode && c.parentNode.previousSibling) els.push(c.parentNode.previousSibling);
               return els;
             }
@@ -9362,7 +9362,7 @@
             als: ctx.kanDirect,
             voor: naarMakenPagina,
             vind: function() {
-              var z = paginaBox.querySelector("[data-maak-zoek]"), v = paginaBox.querySelector("[data-client-uit-zorg]");
+              const z = paginaBox.querySelector("[data-maak-zoek]"), v = paginaBox.querySelector("[data-client-uit-zorg]");
               return [z, v && v.parentNode].filter(Boolean);
             }
           },
@@ -9389,7 +9389,7 @@
         }
       });
     }
-    var tourGepland = false;
+    let tourGepland = false;
     function misschienRondleiding() {
       if (tourGepland || rondleidingActief() || !ctx.state) return;
       if (ctx.pagina === "hoofd" && navBox.children.length && !rondleidingGedaan("zijpaneel")) {
@@ -9423,10 +9423,10 @@
   };
   function create(host2, actions) {
     actions = actions || {};
-    var ctx = { actions, host: host2, state: null, pagina: "hoofd" };
-    var vorigePagina = BEWAARD.pagina;
-    var vergelijkSig = "";
-    var root = el("div", {
+    const ctx = { actions, host: host2, state: null, pagina: "hoofd" };
+    let vorigePagina = BEWAARD.pagina;
+    let vergelijkSig = "";
+    const root = el("div", {
       background: "#fff",
       color: T.ink,
       font: "400 13px/1.45 " + FONT,
@@ -9437,7 +9437,7 @@
       height: "100%",
       width: "100%"
     });
-    var spine = el("div", {
+    const spine = el("div", {
       width: "16px",
       flex: "0 0 auto",
       display: "flex",
@@ -9447,7 +9447,7 @@
       userSelect: "none"
     });
     spine.setAttribute("aria-hidden", "true");
-    var spineChip = el("span", {
+    const spineChip = el("span", {
       width: "20px",
       height: "20px",
       borderRadius: "50%",
@@ -9459,7 +9459,7 @@
       flex: "0 0 auto"
     });
     spine.appendChild(spineChip);
-    var mainCol = el("div", {
+    const mainCol = el("div", {
       flex: "1 1 auto",
       minWidth: "0",
       display: "flex",
@@ -9467,7 +9467,7 @@
       overflowY: "auto",
       overflowX: "hidden"
     });
-    var header = el("div", {
+    const header = el("div", {
       display: "flex",
       alignItems: "center",
       background: "#fff",
@@ -9476,7 +9476,7 @@
       borderBottom: "1px solid " + T.line,
       flex: "0 0 auto"
     });
-    var terugPijl = document.createElement("button");
+    const terugPijl = document.createElement("button");
     terugPijl.type = "button";
     terugPijl.setAttribute("data-terug", "");
     terugPijl.setAttribute("aria-label", "Terug");
@@ -9509,7 +9509,7 @@
       naarPagina(ctx.pagina === "maken" ? "plan" : "hoofd");
     });
     header.appendChild(terugPijl);
-    var title = el("span", Object.assign({}, TYPE.pageTitle, {
+    const title = el("span", Object.assign({}, TYPE.pageTitle, {
       flex: "1 1 auto",
       minWidth: "0",
       overflow: "hidden",
@@ -9518,8 +9518,8 @@
     }), PAGINA_TITEL.hoofd);
     title.setAttribute("data-paneel-titel", "");
     header.appendChild(title);
-    var controls = el("div", { display: "inline-flex", alignItems: "center", gap: "8px", flex: "0 0 auto", marginLeft: "8px" });
-    var onoff = document.createElement("button");
+    const controls = el("div", { display: "inline-flex", alignItems: "center", gap: "8px", flex: "0 0 auto", marginLeft: "8px" });
+    const onoff = document.createElement("button");
     onoff.type = "button";
     Object.assign(onoff.style, {
       position: "relative",
@@ -9536,14 +9536,14 @@
       flex: "0 0 auto",
       fontFamily: "inherit"
     });
-    var swTrack = el("span", {
+    const swTrack = el("span", {
       position: "absolute",
       inset: "0",
       borderRadius: "999px",
       border: "1px solid rgba(255,255,255,.45)",
       transition: "background .16s ease, opacity .16s ease"
     });
-    var swText = el("span", {
+    const swText = el("span", {
       position: "absolute",
       top: "0",
       bottom: "0",
@@ -9555,7 +9555,7 @@
       transition: "left .16s ease, right .16s ease",
       pointerEvents: "none"
     });
-    var swKnob = el("span", {
+    const swKnob = el("span", {
       position: "absolute",
       top: "3px",
       width: "18px",
@@ -9572,13 +9572,13 @@
     onoff.addEventListener("click", function(e) {
       e.preventDefault();
       e.stopPropagation();
-      var next = !(ctx.state && ctx.state.enabled);
+      const next = !(ctx.state && ctx.state.enabled);
       if (ctx.state) ctx.state.enabled = next;
       paintOnoff();
       if (actions.onToggleEnabled) actions.onToggleEnabled(next);
       if (ctx.pagina === "hoofd") renderStatus();
     });
-    var info = document.createElement("button");
+    const info = document.createElement("button");
     info.type = "button";
     info.title = "Legenda en versie";
     info.setAttribute("aria-label", "Legenda en versie");
@@ -9606,27 +9606,27 @@
     controls.appendChild(info);
     header.appendChild(controls);
     mainCol.appendChild(header);
-    var hoofd = el("div", { flex: "0 0 auto" });
-    var statusBox = el("div", { padding: "12px 12px 0" });
-    var totals = el("div", { padding: "0 12px" });
-    var weekBox = el("div", { padding: "16px 12px 0" });
-    var laadStrook = el("div");
-    var weekHost = el("div", { transition: "opacity .15s ease" });
+    const hoofd = el("div", { flex: "0 0 auto" });
+    const statusBox = el("div", { padding: "12px 12px 0" });
+    const totals = el("div", { padding: "0 12px" });
+    const weekBox = el("div", { padding: "16px 12px 0" });
+    const laadStrook = el("div");
+    const weekHost = el("div", { transition: "opacity .15s ease" });
     weekBox.appendChild(laadStrook);
     weekBox.appendChild(weekHost);
-    var navBox = el("div", { padding: "18px 12px 12px" });
+    const navBox = el("div", { padding: "18px 12px 12px" });
     hoofd.appendChild(statusBox);
     hoofd.appendChild(totals);
     hoofd.appendChild(weekBox);
     hoofd.appendChild(navBox);
-    var paginaBox = el("div", { padding: "16px 12px 12px", flex: "0 0 auto", display: "none" });
+    const paginaBox = el("div", { padding: "16px 12px 12px", flex: "0 0 auto", display: "none" });
     mainCol.appendChild(hoofd);
     mainCol.appendChild(paginaBox);
-    var voet = el("div", { position: "sticky", bottom: "0", marginTop: "auto", flex: "0 0 auto", background: "#fff", zIndex: "2" });
-    var balkHost = el("div");
+    const voet = el("div", { position: "sticky", bottom: "0", marginTop: "auto", flex: "0 0 auto", background: "#fff", zIndex: "2" });
+    const balkHost = el("div");
     voet.appendChild(balkHost);
-    var leaveBar = el("div", { padding: "10px 12px", background: "#fff", borderTop: "1px solid " + T.line });
-    var leaveBtn = baseButton("Verlof aanvragen", function() {
+    const leaveBar = el("div", { padding: "10px 12px", background: "#fff", borderTop: "1px solid " + T.line });
+    const leaveBtn = baseButton("Verlof aanvragen", function() {
       if (actions.onRequestLeave) actions.onRequestLeave();
     }, true, false);
     leaveBtn.title = "Verlof vastleggen in de agenda en aanvragen in AFAS";
@@ -9636,11 +9636,11 @@
     root.appendChild(spine);
     root.appendChild(mainCol);
     host2.appendChild(root);
-    var bridge = function() {
+    const bridge = function() {
       return window.__onsahReact;
     };
     function paintOnoff() {
-      var aan = !!(ctx.state && ctx.state.enabled);
+      const aan = !!(ctx.state && ctx.state.enabled);
       swText.textContent = aan ? "Aan" : "Uit";
       swTrack.style.background = aan ? T.ok : T.bad;
       swTrack.style.opacity = aan ? "1" : ".82";
@@ -9656,7 +9656,7 @@
     }
     function renderStatus() {
       statusBox.innerHTML = "";
-      var tekst, toon2;
+      let tekst, toon2;
       if (!ctx.state || !ctx.state.enabled) {
         tekst = "Gekleurde dagindeling staat uit.";
         toon2 = "off";
@@ -9668,9 +9668,9 @@
         return;
       }
       statusBox.style.display = "";
-      var bg = toon2 === "ok" ? T.okWash : toon2 === "warn" ? T.warnWash : T.lineSoft;
-      var fg = toon2 === "ok" ? T.ok : toon2 === "warn" ? T.warn : T.inkSoft;
-      var card = el("div", {
+      const bg = toon2 === "ok" ? T.okWash : toon2 === "warn" ? T.warnWash : T.lineSoft;
+      const fg = toon2 === "ok" ? T.ok : toon2 === "warn" ? T.warn : T.inkSoft;
+      const card = el("div", {
         display: "flex",
         alignItems: "flex-start",
         gap: "8px",
@@ -9682,7 +9682,7 @@
         lineHeight: "1.4",
         fontWeight: "600"
       });
-      var icon = toon2 === "ok" ? svgSpineCheck() : svgInfoIcon();
+      const icon = toon2 === "ok" ? svgSpineCheck() : svgInfoIcon();
       icon.setAttribute("width", "13");
       icon.setAttribute("height", "13");
       Object.assign(icon.style, { width: "13px", height: "13px", flex: "0 0 auto", marginTop: "2px" });
@@ -9693,24 +9693,24 @@
     function renderTotals() {
       totals.innerHTML = "";
       if (!ctx.state) return;
-      var view = ctx.state.view || "";
+      const view = ctx.state.view || "";
       if (view !== "workweek" && view !== "week") {
-        var weekBtn = secondaryBtn("Naar weekweergave", function() {
+        const weekBtn = secondaryBtn("Naar weekweergave", function() {
           if (actions.onJumpToWeek) actions.onJumpToWeek();
         });
         weekBtn.style.marginTop = "12px";
         totals.appendChild(weekBtn);
       }
       if (view === "day") {
-        var items = ctx.state.unfinished || [];
+        const items = ctx.state.unfinished || [];
         totals.appendChild(sectionHead("Nog te registreren" + (items.length ? " (" + items.length + ")" : ""), false));
         if (!items.length) {
           totals.appendChild(noteBox("Alles geregistreerd.", "ok"));
           totals.lastChild.style.marginTop = "0";
         } else {
-          var list = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
+          const list = el("div", { display: "flex", flexDirection: "column", gap: "6px" });
           items.forEach(function(it) {
-            var card = clickCard(function() {
+            const card = clickCard(function() {
               if (actions.onOpenOccurrence) actions.onOpenOccurrence(it.id);
             }, "Afspraak openen");
             Object.assign(card.style, { display: "flex", alignItems: "center", gap: "8px" });
@@ -9724,10 +9724,10 @@
       }
     }
     function renderWeek() {
-      var w = ctx.state && ctx.state.week;
-      var bezig = !!(ctx.state && ctx.state.weekLoading);
-      var fout = ctx.state && ctx.state.weekError || "";
-      var b = bridge();
+      const w = ctx.state && ctx.state.week;
+      const bezig = !!(ctx.state && ctx.state.weekLoading);
+      const fout = ctx.state && ctx.state.weekError || "";
+      const b = bridge();
       if (fout && !bezig) {
         if (b && b.unmount) b.unmount(weekHost);
         weekHost.innerHTML = "";
@@ -9743,12 +9743,12 @@
         laadStrook.innerHTML = "";
         zorgVoorStijl(weekBox.ownerDocument);
         laadStrook.appendChild(el("div", { fontSize: "15px", fontWeight: "700", color: T.ink, margin: "0 2px 8px" }, "Weekoverzicht"));
-        var lk = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "12px 14px", background: "#fff" });
+        const lk = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "12px 14px", background: "#fff" });
         if (bezig) {
           [["40%", "10px", "0"], ["58%", "22px", "8px"], ["100%", "8px", "16px"], ["82%", "10px", "10px"]].forEach(function(b2) {
             lk.appendChild(el("div", { width: b2[0], height: b2[1], marginTop: b2[2], borderRadius: "5px", background: "#f1ecea", animation: "onsAhPuls 1.4s ease-in-out infinite" }));
           });
-          var lb = laadBalk();
+          const lb = laadBalk();
           lb.style.marginTop = "14px";
           lk.appendChild(lb);
         } else {
@@ -9780,19 +9780,19 @@
     }
     function openTeller() {
       if (ctx.range.result) {
-        var t = telOpen(ctx.range.result, ctx.range.afgewerkt || {});
+        const t = telOpen(ctx.range.result, ctx.range.afgewerkt || {});
         return t.count - t.done;
       }
       return ctx.state && ctx.state.openCount != null ? ctx.state.openCount : null;
     }
-    var navRouteAan = null;
+    let navRouteAan = null;
     function navSleutel() {
       return JSON.stringify(ctx.state && ctx.state.features || {}) + (ctx.state && ctx.state.routeEnabled === false) + "|" + openTeller();
     }
     function renderNav() {
       navRouteAan = navSleutel();
       navBox.innerHTML = "";
-      var rijen = [];
+      const rijen = [];
       if (fAan("openRegistrations")) rijen.push(["open", ICON_RANGE, "Open registraties", function() {
         naarPagina("open");
       }, openTeller()]);
@@ -9810,7 +9810,7 @@
       }]);
       if (!rijen.length) return;
       navBox.appendChild(el("div", { fontSize: "12px", fontWeight: "700", color: T.inkSoft, margin: "0 2px 8px" }, "Hulpmiddelen"));
-      var lijst2 = el("div", { border: "1px solid " + T.line, borderRadius: "12px", overflow: "hidden", background: "#fff" });
+      const lijst2 = el("div", { border: "1px solid " + T.line, borderRadius: "12px", overflow: "hidden", background: "#fff" });
       lijst2.setAttribute("data-hulpmiddelen", "");
       rijen.forEach(function(r, i) {
         lijst2.appendChild(hulpRij(r[0], r[1], r[2], r[3], r[4], i === 0));
@@ -9821,7 +9821,7 @@
       ctx.losKoppelen();
       ctx.pagina = p;
       BEWAARD.pagina = p;
-      var opHoofd = ctx.pagina === "hoofd";
+      const opHoofd = ctx.pagina === "hoofd";
       hoofd.style.display = opHoofd ? "" : "none";
       paginaBox.style.display = opHoofd ? "none" : "";
       leaveBar.style.display = opHoofd && !(ctx.state && ctx.state.leaveRequest === false) ? "" : "none";
@@ -9850,7 +9850,7 @@
     }
     ctx.range = BEWAARD.range;
     ctx.prod = BEWAARD.prod;
-    var quick = BEWAARD.quick;
+    const quick = BEWAARD.quick;
     ctx.ratio = BEWAARD.ratio;
     ctx.plan = BEWAARD.plan;
     function vulStandaarden() {
@@ -9868,16 +9868,16 @@
       if (ctx.pagina === "snel") balkHost.appendChild(ctx.snelBalk());
     }
     function veldMetFocus() {
-      var a = document.activeElement;
+      const a = document.activeElement;
       if (!a || !paginaBox.contains(a) || !/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return null;
-      var attrs = Array.prototype.filter.call(a.attributes, function(x) {
+      const attrs = Array.prototype.filter.call(a.attributes, function(x) {
         return /^data-/.test(x.name);
       });
-      var at = attrs.filter(function(x) {
+      const at = attrs.filter(function(x) {
         return x.value;
       })[0] || attrs[0];
       if (!at) return null;
-      var f = { sel: "[" + at.name + '="' + String(at.value).replace(/["\\]/g, "\\$&") + '"]' };
+      const f = { sel: "[" + at.name + '="' + String(at.value).replace(/["\\]/g, "\\$&") + '"]' };
       try {
         f.start = a.selectionStart;
         f.end = a.selectionEnd;
@@ -9887,7 +9887,7 @@
     }
     function focusTerug(f) {
       if (!f) return;
-      var n = paginaBox.querySelector(f.sel);
+      const n = paginaBox.querySelector(f.sel);
       if (!n) return;
       try {
         n.focus();
@@ -9896,15 +9896,15 @@
       }
     }
     function renderPagina() {
-      var focus = veldMetFocus();
+      const focus = veldMetFocus();
       ctx.losKoppelen();
       paginaBox.innerHTML = "";
       renderBalk();
       if (ctx.pagina === "hoofd") return;
       vulStandaarden();
       if (ctx.pagina === "plan" && fAan("planner")) {
-        var kopRij = el("div", { display: "flex", justifyContent: "flex-end", margin: "-6px -6px 4px 0" });
-        var rk = tekstKnop(ICON_HELP, "Rondleiding", function() {
+        const kopRij = el("div", { display: "flex", justifyContent: "flex-end", margin: "-6px -6px 4px 0" });
+        const rk = tekstKnop(ICON_HELP, "Rondleiding", function() {
           ctx.startPlanRondleiding();
         });
         rk.setAttribute("data-plan-rondleiding", "");
@@ -9913,7 +9913,7 @@
         kopRij.appendChild(rk);
         paginaBox.appendChild(kopRij);
       }
-      var inhoud = ctx.pagina === "clienttijd" ? ctx.pageClientTime() : ctx.pagina === "verhouding" ? ctx.pageRatio() : ctx.pagina === "open" ? ctx.pageOpen() : ctx.pagina === "snel" ? ctx.pageQuick() : ctx.pagina === "plan" ? ctx.pagePlan() : ctx.pagina === "route" ? ctx.pageRoute() : ctx.pagina === "maken" ? ctx.pageMaken() : ctx.pageInfo();
+      const inhoud = ctx.pagina === "clienttijd" ? ctx.pageClientTime() : ctx.pagina === "verhouding" ? ctx.pageRatio() : ctx.pagina === "open" ? ctx.pageOpen() : ctx.pagina === "snel" ? ctx.pageQuick() : ctx.pagina === "plan" ? ctx.pagePlan() : ctx.pagina === "route" ? ctx.pageRoute() : ctx.pagina === "maken" ? ctx.pageMaken() : ctx.pageInfo();
       paginaBox.appendChild(inhoud);
       focusTerug(focus);
       ctx.renderLive();
@@ -9954,13 +9954,13 @@
     }
     return {
       update: function(next) {
-        var vorigeSig = vergelijkSig;
+        const vorigeSig = vergelijkSig;
         ctx.state = next || null;
-        var inv = ctx.state && ctx.state.inviteeId;
-        var agendas = ctx.state && ctx.state.inviteeIds || "";
-        var vorigeAgendas = BEWAARD.agendaSleutel;
-        var gedeeld = function(a, b) {
-          var x = String(a || "").split(",");
+        const inv = ctx.state && ctx.state.inviteeId;
+        const agendas = ctx.state && ctx.state.inviteeIds || "";
+        const vorigeAgendas = BEWAARD.agendaSleutel;
+        const gedeeld = function(a, b) {
+          const x = String(a || "").split(",");
           return String(b || "").split(",").some(function(id) {
             return id && x.indexOf(id) >= 0;
           });
@@ -9999,7 +9999,7 @@
         if (ctx.pagina === "plan") renderPagina();
       },
       setRangeProgress: function(kind, done, total) {
-        var doel = kind === "productie" ? ctx.prod : ctx.range;
+        const doel = kind === "productie" ? ctx.prod : ctx.range;
         if (!doel.busy) return;
         doel.done = done;
         doel.total = total;
@@ -10009,7 +10009,7 @@
         sluitRondleiding();
         ctx.stopOpen();
         try {
-          var b = bridge();
+          const b = bridge();
           if (b) {
             b.unmount(weekHost);
             if (ctx.liveHost) b.unmount(ctx.liveHost);
@@ -10037,7 +10037,7 @@
   };
   var SVG_NS4 = "http://www.w3.org/2000/svg";
   function el2(tag2, styles, text) {
-    var n = document.createElement(tag2);
+    const n = document.createElement(tag2);
     if (styles) Object.assign(n.style, styles);
     if (text != null) n.textContent = text;
     return n;
@@ -10052,7 +10052,7 @@
     });
   }
   function svgStroke(d, w) {
-    var svg = document.createElementNS(SVG_NS4, "svg");
+    const svg = document.createElementNS(SVG_NS4, "svg");
     svg.setAttribute("viewBox", "0 0 14 14");
     svg.setAttribute("width", "11");
     svg.setAttribute("height", "11");
@@ -10062,7 +10062,7 @@
     svg.setAttribute("stroke-width", w || "1.8");
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
-    var p = document.createElementNS(SVG_NS4, "path");
+    const p = document.createElementNS(SVG_NS4, "path");
     p.setAttribute("d", d);
     svg.appendChild(p);
     return svg;
@@ -10071,8 +10071,8 @@
   var ICON_LET_OP = "M7 3.6v4.2M7 10.3v.1";
   function create2(host2, actions) {
     actions = actions || {};
-    var state = null;
-    var root = el2("div", {
+    let state = null;
+    const root = el2("div", {
       background: "#fff",
       color: T2.ink,
       font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -10083,7 +10083,7 @@
       height: "100%",
       width: "100%"
     });
-    var spine = el2("div", {
+    const spine = el2("div", {
       width: "16px",
       flex: "0 0 auto",
       display: "flex",
@@ -10094,7 +10094,7 @@
       background: T2.brand
     });
     spine.setAttribute("aria-hidden", "true");
-    var spineChip = el2("span", {
+    const spineChip = el2("span", {
       width: "20px",
       height: "20px",
       borderRadius: "50%",
@@ -10106,7 +10106,7 @@
       flex: "0 0 auto"
     });
     spine.appendChild(spineChip);
-    var mainCol = el2("div", {
+    const mainCol = el2("div", {
       flex: "1 1 auto",
       minWidth: "0",
       display: "flex",
@@ -10114,7 +10114,7 @@
       overflowY: "auto",
       overflowX: "hidden"
     });
-    var header = el2("div", {
+    const header = el2("div", {
       display: "flex",
       alignItems: "center",
       gap: "8px",
@@ -10126,7 +10126,7 @@
       borderBottom: "1px solid #f1ecea",
       flex: "0 0 auto"
     });
-    var title = el2("span", {
+    const title = el2("span", {
       flex: "1 1 auto",
       minWidth: "0",
       overflow: "hidden",
@@ -10136,17 +10136,17 @@
     }, "Vragenlijst");
     header.appendChild(title);
     mainCol.appendChild(header);
-    var body = el2("div", { padding: "12px", flex: "1 1 auto" });
+    const body = el2("div", { padding: "12px", flex: "1 1 auto" });
     mainCol.appendChild(body);
     root.appendChild(spine);
     root.appendChild(mainCol);
     host2.appendChild(root);
     function tel(s) {
-      var items = s && s.items || [];
-      var open = items.filter(function(i) {
+      const items = s && s.items || [];
+      const open = items.filter(function(i) {
         return !i.done;
       }).length;
-      var signalen = s && s.signals || [];
+      const signalen = s && s.signals || [];
       return {
         items,
         open,
@@ -10157,14 +10157,14 @@
       };
     }
     function paintSpine() {
-      var t = tel(state);
-      var kleur = t.open ? T2.brand : t.letOp ? T2.amber : T2.ok;
+      const t = tel(state);
+      const kleur = t.open ? T2.brand : t.letOp ? T2.amber : T2.ok;
       spine.style.background = kleur;
       spineChip.innerHTML = "";
       spineChip.appendChild(svgStroke(t.open || t.letOp ? ICON_LET_OP : ICON_OK, t.open || t.letOp ? "2" : "1.8"));
     }
     function paintTitle() {
-      var t = tel(state);
+      const t = tel(state);
       if (!state) {
         title.textContent = "Vragenlijst";
         return;
@@ -10180,7 +10180,7 @@
       }
     }
     function meldkader(tekst, rol) {
-      var box = el2("div", {
+      const box = el2("div", {
         margin: "4px 0 10px",
         padding: "10px 11px",
         borderRadius: "7px",
@@ -10206,9 +10206,9 @@
         ));
         return;
       }
-      var t = tel(state);
+      const t = tel(state);
       t.signalen.forEach(function(s) {
-        var box = meldkader("", "alert");
+        const box = meldkader("", "alert");
         box.textContent = "";
         box.appendChild(el2("div", {
           marginBottom: "4px",
@@ -10234,10 +10234,10 @@
         }, "Geen verplichte vragen gevonden."));
         return;
       }
-      var groepen = [];
-      var index = {};
+      const groepen = [];
+      const index = {};
       t.items.forEach(function(item, i) {
-        var key = item.category + "||" + item.group;
+        const key = item.category + "||" + item.group;
         if (!index[key]) {
           index[key] = { category: item.category, group: item.group, items: [] };
           groepen.push(index[key]);
@@ -10253,18 +10253,18 @@
           paddingTop: "12px",
           borderTop: "1px solid " + T2.line
         }, g.category === g.group ? g.group : g.category + " > " + g.group));
-        var lijst2 = el2("ul", { listStyle: "none", margin: "0 0 4px", padding: "0" });
+        const lijst2 = el2("ul", { listStyle: "none", margin: "0 0 4px", padding: "0" });
         g.items.forEach(function(rij) {
-          var item = rij.item;
-          var li = el2("li", {
+          const item = rij.item;
+          const li = el2("li", {
             display: "flex",
             alignItems: "flex-start",
             gap: "8px",
             padding: "5px 0",
             borderBottom: "1px solid #f3f3f3"
           });
-          var onbekend = !!item.unknown && !item.done;
-          var link = document.createElement("a");
+          const onbekend = !!item.unknown && !item.done;
+          const link = document.createElement("a");
           link.textContent = item.question + (onbekend ? " (niet automatisch te controleren)" : "");
           if (onbekend) link.title = "Deze verplichte vraag kon niet automatisch worden gecontroleerd. Kijk haar zelf na.";
           link.setAttribute("role", "button");
@@ -10284,7 +10284,7 @@
           link.addEventListener("mouseleave", function() {
             if (!item.done) link.style.textDecoration = "none";
           });
-          var ga = function() {
+          const ga = function() {
             if (actions.onOpenItem) actions.onOpenItem(rij.i);
           };
           link.addEventListener("click", function(e) {
@@ -10299,14 +10299,14 @@
             }
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
-              var links = Array.prototype.slice.call(body.querySelectorAll('a[tabindex="0"]'));
-              var k = links.indexOf(link);
-              var next = links[k + (e.key === "ArrowDown" ? 1 : -1)];
+              const links = Array.prototype.slice.call(body.querySelectorAll('a[tabindex="0"]'));
+              const k = links.indexOf(link);
+              const next = links[k + (e.key === "ArrowDown" ? 1 : -1)];
               if (next) next.focus();
             }
           });
           focusRing2(link);
-          var mark = el2("span", item.done || onbekend ? {
+          const mark = el2("span", item.done || onbekend ? {
             flex: "0 0 auto",
             display: "inline-flex",
             alignItems: "center",
@@ -10420,7 +10420,7 @@
       vraagAanTab(Object.assign({ type: MSG.AGENDA_SLOT_CHECK }, req), cb);
     },
     onFreeSlots: function(minutes, weeks, cb, to, visits, many, from, days, limit) {
-      var m = { type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits, many: !!many, from: from || "" };
+      const m = { type: MSG.AGENDA_FREE_SLOTS, minutes, weeks, to: to || "", visits: !!visits, many: !!many, from: from || "" };
       if (Array.isArray(days) && days.length && days.length < 5) m.days = days.slice();
       if (limit > 0) m.limit = limit;
       vraagAanTab(m, cb);

@@ -9,12 +9,12 @@ import { maakKiezers } from './kiezers.js';
 // staat is afgewerkt (geregistreerd of 'niet registreren'); wat er nieuw bij
 // staat (bijv. een afspraak die intussen is afgelopen) komt erbij.
 function mergeOpenRange(oud, nieuw, afgewerkt) {
-  var open = {};
+  const open = {};
   (nieuw.days || []).forEach(function (d) { d.items.forEach(function (it) { open[it.key] = true; }); });
-  var dagen = {};
+  const dagen = {};
   (oud.days || []).forEach(function (d) { dagen[d.date] = { date: d.date, items: d.items.slice() }; });
   (nieuw.days || []).forEach(function (d) {
-    var dag = dagen[d.date] || (dagen[d.date] = { date: d.date, items: [] });
+    const dag = dagen[d.date] || (dagen[d.date] = { date: d.date, items: [] });
     d.items.forEach(function (it) {
       if (!dag.items.some(function (x) { return x.key === it.key; })) dag.items.push(it);
     });
@@ -23,15 +23,15 @@ function mergeOpenRange(oud, nieuw, afgewerkt) {
     dagen[dt].items.forEach(function (it) { if (it.key && !open[it.key]) afgewerkt[it.key] = true; else if (it.key) delete afgewerkt[it.key]; });
   });
   return { from: oud.from, to: oud.to, days: Object.keys(dagen).sort().map(function (dt) {
-    var items = dagen[dt].items.sort(function (a, b) { return a.start - b.start; });
+    const items = dagen[dt].items.sort(function (a, b) { return a.start - b.start; });
     return { date: dt, items: items };
   }) };
 }
 // Tellingen per dag en totaal, met afgewerkte afspraken apart.
 export function telOpen(result, afgewerkt) {
-  var t = { count: 0, done: 0, openMinutes: 0, late: 0, days: 0 };
+  const t = { count: 0, done: 0, openMinutes: 0, late: 0, days: 0 };
   (result.days || []).forEach(function (d) {
-    var dagOpen = 0;
+    let dagOpen = 0;
     d.items.forEach(function (it) {
       t.count++;
       if (afgewerkt[it.key]) t.done++;
@@ -44,7 +44,7 @@ export function telOpen(result, afgewerkt) {
 
 // Groen vinkje (afgewerkt).
 function vinkje() {
-  var v = svgSpineCheck();
+  const v = svgSpineCheck();
   v.setAttribute('width', '14'); v.setAttribute('height', '14');
   Object.assign(v.style, { color: T.ok, flex: '0 0 auto', width: '14px', height: '14px' });
   return v;
@@ -52,16 +52,16 @@ function vinkje() {
 // Knop 'Registreren' bij een open afspraak: in ONS naar de dag, de afspraak
 // openen en op Registreren klikken (de gewone flow van ONS). Het id staat
 // vooraan in de sleutel ('id|datum|start', bij collega's 'collega:id|…').
-function itemId(it) { var m = /^(?:[^:|]+:)?([\w-]+)\|/.exec(String(it.key || '')); return m && m[1] !== 'x' ? m[1] : ''; }
+function itemId(it) { const m = /^(?:[^:|]+:)?([\w-]+)\|/.exec(String(it.key || '')); return m && m[1] !== 'x' ? m[1] : ''; }
 
 export function maakOpenRegistraties(ctx) {
   const { actions, renderPagina, root } = ctx;
 
   function registreerKnop(it, date) {
-    var id = itemId(it);
+    const id = itemId(it);
     if (!id || !actions.onRegisterItem) return null;
-    var bezig = ctx.range.regBezig === it.key;
-    var b = el('button', { flex: '0 0 auto', height: '26px', padding: '0 10px', border: '0', borderRadius: '7px', background: bezig ? '#d9c2cf' : T.brand, color: '#fff',
+    const bezig = ctx.range.regBezig === it.key;
+    const b = el('button', { flex: '0 0 auto', height: '26px', padding: '0 10px', border: '0', borderRadius: '7px', background: bezig ? '#d9c2cf' : T.brand, color: '#fff',
       font: '700 11.5px ' + FONT, cursor: bezig ? 'default' : 'pointer', whiteSpace: 'nowrap' }, bezig ? 'Openen…' : 'Registreren');
     b.type = 'button';
     b.setAttribute('data-registreer', it.key);
@@ -75,7 +75,7 @@ export function maakOpenRegistraties(ctx) {
       if (ctx.pagina === 'open') renderPagina();
       // Met het occurrence-id gaat ONS meteen naar het registratieformulier;
       // bij meerdere agenda's staat het id van de collega voor de sleutel.
-      var inv = /^(\d+):/.exec(String(it.key || ''));
+      const inv = /^(\d+):/.exec(String(it.key || ''));
       actions.onRegisterItem(id, date, function (res) {
         ctx.range.regBezig = null;
         if (!(res && res.ok)) ctx.range.regFout = { key: it.key, error: (res && res.error) || 'Openen mislukt.' };
@@ -85,61 +85,61 @@ export function maakOpenRegistraties(ctx) {
     return b;
   }
   function rangeResultEl(r) {
-    var wrap = el('div', { marginTop: '12px' });
-    var t = telOpen(r, ctx.range.afgewerkt);
+    const wrap = el('div', { marginTop: '12px' });
+    const t = telOpen(r, ctx.range.afgewerkt);
     if (!t.count) {
       wrap.appendChild(noteBox('Alles geregistreerd van ' + dayLabel(r.from) + ' t/m ' + dayLabel(r.to) + '.', 'ok'));
       return wrap;
     }
     // Kop: hoeveel er nog open staat en hoever de afwerklijst is.
     // Samenvatting als kaart: hoeveel er nog open staat, te laat, en een balk.
-    var sam = kaart({ marginBottom: '12px' });
-    var kop = el('div', { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', margin: '0 0 8px' });
-    var open = t.count - t.done;
+    const sam = kaart({ marginBottom: '12px' });
+    const kop = el('div', { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', margin: '0 0 8px' });
+    const open = t.count - t.done;
     kop.appendChild(el('div', { fontSize: '14.5px', fontWeight: '700', color: T.ink, margin: '0' }, open ? (open + (open === 1 ? ' afspraak' : ' afspraken') + ' open, samen ' + fmtMin(t.openMinutes)) : 'Alles afgewerkt'));
     if (t.late > 0) kop.firstChild.appendChild(tag('te laat: ' + t.late, 'bad'));
-    var teller = txt('label', null, { flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: '4px', fontVariantNumeric: 'tabular-nums' });
+    const teller = txt('label', null, { flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: '4px', fontVariantNumeric: 'tabular-nums' });
     teller.appendChild(vinkje());
     teller.appendChild(document.createTextNode(t.done + ' van ' + t.count));
     teller.title = t.done + ' van ' + t.count + ' afgewerkt';
     kop.appendChild(teller);
     sam.appendChild(kop);
     wrap.appendChild(sam);
-    var spoor = el('div', { height: '6px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden', margin: '0' });
+    const spoor = el('div', { height: '6px', borderRadius: '999px', background: T.lineSoft, overflow: 'hidden', margin: '0' });
     spoor.setAttribute('role', 'progressbar');
     spoor.setAttribute('aria-label', 'Afgewerkt');
     spoor.setAttribute('aria-valuemin', '0'); spoor.setAttribute('aria-valuemax', String(t.count)); spoor.setAttribute('aria-valuenow', String(t.done));
     spoor.appendChild(el('div', { height: '100%', width: Math.round(t.done / t.count * 100) + '%', background: T.ok, transition: 'width .3s ease' }));
     sam.appendChild(spoor);
 
-    var list = el('div', { display: 'flex', flexDirection: 'column', gap: '8px' });
+    const list = el('div', { display: 'flex', flexDirection: 'column', gap: '8px' });
     r.days.forEach(function (d) {
-      var dagKlaar = d.items.every(function (it) { return ctx.range.afgewerkt[it.key]; });
-      var card = clickCard(function () { if (actions.onJumpToDay) actions.onJumpToDay(d.date, true); }, 'Klik om naar deze dag te gaan');
+      const dagKlaar = d.items.every(function (it) { return ctx.range.afgewerkt[it.key]; });
+      const card = clickCard(function () { if (actions.onJumpToDay) actions.onJumpToDay(d.date, true); }, 'Klik om naar deze dag te gaan');
       card.style.padding = '10px 14px 6px';
       if (dagKlaar) card.style.background = T.okWash;
-      var head = el('div', { display: 'flex', alignItems: 'center', fontSize: '13.5px', fontWeight: '700', color: T.ink, marginBottom: '4px' });
+      const head = el('div', { display: 'flex', alignItems: 'center', fontSize: '13.5px', fontWeight: '700', color: T.ink, marginBottom: '4px' });
       if (dagKlaar) {
-        var ok = svgSpineCheck(); ok.setAttribute('width', '13'); ok.setAttribute('height', '13');
+        const ok = svgSpineCheck(); ok.setAttribute('width', '13'); ok.setAttribute('height', '13');
         Object.assign(ok.style, { color: T.ok, marginRight: '6px', flex: '0 0 auto' });
         head.appendChild(ok);
       }
       head.appendChild(document.createTextNode(dayLabel(d.date)));
-      var dagLaat = d.items.filter(function (it) { return it.late && !ctx.range.afgewerkt[it.key]; }).length;
+      const dagLaat = d.items.filter(function (it) { return it.late && !ctx.range.afgewerkt[it.key]; }).length;
       if (dagLaat > 0) head.appendChild(tag('te laat: ' + dagLaat, 'bad'));
-      var ws = (ctx.state && ctx.state.windowStatus || {})[d.date];
+      const ws = (ctx.state && ctx.state.windowStatus || {})[d.date];
       if (ws === 'soon' && !dagKlaar) head.appendChild(tag('verloopt binnenkort', 'warn'));
       card.appendChild(head);
       d.items.forEach(function (it) {
-        var klaar = !!ctx.range.afgewerkt[it.key];
-        var row = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: klaar ? T.inkSoft : T.ink, padding: '7px 0', borderTop: '1px solid ' + T.lineSoft, fontVariantNumeric: 'tabular-nums' });
-        var dt = new Date(it.start);
-        var tijd = el('span', { fontWeight: '600', flex: '0 0 auto', textDecoration: klaar ? 'line-through' : 'none' }, ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2));
+        const klaar = !!ctx.range.afgewerkt[it.key];
+        const row = el('div', { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: klaar ? T.inkSoft : T.ink, padding: '7px 0', borderTop: '1px solid ' + T.lineSoft, fontVariantNumeric: 'tabular-nums' });
+        const dt = new Date(it.start);
+        const tijd = el('span', { fontWeight: '600', flex: '0 0 auto', textDecoration: klaar ? 'line-through' : 'none' }, ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2));
         row.appendChild(tijd);
         row.appendChild(el('span', { color: T.inkSoft, flex: '0 0 auto' }, fmtMin(it.minutes)));
         row.appendChild(el('span', { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: klaar ? 'line-through' : 'none' }, (it.persoon ? it.persoon + ': ' : '') + (it.uursoort || '')));
         if (klaar) {
-          var v = vinkje();
+          const v = vinkje();
           v.setAttribute('data-afgewerkt', '1');
           v.setAttribute('aria-label', 'Afgewerkt');
           v.setAttribute('role', 'img');
@@ -147,12 +147,12 @@ export function maakOpenRegistraties(ctx) {
           row.appendChild(v);
         } else {
           row.appendChild(tag(it.client ? 'cliënt' : 'overig', it.client ? 'ok' : null));
-          var rk = registreerKnop(it, d.date);
+          const rk = registreerKnop(it, d.date);
           if (rk) row.appendChild(rk);
         }
         card.appendChild(row);
         if (ctx.range.regFout && ctx.range.regFout.key === it.key) {
-          var nf = noteBox(ctx.range.regFout.error, 'warn');
+          const nf = noteBox(ctx.range.regFout.error, 'warn');
           nf.style.margin = '2px 0 6px';
           card.appendChild(nf);
         }
@@ -164,12 +164,12 @@ export function maakOpenRegistraties(ctx) {
   }
 
   function pageOpen() {
-    var box = el('div');
+    const box = el('div');
     box.appendChild(txt('help', 'Afgelopen afspraken in deze periode die nog niet geregistreerd zijn (hooguit 26 weken).', { margin: '0 2px 10px' }));
     // Periode en Controleren samen in één kaart.
-    var pk = kaart();
-    var rij = el('div', { display: 'flex', gap: '8px' });
-    var k = maakKiezers();
+    const pk = kaart();
+    const rij = el('div', { display: 'flex', gap: '8px' });
+    const k = maakKiezers();
     rij.appendChild(fieldLabel('Van', k.datum(ctx.range.from, function (v) { ctx.range.from = v; })));
     rij.appendChild(fieldLabel('Tot en met', k.datum(ctx.range.to, function (v) { ctx.range.to = v; })));
     pk.appendChild(rij);
@@ -182,9 +182,9 @@ export function maakOpenRegistraties(ctx) {
       // Afwerklijst bijwerken: gebeurt vanzelf als je terugkomt in het
       // zijpaneel; deze knop doet het meteen.
       box.appendChild(rangeResultEl(ctx.range.result));
-      var voet = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', margin: '12px 2px 0' });
+      const voet = el('div', { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', margin: '12px 2px 0' });
       voet.appendChild(txt('help', 'Registreer je een afspraak of zet je hem op \u2018niet registreren\u2019, dan wordt hij hier afgevinkt.', { flex: '1 1 auto' }));
-      var bij = tekstKnop(ICON_VERVERS, ctx.range.bijwerken ? 'Bijwerken…' : 'Bijwerken', function () { hercontrole(); }, ctx.range.bijwerken);
+      const bij = tekstKnop(ICON_VERVERS, ctx.range.bijwerken ? 'Bijwerken…' : 'Bijwerken', function () { hercontrole(); }, ctx.range.bijwerken);
       bij.style.flex = '0 0 auto';
       voet.appendChild(bij);
       box.appendChild(voet);
@@ -235,7 +235,7 @@ export function maakOpenRegistraties(ctx) {
   // De agenda in ONS verandert (bijv. een afspraak is net geregistreerd of op
   // 'niet registreren' gezet): het content-script stuurt dan een nieuwe
   // toestand. Even wachten tot ONS klaar is, dan de lijst bijwerken.
-  var planTimer = null;
+  let planTimer = null;
   function planHercontrole() {
     if (ctx.pagina !== 'open' || !ctx.range.result) return;
     if (planTimer) clearTimeout(planTimer);

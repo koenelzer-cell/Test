@@ -25,69 +25,69 @@ function minutenVanDag(ms, dagStartMs) { return Math.round((ms - dagStartMs) / 6
 // -> [{ date, startMin, endMin, minutes }]
 export function findFreeGaps(entries, opts) {
   opts = opts || {};
-  var now = opts.now != null ? opts.now : Date.now();
-  var stap = opts.stepMin || 15;
-  var min = opts.minMinutes || 60;
-  var wS = opts.windowStart != null ? opts.windowStart : 8 * 60;
-  var wE = opts.windowEnd != null ? opts.windowEnd : 17 * 60;
-  var blocked = opts.blocked || [];
-  var max = opts.maxResults || 12;
-  var dagen = opts.days || 14;
-  var overslaan = opts.skipDates || {};
-  var alleenDagen = Array.isArray(opts.weekdays) && opts.weekdays.length ? opts.weekdays : null;
+  const now = opts.now != null ? opts.now : Date.now();
+  const stap = opts.stepMin || 15;
+  const min = opts.minMinutes || 60;
+  const wS = opts.windowStart != null ? opts.windowStart : 8 * 60;
+  const wE = opts.windowEnd != null ? opts.windowEnd : 17 * 60;
+  const blocked = opts.blocked || [];
+  const max = opts.maxResults || 12;
+  const dagen = opts.days || 14;
+  const overslaan = opts.skipDates || {};
+  const alleenDagen = Array.isArray(opts.weekdays) && opts.weekdays.length ? opts.weekdays : null;
 
   // Bezet per dag (minuten), plus dagen die helemaal bezet zijn.
-  var bezet = Object.create(null), heleDag = Object.create(null);
+  const bezet = Object.create(null), heleDag = Object.create(null);
   (entries || []).forEach(function (e) {
     if (!e || !e.date) return;
     // Outlook: alleen wat je agenda echt bezet. 'free' en 'workingElsewhere'
     // (op een andere plek aan het werk) laten de tijd vrij.
-    var toon = String(e.showAs || '').toLowerCase();
+    const toon = String(e.showAs || '').toLowerCase();
     if (toon === 'free' || toon === 'workingelsewhere') return;
     if (e.allDay || e.layer === 'unavailabilities') {
       if (e.allDay || e.startMs == null || e.endMs == null) { heleDag[e.date] = true; return; }
     }
     if (e.startMs == null || e.endMs == null) return;
-    var d0 = new Date(e.startMs);
+    const d0 = new Date(e.startMs);
     // Afwezigheid kan over meerdere dagen lopen: per kalenderdag opknippen
     // (niet per 24 uur: rond de wissel van zomer- naar wintertijd is een dag
     // 23 of 25 uur).
-    for (var k = 0; k < 62; k++) {
-      var dag = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
-      var dStart = dag.getTime();
+    for (let k = 0; k < 62; k++) {
+      const dag = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
+      const dStart = dag.getTime();
       if (dStart >= e.endMs) break;
-      var key = ymd(dag);
-      var voor = e.travelBefore || 0, na = e.travelAfter || 0; // reistijd staat al in minuten
-      var s = Math.max(0, minutenVanDag(e.startMs, dStart) - voor);
-      var en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart) + na);
+      const key = ymd(dag);
+      const voor = e.travelBefore || 0, na = e.travelAfter || 0; // reistijd staat al in minuten
+      const s = Math.max(0, minutenVanDag(e.startMs, dStart) - voor);
+      const en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart) + na);
       if (en > s) (bezet[key] = bezet[key] || []).push([s, en]);
     }
   });
 
-  var uit = [];
-  var start = new Date(now); start.setHours(0, 0, 0, 0);
-  for (var i = 0; i < dagen && uit.length < max; i++) {
-    var dag = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    var key = ymd(dag);
+  const uit = [];
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  for (let i = 0; i < dagen && uit.length < max; i++) {
+    const dag = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = ymd(dag);
     if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
     if (alleenDagen && alleenDagen.indexOf(dag.getDay()) < 0) continue;
-    var dStart = dag.getTime();
-    var vanaf = wS;
+    const dStart = dag.getTime();
+    let vanaf = wS;
     if (i === 0) {
       // Vandaag: pas vanaf nu, afgerond op de volgende stap.
-      var nu = minutenVanDag(now, dStart);
+      const nu = minutenVanDag(now, dStart);
       vanaf = Math.max(wS, Math.ceil(nu / stap) * stap);
     }
-    var bezig = (bezet[key] || []).concat(blocked.map(function (b) { return [b.from, b.to]; }))
+    const bezig = (bezet[key] || []).concat(blocked.map(function (b) { return [b.from, b.to]; }))
       .filter(function (b) { return b[1] > vanaf && b[0] < wE; })
       .sort(function (a, b) { return a[0] - b[0]; });
-    var cur = vanaf;
-    var leeg = function (tot) {
+    let cur = vanaf;
+    const leeg = function (tot) {
       // Begin afronden naar boven op de stap; eind blijft zoals het is.
-      var b = Math.ceil(cur / stap) * stap;
+      const b = Math.ceil(cur / stap) * stap;
       if (tot - b >= min && uit.length < max) uit.push({ date: key, startMin: b, endMin: tot, minutes: tot - b });
     };
-    for (var j = 0; j < bezig.length; j++) {
+    for (let j = 0; j < bezig.length; j++) {
       if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], wE));
       cur = Math.max(cur, bezig[j][1]);
       if (cur >= wE) break;
@@ -106,16 +106,16 @@ export function findFreeGaps(entries, opts) {
 
 // Genormaliseerde entries -> [{ date, startMin, endMin, label }] per kalenderdag.
 export function reservationBlocks(entries) {
-  var uit = [], gezien = Object.create(null);
+  const uit = [], gezien = Object.create(null);
   (entries || []).forEach(function (e) {
     if (!e || e.startMs == null || e.endMs == null || !(e.endMs > e.startMs)) return;
-    var d0 = new Date(e.startMs);
-    var dStart = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
-    var s = minutenVanDag(e.startMs, dStart), en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart));
-    var label = (Array.isArray(e.labels) ? e.labels : []).map(function (l) {
+    const d0 = new Date(e.startMs);
+    const dStart = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+    const s = minutenVanDag(e.startMs, dStart), en = Math.min(24 * 60, minutenVanDag(e.endMs, dStart));
+    const label = (Array.isArray(e.labels) ? e.labels : []).map(function (l) {
       return String((l && l.name != null) ? l.name : (typeof l === 'string' ? l : '')).trim();
     }).filter(Boolean)[0] || '';
-    var key = ymd(d0) + '|' + s + '|' + en + '|' + label;
+    const key = ymd(d0) + '|' + s + '|' + en + '|' + label;
     if (gezien[key]) return; gezien[key] = 1;
     uit.push({ date: ymd(d0), startMin: s, endMin: en, label: label });
   });

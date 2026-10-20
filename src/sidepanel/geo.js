@@ -8,7 +8,7 @@
 
 // '2611 eb' -> '2611EB', anders ''.
 export function normPostcode(v) {
-  var m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ''));
+  const m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ''));
   return m ? m[1] + m[2].toUpperCase() : '';
 }
 
@@ -45,25 +45,25 @@ export function _clearRouteCache() { Object.keys(paarCache).forEach(function (k)
 // Eén computeRouteMatrix (herkomst x bestemming); Google rekent per element.
 // Staan alle paren al in het geheugen, dan geen aanvraag.
 export function roadMatrix(proxy, pcs, fetchFn) {
-  var lijst = pcs.filter(function (p, i) { return p && pcs.indexOf(p) === i && PC6.test(p); }).slice(0, 25);
-  var lees = function (a, b) { return a === b ? { m: 0, s: 0 } : (paarCache[a + '|' + b] || null); };
-  var bekend = lijst.every(function (a) { return lijst.every(function (b) { return a === b || paarCache[a + '|' + b]; }); });
+  const lijst = pcs.filter(function (p, i) { return p && pcs.indexOf(p) === i && PC6.test(p); }).slice(0, 25);
+  const lees = function (a, b) { return a === b ? { m: 0, s: 0 } : (paarCache[a + '|' + b] || null); };
+  const bekend = lijst.every(function (a) { return lijst.every(function (b) { return a === b || paarCache[a + '|' + b]; }); });
   if (!proxy || lijst.length < 2 || bekend) return Promise.resolve(lees);
-  var vraag = proxy.key
+  const vraag = proxy.key
     ? postGoogle(proxy.key, 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', 'originIndex,destinationIndex,distanceMeters,duration,condition',
       { origins: lijst.map(plek), destinations: lijst.map(plek), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE' }, fetchFn)
       .then(function (rijen) {
-        var pairs = {};
+        const pairs = {};
         (Array.isArray(rijen) ? rijen : []).forEach(function (e) {
           if (e.condition !== 'ROUTE_EXISTS' || e.originIndex == null || e.destinationIndex == null) return;
-          var a = lijst[e.originIndex], b = lijst[e.destinationIndex];
+          const a = lijst[e.originIndex], b = lijst[e.destinationIndex];
           if (a && b && a !== b) pairs[a + '|' + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
         });
         return { pairs: pairs };
       })
     : postProxy(proxy, '/matrix', { pcs: lijst }, fetchFn);
   return vraag.then(function (j) {
-    var pairs = (j && j.pairs) || {};
+    const pairs = (j && j.pairs) || {};
     Object.keys(pairs).forEach(function (k) { paarCache[k] = pairs[k]; });
     return lees;
   });
@@ -73,11 +73,11 @@ export function roadMatrix(proxy, pcs, fetchFn) {
 export function optimizeRoute(proxy, origin, stops, fetchFn) {
   if (!proxy.key) return postProxy(proxy, '/optimize', { origin: origin, stops: stops }, fetchFn);
   if (!PC6.test(origin) || !stops.every(function (s) { return PC6.test(s); })) return Promise.reject(new Error('Alleen postcodes'));
-  var adres = function (pc) { return { address: pc + ', Nederland' }; };
+  const adres = function (pc) { return { address: pc + ', Nederland' }; };
   return postGoogle(proxy.key, 'https://routes.googleapis.com/directions/v2:computeRoutes', 'routes.optimizedIntermediateWaypointIndex,routes.distanceMeters,routes.duration',
     { origin: adres(origin), destination: adres(origin), intermediates: stops.map(adres), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE', optimizeWaypointOrder: true }, fetchFn)
     .then(function (j) {
-      var route = j && j.routes && j.routes[0];
+      const route = j && j.routes && j.routes[0];
       if (!route) throw new Error('Geen route');
       return { order: Array.isArray(route.optimizedIntermediateWaypointIndex) ? route.optimizedIntermediateWaypointIndex : stops.map(function (_, i) { return i; }), m: route.distanceMeters || 0, s: sec(route.duration) };
     });
@@ -99,12 +99,12 @@ export function vraagRoutes(cb) {
 
 // Google Maps-link(s) voor een volgorde van adressen (zoals domain/route.js).
 export function mapsUrls(adressen, origin, terug) {
-  var stops = (adressen || []).filter(Boolean);
+  let stops = (adressen || []).filter(Boolean);
   if (terug && origin) stops = stops.concat([origin]);
-  var uit = [], start = origin || '';
-  for (var i = 0; i < stops.length; i += 10) {
-    var deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
-    var q = ['api=1'];
+  let uit = [], start = origin || '';
+  for (let i = 0; i < stops.length; i += 10) {
+    const deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
+    const q = ['api=1'];
     if (start) q.push('origin=' + encodeURIComponent(start));
     q.push('destination=' + encodeURIComponent(dest));
     if (tussen.length) q.push('waypoints=' + tussen.map(encodeURIComponent).join('%7C'));
@@ -118,12 +118,12 @@ export function mapsUrls(adressen, origin, terug) {
 // Kaart (Google Maps Embed API, directions): origin, stops (adressen), sleutel.
 // Zonder vertrekpunt begint de kaart bij de eerste stop. Max. 20 tussenstops.
 export function embedUrl(key, adressen, origin) {
-  var stops = (adressen || []).filter(Boolean);
+  const stops = (adressen || []).filter(Boolean);
   if (!key || !stops.length) return '';
-  var start = origin || stops[0];
-  var rest = origin ? stops : stops.slice(1);
+  const start = origin || stops[0];
+  const rest = origin ? stops : stops.slice(1);
   if (!rest.length) return 'https://www.google.com/maps/embed/v1/place?key=' + encodeURIComponent(key) + '&q=' + encodeURIComponent(start);
-  var dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+  const dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
   return 'https://www.google.com/maps/embed/v1/directions?key=' + encodeURIComponent(key) +
     '&origin=' + encodeURIComponent(start) + '&destination=' + encodeURIComponent(dest) +
     (tussen.length ? '&waypoints=' + tussen.map(encodeURIComponent).join('%7C') : '') + '&mode=driving';

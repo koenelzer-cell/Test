@@ -29,16 +29,16 @@ import { fetchEventOverlap, overlapCheckStatus } from '../../services/ons-api/ev
 // dagindeling. Alleen als grens; wat er BINNEN dat venster bezet is, komt uit
 // de agenda zelf (afspraken en onbeschikbaarheid), niet uit de kleurzones.
 export function workWindow() {
-  var z = activeZones() || [];
+  const z = activeZones() || [];
   if (!z.length) return { start: 8 * 60, end: 17 * 60 };
-  var start = Math.round(Math.min.apply(null, z.map(function (x) { return x.from; })) * 60);
-  var end = Math.round(Math.max.apply(null, z.map(function (x) { return x.to; })) * 60);
+  const start = Math.round(Math.min.apply(null, z.map(function (x) { return x.from; })) * 60);
+  const end = Math.round(Math.max.apply(null, z.map(function (x) { return x.to; })) * 60);
   return { start: start, end: end };
 }
 
 function agendaIds() {
-  var ids = currentInviteeIds();
-  if (!ids.length) { var een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
+  let ids = currentInviteeIds();
+  if (!ids.length) { const een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
   return ids;
 }
 
@@ -48,10 +48,10 @@ function agendaIds() {
 //   status: 'ready' (overlap true/false/null) | 'unreadable' | 'unknown'
 export function checkSlotWithOns(req) {
   req = req || {};
-  var status = overlapCheckStatus();
-  var startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
+  const status = overlapCheckStatus();
+  const startMin = parseInt(req.startMin, 10), minutes = parseInt(req.minutes, 10);
   if (status !== 'ready' || !(startMin >= 0) || !(minutes > 0)) return Promise.resolve({ status: status, overlap: null });
-  var cl = (Array.isArray(req.clientIds) ? req.clientIds : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10);
+  const cl = (Array.isArray(req.clientIds) ? req.clientIds : []).map(String).filter(function (c) { return /^\d+$/.test(c); }).slice(0, 10);
   return fetchEventOverlap({ ids: agendaIds(), clientIds: cl, date: req.date, startMin: startMin, endMin: startMin + minutes })
     .then(function (o) { return { status: status, overlap: o }; });
 }
@@ -62,7 +62,7 @@ export const MAX_ZOEK_DAGEN = 366;
 
 // Feestdagen uit ONS, één keer per pagina opgehaald. Mislukt het, dan zonder
 // (en de volgende zoekactie probeert het opnieuw).
-var feestdagenBelofte = null;
+let feestdagenBelofte = null;
 export function holidays() {
   if (!feestdagenBelofte) {
     feestdagenBelofte = Promise.resolve().then(function () { return getJson(_apiUrl('holidays')); })
@@ -80,15 +80,15 @@ function weekLaag(sjabloon, laag, start, id, wachtrij) {
 // Lagen die ONS hier niet heeft (bijv. geen Outlook-koppeling) geven een
 // 4xx-antwoord. Die vraagt de hulp de rest van deze pagina niet meer. Een
 // storing (5xx, netwerk, afgemeld) telt niet: dan de volgende keer opnieuw.
-var ontbrekendeLagen = Object.create(null);
-var NIET_BESCHIKBAAR = [400, 403, 404, 405, 410, 422, 501];
+const ontbrekendeLagen = Object.create(null);
+const NIET_BESCHIKBAAR = [400, 403, 404, 405, 410, 422, 501];
 function nietBeschikbaar(err) {
-  var m = /^HTTP (\d{3})$/.exec(String((err && err.message) || ''));
+  const m = /^HTTP (\d{3})$/.exec(String((err && err.message) || ''));
   return !!m && NIET_BESCHIKBAAR.indexOf(+m[1]) >= 0;
 }
 // De andere lagen: mislukt er een, dan zonder.
 function bijLaag(sjabloon, laag, start, id, wachtrij) {
-  var k = sjabloon + '|' + id;
+  const k = sjabloon + '|' + id;
   if (ontbrekendeLagen[k]) return Promise.resolve([]);
   return weekLaag(sjabloon, laag, start, id, wachtrij).catch(function (err) {
     if (nietBeschikbaar(err)) ontbrekendeLagen[k] = true;
@@ -111,11 +111,11 @@ function weekVoor(ids, start, wachtrij) {
 // lastDate. Die alvast ophalen als de lijst er staat en het tabblad zichtbaar
 // is: rustig, twee verzoeken tegelijk. Gaat het mis, dan haalt Meer laden hem
 // gewoon zelf op.
-var VOORAF_NA_MS = 1000;
+const VOORAF_NA_MS = 1000;
 function volgendeWeekVooraf(ids, lastDate) {
   setTimeout(function () {
     if (document.visibilityState !== 'visible') return;
-    var wachtrij = createLimiter(2);
+    const wachtrij = createLimiter(2);
     maandagenTussen(plusDagen(lastDate, 1), plusDagen(lastDate, 7)).forEach(function (start) {
       weekVoor(ids, start, wachtrij).catch(function () {});
     });
@@ -123,16 +123,16 @@ function volgendeWeekVooraf(ids, lastDate) {
 }
 // Zoveel weken per keer. Een korte periode (tot drie weken) gaat in één keer;
 // een verre periode stopt na het stuk waarin de lijst vol raakt.
-var WEKEN_PER_KEER = 3;
+const WEKEN_PER_KEER = 3;
 
 export function maxBlokken(limiet, standaard) {
-  var n = parseInt(limiet, 10);
+  const n = parseInt(limiet, 10);
   return n > 0 ? Math.min(400, n) : standaard;
 }
 
 // [1..5] -> gesorteerd en uniek; leeg of alle vijf = geen filter (null).
 export function weekdagen(dagen) {
-  var d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function (x, i, a) { return x >= 1 && x <= 5 && a.indexOf(x) === i; }).sort();
+  const d = (Array.isArray(dagen) ? dagen : []).map(Number).filter(function (x, i, a) { return x >= 1 && x <= 5 && a.indexOf(x) === i; }).sort();
   return d.length && d.length < 5 ? d : null;
 }
 
@@ -143,31 +143,31 @@ export function weekdagen(dagen) {
 // terug naar kantoor mee. ALLEEN postcodes: geen adres, geen naam.
 // -> { 'YYYY-MM-DD': [{ startMin, endMin, pc, soort: 'client'|'kantoor', kantoor? }] }
 function huisbezoekenPerDag(alles, datums) {
-  var gezien = Object.create(null);
-  var opDag = alles.filter(function (e) {
+  const gezien = Object.create(null);
+  const opDag = alles.filter(function (e) {
     if (!(e.layer === 'events' && datums[e.date] && !e.allDay && e.startMs != null && e.endMs != null)) return false;
     // Dezelfde afspraak bij meerdere medewerkers (of twee keer opgehaald): één keer.
-    var k = (e.id != null ? e.id : '') + '|' + e.date + '|' + e.startMs;
+    const k = (e.id != null ? e.id : '') + '|' + e.date + '|' + e.startMs;
     if (gezien[k]) return false;
     gezien[k] = true;
     return true;
   });
-  var limiet = createLimiter(3), uit = {};
-  var zet = function (e, extra) {
-    var dag = new Date(e.startMs); dag.setHours(0, 0, 0, 0);
+  const limiet = createLimiter(3), uit = {};
+  const zet = function (e, extra) {
+    const dag = new Date(e.startMs); dag.setHours(0, 0, 0, 0);
     (uit[e.date] = uit[e.date] || []).push(Object.assign({
       startMin: Math.round((e.startMs - dag.getTime()) / 60000),
       endMin: Math.round((e.endMs - dag.getTime()) / 60000)
     }, extra));
   };
   return Promise.all(opDag.map(function (e) {
-    var k = officeForLocation(e.locationName);
+    const k = officeForLocation(e.locationName);
     if (k && k.postcode) { zet(e, { pc: k.postcode, soort: 'kantoor', kantoor: k.name }); return null; }
     if (!isAtClient(e, false)) return null;
-    var url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
+    const url = e.detailsUrl || (e.occurrenceId ? _apiUrl('eventDetails', { inviteeId: e.inviteeId, occurrenceId: e.occurrenceId }) : null);
     if (!url) return null;
     return limiet(function () { return getJson(url); }).then(function (d) {
-      var pc = postcodeFromAddress(addressFromDetails(d));
+      const pc = postcodeFromAddress(addressFromDetails(d));
       if (pc) zet(e, { pc: pc, soort: 'client' });
     }, function () {});
   })).then(function () {
@@ -189,55 +189,55 @@ function huisbezoekenPerDag(alles, datums) {
 // dagen: [1..5] (optioneel): alleen vrije tijd op deze weekdagen (1 = maandag).
 // limiet (optioneel): hoeveel vrije blokken (lijst: 'Meer laden'), max. 400.
 export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
-  var ids = agendaIds();
+  const ids = agendaIds();
   if (!ids.length) return Promise.reject(new Error('Open eerst je agenda in ONS.'));
   minutes = parseInt(minutes, 10);
   if (!(minutes >= 5)) return Promise.reject(new Error('Kies een duur.'));
   weeks = Math.max(1, Math.min(8, parseInt(weeks, 10) || 2));
-  var nu = new Date();
-  var vandaag = nu;
+  const nu = new Date();
+  let vandaag = nu;
   // Aantal kalenderdagen. (Niet 'dagen' noemen: dat is het weekdagfilter.)
-  var aantalDagen = weeks * 7;
-  var totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || '')) ? String(tot) : '';
+  let aantalDagen = weeks * 7;
+  const totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || '')) ? String(tot) : '';
   // Vanaf een latere dag (middernacht): dan telt 'nu' niet mee.
-  var vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || '')) ? String(van) : '';
+  const vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || '')) ? String(van) : '';
   if (vanDatum) {
-    var pv = vanDatum.split('-');
-    var vanDag = new Date(+pv[0], +pv[1] - 1, +pv[2]);
+    const pv = vanDatum.split('-');
+    const vanDag = new Date(+pv[0], +pv[1] - 1, +pv[2]);
     if (vanDag > nu) vandaag = vanDag;
   }
-  var startMs = vandaag === nu ? Date.now() : vandaag.getTime();
+  const startMs = vandaag === nu ? Date.now() : vandaag.getTime();
   if (totDatum) {
-    var p = totDatum.split('-');
-    var eind = new Date(+p[0], +p[1] - 1, +p[2]);
-    var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+    const p = totDatum.split('-');
+    const eind = new Date(+p[0], +p[1] - 1, +p[2]);
+    const begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
     aantalDagen = Math.round((eind - begin) / 86400000) + 1;
     if (aantalDagen < 1) return Promise.reject(new Error('Kies een datum vanaf vandaag.'));
     if (aantalDagen > MAX_ZOEK_DAGEN) return Promise.reject(new Error('Kies een datum binnen een jaar.'));
   }
-  var laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + aantalDagen - 1);
-  var laatsteYmd = agendaYmd(laatste);
-  var weken = weekStartsBetween(agendaYmd(vandaag), laatsteYmd);
-  var maxRes = veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12);
+  const laatste = new Date(vandaag); laatste.setDate(laatste.getDate() + aantalDagen - 1);
+  const laatsteYmd = agendaYmd(laatste);
+  const weken = weekStartsBetween(agendaYmd(vandaag), laatsteYmd);
+  const maxRes = veel ? 400 : maxBlokken(limiet, totDatum ? 40 : 12);
   // Hooguit 4 verzoeken tegelijk naar ONS. (Niet 'limiet' noemen: dat is
   // het aantal blokken dat het zijpaneel vraagt.)
-  var wachtrij = createLimiter(4);
-  var week = function (start) { return weekVoor(ids, start, wachtrij); };
-  var plat = function (a) { return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a]; };
-  var win = workWindow();
+  const wachtrij = createLimiter(4);
+  const week = function (start) { return weekVoor(ids, start, wachtrij); };
+  const plat = function (a) { return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a]; };
+  const win = workWindow();
   // Vrije blokken in wat er tot nu toe is opgehaald (t/m eindYmd).
   function reken(alles, fd, eindYmd) {
-    var eindDag = new Date(+eindYmd.slice(0, 4), +eindYmd.slice(5, 7) - 1, +eindYmd.slice(8, 10));
-    var begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
-    var dagenTot = Math.round((eindDag - begin) / 86400000) + 1;
+    const eindDag = new Date(+eindYmd.slice(0, 4), +eindYmd.slice(5, 7) - 1, +eindYmd.slice(8, 10));
+    const begin = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+    const dagenTot = Math.round((eindDag - begin) / 86400000) + 1;
     // Op een feestdag geen vrije tijd.
-    var feest = holidaysBetween(fd, agendaYmd(vandaag), eindYmd);
-    var isFeest = {}; feest.forEach(function (h) { isFeest[h.date] = true; });
+    const feest = holidaysBetween(fd, agendaYmd(vandaag), eindYmd);
+    const isFeest = {}; feest.forEach(function (h) { isFeest[h.date] = true; });
     // Reserveringen houden tijd vast maar bezetten hem niet: apart houden.
-    var isRes = function (e) { return e.layer === 'reservations' || e.type === 'reservation'; };
-    var reserveringen = reservationBlocks(alles.filter(isRes));
-    var bezet = alles.filter(function (e) { return !isRes(e); });
-    var gaps = findFreeGaps(bezet, {
+    const isRes = function (e) { return e.layer === 'reservations' || e.type === 'reservation'; };
+    const reserveringen = reservationBlocks(alles.filter(isRes));
+    const bezet = alles.filter(function (e) { return !isRes(e); });
+    const gaps = findFreeGaps(bezet, {
       now: startMs, days: dagenTot, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: maxRes,
       skipDates: isFeest, weekdays: weekdagen(dagen)
@@ -253,21 +253,21 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   // volgende stuk. lastDate is de laatste dag die echt bekeken is: daar gaat
   // Meer laden verder.
   function stuk(i, alles) {
-    var deze = weken.slice(i, i + WEKEN_PER_KEER);
+    const deze = weken.slice(i, i + WEKEN_PER_KEER);
     return Promise.all([Promise.all(deze.map(week)), holidays()]).then(function (r) {
       alles = alles.concat(plat(r[0]));
-      var klaar = i + WEKEN_PER_KEER >= weken.length;
-      var zondag = plusDagen(deze[deze.length - 1], 6);
-      var eindYmd = klaar || zondag > laatsteYmd ? laatsteYmd : zondag;
-      var u = reken(alles, r[1], eindYmd);
+      const klaar = i + WEKEN_PER_KEER >= weken.length;
+      const zondag = plusDagen(deze[deze.length - 1], 6);
+      const eindYmd = klaar || zondag > laatsteYmd ? laatsteYmd : zondag;
+      const u = reken(alles, r[1], eindYmd);
       if (!klaar && u.gaps.length < maxRes) return stuk(i + WEKEN_PER_KEER, alles);
-      var res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: eindYmd, windowStart: win.start, windowEnd: win.end, gaps: u.gaps, holidays: u.feest, invitees: ids.length,
+      const res = { minutes: minutes, weeks: weeks, to: totDatum, lastDate: eindYmd, windowStart: win.start, windowEnd: win.end, gaps: u.gaps, holidays: u.feest, invitees: ids.length,
         // Of ONS' overlapcontrole bekend is: dan kijkt het zijpaneel de eerste
         // blokken daar na, als de lijst er al staat.
         onsCheck: overlapCheckStatus() };
       volgendeWeekVooraf(ids, eindYmd);
       if (!metBezoeken) return res;
-      var datums = {}; u.gaps.forEach(function (g) { datums[g.date] = true; });
+      const datums = {}; u.gaps.forEach(function (g) { datums[g.date] = true; });
       return huisbezoekenPerDag(u.bezet, datums).then(function (v) { res.visits = v; return res; }, function () { res.visits = {}; return res; });
     });
   }

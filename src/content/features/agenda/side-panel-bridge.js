@@ -27,14 +27,14 @@ export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', '
 // Rijtijden: eigen server (url + token) gaat voor; anders direct met de
 // Routes-sleutel; anders niets (dan geen rijtijden).
 function routesProxyVoorPaneel() {
-  var p = APP_CONFIG.routesProxy || {};
-  var url = String(p.url || '').trim().replace(/\/+$/, '');
+  const p = APP_CONFIG.routesProxy || {};
+  const url = String(p.url || '').trim().replace(/\/+$/, '');
   if (/^https:\/\/[^/]+/.test(url) && p.token) return { url: url, token: String(p.token) };
-  var key = String(p.routesKey || '').trim();
+  const key = String(p.routesKey || '').trim();
   return /^[A-Za-z0-9_-]{20,60}$/.test(key) ? { key: key } : null;
 }
 function panelFeatures() {
-  var f = APP_CONFIG.features || {}, uit = {};
+  const f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
   return uit;
 }
@@ -67,15 +67,15 @@ function afspraakTypesVoorPaneel() {
   } catch (e) { return []; }
 }
 function agPanelState() {
-  var res = (agendaPage._agLastEntries && agendaPage._agLastEntries.length) ? computeTotalsApi() : computeTotals();
-  var view = currentCalendarView();
-  var windowStart = editableWindowStart();
-  var windowStatus = {};
+  const res = (agendaPage._agLastEntries && agendaPage._agLastEntries.length) ? computeTotalsApi() : computeTotals();
+  const view = currentCalendarView();
+  const windowStart = editableWindowStart();
+  const windowStatus = {};
   Object.keys(res.past || {}).forEach(function (d) {
-    var st = windowStatusForDate(d, windowStart);
+    const st = windowStatusForDate(d, windowStart);
     if (st) windowStatus[d] = st;
   });
-  var profLabel = null;
+  let profLabel = null;
   if (agendaPage.currentProfile) profLabel = (PROFILES[agendaPage.currentProfile] && PROFILES[agendaPage.currentProfile].label) || agendaPage.currentProfile;
   return {
     enabled: !!agendaPage.greyEnabled,
@@ -133,8 +133,8 @@ function agPanelState() {
 export function pushPanelState(force) {
   if (!agendaPage.sidePanelOpen) return;   // niemand luistert
   try {
-    var st = agPanelState();
-    var sig = JSON.stringify(st);
+    const st = agPanelState();
+    const sig = JSON.stringify(st);
     if (!force && sig === agendaPage._agStateSig) return;
     agendaPage._agStateSig = sig;
     chrome.runtime.sendMessage({ type: MSG.AGENDA_STATE, state: st });
@@ -175,7 +175,7 @@ export function listenForSidePanelMessages() {
         case MSG.AGENDA_JUMP_WEEK:  safe(function () { jumpToWeek(); }); return;
         case MSG.AGENDA_OPEN_OCCURRENCE:
           safe(function () {
-            var item = listUnfinished().find(function (i) { return i.id && i.id === msg.id; });
+            const item = listUnfinished().find(function (i) { return i.id && i.id === msg.id; });
             if (item) openOccurrence(item.el);
           });
           return;
@@ -191,8 +191,8 @@ export function listenForSidePanelMessages() {
           // het CSRF-token beschikbaar.
           safe(function () { if (leaveRequestEnabled()) openLeaveDialog(); });
           return;
-        case MSG.AGENDA_CHECK_RANGE:
-          var uitCache = !msg.vers && isCached('open', msg.from + '|' + msg.to);
+        case MSG.AGENDA_CHECK_RANGE: {
+          const uitCache = !msg.vers && isCached('open', msg.from + '|' + msg.to);
           cachedOpenRange(msg.from, msg.to, function (done, total) {
             try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'open', done: done, total: total }); } catch (e) {}
           }, !!msg.vers).then(function (result) {
@@ -202,6 +202,7 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Controleren mislukt.' }); } catch (e2) {}
           });
           return true;
+        }
         case MSG.AGENDA_NEW_EVENT:
           try { sendResponse(openNewEvent(msg)); } catch (e) { try { sendResponse({ ok: false, error: 'Openen mislukt.' }); } catch (e2) {} }
           return;

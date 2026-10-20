@@ -8,31 +8,31 @@ import { uitYmd, ymd } from '../../shared/datum.js';
 
 // Datum -> 'YYYY-MM-DD' (lokale kalenderdag; de endpoint verwacht een dag in de week).
 export function agendaYmd(d) {
-  var dt = (d instanceof Date) ? d : (d != null && d !== '' ? new Date(d) : new Date());
+  const dt = (d instanceof Date) ? d : (d != null && d !== '' ? new Date(d) : new Date());
   return ymd(dt);
 }
 // Ligt de bekeken week VOLLEDIG in de toekomst (maandag na vandaag)? Dan tonen we de
 // planning per afspraaktype. Anders (deze week of eerder) tonen we de echte registraties
 // per uursoort — zodat registraties die begin van de week al zijn gedaan óók verschijnen.
 export function _agIsFutureWeek(dag) {
-  var base = uitYmd(dag) || new Date(dag || Date.now());
+  const base = uitYmd(dag) || new Date(dag || Date.now());
   if (isNaN(base.getTime())) return false;
   return startOfISOWeek(base).getTime() > startOfToday().getTime();
 }
 // ---- Weekoverzicht-paneel op de agenda (gebaseerd op de API-data) ----
 export function _agFmtMin(min) {
   min = Math.max(0, Math.round(min || 0));
-  var h = Math.floor(min / 60), m = min % 60;
+  const h = Math.floor(min / 60), m = min % 60;
   return h ? (h + ' u' + (m ? ' ' + m + ' m' : '')) : (m + ' m');
 }
 // 'YYYY-MM-DD' -> 'ma 3-9'
 export function _agDateLabel(dag) {
-  var d = uitYmd(dag);
+  const d = uitYmd(dag);
   return d ? format(d, 'EEEEEE d-M', { locale: nl }) : String(dag || '');
 }
 // ISO-8601 weeknummer voor de titel ("week 36").
 export function agendaWeekNumber(dag) {
-  var d = uitYmd(dag) || new Date(dag || Date.now());
+  const d = uitYmd(dag) || new Date(dag || Date.now());
   return isNaN(d.getTime()) ? null : getISOWeek(d);
 }
 export function addOneHourText(value) {

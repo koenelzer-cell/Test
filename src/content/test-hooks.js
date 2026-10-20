@@ -40,7 +40,7 @@ import {
   parseStartVerdeling,
   summarizeAgendaWeek,
 } from './domain/agenda-entries.js';
-import { fetchInviteeWeek } from './services/ons-api/calendar.js';
+import { fetchInviteeWeek, fetchWeekRegistrationDeclarabiliteit } from './services/ons-api/calendar.js';
 import {
   clearLaatsteDetails,
   detailsLabelNames,
@@ -294,6 +294,7 @@ export function exposeTestApi() {
     agendaYmd,
     resolveInviteeId,
     fetchInviteeWeek,
+    fetchWeekRegistrationDeclarabiliteit,
     summarizeAgendaWeek,
     agendaEntryType,
     labelToAfspraaktype,

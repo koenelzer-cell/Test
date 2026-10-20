@@ -9,27 +9,27 @@ export function maakSnelRegistreren(ctx) {
 
 
   function pageQuick() {
-    var buiten = el('div');
+    const buiten = el('div');
     buiten.appendChild(txt('help', 'Opent het registratieformulier van ONS met datum en tijd ingevuld. Voor een afspraak: open de afspraak zelf, dan wordt de registratie eraan gekoppeld.', { margin: '0 2px 10px' }));
     // Datum, begintijd en duur in één kaart; onderin wat er geopend wordt.
-    var box = kaart();
+    const box = kaart();
     buiten.appendChild(box);
-    var k = maakKiezers();
-    var rij = el('div', { display: 'flex', gap: '8px' });
+    const k = maakKiezers();
+    const rij = el('div', { display: 'flex', gap: '8px' });
     rij.appendChild(fieldLabel('Datum', k.datum(quick.date, function (v) { quick.date = v; quick.overlap = ''; })));
     rij.appendChild(fieldLabel('Begintijd', k.tijd(quick.time, function (v) { quick.time = v; quick.overlap = ''; })));
     box.appendChild(rij);
     box.appendChild(k.host);
-    var rij2 = el('div', { display: 'flex', gap: '8px', marginTop: '10px' });
+    const rij2 = el('div', { display: 'flex', gap: '8px', marginTop: '10px' });
     function duurKiezer() {
-      var w = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px' });
-      var vast = ['15', '30', '45', '60', '90', '120'];
+      const w = el('div', { display: 'flex', flexWrap: 'wrap', gap: '4px' });
+      const vast = ['15', '30', '45', '60', '90', '120'];
       vast.forEach(function (m) {
-        var g = String(quick.minutes) === m;
+        const g = String(quick.minutes) === m;
         w.appendChild(chipKnop(fmtMin(+m), g, function () { quick.minutes = m; quick.overlap = ''; renderPagina(); },
           { padding: '0 10px', border: '1px solid ' + (g ? T.brand : T.line) }));
       });
-      var eigen = inputEl('number', vast.indexOf(String(quick.minutes)) === -1 ? quick.minutes : '', function (v) { quick.minutes = v; quick.overlap = ''; });
+      const eigen = inputEl('number', vast.indexOf(String(quick.minutes)) === -1 ? quick.minutes : '', function (v) { quick.minutes = v; quick.overlap = ''; });
       eigen.min = '5'; eigen.max = '1440'; eigen.step = '5'; eigen.placeholder = 'min';
       eigen.setAttribute('aria-label', 'Andere duur in minuten');
       Object.assign(eigen.style, { width: '64px', height: '32px', padding: '0 8px' });
@@ -39,10 +39,10 @@ export function maakSnelRegistreren(ctx) {
     // Duur als chips; 'Anders' voor een eigen aantal minuten.
     rij2.appendChild(fieldLabel('Duur', duurKiezer()));
     box.appendChild(rij2);
-    var tm = /^(\d{1,2}):(\d{2})$/.exec(String(quick.time || '')), mins = parseInt(quick.minutes, 10);
+    const tm = /^(\d{1,2}):(\d{2})$/.exec(String(quick.time || '')), mins = parseInt(quick.minutes, 10);
     if (quick.date && tm && mins > 0) {
-      var start = (+tm[1]) * 60 + (+tm[2]);
-      var sam = el('div', { display: 'flex', justifyContent: 'space-between', gap: '8px', margin: '14px -14px -12px', padding: '10px 14px', borderTop: '1px solid ' + T.line, fontSize: '13px' });
+      const start = (+tm[1]) * 60 + (+tm[2]);
+      const sam = el('div', { display: 'flex', justifyContent: 'space-between', gap: '8px', margin: '14px -14px -12px', padding: '10px 14px', borderTop: '1px solid ' + T.line, fontSize: '13px' });
       sam.setAttribute('data-snel-samenvatting', '');
       sam.appendChild(el('span', { color: T.inkSoft }, dagLang(quick.date)));
       sam.appendChild(el('span', { fontWeight: '700', color: T.ink, whiteSpace: 'nowrap' }, vanTot(start, start + mins).replace(/^van /, '')));
@@ -54,7 +54,7 @@ export function maakSnelRegistreren(ctx) {
   }
   // De knop staat vast onderaan (zoals Verlof aanvragen op het startscherm).
   function snelBalk() {
-    var balk = el('div', { background: '#fff', padding: '12px', borderTop: '1px solid ' + T.line });
+    const balk = el('div', { background: '#fff', padding: '12px', borderTop: '1px solid ' + T.line });
     balk.appendChild(quick.overlap
       ? primaryBtn(quick.busy ? 'Openen…' : 'Toch openen', function () { startQuickRegister(true); }, quick.busy)
       : primaryBtn(quick.busy ? 'Controleren…' : 'Formulier openen', function () { startQuickRegister(false); }, quick.busy));

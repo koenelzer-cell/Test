@@ -48,12 +48,12 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   function detectUserId() {
     try { if (window.employeeId) return String(window.employeeId); } catch (e) {}
     try {
-      var el = document.getElementById('altrechtUserId') || document.querySelector('input[name*="user" i][value]');
+      const el = document.getElementById('altrechtUserId') || document.querySelector('input[name*="user" i][value]');
       if (el && el.value) return String(el.value);
     } catch (e) {}
     try {
-      var html = document.body ? document.body.innerHTML : '';
-      var m = html.match(/"?userId"?\s*[:=]\s*"?(\d{1,10})/i);
+      const html = document.body ? document.body.innerHTML : '';
+      const m = html.match(/"?userId"?\s*[:=]\s*"?(\d{1,10})/i);
       if (m) return m[1];
     } catch (e) {}
     return '';
@@ -80,13 +80,13 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      en het occurrence-id uit de URL. Geen cliëntnaam, geen titel, geen
      opmerking, geen enkel ander veld — en we sturen alleen naar de eigen origin.
      ---------------------------------------------------------------------- */
-  var DETAILS_RE = /\/(?:events|registrations)\/[^/?#]+\/details(?:[?#]|$)/;
+  const DETAILS_RE = /\/(?:events|registrations)\/[^/?#]+\/details(?:[?#]|$)/;
   function labelNamesFrom(json) {
     if (!json || typeof json !== 'object') return [];
-    var body = json;
-    var keys = ['data', 'event', 'occurrence', 'registration', 'entry'];
-    for (var i = 0; i < keys.length; i++) {
-      var v = json[keys[i]];
+    let body = json;
+    const keys = ['data', 'event', 'occurrence', 'registration', 'entry'];
+    for (let i = 0; i < keys.length; i++) {
+      const v = json[keys[i]];
       if (v && typeof v === 'object' && !Array.isArray(v)) { body = v; break; }
     }
     if (!Array.isArray(body.labels)) return [];
@@ -97,7 +97,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   function reportDetails(url, text) {
     try {
       if (!url || !DETAILS_RE.test(String(url))) return;
-      var labels = labelNamesFrom(JSON.parse(text));
+      const labels = labelNamesFrom(JSON.parse(text));
       if (labels.length) post('details', { url: String(url), labels: labels });
     } catch (e) {}
   }
@@ -109,10 +109,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      gaat mee, ingekort, alleen om te zien of de hulp het kan lezen; het
      content-script maakt er ja/nee/onbekend van en bewaart het niet.
      ---------------------------------------------------------------------- */
-  var OVERLAP_RE = /\/event_planner\/overlap_detection(?:[?#]|$)/;
+  const OVERLAP_RE = /\/event_planner\/overlap_detection(?:[?#]|$)/;
   function reportOverlap(url, text) {
     try {
-      var abs = new URL(String(url), location.href);
+      const abs = new URL(String(url), location.href);
       if (abs.origin !== location.origin) return;
       post('eventOverlap', { url: abs.pathname + abs.search, body: String(text == null ? '' : text).slice(0, 4000) });
     } catch (e) {}
@@ -127,7 +127,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      formulier, nodig om een afspraak vanuit de planhulp te maken
      (content/features/agenda/event-create.js). Geen cliëntgegevens.
      ---------------------------------------------------------------------- */
-  var CREATE_PATH = '/calendar/events';
+  const CREATE_PATH = '/calendar/events';
   /* ---- leeg afspraakmodel aanvullen ------------------------------------
      Een nieuw afspraakformulier bouwt ONS op uit
        GET /calendar/events/new?invitee_ids[]=…
@@ -140,12 +140,12 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      PRIVACY: we lezen uit het model alleen meta.new_record en
      meta.create_url; medewerkers en cliënten raken we niet aan.
      ---------------------------------------------------------------------- */
-  var NIEUW_PATH = '/calendar/events/new';
-  var MODEL_GELDIG_MS = 2 * 60 * 1000;
-  var YMD = /^\d{4}-\d{2}-\d{2}$/, ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+  const NIEUW_PATH = '/calendar/events/new';
+  const MODEL_GELDIG_MS = 2 * 60 * 1000;
+  const YMD = /^\d{4}-\d{2}-\d{2}$/, ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
   function klaargezetModel() {
     try {
-      var p = JSON.parse(sessionStorage.getItem(PAGE_SESSION.PENDING_APPOINTMENT) || 'null');
+      const p = JSON.parse(sessionStorage.getItem(PAGE_SESSION.PENDING_APPOINTMENT) || 'null');
       if (!p || !p.model || !(Date.now() - p.ts <= MODEL_GELDIG_MS)) return null;
       return p.model;
     } catch (e) { return null; }
@@ -153,19 +153,19 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   function isNieuwModel(url, method) {
     if (String(method || 'GET').toUpperCase() !== 'GET') return false;
     try {
-      var abs = new URL(String(url || ''), location.href);
+      const abs = new URL(String(url || ''), location.href);
       return abs.origin === location.origin && abs.pathname.replace(/\/$/, '') === NIEUW_PATH;
     } catch (e) { return false; }
   }
   // Model (object) aanvullen; geeft true als er iets is ingevuld.
   function vulModel(json, k) {
-    var ev = json && typeof json === 'object' ? (json.event && typeof json.event === 'object' ? json.event : json) : null;
+    const ev = json && typeof json === 'object' ? (json.event && typeof json.event === 'object' ? json.event : json) : null;
     if (!ev || !ev.meta || ev.meta.new_record !== true || ev.meta.create_url !== CREATE_PATH) return false;
-    var gedaan = false;
+    let gedaan = false;
     if (ev.valid_from == null && YMD.test(String(k.valid_from || ''))) { ev.valid_from = k.valid_from; gedaan = true; }
     if (ev.start_time == null && ISO.test(String(k.start_time || ''))) { ev.start_time = k.start_time; gedaan = true; }
     if (ev.end_time == null && ISO.test(String(k.end_time || ''))) { ev.end_time = k.end_time; gedaan = true; }
-    var l = Array.isArray(k.labels) ? k.labels.filter(function (x) { return x && Number(x.id) > 0 && typeof x.name === 'string'; }) : [];
+    const l = Array.isArray(k.labels) ? k.labels.filter(function (x) { return x && Number(x.id) > 0 && typeof x.name === 'string'; }) : [];
     if (l.length && Array.isArray(ev.labels) && !ev.labels.length) {
       ev.labels = l.map(function (x) { return { id: Number(x.id), name: String(x.name) }; });
       gedaan = true;
@@ -173,10 +173,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     return gedaan;
   }
   function vulTekst(tekst) {
-    var k = klaargezetModel();
+    const k = klaargezetModel();
     if (!k) return tekst;
     try {
-      var j = JSON.parse(tekst);
+      const j = JSON.parse(tekst);
       return vulModel(j, k) ? JSON.stringify(j) : tekst;
     } catch (e) { return tekst; }
   }
@@ -184,10 +184,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   // leest (responseText, of response als tekst of als JSON).
   function vulXhr(xhr, proto) {
     try {
-      var rt = Object.getOwnPropertyDescriptor(proto, 'responseText');
-      var r = Object.getOwnPropertyDescriptor(proto, 'response');
-      var klaar = null;
-      var tekst = function () {
+      const rt = Object.getOwnPropertyDescriptor(proto, 'responseText');
+      const r = Object.getOwnPropertyDescriptor(proto, 'response');
+      let klaar = null;
+      const tekst = function () {
         if (klaar === null) klaar = vulTekst(rt.get.call(xhr));
         return klaar;
       };
@@ -195,10 +195,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
         return xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300 ? tekst() : rt.get.call(xhr);
       } });
       if (r && r.get) Object.defineProperty(xhr, 'response', { configurable: true, get: function () {
-        var v = r.get.call(xhr);
+        const v = r.get.call(xhr);
         if (!(xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300)) return v;
         if (typeof v === 'string') return tekst();
-        if (v && typeof v === 'object' && xhr.responseType === 'json') { var k = klaargezetModel(); if (k) vulModel(v, k); }
+        if (v && typeof v === 'object' && xhr.responseType === 'json') { const k = klaargezetModel(); if (k) vulModel(v, k); }
         return v;
       } });
     } catch (e) {}
@@ -208,22 +208,22 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   }
 
   function melderVoor(url, method) {
-    var u = String(url || '');
+    const u = String(url || '');
     if (DETAILS_RE.test(u)) return reportDetails;
     if (OVERLAP_RE.test(u)) return reportOverlap;
     if (String(method || 'GET').toUpperCase() !== 'POST') return null;
     try {
-      var abs = new URL(u, location.href);
+      const abs = new URL(u, location.href);
       if (abs.origin !== location.origin || abs.pathname.replace(/\/$/, '') !== CREATE_PATH) return null;
       // De klaargezette momenten gaan mee zoals ze bij het VERSTUREN stonden:
       // ONS kan na het opslaan al doorschakelen naar de agenda.
-      var klaar = kopieenKlaar();
+      const klaar = kopieenKlaar();
       return function (url2, text, body) {
         if (typeof body !== 'string' || !body) return;
         try {
-          var meta = (JSON.parse(body).event || {}).meta, kaal = {};
+          const meta = (JSON.parse(body).event || {}).meta, kaal = {};
           if (meta && typeof meta === 'object') Object.keys(meta).forEach(function (k) {
-            var v = meta[k];
+            const v = meta[k];
             if (typeof v === 'boolean' || v === null || typeof v === 'number') kaal[k] = v;
           });
           post('eventMeta', { meta: kaal });
@@ -236,19 +236,19 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
 
   function installDetailsWatcher() {
     try {
-      var origFetch = window.fetch;
+      const origFetch = window.fetch;
       if (typeof origFetch === 'function') {
         window.fetch = function (input, init) {
-          var url = (typeof input === 'string') ? input : (input && (input.url || input.href)) || '';
-          var method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
-          var body = init && init.body;
-          var p = origFetch.apply(this, arguments);
+          const url = (typeof input === 'string') ? input : (input && (input.url || input.href)) || '';
+          const method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
+          const body = init && init.body;
+          const p = origFetch.apply(this, arguments);
           try {
             if (isNieuwModel(url, method) && klaargezetModel()) {
               return p.then(function (res) {
                 if (!res || !res.ok || !res.clone) return res;
                 return res.clone().text().then(function (t) {
-                  var n = vulTekst(t);
+                  const n = vulTekst(t);
                   return n === t ? res : new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
                 }, function () { return res; });
               });
@@ -256,7 +256,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           } catch (e) {}
           // .clone() zodat de pagina zelf de body ongestoord kan lezen.
           try {
-            var melder = melderVoor(url, method);
+            const melder = melderVoor(url, method);
             if (melder) {
               p.then(function (res) {
                 try { if (res && res.ok && res.clone) res.clone().text().then(function (t) { melder(url, t, body); }, function () {}); } catch (e) {}
@@ -269,19 +269,19 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       }
     } catch (e) {}
     try {
-      var XHR = window.XMLHttpRequest;
+      const XHR = window.XMLHttpRequest;
       if (XHR && XHR.prototype && typeof XHR.prototype.open === 'function') {
-        var origOpen = XHR.prototype.open;
+        const origOpen = XHR.prototype.open;
         XHR.prototype.open = function (method, url) {
           try { this.__onsahUrl = url; this.__onsahMethod = method; } catch (e) {}
           return origOpen.apply(this, arguments);
         };
-        var origSend = XHR.prototype.send;
+        const origSend = XHR.prototype.send;
         XHR.prototype.send = function (body) {
           try {
-            var xhr = this;
+            const xhr = this;
             if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
-            var melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
+            const melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
             if (melder) {
               xhr.addEventListener('load', function () {
                 try { if (xhr.status >= 200 && xhr.status < 300) melder(xhr.__onsahUrl, xhr.responseText, body); } catch (e) {}
@@ -319,11 +319,11 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     return uit;
   }
   function diepZoek(root, sel) {
-    var gevonden = root.querySelector(sel);
+    const gevonden = root.querySelector(sel);
     if (gevonden) return gevonden;
-    var alle = root.querySelectorAll('*');
-    for (var i = 0; i < alle.length; i++) {
-      if (alle[i].shadowRoot) { var r = diepZoek(alle[i].shadowRoot, sel); if (r) return r; }
+    const alle = root.querySelectorAll('*');
+    for (let i = 0; i < alle.length; i++) {
+      if (alle[i].shadowRoot) { const r = diepZoek(alle[i].shadowRoot, sel); if (r) return r; }
     }
     return null;
   }
@@ -332,42 +332,41 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   }
   function propVan(v, a, b) { return v.props[a] !== undefined ? v.props[a] : v.props[b]; }
-  function waardeVan(v) { var mv = propVan(v, 'model-value', 'modelValue'); return mv && typeof mv === 'object' && !Array.isArray(mv) ? mv.id : mv; }
+  function waardeVan(v) { const mv = propVan(v, 'model-value', 'modelValue'); return mv && typeof mv === 'object' && !Array.isArray(mv) ? mv.id : mv; }
   function idVan(x) { return x && typeof x === 'object' ? Number(x.id) : Number(x); }
   function zelfdeIds(a, b) {
-    var x = (a || []).map(idVan).sort(), y = (b || []).map(idVan).sort();
+    const x = (a || []).map(idVan).sort(), y = (b || []).map(idVan).sort();
     return x.length === y.length && x.every(function (id, k) { return id === y[k]; });
   }
 
   // start (optioneel): een element in het formulier om de Vue-app vanaf te zoeken.
   function formulierBoom(start) {
-    var anker = start || diepZoek(document, '[data-qa="label_select"]') || diepZoek(document, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
-    var h = anker;
+    const anker = start || diepZoek(document, '[data-qa="label_select"]') || diepZoek(document, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
+    let h = anker;
     while (h && !h.__vue_app__) h = omhoog(h);
     if (!h || !h._vnode) return null;
-    var perEl = new Map(), velden = [], details = null;
-    var stapel = [h._vnode], gezien = new WeakSet(), n = 0;
+    let perEl = new Map(), velden = [], details = null;
+    let stapel = [h._vnode], gezien = new WeakSet(), n = 0;
     while (stapel.length && n < 200000) {
-      var v = stapel.pop();
+      const v = stapel.pop();
       if (!v || typeof v !== 'object' || gezien.has(v)) continue;
       gezien.add(v); n++;
       // De buitenste vnode van een element telt (daar zit de koppeling).
       if (v.el && v.props && typeof v.props['onUpdate:modelValue'] === 'function' && !perEl.has(v.el)) { perEl.set(v.el, v); velden.push(v); }
-      var c = v.component;
+      const c = v.component;
       if (c) {
         if (!details && c.props && c.props.event && typeof c.props.event === 'object' && c.type && (c.type.name || c.type.__name) === 'EventDetails') details = c;
         stapel.push(c.subTree);
       }
-      var i;
-      if (Array.isArray(v.children)) for (i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
-      if (Array.isArray(v.dynamicChildren)) for (i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
+      if (Array.isArray(v.children)) for (let i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
+      if (Array.isArray(v.dynamicChildren)) for (let i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
     }
     return { veld: function (el) { return perEl.get(el) || null; }, velden: velden, details: details };
   }
   function zetEnControleer(doe, controleer, klaar) {
     try { doe(); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
     setTimeout(function () {
-      var ok = false;
+      let ok = false;
       try { ok = !!controleer(formulierBoom()); } catch (e) {}
       klaar(ok ? { ok: true } : { ok: false, reden: 'het formulier nam de waarde niet over' });
     }, 80);
@@ -378,20 +377,20 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      namen; d.wis: alles weg; d.toevoegen: bij wat er staat, anders vervangt
      de set wat er stond. Namen: exact, anders het ene label dat het bevat. */
   function zetLabels(d, klaar) {
-    var veld = diepZoek(document, '[data-qa="label_select"]');
+    const veld = diepZoek(document, '[data-qa="label_select"]');
     if (!veld) { klaar({ ok: false, reden: 'geen labelveld' }); return; }
-    var boom = formulierBoom(), v = boom && boom.veld(veld);
+    const boom = formulierBoom(), v = boom && boom.veld(veld);
     if (!v) { klaar({ ok: false, reden: 'geen Vue-koppeling' }); return; }
-    var huidig = propVan(v, 'model-value', 'modelValue');
+    let huidig = propVan(v, 'model-value', 'modelValue');
     huidig = Array.isArray(huidig) ? huidig : [];
-    var beschikbaar = propVan(v, 'available-labels', 'availableLabels');
+    let beschikbaar = propVan(v, 'available-labels', 'availableLabels');
     beschikbaar = Array.isArray(beschikbaar) ? beschikbaar : [];
-    var gekozen = [];
+    const gekozen = [];
     if (d.wis !== true) {
-      for (var i = 0; i < d.labels.length; i++) {
-        var w = norm(d.labels[i]);
-        var exact = beschikbaar.filter(function (l) { return l && norm(l.name) === w; });
-        var bevat = exact.length ? exact : beschikbaar.filter(function (l) { return l && norm(l.name).indexOf(w) !== -1; });
+      for (let i = 0; i < d.labels.length; i++) {
+        const w = norm(d.labels[i]);
+        const exact = beschikbaar.filter(function (l) { return l && norm(l.name) === w; });
+        const bevat = exact.length ? exact : beschikbaar.filter(function (l) { return l && norm(l.name).indexOf(w) !== -1; });
         if (bevat.length !== 1 || !(Number(bevat[0].id) > 0)) { klaar({ ok: false, reden: 'label niet gevonden' }); return; }
         if (gekozen.indexOf(bevat[0]) < 0) gekozen.push(bevat[0]);
       }
@@ -404,10 +403,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     }
     // Dezelfde vorm als ONS hem in het veld zet: id's, of labelobjecten als
     // het veld die al bevat.
-    var objecten = huidig.length > 0 && typeof huidig[0] === 'object';
-    var waarde = objecten ? gekozen.slice() : gekozen.map(function (l) { return Number(l.id); });
+    const objecten = huidig.length > 0 && typeof huidig[0] === 'object';
+    const waarde = objecten ? gekozen.slice() : gekozen.map(function (l) { return Number(l.id); });
     zetEnControleer(function () { v.props['onUpdate:modelValue'](waarde); }, function (b) {
-      var na = b && b.veld(veld), nu = na ? propVan(na, 'model-value', 'modelValue') : null;
+      const na = b && b.veld(veld), nu = na ? propVan(na, 'model-value', 'modelValue') : null;
       return Array.isArray(nu) && zelfdeIds(nu, waarde);
     }, klaar);
   }
@@ -419,38 +418,38 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      uit client-ids in de vnode). d.wis: leegmaken. */
   function isUursoortVeld(e) { return !!(e && e.tagName === 'UC-SELECT' && (e.getAttribute('data-qa') === 'hour_type_select' || e.getAttribute('aria-label') === 'Uursoort')); }
   function uursoortVeldBij(doel) {
-    for (var e = doel, n = 0; e && n < 30; e = omhoog(e), n++) if (isUursoortVeld(e)) return e;
+    for (let e = doel, n = 0; e && n < 30; e = omhoog(e), n++) if (isUursoortVeld(e)) return e;
     return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
   }
   function uursoortVelden(boom) {
     return (boom ? boom.velden : []).filter(function (v) { return isUursoortVeld(v.el); });
   }
   function zetUursoort(d, klaar) {
-    var wis = d.wis === true, id = Number(d.hourTypeId);
+    const wis = d.wis === true, id = Number(d.hourTypeId);
     if (!wis && !(id > 0)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-    var boom = null, v = null;
+    let boom = null, v = null;
     if (d.clientId != null) {
       boom = formulierBoom();
       if (!/^\d{1,12}$/.test(String(d.clientId))) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
       v = uursoortVelden(boom).filter(function (x) {
-        var cids = propVan(x, 'client-ids', 'clientIds');
+        const cids = propVan(x, 'client-ids', 'clientIds');
         return Array.isArray(cids) && cids.map(Number).indexOf(Number(d.clientId)) >= 0;
       })[0] || null;
     } else {
-      var doelNaam = String(d.doel || '');
+      const doelNaam = String(d.doel || '');
       if (!/^[\w-]{1,60}$/.test(doelNaam)) { klaar({ ok: false, reden: 'ongeldig verzoek' }); return; }
-      var doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
-      var el = doel ? uursoortVeldBij(doel) : null;
+      const doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
+      const el = doel ? uursoortVeldBij(doel) : null;
       boom = el ? formulierBoom(el) : null;
       v = boom ? boom.veld(el) : null;
     }
     if (!v) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
-    var veld = v.el;
+    const veld = v.el;
     zetEnControleer(function () {
       if (wis) v.props['onUpdate:modelValue'](null, '');
       else v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200));
     }, function () {
-      var b = formulierBoom(veld), na = b && b.veld(veld), nu = na ? waardeVan(na) : null;
+      const b = formulierBoom(veld), na = b && b.veld(veld), nu = na ? waardeVan(na) : null;
       return wis ? (nu == null || nu === '') : Number(nu) === id;
     }, klaar);
   }
@@ -458,17 +457,17 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   /* Eén veld van het afspraakmodel via EventDetails.onChange(waarde, veld),
      de methode die het formulier zelf o.a. voor comment en label_ids
      gebruikt. Alleen deze velden, in de vorm van het model. */
-  var VELDEN = { name: 'tekst', comment: 'tekst', start_time: 'tijd', end_time: 'tijd', travel_time_before: 'getal', travel_time_after: 'getal' };
+  const VELDEN = { name: 'tekst', comment: 'tekst', start_time: 'tijd', end_time: 'tijd', travel_time_before: 'getal', travel_time_after: 'getal' };
   function zetVeld(d, klaar) {
-    var veld = String(d.veld || ''), soort = VELDEN[veld], w = d.waarde;
+    let veld = String(d.veld || ''), soort = VELDEN[veld], w = d.waarde;
     if (!soort) { klaar({ ok: false, reden: 'onbekend veld' }); return; }
     if (soort === 'tekst') w = String(w == null ? '' : w).slice(0, 500);
     else if (soort === 'tijd') { w = String(w == null ? '' : w); if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(w)) { klaar({ ok: false, reden: 'ongeldige tijd' }); return; } }
     else { w = Number(w); if (!(w >= 0 && w < 1440)) { klaar({ ok: false, reden: 'ongeldig getal' }); return; } }
-    var boom = formulierBoom(), c = boom && boom.details;
+    const boom = formulierBoom(), c = boom && boom.details;
     if (!c || !c.proxy || typeof c.proxy.onChange !== 'function') { klaar({ ok: false, reden: 'geen onChange' }); return; }
     zetEnControleer(function () { c.proxy.onChange(w, veld); }, function (b) {
-      var nu = b && b.details ? b.details.props.event[veld] : undefined;
+      const nu = b && b.details ? b.details.props.event[veld] : undefined;
       return soort === 'getal' ? Number(nu) === w : String(nu == null ? '' : nu) === w;
     }, klaar);
   }
@@ -477,18 +476,18 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      titel), de uursoort per cliënt (uit de uursoortvelden) en de label-id's.
      Geen volledige naam, geboortedatum, nummer of adres. */
   function leesFormulier() {
-    var boom = formulierBoom(), c = boom && boom.details;
+    const boom = formulierBoom(), c = boom && boom.details;
     if (!c) return { ok: false, reden: 'geen afspraakmodel' };
-    var ev = c.props.event;
-    var clients = (Array.isArray(ev.clients) ? ev.clients : []).map(function (cl) {
+    const ev = c.props.event;
+    const clients = (Array.isArray(ev.clients) ? ev.clients : []).map(function (cl) {
       return { id: Number(cl && cl.id), voornaam: firstNameFromName(cl && cl.name) };
     }).filter(function (cl) { return cl.id > 0; });
-    var uursoorten = {};
+    const uursoorten = {};
     clients.forEach(function (cl) { uursoorten[cl.id] = null; });
     uursoortVelden(boom).forEach(function (v) {
-      var cids = propVan(v, 'client-ids', 'clientIds');
+      const cids = propVan(v, 'client-ids', 'clientIds');
       if (!Array.isArray(cids)) return;
-      var waarde = waardeVan(v);
+      const waarde = waardeVan(v);
       cids.forEach(function (id) { uursoorten[Number(id)] = waarde == null || waarde === '' ? null : Number(waarde); });
     });
     return { ok: true, clients: clients, uursoorten: uursoorten,
@@ -498,15 +497,15 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   window.addEventListener('message', function (ev) {
     try {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
-      var d = ev.data;
+      const d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
-      var id = String(d.id || '').slice(0, 60);
-      var antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
+      const id = String(d.id || '').slice(0, 60);
+      const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
       if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_LABELS) {
-        var namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
+        const namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
         // Leeg mag alleen als bewust wissen (wis: true).
         if (!namen.length && d.wis !== true) { antwoord(PAGE_COMMAND.LABELS_SET)({ ok: false, reden: 'geen labels' }); return; }
         zetLabels({ labels: namen, wis: d.wis === true && !namen.length, toevoegen: d.toevoegen === true }, antwoord(PAGE_COMMAND.LABELS_SET));
@@ -515,8 +514,8 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
   });
 
   // Context proactief melden zodra ONS geladen is (kort pollen, dan stoppen).
-  var CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;
-  var tries = 0;
-  var timer = setInterval(function () { announceContext(); if (++tries >= CONTEXT_TRIES) clearInterval(timer); }, CONTEXT_INTERVAL_MS);
+  const CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;
+  let tries = 0;
+  const timer = setInterval(function () { announceContext(); if (++tries >= CONTEXT_TRIES) clearInterval(timer); }, CONTEXT_INTERVAL_MS);
   announceContext();
 })();

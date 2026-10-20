@@ -778,3 +778,17 @@ test('open registraties: Registreren gaat meteen naar de declareUrl uit de detai
   assert.equal(api.declareUrlUitDetails(null), null);
   assert.equal(api.declareUrlUitDetails({ event: { meta: { declareUrl: '/\\\\elders' } } }), null);
 });
+
+test('weekcijfers uit de registraties: elke registratie telt één keer, ook als er meerdere tegelijk worden opgehaald', async () => {
+  const { api, window } = bootHelper();
+  const occs = [1, 2, 3, 4, 5, 6, 7, 8];
+  window.fetch = (url) => {
+    if (/layer=registrations/.test(url)) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: occs.map((o) => ({ type: 'registration', occurrence_id: o, date: '2026-10-07' })) }) });
+    const m = /registrations\/(\d+)\/details/.exec(url);
+    if (m) return Promise.resolve({ ok: true, json: () => Promise.resolve({ registration: { date: '2026-10-07', direct_time: Number(m[1]), indirect_time: 0, hour_type: { name: 'Uursoort ' + m[1] } } }) });
+    return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) });
+  };
+  const s = await api.fetchWeekRegistrationDeclarabiliteit('123', '2026-10-05');
+  const soorten = JSON.parse(JSON.stringify((s.byType || []).map((r) => r.type).sort()));
+  assert.deepEqual(soorten, occs.map((o) => 'Uursoort ' + o).sort(), 'elke registratie precies één keer');
+});

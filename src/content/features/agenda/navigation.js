@@ -85,10 +85,10 @@ export function jumpToWeek() {
 // clientIds komen achter de medewerkers. date: 'YYYY-MM-DD' (optioneel) ->
 // event[start_date], zoals ONS zelf doet.
 export function newEventUrl(inviteeId, clientIds, date) {
-  var ids = (Array.isArray(inviteeId) ? inviteeId : [inviteeId]).map(String);
+  const ids = (Array.isArray(inviteeId) ? inviteeId : [inviteeId]).map(String);
   (clientIds || []).forEach(function (c) { c = String(c); if (/^\d+$/.test(c) && ids.indexOf(c) < 0) ids.push(c); });
-  var url = _apiUrl('newEvent', { inviteeId: ids[0] });
-  var rest = ids.slice(1).map(function (id) { return '&invitee_ids%5B%5D=' + encodeURIComponent(id); }).join('');
+  let url = _apiUrl('newEvent', { inviteeId: ids[0] });
+  const rest = ids.slice(1).map(function (id) { return '&invitee_ids%5B%5D=' + encodeURIComponent(id); }).join('');
   url = url.replace(/(invitee_ids%5B%5D=[^&]*)/, function (m) { return m + rest; });
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) url += '&event%5Bstart_date%5D=' + date;
   return url;

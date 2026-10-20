@@ -31,8 +31,8 @@ export function helperNeedsTeamChoice() { return !ACTIVE_PROFILE && anyTeamsDefi
 // Ontbrekend/leeg -> achteraan, met behoud van de bestaande volgorde.
 function sortByVolgorde(arr) {
   return (arr || []).map(function (x, i) { return [x, i]; }).sort(function (a, b) {
-    var av = (a[0] && a[0].volgorde != null && a[0].volgorde !== '') ? +a[0].volgorde : Infinity;
-    var bv = (b[0] && b[0].volgorde != null && b[0].volgorde !== '') ? +b[0].volgorde : Infinity;
+    let av = (a[0] && a[0].volgorde != null && a[0].volgorde !== '') ? +a[0].volgorde : Infinity;
+    let bv = (b[0] && b[0].volgorde != null && b[0].volgorde !== '') ? +b[0].volgorde : Infinity;
     if (!isFinite(av)) av = Infinity; if (!isFinite(bv)) bv = Infinity;
     return av === bv ? a[1] - b[1] : av - bv;
   }).map(function (p) { return p[0]; });
