@@ -4447,131 +4447,26 @@
     }
   }
 
-  // src/content/ons/modal.js
-  function ucButtonIsSecondary(host) {
-    const inner = host && host.shadowRoot && host.shadowRoot.querySelector('button[part="button"], button');
-    return !!(inner && /\bsecondary\b/.test(inner.className || ""));
+  // src/content/ons/time-input.js
+  function ucTimeInputHost(inp) {
+    if (!inp) return null;
+    const root = inp.getRootNode && inp.getRootNode();
+    const host = root && root.host;
+    return host && /uc-time-input/i.test(host.tagName || "") ? host : null;
   }
-  function closeOnsModal() {
-    const hosts = deepQueryAll("uc-button").filter((h) => visible(h) && !isOwnPopup(h));
-    for (const host of hosts) {
-      if (clean(host.textContent || "") === "annuleren" && clickUiButton(host)) return;
-    }
-    for (const host of hosts) {
-      if (ucButtonIsSecondary(host) && clickUiButton(host)) return;
-    }
-    for (const el of deepQueryAll('button,a,[role="button"]')) {
-      if (!visible(el) || isOwnPopup(el)) continue;
-      const part = el.getAttribute("part") || "";
-      const cls = el.className || "";
-      const txt = clean(el.textContent || "");
-      if (txt === "annuleren" || part === "button" && /\bsecondary\b/.test(cls)) {
-        if (clickElementCenter(el)) return;
-        try {
-          el.click();
-          return;
-        } catch (e) {
-        }
-      }
-    }
-  }
-  function findModal() {
-    if (CONFIG.modalPanelSelector) {
-      const p = document.querySelector(CONFIG.modalPanelSelector);
-      if (p) return { host: p, panel: p };
-    }
-    let cands = deepQueryAll('dialog[open],[role="dialog"],[aria-modal="true"]').filter(visible);
-    if (!cands.length) cands = deepQueryAll('[class*="modal" i],[class*="dialog" i]').filter(visible);
-    if (!cands.length) return null;
-    const withForm = cands.filter((c) => /afspraakdetails|opslaan|afspraak toevoegen/i.test(c.textContent || ""));
-    const pool = withForm.length ? withForm : cands;
-    const host = [...pool].sort((a, b) => area(b) - area(a))[0];
-    const panel = [...pool].sort((a, b) => area(a) - area(b)).find((c) => rect(c).width > 480 && rect(c).width < window.innerWidth * 0.96) || pool[0];
-    return { host, panel };
-  }
-
-  // src/content/ons/interaction.js
-  function fireKey(el, key) {
-    if (!el) return;
-    if (isProtectedAppointmentStartInput(el)) return;
-    for (const type of ["keydown", "keyup"]) {
-      try {
-        el.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true, cancelable: true }));
-      } catch (e) {
-      }
-    }
-  }
-  function clickAt(x, y) {
-    const el = document.elementFromPoint(x, y) || document.body;
-    if (typeof isAddInviteeControl === "function" && isAddInviteeControl(el) && !appointmentFlow.intentionalAddClientClick && Date.now() >= appointmentFlow.allowInviteeModalUntil) {
-      return false;
-    }
-    for (const type of ["mousedown", "mouseup", "click"]) {
-      try {
-        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y }));
-      } catch (e) {
-      }
-    }
-    return true;
-  }
-  function interactiveAtPoint(x, y) {
-    const el = document.elementFromPoint(x, y);
-    if (!el) return false;
-    if (isProtectedAppointmentStartInput(el)) return true;
-    if (/^(input|textarea|select|button|a)$/i.test(el.tagName || "")) return true;
-    return !!(el.closest && el.closest('button,a,[role="button"],[role="combobox"],uc-button,uc-icon,[data-qa*="add" i],[class*="button" i]'));
-  }
-  function clickEmptyModalSpot() {
-    const m = findModal();
-    const panel = m && (m.panel || m.host) || document.body;
-    const heading = deepQueryAll("h1,h2,h3,div,span", panel).find((el) => visible(el) && !isOwnPopup(el) && /afspraakdetails|afspraak toevoegen|genodigden/i.test(el.textContent || ""));
-    if (heading) {
-      const hr = rect(heading);
-      const hx = Math.round(hr.left + Math.min(24, Math.max(8, hr.width / 2)));
-      const hy = Math.round(hr.top + hr.height / 2);
-      if (!interactiveAtPoint(hx, hy)) {
-        clickAt(hx, hy);
-        return;
-      }
-    }
-    const r = rect(panel);
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const x = Math.round(r.left + Math.max(24, Math.min(r.width - 40, r.width * (0.1 + Math.random() * 0.22))));
-      const y = Math.round(r.top + Math.max(14, Math.min(r.height - 40, 20 + Math.random() * 26)));
-      if (!interactiveAtPoint(x, y)) {
-        clickAt(x, y);
-        return;
-      }
-    }
-  }
-  function dismissOpenDropdowns() {
-    clickEmptyModalSpot();
-  }
-  function clearSelectField(trigger, backspaces = 4) {
-    if (!trigger) return false;
-    trigger.click();
-    try {
-      trigger.focus && trigger.focus();
-    } catch (e) {
-    }
-    const activeEl = deepActive() || trigger;
-    if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) setInputText(activeEl, "");
-    for (let i = 0; i < backspaces; i++) fireKey(activeEl, "Backspace");
-    fireKey(activeEl, "Delete");
-    return true;
-  }
-  function rowForOptionText(el, root) {
-    let n = el;
-    for (let depth = 0; n && n !== document.body && depth < 6; depth++, n = n.parentElement) {
-      if (root && root !== n && root.contains && !root.contains(n)) break;
-      if (!visible(n) || isOwnPopup(n)) continue;
-      if (deepQueryAll("input,textarea", n).some((inp) => visible(inp) && !isOwnPopup(inp))) continue;
-      const r = rect(n);
-      const c = clean(optionText(n));
-      if (r.width >= 140 && r.height >= 24 && r.height <= 70 && c && !/^zoek naar/.test(c)) return n;
-      if (n.getAttribute && n.getAttribute("role") === "option") return n;
-    }
-    return el;
+  function isProtectedAppointmentStartInput(inp) {
+    if (!inp || helperPanel.activeMode === "registrations") return false;
+    if (!/^(input|textarea)$/i.test(inp.tagName || "")) return false;
+    const host = ucTimeInputHost(inp);
+    if (host) return /^begintijd/.test(clean(host.getAttribute("aria-label") || ""));
+    const meta = clean(`${inp.getAttribute("placeholder") || ""} ${inp.getAttribute("aria-label") || ""} ${inp.getAttribute("name") || ""} ${inp.id || ""}`);
+    if (!/uu:mm|begintijd|start/.test(meta)) return false;
+    const ir = rect(inp);
+    return deepQueryAll("label,div,span,p").some((label) => {
+      if (!visible(label) || isOwnPopup(label) || !/^begintijd\*?$/.test(clean(label.textContent || ""))) return false;
+      const lr = rect(label);
+      return ir.top >= lr.bottom - 10 && ir.top - lr.bottom <= 100 && Math.abs(ir.left - lr.left) <= 150;
+    });
   }
 
   // src/content/ons/form-controls.js
@@ -5010,58 +4905,6 @@
       return inputBelongsToTrigger(inp, tr, trigger);
     }) || null;
   }
-  function openTypePick(getTrigger, text2, onResult) {
-    const trigger = getTrigger();
-    if (!trigger) {
-      onResult(false, "veld niet gevonden");
-      return;
-    }
-    selectDropdownLikeLabel(trigger, text2, (ok) => onResult(ok, ok ? "" : "optie niet gevonden"));
-  }
-  function selectDropdownLikeLabel(trigger, text2, onResult, attempt = 0) {
-    if (!trigger) {
-      onResult(false);
-      return;
-    }
-    const openedBy = openSelectCombobox(trigger) || trigger;
-    setTimeout(() => {
-      const input2 = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
-      const searchText = String(text2 || "").replace(/[*#]+$/, "").trim();
-      if (input2) {
-        try {
-          input2.focus();
-        } catch (e) {
-        }
-        typeIntoSearchField(input2, searchText);
-      } else if (trigger.tagName === "INPUT" || trigger.tagName === "TEXTAREA") {
-        setInputText(trigger, searchText);
-      }
-      const wanted = [text2, String(text2 || "").replace(/\*+$/, "").trim()].filter(Boolean);
-      pollFor(
-        () => findExactDropdownOption(openedBy, wanted) || findExactDropdownOption(trigger, wanted),
-        (best) => {
-          if (best) {
-            clickOption(best);
-            setTimeout(() => {
-              clickEmptyModalSpot();
-              onResult(true);
-            }, 90);
-            return;
-          }
-          if (attempt < 3) {
-            clickEmptyModalSpot();
-            setTimeout(() => selectDropdownLikeLabel(trigger, text2, onResult, attempt + 1), 200);
-            return;
-          }
-          setTimeout(() => {
-            clickEmptyModalSpot();
-            onResult(false);
-          }, 90);
-        },
-        { timeout: 2600, interval: 130 }
-      );
-    }, 170);
-  }
   function firstByDataQa(qa) {
     for (const el of deepQueryAll('[data-qa="' + qa + '"]')) {
       if (visible(el) && !isOwnPopup(el)) return el;
@@ -5120,44 +4963,6 @@
       }
     }, 60);
     return true;
-  }
-  function findExactDropdownOption(trigger, texts) {
-    const wanted = texts.map(clean).filter(Boolean);
-    if (!wanted.length) return null;
-    const tr = rect(trigger);
-    let best = null, bestScore = Infinity;
-    for (const root of optionSearchRoots(trigger)) {
-      for (const el of genericOptionCandidates(root)) {
-        if (!visible(el) || isOwnPopup(el) || /input|textarea|select/i.test(el.tagName || "")) continue;
-        const row = rowForOptionText(el, root);
-        if (!visible(row) || isOwnPopup(row)) continue;
-        const txt = clean(optionText(row) || optionText(el));
-        if (/toont |zoekterm|zoek naar|geen resultaten/.test(txt)) continue;
-        const matches = wanted.some(function(w) {
-          if (!w) return false;
-          if (txt === w || txt.includes(w) || w.includes(txt)) return true;
-          const tokens = w.replace(/[.*]/g, " ").split(/\s+/).filter(function(t) {
-            return t.length >= 4;
-          });
-          return tokens.length > 0 && tokens.every(function(t) {
-            return txt.indexOf(t) !== -1;
-          });
-        });
-        if (!matches) continue;
-        const r = rect(row);
-        if (r.top < tr.top - 500 || r.top > tr.bottom + 600) continue;
-        if (r.width < 120 || r.height < 20 || r.height > 80) continue;
-        const selectedScore = /true/i.test(row.getAttribute("aria-selected") || "") || /selected|active|checked/i.test(row.className || "") ? -1e3 : 0;
-        const exactScore = wanted.includes(txt) ? -500 : 0;
-        const distToTrigger = Math.min(Math.abs(r.top - tr.bottom), Math.abs(r.bottom - tr.top));
-        const score = selectedScore + exactScore + distToTrigger + Math.abs(r.left - tr.left) / 4;
-        if (score < bestScore) {
-          best = row;
-          bestScore = score;
-        }
-      }
-    }
-    return best;
   }
 
   // src/shared/namen.js
@@ -5279,12 +5084,6 @@
       return label === "datum*" || label === "datum" || placeholder === "dd-mm-jjjj";
     }) || null;
   }
-  function ucTimeInputHost(inp) {
-    if (!inp) return null;
-    const root = inp.getRootNode && inp.getRootNode();
-    const host = root && root.host;
-    return host && /uc-time-input/i.test(host.tagName || "") ? host : null;
-  }
   function ucTimeInputFor(labelPattern) {
     for (const host of deepQueryAll("uc-time-input")) {
       if (!visible(host) || isOwnPopup(host)) continue;
@@ -5320,20 +5119,6 @@
     }
     if (best) return best;
     return timeInputsInOrder()[0] || null;
-  }
-  function isProtectedAppointmentStartInput(inp) {
-    if (!inp || helperPanel.activeMode === "registrations") return false;
-    if (!/^(input|textarea)$/i.test(inp.tagName || "")) return false;
-    const host = ucTimeInputHost(inp);
-    if (host) return /^begintijd/.test(clean(host.getAttribute("aria-label") || ""));
-    const meta = clean(`${inp.getAttribute("placeholder") || ""} ${inp.getAttribute("aria-label") || ""} ${inp.getAttribute("name") || ""} ${inp.id || ""}`);
-    if (!/uu:mm|begintijd|start/.test(meta)) return false;
-    const ir = rect(inp);
-    return deepQueryAll("label,div,span,p").some((label) => {
-      if (!visible(label) || isOwnPopup(label) || !/^begintijd\*?$/.test(clean(label.textContent || ""))) return false;
-      const lr = rect(label);
-      return ir.top >= lr.bottom - 10 && ir.top - lr.bottom <= 100 && Math.abs(ir.left - lr.left) <= 150;
-    });
   }
   function getEndTimeInput() {
     const ov = overrideEl("afsEindtijd");
@@ -5532,13 +5317,6 @@
       }
     }
     return best;
-  }
-  function isAddInviteeControl(el) {
-    if (!el) return false;
-    const t = clean(uiText(el) || el.textContent || "");
-    const qa = clean(el.getAttribute && el.getAttribute("data-qa") || "");
-    if (/toggle-invitee-fields/.test(qa)) return false;
-    return /^\+?\s*toevoegen$|genodigde? toevoegen/.test(t) || /(^|[^a-z])add([^a-z]|$)|add-invitee|add_invitee/.test(qa);
   }
   var _clientEntriesCache = null;
   var _clientEntriesAt = 0;
@@ -5918,6 +5696,230 @@
       }, 75);
     };
     next();
+  }
+
+  // src/content/ons/modal.js
+  function ucButtonIsSecondary(host) {
+    const inner = host && host.shadowRoot && host.shadowRoot.querySelector('button[part="button"], button');
+    return !!(inner && /\bsecondary\b/.test(inner.className || ""));
+  }
+  function closeOnsModal() {
+    const hosts = deepQueryAll("uc-button").filter((h) => visible(h) && !isOwnPopup(h));
+    for (const host of hosts) {
+      if (clean(host.textContent || "") === "annuleren" && clickUiButton(host)) return;
+    }
+    for (const host of hosts) {
+      if (ucButtonIsSecondary(host) && clickUiButton(host)) return;
+    }
+    for (const el of deepQueryAll('button,a,[role="button"]')) {
+      if (!visible(el) || isOwnPopup(el)) continue;
+      const part = el.getAttribute("part") || "";
+      const cls = el.className || "";
+      const txt = clean(el.textContent || "");
+      if (txt === "annuleren" || part === "button" && /\bsecondary\b/.test(cls)) {
+        if (clickElementCenter(el)) return;
+        try {
+          el.click();
+          return;
+        } catch (e) {
+        }
+      }
+    }
+  }
+  function findModal() {
+    if (CONFIG.modalPanelSelector) {
+      const p = document.querySelector(CONFIG.modalPanelSelector);
+      if (p) return { host: p, panel: p };
+    }
+    let cands = deepQueryAll('dialog[open],[role="dialog"],[aria-modal="true"]').filter(visible);
+    if (!cands.length) cands = deepQueryAll('[class*="modal" i],[class*="dialog" i]').filter(visible);
+    if (!cands.length) return null;
+    const withForm = cands.filter((c) => /afspraakdetails|opslaan|afspraak toevoegen/i.test(c.textContent || ""));
+    const pool = withForm.length ? withForm : cands;
+    const host = [...pool].sort((a, b) => area(b) - area(a))[0];
+    const panel = [...pool].sort((a, b) => area(a) - area(b)).find((c) => rect(c).width > 480 && rect(c).width < window.innerWidth * 0.96) || pool[0];
+    return { host, panel };
+  }
+
+  // src/content/ons/interaction.js
+  function fireKey(el, key) {
+    if (!el) return;
+    if (isProtectedAppointmentStartInput(el)) return;
+    for (const type of ["keydown", "keyup"]) {
+      try {
+        el.dispatchEvent(new KeyboardEvent(type, { key, code: key, bubbles: true, cancelable: true }));
+      } catch (e) {
+      }
+    }
+  }
+  function clickAt(x, y) {
+    const el = document.elementFromPoint(x, y) || document.body;
+    if (typeof isAddInviteeControl === "function" && isAddInviteeControl(el) && !appointmentFlow.intentionalAddClientClick && Date.now() >= appointmentFlow.allowInviteeModalUntil) {
+      return false;
+    }
+    for (const type of ["mousedown", "mouseup", "click"]) {
+      try {
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y }));
+      } catch (e) {
+      }
+    }
+    return true;
+  }
+  function interactiveAtPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return false;
+    if (isProtectedAppointmentStartInput(el)) return true;
+    if (/^(input|textarea|select|button|a)$/i.test(el.tagName || "")) return true;
+    return !!(el.closest && el.closest('button,a,[role="button"],[role="combobox"],uc-button,uc-icon,[data-qa*="add" i],[class*="button" i]'));
+  }
+  function clickEmptyModalSpot() {
+    const m = findModal();
+    const panel = m && (m.panel || m.host) || document.body;
+    const heading = deepQueryAll("h1,h2,h3,div,span", panel).find((el) => visible(el) && !isOwnPopup(el) && /afspraakdetails|afspraak toevoegen|genodigden/i.test(el.textContent || ""));
+    if (heading) {
+      const hr = rect(heading);
+      const hx = Math.round(hr.left + Math.min(24, Math.max(8, hr.width / 2)));
+      const hy = Math.round(hr.top + hr.height / 2);
+      if (!interactiveAtPoint(hx, hy)) {
+        clickAt(hx, hy);
+        return;
+      }
+    }
+    const r = rect(panel);
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const x = Math.round(r.left + Math.max(24, Math.min(r.width - 40, r.width * (0.1 + Math.random() * 0.22))));
+      const y = Math.round(r.top + Math.max(14, Math.min(r.height - 40, 20 + Math.random() * 26)));
+      if (!interactiveAtPoint(x, y)) {
+        clickAt(x, y);
+        return;
+      }
+    }
+  }
+  function dismissOpenDropdowns() {
+    clickEmptyModalSpot();
+  }
+  function clearSelectField(trigger, backspaces = 4) {
+    if (!trigger) return false;
+    trigger.click();
+    try {
+      trigger.focus && trigger.focus();
+    } catch (e) {
+    }
+    const activeEl = deepActive() || trigger;
+    if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) setInputText(activeEl, "");
+    for (let i = 0; i < backspaces; i++) fireKey(activeEl, "Backspace");
+    fireKey(activeEl, "Delete");
+    return true;
+  }
+  function rowForOptionText(el, root) {
+    let n = el;
+    for (let depth = 0; n && n !== document.body && depth < 6; depth++, n = n.parentElement) {
+      if (root && root !== n && root.contains && !root.contains(n)) break;
+      if (!visible(n) || isOwnPopup(n)) continue;
+      if (deepQueryAll("input,textarea", n).some((inp) => visible(inp) && !isOwnPopup(inp))) continue;
+      const r = rect(n);
+      const c = clean(optionText(n));
+      if (r.width >= 140 && r.height >= 24 && r.height <= 70 && c && !/^zoek naar/.test(c)) return n;
+      if (n.getAttribute && n.getAttribute("role") === "option") return n;
+    }
+    return el;
+  }
+  function isAddInviteeControl(el) {
+    if (!el) return false;
+    const t = clean(uiText(el) || el.textContent || "");
+    const qa = clean(el.getAttribute && el.getAttribute("data-qa") || "");
+    if (/toggle-invitee-fields/.test(qa)) return false;
+    return /^\+?\s*toevoegen$|genodigde? toevoegen/.test(t) || /(^|[^a-z])add([^a-z]|$)|add-invitee|add_invitee/.test(qa);
+  }
+  function openTypePick(getTrigger, text2, onResult) {
+    const trigger = getTrigger();
+    if (!trigger) {
+      onResult(false, "veld niet gevonden");
+      return;
+    }
+    selectDropdownLikeLabel(trigger, text2, (ok) => onResult(ok, ok ? "" : "optie niet gevonden"));
+  }
+  function selectDropdownLikeLabel(trigger, text2, onResult, attempt = 0) {
+    if (!trigger) {
+      onResult(false);
+      return;
+    }
+    const openedBy = openSelectCombobox(trigger) || trigger;
+    setTimeout(() => {
+      const input2 = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
+      const searchText = String(text2 || "").replace(/[*#]+$/, "").trim();
+      if (input2) {
+        try {
+          input2.focus();
+        } catch (e) {
+        }
+        typeIntoSearchField(input2, searchText);
+      } else if (trigger.tagName === "INPUT" || trigger.tagName === "TEXTAREA") {
+        setInputText(trigger, searchText);
+      }
+      const wanted = [text2, String(text2 || "").replace(/\*+$/, "").trim()].filter(Boolean);
+      pollFor(
+        () => findExactDropdownOption(openedBy, wanted) || findExactDropdownOption(trigger, wanted),
+        (best) => {
+          if (best) {
+            clickOption(best);
+            setTimeout(() => {
+              clickEmptyModalSpot();
+              onResult(true);
+            }, 90);
+            return;
+          }
+          if (attempt < 3) {
+            clickEmptyModalSpot();
+            setTimeout(() => selectDropdownLikeLabel(trigger, text2, onResult, attempt + 1), 200);
+            return;
+          }
+          setTimeout(() => {
+            clickEmptyModalSpot();
+            onResult(false);
+          }, 90);
+        },
+        { timeout: 2600, interval: 130 }
+      );
+    }, 170);
+  }
+  function findExactDropdownOption(trigger, texts) {
+    const wanted = texts.map(clean).filter(Boolean);
+    if (!wanted.length) return null;
+    const tr = rect(trigger);
+    let best = null, bestScore = Infinity;
+    for (const root of optionSearchRoots(trigger)) {
+      for (const el of genericOptionCandidates(root)) {
+        if (!visible(el) || isOwnPopup(el) || /input|textarea|select/i.test(el.tagName || "")) continue;
+        const row = rowForOptionText(el, root);
+        if (!visible(row) || isOwnPopup(row)) continue;
+        const txt = clean(optionText(row) || optionText(el));
+        if (/toont |zoekterm|zoek naar|geen resultaten/.test(txt)) continue;
+        const matches = wanted.some(function(w) {
+          if (!w) return false;
+          if (txt === w || txt.includes(w) || w.includes(txt)) return true;
+          const tokens = w.replace(/[.*]/g, " ").split(/\s+/).filter(function(t) {
+            return t.length >= 4;
+          });
+          return tokens.length > 0 && tokens.every(function(t) {
+            return txt.indexOf(t) !== -1;
+          });
+        });
+        if (!matches) continue;
+        const r = rect(row);
+        if (r.top < tr.top - 500 || r.top > tr.bottom + 600) continue;
+        if (r.width < 120 || r.height < 20 || r.height > 80) continue;
+        const selectedScore = /true/i.test(row.getAttribute("aria-selected") || "") || /selected|active|checked/i.test(row.className || "") ? -1e3 : 0;
+        const exactScore = wanted.includes(txt) ? -500 : 0;
+        const distToTrigger = Math.min(Math.abs(r.top - tr.bottom), Math.abs(r.bottom - tr.top));
+        const score = selectedScore + exactScore + distToTrigger + Math.abs(r.left - tr.left) / 4;
+        if (score < bestScore) {
+          best = row;
+          bestScore = score;
+        }
+      }
+    }
+    return best;
   }
 
   // src/content/ui/theme.js
@@ -18384,174 +18386,6 @@
     }
   }
 
-  // src/content/features/agenda/extension-sync.js
-  var _lastBadge = -1;
-  function pushBadge(count) {
-    if (count === _lastBadge) return;
-    _lastBadge = count;
-    try {
-      chrome.runtime.sendMessage({ type: MSG.BADGE, count });
-    } catch (e) {
-    }
-  }
-  var _lastSummaryKey = "";
-  function pushSummary(res) {
-    try {
-      const past = res && res.past || {};
-      const days = Object.keys(past).map(function(d) {
-        return { date: d, client: past[d].client | 0, overig: past[d].overig | 0, late: past[d].lateMin | 0 };
-      }).filter(function(d) {
-        return d.client + d.overig > 0;
-      });
-      const openMinutes = days.reduce(function(t, d) {
-        return t + d.client + d.overig;
-      }, 0);
-      const lateMinutes = days.reduce(function(t, d) {
-        return t + d.late;
-      }, 0);
-      const fut = res && res.future || { client: 0, overig: 0 };
-      const dec = agendaPage._agLastDeclarabiliteit;
-      const msg = {
-        type: MSG.SUMMARY,
-        openDays: days.length,
-        openMinutes,
-        lateMinutes,
-        futureMinutes: (fut.client | 0) + (fut.overig | 0),
-        directPct: dec ? dec.pct : null,
-        normPct: dec ? dec.targetPct : null,
-        week: agendaWeekNumber(currentAgendaDate()) || null,
-        days
-      };
-      const key = JSON.stringify(msg);
-      if (key === _lastSummaryKey) return;
-      _lastSummaryKey = key;
-      chrome.runtime.sendMessage(msg);
-    } catch (e) {
-    }
-  }
-  function updateTotals(res) {
-    res = res || (agendaPage._agLastEntries && agendaPage._agLastEntries.length ? computeTotalsApi() : computeTotals());
-    const past = res.past || {};
-    const dagen = Object.keys(past).filter(function(d) {
-      return past[d].client + past[d].overig > 0;
-    });
-    pushBadge(dagen.length);
-    pushSummary(res);
-    pushPanelState();
-  }
-
-  // src/content/features/agenda/week-overview.js
-  function apiClientPresentById(id) {
-    if (id == null || !agendaPage._agLastEntries.length) return null;
-    const key = String(id);
-    for (let i = 0; i < agendaPage._agLastEntries.length; i++) {
-      if (String(agendaPage._agLastEntries[i].id) === key) return !!agendaPage._agLastEntries[i].clientPresent;
-    }
-    return null;
-  }
-  function refreshAgendaWeekApi() {
-    const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
-    if (id) agendaPage._agLastInviteeId = id;
-    const ids = currentInviteeIds().length > 1 ? currentInviteeIds() : id ? [String(id)] : [];
-    const view = currentCalendarView();
-    const date = currentAgendaDate();
-    if (!id) {
-      agendaPage._agWeekKey = null;
-      agendaPage._agWeekLoaded = false;
-      agendaPage._agLastWeek = null;
-      agendaPage._agWeekError = "";
-      return;
-    }
-    const key = ids.join(",") + "|" + date + "|" + view;
-    if (key === agendaPage._agWeekKey && agendaPage._agWeekLoaded) return;
-    if (agendaPage._agWeekBusy && key === agendaPage._agWeekKey) return;
-    const andereWeek = key !== agendaPage._agWeekKey;
-    agendaPage._agWeekBusy = true;
-    agendaPage._agWeekKey = key;
-    if (andereWeek) {
-      agendaPage._agLastWeek = null;
-      agendaPage._agWeekError = "";
-    }
-    try {
-      pushPanelState(true);
-    } catch (e) {
-    }
-    const prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
-    const toekomst = _agIsFutureWeek(date);
-    const basisOpts = function() {
-      return toekomst ? { week: agendaWeekNumber(date), embedded: true, scope: view === "day" ? "dag" : "week", profile: prof, date } : { week: agendaWeekNumber(date), embedded: true, scope: "week", profile: prof, date, perLabel: "Per uursoort", headerHint: "geregistreerd", unknownLabel: "Overig" };
-    };
-    const splits = function(summary) {
-      const clientRows = [], overigRows = [];
-      (summary.byType || []).forEach(function(r) {
-        if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r);
-        else clientRows.push(r);
-      });
-      return { clientRows, overigRows };
-    };
-    const haal = function(inv, eerste) {
-      if (!toekomst) {
-        if (eerste) {
-          fetchInviteeWeek(inv, date).then(function(entries2) {
-            if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries2 || []).slice();
-          }, function() {
-          }).then(function() {
-            if (agendaPage._agWeekKey === key) safe(updateTotals);
-          });
-        }
-        return fetchWeekRegistrationDeclarabiliteit(inv, date);
-      }
-      return fetchInviteeWeek(inv, date).then(function(entries2) {
-        if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries2.slice();
-        if (view === "day") entries2 = entries2.filter(function(e) {
-          return e.date === date;
-        });
-        const now = Date.now();
-        entries2 = entries2.filter(function(e) {
-          return e.startMs == null || e.startMs >= now;
-        });
-        return summarizeAgendaWeek(entries2);
-      });
-    };
-    const errHandler = function(e) {
-      if (agendaPage._agWeekKey !== key) return;
-      agendaPage._agWeekLoaded = false;
-      agendaPage._agLastWeek = null;
-      agendaPage._agWeekError = "Overzicht kon niet laden: " + (e && e.message || "fout");
-    };
-    const klaar = function() {
-      agendaPage._agWeekBusy = false;
-      try {
-        pushPanelState(true);
-      } catch (e) {
-      }
-    };
-    Promise.all(ids.map(function(inv, i) {
-      return haal(inv, i === 0);
-    })).then(function(summaries) {
-      if (agendaPage._agWeekKey !== key) return;
-      const o = basisOpts();
-      try {
-        agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summaries[0], prof);
-      } catch (e) {
-        agendaPage._agLastDeclarabiliteit = null;
-      }
-      const eerste = splits(summaries[0]);
-      agendaPage._agLastWeek = {
-        summary: summaries[0],
-        opts: o,
-        clientRows: eerste.clientRows,
-        overigRows: eerste.overigRows,
-        // Per collega (ook bij één medewerker, dan met één element).
-        perInvitee: summaries.map(function(s, i) {
-          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", summary: s };
-        })
-      };
-      agendaPage._agWeekError = "";
-      agendaPage._agWeekLoaded = true;
-    }).catch(errHandler).then(klaar);
-  }
-
   // src/content/features/agenda/unregistered-time.js
   function computeTotals() {
     const past = {};
@@ -18639,6 +18473,14 @@
     });
     out.sort((a, b) => a.time.localeCompare(b.time));
     return out;
+  }
+  function apiClientPresentById(id) {
+    if (id == null || !agendaPage._agLastEntries.length) return null;
+    const key = String(id);
+    for (let i = 0; i < agendaPage._agLastEntries.length; i++) {
+      if (String(agendaPage._agLastEntries[i].id) === key) return !!agendaPage._agLastEntries[i].clientPresent;
+    }
+    return null;
   }
 
   // src/content/domain/leave.js
@@ -19635,6 +19477,166 @@
       }
     } catch (e) {
     }
+  }
+
+  // src/content/features/agenda/extension-sync.js
+  var _lastBadge = -1;
+  function pushBadge(count) {
+    if (count === _lastBadge) return;
+    _lastBadge = count;
+    try {
+      chrome.runtime.sendMessage({ type: MSG.BADGE, count });
+    } catch (e) {
+    }
+  }
+  var _lastSummaryKey = "";
+  function pushSummary(res) {
+    try {
+      const past = res && res.past || {};
+      const days = Object.keys(past).map(function(d) {
+        return { date: d, client: past[d].client | 0, overig: past[d].overig | 0, late: past[d].lateMin | 0 };
+      }).filter(function(d) {
+        return d.client + d.overig > 0;
+      });
+      const openMinutes = days.reduce(function(t, d) {
+        return t + d.client + d.overig;
+      }, 0);
+      const lateMinutes = days.reduce(function(t, d) {
+        return t + d.late;
+      }, 0);
+      const fut = res && res.future || { client: 0, overig: 0 };
+      const dec = agendaPage._agLastDeclarabiliteit;
+      const msg = {
+        type: MSG.SUMMARY,
+        openDays: days.length,
+        openMinutes,
+        lateMinutes,
+        futureMinutes: (fut.client | 0) + (fut.overig | 0),
+        directPct: dec ? dec.pct : null,
+        normPct: dec ? dec.targetPct : null,
+        week: agendaWeekNumber(currentAgendaDate()) || null,
+        days
+      };
+      const key = JSON.stringify(msg);
+      if (key === _lastSummaryKey) return;
+      _lastSummaryKey = key;
+      chrome.runtime.sendMessage(msg);
+    } catch (e) {
+    }
+  }
+  function updateTotals(res) {
+    res = res || (agendaPage._agLastEntries && agendaPage._agLastEntries.length ? computeTotalsApi() : computeTotals());
+    const past = res.past || {};
+    const dagen = Object.keys(past).filter(function(d) {
+      return past[d].client + past[d].overig > 0;
+    });
+    pushBadge(dagen.length);
+    pushSummary(res);
+    pushPanelState();
+  }
+
+  // src/content/features/agenda/week-overview.js
+  function refreshAgendaWeekApi() {
+    const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
+    if (id) agendaPage._agLastInviteeId = id;
+    const ids = currentInviteeIds().length > 1 ? currentInviteeIds() : id ? [String(id)] : [];
+    const view = currentCalendarView();
+    const date = currentAgendaDate();
+    if (!id) {
+      agendaPage._agWeekKey = null;
+      agendaPage._agWeekLoaded = false;
+      agendaPage._agLastWeek = null;
+      agendaPage._agWeekError = "";
+      return;
+    }
+    const key = ids.join(",") + "|" + date + "|" + view;
+    if (key === agendaPage._agWeekKey && agendaPage._agWeekLoaded) return;
+    if (agendaPage._agWeekBusy && key === agendaPage._agWeekKey) return;
+    const andereWeek = key !== agendaPage._agWeekKey;
+    agendaPage._agWeekBusy = true;
+    agendaPage._agWeekKey = key;
+    if (andereWeek) {
+      agendaPage._agLastWeek = null;
+      agendaPage._agWeekError = "";
+    }
+    try {
+      pushPanelState(true);
+    } catch (e) {
+    }
+    const prof = typeof ACTIVE_PROFILE !== "undefined" ? ACTIVE_PROFILE : null;
+    const toekomst = _agIsFutureWeek(date);
+    const basisOpts = function() {
+      return toekomst ? { week: agendaWeekNumber(date), embedded: true, scope: view === "day" ? "dag" : "week", profile: prof, date } : { week: agendaWeekNumber(date), embedded: true, scope: "week", profile: prof, date, perLabel: "Per uursoort", headerHint: "geregistreerd", unknownLabel: "Overig" };
+    };
+    const splits = function(summary) {
+      const clientRows = [], overigRows = [];
+      (summary.byType || []).forEach(function(r) {
+        if (r && r.type && !_isClientUursoortName(r.type)) overigRows.push(r);
+        else clientRows.push(r);
+      });
+      return { clientRows, overigRows };
+    };
+    const haal = function(inv, eerste) {
+      if (!toekomst) {
+        if (eerste) {
+          fetchInviteeWeek(inv, date).then(function(entries2) {
+            if (agendaPage._agWeekKey === key) agendaPage._agLastEntries = (entries2 || []).slice();
+          }, function() {
+          }).then(function() {
+            if (agendaPage._agWeekKey === key) safe(updateTotals);
+          });
+        }
+        return fetchWeekRegistrationDeclarabiliteit(inv, date);
+      }
+      return fetchInviteeWeek(inv, date).then(function(entries2) {
+        if (eerste && agendaPage._agWeekKey === key) agendaPage._agLastEntries = entries2.slice();
+        if (view === "day") entries2 = entries2.filter(function(e) {
+          return e.date === date;
+        });
+        const now = Date.now();
+        entries2 = entries2.filter(function(e) {
+          return e.startMs == null || e.startMs >= now;
+        });
+        return summarizeAgendaWeek(entries2);
+      });
+    };
+    const errHandler = function(e) {
+      if (agendaPage._agWeekKey !== key) return;
+      agendaPage._agWeekLoaded = false;
+      agendaPage._agLastWeek = null;
+      agendaPage._agWeekError = "Overzicht kon niet laden: " + (e && e.message || "fout");
+    };
+    const klaar = function() {
+      agendaPage._agWeekBusy = false;
+      try {
+        pushPanelState(true);
+      } catch (e) {
+      }
+    };
+    Promise.all(ids.map(function(inv, i) {
+      return haal(inv, i === 0);
+    })).then(function(summaries) {
+      if (agendaPage._agWeekKey !== key) return;
+      const o = basisOpts();
+      try {
+        agendaPage._agLastDeclarabiliteit = declarabiliteitPct(summaries[0], prof);
+      } catch (e) {
+        agendaPage._agLastDeclarabiliteit = null;
+      }
+      const eerste = splits(summaries[0]);
+      agendaPage._agLastWeek = {
+        summary: summaries[0],
+        opts: o,
+        clientRows: eerste.clientRows,
+        overigRows: eerste.overigRows,
+        // Per collega (ook bij één medewerker, dan met één element).
+        perInvitee: summaries.map(function(s, i) {
+          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", summary: s };
+        })
+      };
+      agendaPage._agWeekError = "";
+      agendaPage._agWeekLoaded = true;
+    }).catch(errHandler).then(klaar);
   }
 
   // src/content/features/agenda/lifecycle.js

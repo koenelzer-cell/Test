@@ -1,18 +1,10 @@
 // Cliëntkaarten in het afspraakformulier vinden en openklappen.
 
-import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
+import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import { clickOption, uiText } from '../../ons/form-controls.js';
-import {
-  entryUursoortIsSet,
-  findClientEntries,
-  findClientNameText,
-  findClientUursoortTrigger,
-  invalidateClientEntries,
-  isAddInviteeControl,
-} from '../../ons/appointment-form.js';
+import { entryUursoortIsSet, findClientEntries, findClientNameText, findClientUursoortTrigger, invalidateClientEntries } from '../../ons/appointment-form.js';
 import { findClientFirstName } from './client-name.js';
-import { clickAt } from '../../ons/interaction.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { clickAt, isAddInviteeControl } from '../../ons/interaction.js';
 import { UI_OVERRIDES } from '../../ons/selector-overrides.js';
 
 export function clickInviteeToggle(btn) {

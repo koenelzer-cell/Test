@@ -2,19 +2,8 @@
 // tekstinvoer.
 
 import { CONFIG } from '../config/app-config.js';
-import {
-  area,
-  clean,
-  deepActive,
-  isOwnPopup,
-  labelTextFor,
-  pollFor,
-  rect,
-  visible,
-} from './dom.js';
-import { isProtectedAppointmentStartInput } from './appointment-form.js';
-import { clickEmptyModalSpot, rowForOptionText } from './interaction.js';
-import { deepQueryAll } from '../ons/dom.js';
+import { area, clean, deepActive, deepQueryAll, isOwnPopup, labelTextFor, rect, visible } from './dom.js';
+import { isProtectedAppointmentStartInput } from './time-input.js';
 
 /*  Clint(en) aanwezig  */
 function findCheckbox(matcher) {
@@ -401,45 +390,6 @@ export function searchInputForTrigger(trigger) {
     return inputBelongsToTrigger(inp, tr, trigger);
   }) || null;
 }
-export function openTypePick(getTrigger, text, onResult) {
-  const trigger = getTrigger();
-  if (!trigger) { onResult(false, 'veld niet gevonden'); return; }
-  selectDropdownLikeLabel(trigger, text, (ok) => onResult(ok, ok ? '' : 'optie niet gevonden'));
-}
-function selectDropdownLikeLabel(trigger, text, onResult, attempt = 0) {
-  if (!trigger) { onResult(false); return; }
-  const openedBy = openSelectCombobox(trigger) || trigger;
-  setTimeout(() => {
-    const input = searchInputForTrigger(openedBy) || searchInputForTrigger(trigger);
-    const searchText = String(text || '').replace(/[*#]+$/, '').trim();
-    if (input) {
-      try { input.focus(); } catch (e) {}
-      typeIntoSearchField(input, searchText);
-    } else if (trigger.tagName === 'INPUT' || trigger.tagName === 'TEXTAREA') {
-      setInputText(trigger, searchText);
-    }
-    const wanted = [text, String(text || '').replace(/\*+$/, '').trim()].filter(Boolean);
-    // Poll tot de optie echt gerenderd is (op productie duurt server-side
-    // zoeken langer) i.p.v. één poging na een vaste vertraging.
-    pollFor(
-      () => findExactDropdownOption(openedBy, wanted) || findExactDropdownOption(trigger, wanted),
-      (best) => {
-        if (best) {
-          clickOption(best);
-          setTimeout(() => { clickEmptyModalSpot(); onResult(true); }, 90);
-          return;
-        }
-        if (attempt < 3) {
-          clickEmptyModalSpot();
-          setTimeout(() => selectDropdownLikeLabel(trigger, text, onResult, attempt + 1), 200);
-          return;
-        }
-        setTimeout(() => { clickEmptyModalSpot(); onResult(false); }, 90);
-      },
-      { timeout: 2600, interval: 130 }
-    );
-  }, 170);
-}
 // Pak het eerste zichtbare element met een stabiele ONS-testhaak (data-qa).
 // Deze veranderen niet mee met layout/opmaak en zijn dus betrouwbaarder dan
 // geometrie- of tekstdetectie.
@@ -483,40 +433,4 @@ export function typeIntoSearchField(input, text) {
     }
   }, 60);
   return true;
-}
-// Alleen zóeken (geen klik) naar de best passende optie. Zo kunnen we pollen
-// tot de optie echt gerenderd is (op productie laden lijsten trager) i.p.v.
-// met een vaste vertraging één keer te proberen en te falen.
-export function findExactDropdownOption(trigger, texts) {
-  const wanted = texts.map(clean).filter(Boolean);
-  if (!wanted.length) return null;
-  const tr = rect(trigger);
-  let best = null, bestScore = Infinity;
-  for (const root of optionSearchRoots(trigger)) {
-    for (const el of genericOptionCandidates(root)) {
-      if (!visible(el) || isOwnPopup(el) || /input|textarea|select/i.test(el.tagName || '')) continue;
-      const row = rowForOptionText(el, root);
-      if (!visible(row) || isOwnPopup(row)) continue;
-      const txt = clean(optionText(row) || optionText(el));
-      if (/toont |zoekterm|zoek naar|geen resultaten/.test(txt)) continue;
-      const matches = wanted.some(function (w) {
-        if (!w) return false;
-        if (txt === w || txt.includes(w) || w.includes(txt)) return true;
-        // token-overlap: deel de gewenste naam in woorden (zonder afkortingspunten)
-        // en eis dat het eerste betekenisvolle woord in de optietekst voorkomt.
-        const tokens = w.replace(/[.*]/g, ' ').split(/\s+/).filter(function (t) { return t.length >= 4; });
-        return tokens.length > 0 && tokens.every(function (t) { return txt.indexOf(t) !== -1; });
-      });
-      if (!matches) continue;
-      const r = rect(row);
-      if (r.top < tr.top - 500 || r.top > tr.bottom + 600) continue; // te ver weg
-      if (r.width < 120 || r.height < 20 || r.height > 80) continue;
-      const selectedScore = /true/i.test(row.getAttribute('aria-selected') || '') || /selected|active|checked/i.test(row.className || '') ? -1000 : 0;
-      const exactScore = wanted.includes(txt) ? -500 : 0;
-      const distToTrigger = Math.min(Math.abs(r.top - tr.bottom), Math.abs(r.bottom - tr.top));
-      const score = selectedScore + exactScore + distToTrigger + Math.abs(r.left - tr.left) / 4;
-      if (score < bestScore) { best = row; bestScore = score; }
-    }
-  }
-  return best;
 }

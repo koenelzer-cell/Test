@@ -17,18 +17,8 @@ import {
 import { safe } from '../../screen/status.js';
 import { summarizeAgendaWeek } from '../../domain/agenda-entries.js';
 
-// Zoekt in de laatst opgehaalde API-entries of bij een DOM-afspraak (data-id) een
-// cliënt gekoppeld is. Geeft true/false, of null als de afspraak niet gevonden is.
-export function apiClientPresentById(id) {
-  if (id == null || !agendaPage._agLastEntries.length) return null;
-  const key = String(id);
-  for (let i = 0; i < agendaPage._agLastEntries.length; i++) {
-    if (String(agendaPage._agLastEntries[i].id) === key) return !!agendaPage._agLastEntries[i].clientPresent;
-  }
-  return null;
-}
 // Haalt het weekoverzicht op en bewaart het voor het zijpaneel. Tekent
-// niets: dat doet agendapanel.js in het zijpaneel.
+// niets: dat doet het zijpaneel (src/sidepanel/agenda-panel.js).
 export function refreshAgendaWeekApi() {
   // De invitee-id uit de URL; anders uit de pagina; anders de laatst bekende.
   // Tijdens een wissel van weergave staat hij soms even nergens, en dan viel het

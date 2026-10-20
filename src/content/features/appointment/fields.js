@@ -1,30 +1,16 @@
 // Afspraakformulier: titel, label-veld, datum en tijden lezen/schrijven.
 
 import { allKnownLabels } from '../../config/app-config.js';
-import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
-import {
-  setInputText,
-  setInputTextComposed,
-  typeIntoSearchField,
-  uiText,
-} from '../../ons/form-controls.js';
-import {
-  findClientEntries,
-  getDateInput,
-  getEndTimeInput,
-  getEtiketTrigger,
-  getStartTimeInput,
-  getTitleInput,
-  getTitleInputSafe,
-  ucTimeInputHost,
-} from '../../ons/appointment-form.js';
+import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
+import { setInputText, setInputTextComposed, typeIntoSearchField, uiText } from '../../ons/form-controls.js';
+import { findClientEntries, getDateInput, getEndTimeInput, getEtiketTrigger, getStartTimeInput, getTitleInput, getTitleInputSafe } from '../../ons/appointment-form.js';
 import { hasUursoortSelected } from './uursoort-field.js';
 import { updateSubmitGuard } from './submit-guard.js';
 import { selectedKnownLabels } from './labels.js';
 import { hasClientInAppointment } from './clients.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { refreshAppointmentPrereqScreen } from './prereqs.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { ucTimeInputHost } from '../../ons/time-input.js';
 
 export function setAppointmentTitleText(text) {
   const input = getTitleInputSafe();

@@ -1,21 +1,11 @@
 // Afspraaklabels zetten en opruimen.
 
 import { clean, isOwnPopup, pollFor, rect, visible } from '../../ons/dom.js';
-import {
-  clickElementCenter,
-  clickOption,
-  findExactDropdownOption,
-  genericOptionCandidates,
-  optionSearchRoots,
-  optionText,
-  searchInputForTrigger,
-  setInputText,
-  uiText,
-} from '../../ons/form-controls.js';
+import { clickElementCenter, clickOption, genericOptionCandidates, optionSearchRoots, optionText, searchInputForTrigger, setInputText, uiText } from '../../ons/form-controls.js';
 import { getEtiketTrigger, labelChips } from '../../ons/appointment-form.js';
 import { eerstViaFormulier, wisLabelsViaFormulier, zetLabelsViaFormulier } from '../../ons/form-model.js';
 import { wachtTot } from '../../core/wacht.js';
-import { clickEmptyModalSpot, rowForOptionText } from '../../ons/interaction.js';
+import { clickEmptyModalSpot, findExactDropdownOption, rowForOptionText } from '../../ons/interaction.js';
 import { setStatus } from '../../screen/status.js';
 
 export function selectedKnownLabels(trigger, labels) {

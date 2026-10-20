@@ -1,29 +1,14 @@
 // Afspraakformulier: het uursoort-veld (per cliënt) vinden, vullen en wissen.
 
-import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
-import {
-  clickElementCenter,
-  clickOption,
-  openSelectCombobox,
-  openTypePick,
-  optionSearchRoots,
-  optionText,
-  searchInputForTrigger,
-  setInputText,
-  uiText,
-} from '../../ons/form-controls.js';
+import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
+import { clickElementCenter, clickOption, openSelectCombobox, optionSearchRoots, optionText, searchInputForTrigger, setInputText, uiText } from '../../ons/form-controls.js';
 import { optionCandidates } from '../../ons/uursoort-options.js';
-import {
-  entryUursoortIsSet,
-  findClientEntries,
-  getUursoortTrigger,
-} from '../../ons/appointment-form.js';
-import { clearSelectField, clickEmptyModalSpot } from '../../ons/interaction.js';
+import { entryUursoortIsSet, findClientEntries, getUursoortTrigger } from '../../ons/appointment-form.js';
+import { clearSelectField, clickEmptyModalSpot, openTypePick } from '../../ons/interaction.js';
 import { clickExactDropdownOption } from './labels.js';
 import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { findNonClientUursoortTrigger } from './non-client.js';
-import { deepQueryAll } from '../../ons/dom.js';
 import { eerstViaFormulier, wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
 import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
 

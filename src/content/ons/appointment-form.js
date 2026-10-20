@@ -4,19 +4,10 @@
 
 import { ONS } from './selectors.js';
 import { CONFIG } from '../config/app-config.js';
-import { overrideAll, overrideEl } from './selector-overrides.js';
-import { area, clean, isOwnPopup, rect, visible } from './dom.js';
-import {
-  clickBoxFor,
-  findOpener,
-  firstByDataQa,
-  inputTextValue,
-  isUsableBox,
-  uiText,
-} from './form-controls.js';
-import { helperPanel } from '../state.js';
-import { deepQueryAll } from '../ons/dom.js';
-import { UI_OVERRIDES } from '../ons/selector-overrides.js';
+import { overrideAll, overrideEl, UI_OVERRIDES } from './selector-overrides.js';
+import { area, clean, deepQueryAll, isOwnPopup, rect, visible } from './dom.js';
+import { clickBoxFor, findOpener, firstByDataQa, inputTextValue, isUsableBox, uiText } from './form-controls.js';
+import { firstNameFromName as voornaamUitNaam } from '../../shared/namen.js';
 
 export function getEtiketTrigger() {
   if (CONFIG.etiketFieldSelector) { const f = document.querySelector(CONFIG.etiketFieldSelector); if (f) return f; }
@@ -115,13 +106,6 @@ export function getDateInput() {
     return label === 'datum*' || label === 'datum' || placeholder === 'dd-mm-jjjj';
   }) || null;
 }
-// Geeft de uc-time-input host terug als inp daarin zit (shadow DOM).
-export function ucTimeInputHost(inp) {
-  if (!inp) return null;
-  const root = inp.getRootNode && inp.getRootNode();
-  const host = root && root.host;
-  return (host && /uc-time-input/i.test(host.tagName || '')) ? host : null;
-}
 // Zoek de input binnen een uc-time-input host op basis van aria-label.
 function ucTimeInputFor(labelPattern) {
   for (const host of deepQueryAll('uc-time-input')) {
@@ -156,22 +140,6 @@ export function getStartTimeInput() {
   }
   if (best) return best;
   return timeInputsInOrder()[0] || null;
-}
-export function isProtectedAppointmentStartInput(inp) {
-  if (!inp || helperPanel.activeMode === 'registrations') return false;
-  if (!/^(input|textarea)$/i.test(inp.tagName || '')) return false;
-  // Directe check via uc-time-input host aria-label
-  const host = ucTimeInputHost(inp);
-  if (host) return /^begintijd/.test(clean(host.getAttribute('aria-label') || ''));
-  // Fallback
-  const meta = clean(`${inp.getAttribute('placeholder') || ''} ${inp.getAttribute('aria-label') || ''} ${inp.getAttribute('name') || ''} ${inp.id || ''}`);
-  if (!/uu:mm|begintijd|start/.test(meta)) return false;
-  const ir = rect(inp);
-  return deepQueryAll('label,div,span,p').some((label) => {
-    if (!visible(label) || isOwnPopup(label) || !/^begintijd\*?$/.test(clean(label.textContent || ''))) return false;
-    const lr = rect(label);
-    return ir.top >= lr.bottom - 10 && ir.top - lr.bottom <= 100 && Math.abs(ir.left - lr.left) <= 150;
-  });
 }
 export function getEndTimeInput() {
   const ov = overrideEl('afsEindtijd'); if (ov) return ov;
@@ -242,7 +210,6 @@ export function findClientNameText() {
 }
 // Voornaam/aanhef uit een cliëntnaam: de regel staat in src/shared/namen.js
 // (ook de main-world gebruikt hem).
-import { firstNameFromName as voornaamUitNaam } from '../../shared/namen.js';
 export function firstNameFromName(name) { return voornaamUitNaam(name); }
 // ÉÉN bron voor de gekozen labels. In de huidige ONS-UI is elke chip een
 // <button class="label-tag" aria-label="Verwijder label <naam>"> binnen
@@ -383,15 +350,6 @@ function findUursoortTriggerForClient(entry, nextTop) {
     }
   }
   return best;
-}
-export function isAddInviteeControl(el) {
-  if (!el) return false;
-  const t = clean(uiText(el) || el.textContent || '');
-  const qa = clean((el.getAttribute && el.getAttribute('data-qa')) || '');
-  // De uitklap-toggle heet "toggle-invitee-fields-button"; die is juist wel
-  // gewenst. Alleen de daadwerkelijke toevoegknop weren.
-  if (/toggle-invitee-fields/.test(qa)) return false;
-  return /^\+?\s*toevoegen$|genodigde? toevoegen/.test(t) || /(^|[^a-z])add([^a-z]|$)|add-invitee|add_invitee/.test(qa);
 }
 let _clientEntriesCache = null, _clientEntriesAt = 0;
 const CLIENT_ENTRIES_TTL = 250; // ms

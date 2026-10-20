@@ -11,7 +11,6 @@ import {
   occurrenceName,
   occurrenceOverdue24h,
 } from './occurrences.js';
-import { apiClientPresentById } from './week-overview.js';
 import { ONS } from '../../ons/selectors.js';
 import { APP_CONFIG } from '../../config/app-config.js';
 import { classifyAgendaEntry } from '../../domain/open-registrations.js';
@@ -89,4 +88,14 @@ export function listUnfinished() {
   });
   out.sort((a, b) => a.time.localeCompare(b.time));
   return out;
+}
+// Zoekt in de laatst opgehaalde API-entries of bij een DOM-afspraak (data-id) een
+// cliënt gekoppeld is. Geeft true/false, of null als de afspraak niet gevonden is.
+function apiClientPresentById(id) {
+  if (id == null || !agendaPage._agLastEntries.length) return null;
+  const key = String(id);
+  for (let i = 0; i < agendaPage._agLastEntries.length; i++) {
+    if (String(agendaPage._agLastEntries[i].id) === key) return !!agendaPage._agLastEntries[i].clientPresent;
+  }
+  return null;
 }
