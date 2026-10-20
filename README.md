@@ -56,8 +56,9 @@ Playwright is alleen voor het testen en zit niet in de extensie.
   alles geldige syntax heeft (`scripts/check.mjs`);
 - dat onderdelen alleen via `src/shared/` code delen, dat elke import bestaat
   en dat er geen import vergeten is (`scripts/check-imports.mjs`);
-- dat de modules van het content-script alleen naar beneden importeren
-  (`scripts/deps.mjs`; zonder `--strict` toont het een overzicht).
+- dat de modules van het content-script alleen naar beneden importeren en
+  elkaar niet in een kring importeren (`scripts/deps.mjs`; zonder
+  `--strict` toont het een overzicht).
 
 ### De extensie laden
 

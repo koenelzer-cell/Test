@@ -49,6 +49,25 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
 | `react/` | apart script vóór `content` en `sidepanel` | de schermen van de wizard en het weekoverzicht (React), via `window.__onsahReact` |
 
+## Het zijpaneel (`src/sidepanel/`)
+
+`index.js` zoekt het actieve ONS-tabblad, stuurt verzoeken met `vraagAanTab`
+en kiest welk paneel er staat (Agendahulp of vragenlijst). De Agendahulp:
+
+| Bestand | Wat |
+|---|---|
+| `agenda-panel.js` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, `renderPagina`, `update` |
+| `pagina-plan.js`, `pagina-maken.js`, `pagina-open.js`, `pagina-snel.js`, `pagina-route.js`, `pagina-clienttijd.js`, `pagina-verhouding.js`, `pagina-info.js`, `rondleidingen.js` | één pagina per bestand, elk een functie `maakX(ctx)` die zijn eigen functies teruggeeft |
+| `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen) |
+| `ui.js`, `kiezers.js`, `productie-grafiek.js` | bouwstenen: kleuren, typografie, knoppen, iconen; datum- en tijdkiezer; de grafiek |
+| `rondleiding.js`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | rondleidingen tonen, efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
+
+De pagina's importeren elkaar niet. `create()` in `agenda-panel.js` maakt één
+object `ctx` met de gedeelde toestand (`state`, `pagina`, `range`, `prod`,
+`ratio`, `plan`, `liveHost`, `onsGezien`), de elementen en functies van de
+schil, en wat elke pagina teruggeeft; een pagina roept een andere aan met
+bijvoorbeeld `ctx.naarMaken(...)` of `ctx.startPlan()`.
+
 ## Het content-script (`src/content/`)
 
 `index.js` is het enige bestand dat bij het laden iets dóét; alle andere
@@ -59,9 +78,10 @@ een vaste, gedocumenteerde volgorde.
 
 ### Lagen
 
-Een module importeert alleen uit zijn eigen laag of lager.
-`node scripts/deps.mjs` toont de lagen en meldt overtredingen (onderdeel van
-`npm run check`).
+Een module importeert alleen uit zijn eigen laag of lager, en modules
+importeren elkaar nooit in een kring. `node scripts/deps.mjs` toont de lagen
+en meldt overtredingen en cycli; `--strict` (onderdeel van `npm run check`)
+faalt op beide.
 
 | Laag | Map | Wat |
 |---|---|---|
@@ -74,23 +94,38 @@ Een module importeert alleen uit zijn eigen laag of lager.
 | ons | `ons/` | **alles over hoe ONS is opgebouwd**: selectors, DOM-zoeken, formuliervelden lezen, dropdowns bedienen, de ONS-modal |
 | domain | `domain/` | pure rekenlogica op ONS-gegevens (weektotalen, declarabiliteit, registraties) |
 | services | `services/ons-api/` | netwerk: de ONS-API (alleen same-origin) |
-| ui | `ui/` | bouwstenen voor schermen (knoppen, duurkiezer, iconen, React-brug, beheerbare teksten) |
-| screen | `screen/` | wat schermen gebruiken: statusregel, het schermvak, `markScreen` |
+| ui | `ui/` | bouwstenen voor schermen (knoppen, duurkiezer, iconen, React-brug, beheerbare teksten, een veld markeren) |
+| screen | `screen/` | wat schermen gebruiken: statusregel, het schermvak, `markScreen`, het schermregister `schermen` |
 | features | `features/` | wat de hulp doet |
 | helper | `helper/` | de regie: het paneel opbouwen, aan/uit, routering, scherm herstellen |
 | entry | `index.js`, `test-hooks.js` | opstarten |
 
-Er staat één bewuste uitzondering in `scripts/deps.mjs` (met reden). Wijzigingen
-in de configuratie lopen niet via importen omhoog maar via `config/hooks.js`:
-de configuratie meldt *wat* er veranderde, `index.js` koppelt *wie* reageert.
+Er zijn geen uitzonderingen op de laagindeling. Twee dingen lopen niet via
+importen maar via een koppeling die `index.js` bij het opstarten legt:
+
+- Wijzigingen in de configuratie: `config/hooks.js`. De configuratie meldt
+  *wat* er veranderde, `index.js` koppelt *wie* reageert.
+- Schermen die elkaar openen (keuzes, voorwaarden, duur, uursoort, opslaan,
+  registratie): `screen/schermen.js`. Een scherm opent een ander met
+  `schermen.showChoices()` enz.; `index.js` meldt ze aan met
+  `koppelSchermen({ … })`. `test/schermen.test.js` kijkt na dat elk gebruikt
+  scherm is aangemeld en bestaat.
+
+Een hulpfunctie staat in de laagste module die hem nodig heeft. Zo zijn de
+gereedheidscontroles van de afspraak (`hasAppointmentPrereqs`,
+`appointmentReadyToSave`, …) apart gezet in `features/appointment/gereed.js`,
+boven de veldfuncties in `fields.js`; bij de registratie staan ze in
+`features/registration/prereqs.js`.
 
 ### Waar vind ik …
 
 | Ik wil … | Kijk in |
 |---|---|
-| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/form-controls.js` (dropdowns, invoer) — of laat de beheerder het herstellen met de UI-inspector |
+| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/time-input.js` (tijdvelden, begintijd beschermd), `ons/form-controls.js` (invoer), `ons/interaction.js` (dropdowns kiezen) — of laat de beheerder het herstellen met de UI-inspector |
 | weten welke hulp op welke URL draait | `helper/routing.js` (`syncWithUrl`) |
 | het afspraaktype-scherm | `features/appointment/choices.js` (+ `src/react/components/`) |
+| welk scherm een ander opent | `screen/schermen.js` (register), aangemeld in `index.js` |
+| een pagina van het zijpaneel | `src/sidepanel/pagina-*.js` (Planhulp, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.js` |
 | de uursoorten per cliënt | `features/appointment/uursoort-source.js` (API eerst, dan dropdown) en `uursoort-queue.js` (meerdere cliënten) |
 | de registratievorm uit een afspraaklabel | `features/registration/pending.js` + `services/ons-api/event-details.js` + `src/main-world/` |
 | de gekleurde dagindeling | `features/agenda/` (`zones.js`, `painting.js`) |
@@ -188,7 +223,7 @@ van stil een lege of verkeerde uitkomst te tonen:
 | `routes.googleapis.com` computeRouteMatrix / computeRoutes (direct vanuit het zijpaneel met `routesKey`, optionele toestemming) | afspraak maken (geavanceerd): rijtijden voor efficiënter indelen; route: kortste volgorde | `sidepanel/geo.js` | geen efficiënter indelen; reistijd zelf invullen |
 | eigen routes-proxy `POST /matrix`, `/optimize` (vanuit het zijpaneel, CORS) | idem, met de sleutel op de eigen server | `sidepanel/geo.js`, `server/routes-proxy/index.mjs` | geen efficiënter indelen; reistijd zelf invullen |
 | `google.com/maps/embed/v1/directions` (iframe, na klik) | kaart op Route van de dag | `sidepanel/geo.js` | geen kaart |
-| `MSG.AGENDA_FORM_TITLE` (content naar zijpaneel) | titel uit Afspraak maken voor het formulier dat net openging; alleen in het geheugen van het zijpaneel (`formulierTitel`). Het formulier uit de planhulp gaat daarna via `helper/planner-form.js` meteen naar de opslaanpagina (type gevonden aan het label) | `src/sidepanel/agenda-panel.js`, `helper/planner-form.js` | geen titel; de gewone afspraakhulp |
+| `MSG.AGENDA_FORM_TITLE` (content naar zijpaneel) | titel uit Afspraak maken voor het formulier dat net openging; alleen in het geheugen van het zijpaneel (`formulierTitel`). Het formulier uit de planhulp gaat daarna via `helper/planner-form.js` meteen naar de opslaanpagina (type gevonden aan het label) | `src/sidepanel/bewaard.js`, `pagina-maken.js`, `helper/planner-form.js` | geen titel; de gewone afspraakhulp |
 | `GET /calendar/events/new?invitee_ids[]=…` (ONS zelf, bij een nieuw formulier) | planhulp naar het ONS-formulier: `main-world` zet datum, tijden en afspraaktype (`labels: [{ id, name }]`) in het lege model, uit `onsHelper.pendingAppointment.model` (`features/appointment/prefill.js`) | `src/main-world/` | velden typen en het label aanklikken zoals vroeger |
 | `POST /calendar/events` | planhulp: kopieën van een net opgeslagen afspraak op de andere gekozen momenten | `features/appointment/duplicate.js`, `domain/event-duplicate.js` | — (mislukte kopieën worden gemeld; zelf aanmaken) |
 | `…layer=events` voor meerdere weken | open registraties in een periode | `open-registrations.js`, `features/agenda/open-range.js` | — (mislukt een week, dan faalt de controle hardop) |
@@ -322,7 +357,9 @@ eenmalige start).
 2. Gedeelde toestand: een veld in het bestaande state-object, of een eigen
    `state.js` in de featuremap (zie `features/agenda/state.js`).
 3. Iets dat bij het laden moet gebeuren: een `start…`/`install…`-functie, en
-   die aanroepen in `src/content/index.js`.
+   die aanroepen in `src/content/index.js`. Een nieuw scherm dat door andere
+   schermen wordt geopend: aanmelden in `koppelSchermen` in `index.js` en
+   openen met `schermen.showX()`.
 4. Een nieuw bericht of opslagsleutel: eerst in `src/shared/`.
 5. Testen: pure functies via `core/test-api.js` + `test-hooks.js` (jsdom), of
    rechtstreeks importeren uit `src/` als de module geen browser nodig heeft
