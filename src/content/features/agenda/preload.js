@@ -13,7 +13,8 @@ import { viewedInviteeIds } from './navigation.js';
 import { checkOpenRange, defaultRangeFrom } from './open-range.js';
 import { computeProduction, defaultProductionFrom } from './production.js';
 import { fetchWeekRatio } from './week-ratio.js';
-import { findFreeSlots, vergeetWeken, weekdagen } from './free-slots.js';
+import { findFreeSlots, weekdagen } from './free-slots.js';
+import { vergeetWeken } from '../../services/ons-api/week-cache.js';
 import { resolveInviteeId, currentAgendaDate } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -118,8 +119,8 @@ export function preloadPanelData(force) {
     .then(() => { _bezig = false; }, () => { _bezig = false; });
 }
 
-// Alleen voor de tests.
-// Na het maken van afspraken: de vrije tijd klopt niet meer, dus opnieuw ophalen
-// (ook de onthouden weken).
+// Na het maken of opslaan van afspraken: de vrije tijd klopt niet meer, dus
+// opnieuw ophalen (ook de onthouden weken).
 export function forgetFreeSlots() { Object.keys(_cache).forEach((k) => { if (k.indexOf('plan|') === 0) delete _cache[k]; }); vergeetWeken(); }
+// Alleen voor de tests.
 export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); vergeetWeken(); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; }

@@ -13,14 +13,15 @@ import {
 import { _apiUrl } from './endpoints.js';
 import { getEmployeeIdAsync } from './employee.js';
 import { getJson } from './http.js';
-import { weekEntries } from './formaat.js';
+import { haalWeek } from './week-cache.js';
 
-// Fetch de weekafspraken. Relatieve URL => same-origin => de sessiecookie gaat mee.
+// De afspraken van de week waarin `date` valt. Altijd vers; het antwoord gaat
+// ook in het weekgeheugen, zodat de planhulp deze week niet nog eens ophaalt.
 export function fetchInviteeWeek(inviteeId, date) {
   var id = (inviteeId != null) ? inviteeId : resolveInviteeId();
   if (id == null) return Promise.reject(new Error('geen invitee-id gevonden'));
   var d = agendaYmd(date) || agendaYmd(new Date());
-  return getJson(_apiUrl('weekEvents', { inviteeId: id, date: d })).then(weekEntries);
+  return haalWeek('weekEvents', id, d, { vers: true });
 }
 // Fetch de afgeronde registraties (sessie-gebruiker) voor één dag; gepagineerd.
 function fetchEmployeeRegistrations(date, opts) {

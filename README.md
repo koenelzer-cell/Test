@@ -267,9 +267,15 @@ en oker).
   gaat hooguit een jaar vooruit; een wijziging
   zoekt meteen opnieuw. *Snelheid*: wat ONS per week teruggeeft, onthoudt de
   hulp vijf minuten in het geheugen van de ONS-pagina (niet op schijf, weg na
-  herladen, en vergeten zodra je via het zijpaneel afspraken maakt). Een andere
+  herladen, en vergeten zodra je via het zijpaneel afspraken maakt of zelf in
+  ONS een afspraak opslaat). Een andere
   duur, andere dagen, de weekplanning of Meer laden gebruikt die weken zonder
-  ze opnieuw op te halen. Een verre periode (Tot datum) haalt de hulp in
+  ze opnieuw op te halen. Het weekoverzicht en de verhouding delen die weken:
+  de week die je in ONS bekijkt, haalt de planhulp niet nog eens op. Staat de
+  lijst er, dan haalt de hulp de week erna alvast op (alleen als het tabblad
+  zichtbaar is), zodat Meer laden meteen klaar is. Heeft ONS een laag niet
+  (bijvoorbeeld geen Outlook-koppeling), dan vraagt de hulp die de rest van de
+  pagina niet meer; bij een storing wel opnieuw. Een verre periode (Tot datum) haalt de hulp in
   stukken van drie weken op en stopt zodra de lijst vol is; Meer laden gaat
   daarna verder waar hij stopte. Het dagenfilter gaat mee naar het zoeken,
   zodat de lijst ook met alleen bijvoorbeeld dinsdag en vrijdag vol wordt. *Lijst*: per dag ('Donderdag 8 oktober', 'Vrij van

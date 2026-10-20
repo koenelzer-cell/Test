@@ -3,9 +3,11 @@
 // onbeschikbaarheid, Outlook-afspraken, geplande bezoeken) en rekent in
 // domain/free-slots.js.
 //
-// Snelheid: opgehaalde weken blijven even in het geheugen (weekGeheugen), een
-// verre periode wordt in stukken opgehaald tot de lijst vol is, en de
-// overlapcontrole van ONS doet het zijpaneel pas als de lijst er al staat.
+// Snelheid: opgehaalde weken blijven even in het geheugen (week-cache.js, dat
+// ook het weekoverzicht vult), een verre periode wordt in stukken opgehaald
+// tot de lijst vol is, een laag die ONS hier niet heeft wordt niet steeds
+// opnieuw gevraagd, de week na de lijst wordt alvast opgehaald (Meer laden),
+// en de overlapcontrole van ONS doet het zijpaneel pas als de lijst er al staat.
 
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { activeZones } from './zones.js';
@@ -16,11 +18,11 @@ import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domai
 import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
 import { holidaysBetween, parseHolidays } from '../../domain/holidays.js';
-import { plusDagen } from '../../../shared/datum.js';
+import { maandagenTussen, plusDagen } from '../../../shared/datum.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
-import { weekEntries } from '../../services/ons-api/formaat.js';
 import { createLimiter } from '../../services/ons-api/calendar.js';
+import { haalWeek } from '../../services/ons-api/week-cache.js';
 import { fetchEventOverlap, overlapCheckStatus } from '../../services/ons-api/event-overlap.js';
 
 // Werkvenster (minuten): vroegste begin en laatste eind van de gekozen
@@ -70,26 +72,54 @@ export function holidays() {
 }
 export function _forgetHolidays() { feestdagenBelofte = null; }
 
-// Wat ONS per week en laag teruggaf, een paar minuten onthouden: alleen in
-// het geheugen van deze pagina (weg na herladen), en alleen de neutrale
-// velden uit mapAgendaEntry. Een andere duur, andere dagen, de weekplanning of
-// Meer laden gebruikt zo de weken die er al zijn. Na het maken van afspraken
-// vergeet de hulp ze (vergeetWeken).
-var WEEK_TTL = 5 * 60000;
-var weekGeheugen = Object.create(null);
-export function vergeetWeken() { weekGeheugen = Object.create(null); }
+// Eén laag van één week, met de laag en de medewerker erbij.
 function weekLaag(sjabloon, laag, start, id, wachtrij) {
-  var k = sjabloon + '|' + id + '|' + start, nu = Date.now();
-  var c = weekGeheugen[k];
-  if (c && nu - c.ts < WEEK_TTL) return c.belofte;
-  Object.keys(weekGeheugen).forEach(function (x) { if (nu - weekGeheugen[x].ts >= WEEK_TTL) delete weekGeheugen[x]; });
-  var nieuw = { ts: nu, belofte: null };
-  nieuw.belofte = wachtrij(function () { return getJson(_apiUrl(sjabloon, { inviteeId: id, date: start })); })
-    .then(function (j) { return weekEntries(j).map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
-  // Mislukt: niet onthouden, de volgende zoekactie probeert het opnieuw.
-  nieuw.belofte.catch(function () { if (weekGeheugen[k] === nieuw) delete weekGeheugen[k]; });
-  weekGeheugen[k] = nieuw;
-  return nieuw.belofte;
+  return haalWeek(sjabloon, id, start, { wachtrij: wachtrij })
+    .then(function (lijst) { return lijst.map(function (e) { e.layer = laag; e.inviteeId = id; return e; }); });
+}
+// Lagen die ONS hier niet heeft (bijv. geen Outlook-koppeling) geven een
+// 4xx-antwoord. Die vraagt de hulp de rest van deze pagina niet meer. Een
+// storing (5xx, netwerk, afgemeld) telt niet: dan de volgende keer opnieuw.
+var ontbrekendeLagen = Object.create(null);
+var NIET_BESCHIKBAAR = [400, 403, 404, 405, 410, 422, 501];
+function nietBeschikbaar(err) {
+  var m = /^HTTP (\d{3})$/.exec(String((err && err.message) || ''));
+  return !!m && NIET_BESCHIKBAAR.indexOf(+m[1]) >= 0;
+}
+// De andere lagen: mislukt er een, dan zonder.
+function bijLaag(sjabloon, laag, start, id, wachtrij) {
+  var k = sjabloon + '|' + id;
+  if (ontbrekendeLagen[k]) return Promise.resolve([]);
+  return weekLaag(sjabloon, laag, start, id, wachtrij).catch(function (err) {
+    if (nietBeschikbaar(err)) ontbrekendeLagen[k] = true;
+    return [];
+  });
+}
+// Alles wat tijd kan bezetten in één week, voor elke agenda.
+function weekVoor(ids, start, wachtrij) {
+  return Promise.all(ids.map(function (id) {
+    return Promise.all([
+      weekLaag('weekEvents', 'events', start, id, wachtrij),
+      bijLaag('weekUnavailabilities', 'unavailabilities', start, id, wachtrij),
+      bijLaag('weekOutlook', 'outlook_appointments', start, id, wachtrij),
+      bijLaag('weekPlannedVisits', 'planned_visits', start, id, wachtrij),
+      bijLaag('weekReservations', 'reservations', start, id, wachtrij)
+    ]);
+  }));
+}
+// Meer laden (en de volgende week in het weekraster) vraagt de week na
+// lastDate. Die alvast ophalen als de lijst er staat en het tabblad zichtbaar
+// is: rustig, twee verzoeken tegelijk. Gaat het mis, dan haalt Meer laden hem
+// gewoon zelf op.
+var VOORAF_NA_MS = 1000;
+function volgendeWeekVooraf(ids, lastDate) {
+  setTimeout(function () {
+    if (document.visibilityState !== 'visible') return;
+    var wachtrij = createLimiter(2);
+    maandagenTussen(plusDagen(lastDate, 1), plusDagen(lastDate, 7)).forEach(function (start) {
+      weekVoor(ids, start, wachtrij).catch(function () {});
+    });
+  }, VOORAF_NA_MS);
 }
 // Zoveel weken per keer. Een korte periode (tot drie weken) gaat in één keer;
 // een verre periode stopt na het stuk waarin de lijst vol raakt.
@@ -192,19 +222,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
   // Hooguit 4 verzoeken tegelijk naar ONS. (Niet 'limiet' noemen: dat is
   // het aantal blokken dat het zijpaneel vraagt.)
   var wachtrij = createLimiter(4);
-  var zonder = function () { return []; };
-  var week = function (start) {
-    return Promise.all(ids.map(function (id) {
-      return Promise.all([
-        weekLaag('weekEvents', 'events', start, id, wachtrij),
-        // De andere lagen: mislukt er een (laag niet beschikbaar), dan zonder.
-        weekLaag('weekUnavailabilities', 'unavailabilities', start, id, wachtrij).catch(zonder),
-        weekLaag('weekOutlook', 'outlook_appointments', start, id, wachtrij).catch(zonder),
-        weekLaag('weekPlannedVisits', 'planned_visits', start, id, wachtrij).catch(zonder),
-        weekLaag('weekReservations', 'reservations', start, id, wachtrij).catch(zonder)
-      ]);
-    }));
-  };
+  var week = function (start) { return weekVoor(ids, start, wachtrij); };
   var plat = function (a) { return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a]; };
   var win = workWindow();
   // Vrije blokken in wat er tot nu toe is opgehaald (t/m eindYmd).
@@ -247,6 +265,7 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
         // Of ONS' overlapcontrole bekend is: dan kijkt het zijpaneel de eerste
         // blokken daar na, als de lijst er al staat.
         onsCheck: overlapCheckStatus() };
+      volgendeWeekVooraf(ids, eindYmd);
       if (!metBezoeken) return res;
       var datums = {}; u.gaps.forEach(function (g) { datums[g.date] = true; });
       return huisbezoekenPerDag(u.bezet, datums).then(function (v) { res.visits = v; return res; }, function () { res.visits = {}; return res; });

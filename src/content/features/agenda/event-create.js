@@ -18,6 +18,7 @@ import { controleerOns } from '../../services/ons-api/formaat.js';
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { APP_CONFIG } from '../../config/app-config.js';
+import { forgetFreeSlots } from './preload.js';
 
 const META_KEY = PAGE_LOCAL.EVENT_META_TEMPLATE;
 
@@ -87,7 +88,8 @@ export async function createEvents(events, post) {
   return results;
 }
 
-// Instellingen van het formulier leren als de medewerker zelf een afspraak opslaat.
+// Instellingen van het formulier leren als de medewerker zelf een afspraak
+// opslaat. De vrije tijd van de planhulp klopt dan niet meer: vergeten.
 export function listenForEventMeta() {
   try {
     window.addEventListener('message', function (ev) {
@@ -95,6 +97,7 @@ export function listenForEventMeta() {
       if (ev.source && ev.source !== window) return;
       var d = ev.data;
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'eventMeta') return;
+      forgetFreeSlots();
       var m = learnEventMeta(d.meta);
       if (m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
     }, false);

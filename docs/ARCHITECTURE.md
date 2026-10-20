@@ -170,7 +170,7 @@ van stil een lege of verkeerde uitkomst te tonen:
 
 | Endpoint | Waarvoor | Module | Terugval |
 |---|---|---|---|
-| `/calendar/invitee/{id}/entries/week?…layer=events` | weekoverzicht, overlapcontrole | `calendar.js`, `features/overlap.js` | DOM-telling op de agenda |
+| `/calendar/invitee/{id}/entries/week?…layer=events` | weekoverzicht, overlapcontrole, planhulp | `calendar.js`, `week-cache.js`, `features/overlap.js` | DOM-telling op de agenda |
 | `…layer=registrations&sub_layers[]=registrations/created` | declarabiliteit per week | `calendar.js` | widget-endpoint hieronder |
 | `/calendar/invitee/{id}/registrations/{occ}/details` | tijden per registratie | `calendar.js` | — |
 | `/gateway/api/v0/agenda/user/widgets/employee_registrations_overview/registrations` | declarabiliteit (sessie-gebruiker) | `calendar.js` | — |
@@ -213,10 +213,21 @@ blokken daarna na met `ag-slot-check`, zodat de lijst niet op ONS wacht.
 
 Planhulp en snelheid (`features/agenda/free-slots.js`): de vijf lagen per
 week en agenda blijven vijf minuten in het geheugen van de pagina
-(`weekGeheugen`, alleen velden uit `mapAgendaEntry`; `vergeetWeken` na
-afspraken maken). Een periode van meer dan drie weken wordt in stukken van
+(`services/ons-api/week-cache.js`, `haalWeek`; alleen velden uit
+`mapAgendaEntry`, een week altijd op de maandag gevraagd). `fetchInviteeWeek`
+(weekoverzicht, verhouding, productieverloop) haalt vers op met `vers: true`
+en zet het antwoord erin, zodat de planhulp die week niet opnieuw vraagt.
+`vergeetWeken` (via `forgetFreeSlots`) na afspraken maken vanuit het
+zijpaneel en na elke opgeslagen afspraak in ONS (bericht `eventMeta` van
+`main-world`, `features/agenda/event-create.js`). Een bijlaag die ONS met
+400, 403, 404, 405, 410, 422 of 501 weigert, vraagt de planhulp de rest van
+de pagina niet meer (`ontbrekendeLagen`); 5xx en netwerkfouten wel opnieuw.
+Een periode van meer dan drie weken wordt in stukken van
 drie weken opgehaald; zodra er genoeg blokken zijn, stopt het en is
-`lastDate` de laatste bekeken dag, waar Meer laden verdergaat.
+`lastDate` de laatste bekeken dag, waar Meer laden verdergaat. Een seconde
+na het resultaat haalt `volgendeWeekVooraf` de weken van `lastDate + 1` tot
+en met `lastDate + 7` op (twee verzoeken tegelijk, alleen als het tabblad
+zichtbaar is): precies wat Meer laden daarna vraagt.
 
 Meerdere momenten: de planhulp zet de overige momenten (datum en begintijd)
 klaar in sessionStorage (`onsHelper.pendingDuplicates`, een half uur geldig,

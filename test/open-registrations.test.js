@@ -378,6 +378,74 @@ test('planhulp: opgehaalde weken blijven even onthouden (andere duur, dagen of M
   assert.ok(r.gaps.length > 0, 'de volgende keer gewoon opnieuw');
 });
 
+const maandagVan = (ymdStr) => { const d = new Date(ymdStr + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+const vandaagYmd = () => { const d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+
+test('planhulp: een laag die ONS niet heeft (4xx) wordt de rest van de pagina niet meer gevraagd; een storing wel', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const urls = [];
+  let outlook = 404, gepland = 500;
+  window.fetch = (url) => {
+    urls.push(url);
+    if (/layer=outlook_appointments/.test(url)) return Promise.resolve({ ok: false, status: outlook, json: () => Promise.resolve(null) });
+    if (/layer=planned_visits/.test(url)) return Promise.resolve({ ok: false, status: gepland, json: () => Promise.resolve(null) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+  };
+  const r = await api.findFreeSlots(60, 1);
+  assert.ok(r.gaps.length > 0, 'zonder die lagen gewoon een lijst');
+  assert.ok(urls.some((u) => /outlook_appointments/.test(u)), 'eerst wel gevraagd');
+  api.forgetFreeSlots();
+  urls.length = 0;
+  await api.findFreeSlots(60, 1);
+  assert.equal(urls.filter((u) => /outlook_appointments/.test(u)).length, 0, 'Outlook (404): niet meer gevraagd');
+  assert.ok(urls.some((u) => /planned_visits/.test(u)), 'geplande bezoeken (500): wel opnieuw gevraagd');
+  assert.ok(urls.some((u) => /layer=events/.test(u)), 'de afspraken zelf altijd');
+});
+
+test('planhulp: de week na de lijst wordt alvast opgehaald, zodat Meer laden meteen klaar is', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const urls = [];
+  window.fetch = (url) => { urls.push(url); return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  const r = await api.findFreeSlots(60, 1);
+  const plus = (ymdStr, n) => { const d = new Date(ymdStr + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+  const nieuweWeek = maandagVan(plus(r.lastDate, 7));
+  assert.ok(!urls.some((u) => u.includes('date=' + nieuweWeek)), 'nog niet meteen');
+  await new Promise((res) => setTimeout(res, 1150));
+  assert.equal(urls.filter((u) => u.includes('date=' + nieuweWeek)).length, 5 * 2, 'vijf lagen, voor beide agenda\'s');
+  // Meer laden (zoals het zijpaneel: de dag na lastDate t/m een week later): niets meer ophalen.
+  urls.length = 0;
+  const meer = await api.findFreeSlots(60, 1, plus(r.lastDate, 7), false, false, plus(r.lastDate, 1), null, 100);
+  assert.ok(meer.gaps.length > 0);
+  assert.equal(urls.length, 0, 'uit het geheugen');
+});
+
+test('planhulp en weekoverzicht delen de weekgegevens; opslaan in ONS laat de planhulp opnieuw ophalen', async () => {
+  const { api, window } = bootHelper({ url: MEER });
+  const urls = [];
+  window.fetch = (url) => { urls.push(url); return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }); };
+  // Het weekoverzicht vraagt de week op een willekeurige dag: altijd op de maandag.
+  const vandaag = vandaagYmd();
+  await api.fetchInviteeWeek('13970', vandaag);
+  await api.fetchInviteeWeek('45267', vandaag);
+  assert.deepEqual(urls.map((u) => /date=([\d-]+)/.exec(u)[1]), [maandagVan(vandaag), maandagVan(vandaag)], 'op de maandag van de week');
+  urls.length = 0;
+  await api.findFreeSlots(60, 1);
+  const dezeWeek = urls.filter((u) => u.includes('date=' + maandagVan(vandaag)));
+  assert.equal(dezeWeek.filter((u) => /layer=events/.test(u)).length, 0, 'de afspraken van deze week komen uit het weekoverzicht');
+  assert.equal(dezeWeek.length, 4 * 2, 'alleen de andere lagen');
+  // Het weekoverzicht zelf haalt altijd vers op.
+  urls.length = 0;
+  await api.fetchInviteeWeek('13970', vandaag);
+  assert.equal(urls.length, 1, 'weekoverzicht: vers');
+  // De medewerker slaat in ONS een afspraak op: opnieuw ophalen.
+  urls.length = 0;
+  await api.findFreeSlots(60, 1);
+  assert.equal(urls.length, 0, 'eerst uit het geheugen');
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventMeta', meta: {} }, origin: window.location.origin, source: window }));
+  await api.findFreeSlots(60, 1);
+  assert.ok(urls.some((u) => /layer=events/.test(u)), 'na opslaan in ONS: opnieuw');
+});
+
 test('planhulp: het weekdagfilter gaat mee naar het zoeken', async () => {
   const { api, window } = bootHelper({ url: MEER });
   window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
