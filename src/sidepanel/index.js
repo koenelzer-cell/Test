@@ -14,7 +14,8 @@
 
 import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { ONS_URL_PATTERNS, isOnsUrl } from '../shared/ons-hosts.js';
-import { create as createAgendaPanel, formulierTitel } from './agenda-panel.js';
+import { create as createAgendaPanel } from './agenda-panel.js';
+import { formulierTitel } from './bewaard.js';
 import { create as createSurveyPanel } from './survey-panel.js';
 
 const NIETS_KOP = 'Niets om te tonen';
