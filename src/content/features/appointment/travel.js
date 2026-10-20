@@ -1,5 +1,11 @@
 // Reistijd heen/terug op het afspraakformulier.
+//
+// Zetten (en op 0 zetten) gaat eerst via het afspraakmodel van ONS
+// (onChange(minuten, 'travel_time_before' / 'travel_time_after') in de
+// main-world), nagekeken in de velden; lukt dat niet, dan typen.
 
+import { wachtTot } from '../../core/wacht.js';
+import { eerstViaFormulier, zetVeldViaFormulier } from '../../ons/form-model.js';
 import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import {
   clickOption,
@@ -33,28 +39,50 @@ function clickTravelStepperToValue(input, wanted) {
   for (let i = 0; i < count; i++) clickOption(btn);
   return true;
 }
-export function setAppointmentTravelTotalMinutes(totalMinutes) {
+function reistijdTypen(heen, terug) {
   const there = appointmentTravelInput('heen');
   const back = appointmentTravelInput('terug');
   if (!there || !back) return false;
-  const thereText = String(Math.ceil(totalMinutes / 2));
-  const backText = String(Math.floor(totalMinutes / 2));
+  const thereText = String(heen);
+  const backText = String(terug);
   setInputTextOnsVerified(there, thereText);
   setInputTextOnsVerified(back, backText);
-  setTimeout(() => {
-    if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-    if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-  }, 180);
-  setTimeout(() => {
-    if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-    if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-  }, 460);
+  [180, 460].forEach((delay) => setTimeout(() => {
+    if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, heen);
+    if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, terug);
+  }, delay));
+  return true;
+}
+// heen en terug in minuten. -> Promise<boolean>: true als de velden het tonen.
+export function zetReistijdenAsync(heen, terug) {
+  const toont = () => {
+    const a = appointmentTravelInput('heen'), b = appointmentTravelInput('terug');
+    return !!a && !!b && (parseInt(inputTextValue(a), 10) || 0) === heen && (parseInt(inputTextValue(b), 10) || 0) === terug;
+  };
+  return eerstViaFormulier(
+    () => zetVeldViaFormulier('travel_time_before', heen)
+      .then((ok) => ok && zetVeldViaFormulier('travel_time_after', terug))
+      .then((ok) => ok && wachtTot(toont, { max: 600 }).then(Boolean)),
+    () => reistijdTypen(heen, terug)
+  );
+}
+// Totaal over heen en terug verdeeld. Geeft meteen terug of de velden er
+// zijn; het zetten zelf loopt via zetReistijdenAsync.
+export function setAppointmentTravelTotalMinutes(totalMinutes) {
+  if (!appointmentTravelInput('heen') || !appointmentTravelInput('terug')) return false;
+  zetReistijdenAsync(Math.ceil(totalMinutes / 2), Math.floor(totalMinutes / 2));
   return true;
 }
 export function clearAppointmentTravelTimes() {
-  const fields = [appointmentTravelInput('heen'), appointmentTravelInput('terug')].filter(Boolean);
-  if (!fields.length) return true;
-  for (const field of fields) setInputTextQuiet(field, '0');
+  const velden = () => [appointmentTravelInput('heen'), appointmentTravelInput('terug')].filter(Boolean);
+  const fields = velden();
+  if (fields.every((f) => inputTextValue(f) === '0')) return true;
+  eerstViaFormulier(
+    () => zetVeldViaFormulier('travel_time_before', 0)
+      .then((ok) => ok && zetVeldViaFormulier('travel_time_after', 0))
+      .then((ok) => ok && wachtTot(() => velden().every((f) => !(parseInt(inputTextValue(f), 10) > 0)), { max: 600 }).then(Boolean)),
+    () => { for (const field of velden()) setInputTextQuiet(field, '0'); return true; }
+  );
   return true;
 }
 // De ingevulde reistijd (heen + terug) in minuten, of null als de velden er

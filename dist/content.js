@@ -5659,6 +5659,99 @@
     return (ovSel ? deepQueryAll(ovSel) : deepQueryAll('[data-qa="recurrence-type"]')).find((el) => visible(el) && !isOwnPopup(el)) || null;
   }
 
+  // src/content/ons/form-model.js
+  var volgnummer = 0;
+  function eerstViaFormulier(viaFormulier, viaScherm) {
+    return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
+  }
+  function zetLabelsViaFormulier(namen, opties) {
+    const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
+    if (!lijst.length) return Promise.resolve(false);
+    const o = typeof opties === "number" ? { wachtMs: opties } : opties || {};
+    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
+  }
+  function wisLabelsViaFormulier(wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
+  }
+  function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
+    if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
+    const doel = "u" + ++volgnummer + "-" + Date.now();
+    try {
+      veld.setAttribute("data-onsah-doel", doel);
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+    return vraagMainWorld(
+      PAGE_COMMAND.SET_HOUR_TYPE,
+      PAGE_COMMAND.HOUR_TYPE_SET,
+      { doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
+      wachtMs
+    ).then((ok) => {
+      try {
+        veld.removeAttribute("data-onsah-doel");
+      } catch (e) {
+      }
+      return ok;
+    });
+  }
+  function wisUursoortViaFormulier(veld, wachtMs) {
+    if (!veld || !veld.setAttribute) return Promise.resolve(false);
+    const doel = "w" + ++volgnummer + "-" + Date.now();
+    try {
+      veld.setAttribute("data-onsah-doel", doel);
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+    return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel, wis: true }, wachtMs).then((ok) => {
+      try {
+        veld.removeAttribute("data-onsah-doel");
+      } catch (e) {
+      }
+      return ok;
+    });
+  }
+  function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
+    if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
+    return vraagMainWorld(
+      PAGE_COMMAND.SET_HOUR_TYPE,
+      PAGE_COMMAND.HOUR_TYPE_SET,
+      { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
+      wachtMs
+    );
+  }
+  function zetVeldViaFormulier(veld, waarde, wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
+  }
+  function leesFormulier(wachtMs) {
+    return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+  }
+  function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
+    return new Promise((klaar) => {
+      const id = type + "-" + ++volgnummer + "-" + Date.now();
+      let gemeld = false;
+      const luister = (ev) => {
+        if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
+        const d = ev.data;
+        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
+        einde(volledig ? d.ok === true ? d : null : d.ok === true);
+      };
+      const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
+      function einde(ok) {
+        if (gemeld) return;
+        gemeld = true;
+        clearTimeout(timer);
+        window.removeEventListener("message", luister);
+        klaar(ok);
+      }
+      window.addEventListener("message", luister);
+      try {
+        window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type, id }, velden), location.origin);
+      } catch (e) {
+        einde(volledig ? null : false);
+      }
+    });
+  }
+
   // src/content/ons/uursoort-options.js
   function splitUursoortCategoryText(text2) {
     let raw = String(text2 || "").replace(/\s+/g, " ").trim();
@@ -5825,99 +5918,6 @@
       }, 75);
     };
     next();
-  }
-
-  // src/content/ons/form-model.js
-  var volgnummer = 0;
-  function eerstViaFormulier(viaFormulier, viaScherm) {
-    return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
-  }
-  function zetLabelsViaFormulier(namen, opties) {
-    const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
-    if (!lijst.length) return Promise.resolve(false);
-    const o = typeof opties === "number" ? { wachtMs: opties } : opties || {};
-    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
-  }
-  function wisLabelsViaFormulier(wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
-  }
-  function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
-    if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-    const doel = "u" + ++volgnummer + "-" + Date.now();
-    try {
-      veld.setAttribute("data-onsah-doel", doel);
-    } catch (e) {
-      return Promise.resolve(false);
-    }
-    return vraagMainWorld(
-      PAGE_COMMAND.SET_HOUR_TYPE,
-      PAGE_COMMAND.HOUR_TYPE_SET,
-      { doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
-      wachtMs
-    ).then((ok) => {
-      try {
-        veld.removeAttribute("data-onsah-doel");
-      } catch (e) {
-      }
-      return ok;
-    });
-  }
-  function wisUursoortViaFormulier(veld, wachtMs) {
-    if (!veld || !veld.setAttribute) return Promise.resolve(false);
-    const doel = "w" + ++volgnummer + "-" + Date.now();
-    try {
-      veld.setAttribute("data-onsah-doel", doel);
-    } catch (e) {
-      return Promise.resolve(false);
-    }
-    return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel, wis: true }, wachtMs).then((ok) => {
-      try {
-        veld.removeAttribute("data-onsah-doel");
-      } catch (e) {
-      }
-      return ok;
-    });
-  }
-  function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
-    if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-    return vraagMainWorld(
-      PAGE_COMMAND.SET_HOUR_TYPE,
-      PAGE_COMMAND.HOUR_TYPE_SET,
-      { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
-      wachtMs
-    );
-  }
-  function zetVeldViaFormulier(veld, waarde, wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
-  }
-  function leesFormulier(wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
-  }
-  function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
-    return new Promise((klaar) => {
-      const id = type + "-" + ++volgnummer + "-" + Date.now();
-      let gemeld = false;
-      const luister = (ev) => {
-        if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
-        einde(volledig ? d.ok === true ? d : null : d.ok === true);
-      };
-      const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
-      function einde(ok) {
-        if (gemeld) return;
-        gemeld = true;
-        clearTimeout(timer);
-        window.removeEventListener("message", luister);
-        klaar(ok);
-      }
-      window.addEventListener("message", luister);
-      try {
-        window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type, id }, velden), location.origin);
-      } catch (e) {
-        einde(volledig ? null : false);
-      }
-    });
   }
 
   // src/content/ui/theme.js
@@ -8904,28 +8904,46 @@
     for (let i = 0; i < count; i++) clickOption(btn);
     return true;
   }
-  function setAppointmentTravelTotalMinutes(totalMinutes) {
+  function reistijdTypen(heen, terug) {
     const there = appointmentTravelInput("heen");
     const back = appointmentTravelInput("terug");
     if (!there || !back) return false;
-    const thereText = String(Math.ceil(totalMinutes / 2));
-    const backText = String(Math.floor(totalMinutes / 2));
+    const thereText = String(heen);
+    const backText = String(terug);
     setInputTextOnsVerified(there, thereText);
     setInputTextOnsVerified(back, backText);
-    setTimeout(() => {
-      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-    }, 180);
-    setTimeout(() => {
-      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, Number(thereText));
-      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, Number(backText));
-    }, 460);
+    [180, 460].forEach((delay) => setTimeout(() => {
+      if (inputTextValue(there) !== thereText) clickTravelStepperToValue(there, heen);
+      if (inputTextValue(back) !== backText) clickTravelStepperToValue(back, terug);
+    }, delay));
+    return true;
+  }
+  function zetReistijdenAsync(heen, terug) {
+    const toont = () => {
+      const a = appointmentTravelInput("heen"), b = appointmentTravelInput("terug");
+      return !!a && !!b && (parseInt(inputTextValue(a), 10) || 0) === heen && (parseInt(inputTextValue(b), 10) || 0) === terug;
+    };
+    return eerstViaFormulier(
+      () => zetVeldViaFormulier("travel_time_before", heen).then((ok) => ok && zetVeldViaFormulier("travel_time_after", terug)).then((ok) => ok && wachtTot(toont, { max: 600 }).then(Boolean)),
+      () => reistijdTypen(heen, terug)
+    );
+  }
+  function setAppointmentTravelTotalMinutes(totalMinutes) {
+    if (!appointmentTravelInput("heen") || !appointmentTravelInput("terug")) return false;
+    zetReistijdenAsync(Math.ceil(totalMinutes / 2), Math.floor(totalMinutes / 2));
     return true;
   }
   function clearAppointmentTravelTimes() {
-    const fields = [appointmentTravelInput("heen"), appointmentTravelInput("terug")].filter(Boolean);
-    if (!fields.length) return true;
-    for (const field2 of fields) setInputTextQuiet(field2, "0");
+    const velden = () => [appointmentTravelInput("heen"), appointmentTravelInput("terug")].filter(Boolean);
+    const fields = velden();
+    if (fields.every((f) => inputTextValue(f) === "0")) return true;
+    eerstViaFormulier(
+      () => zetVeldViaFormulier("travel_time_before", 0).then((ok) => ok && zetVeldViaFormulier("travel_time_after", 0)).then((ok) => ok && wachtTot(() => velden().every((f) => !(parseInt(inputTextValue(f), 10) > 0)), { max: 600 }).then(Boolean)),
+      () => {
+        for (const field2 of velden()) setInputTextQuiet(field2, "0");
+        return true;
+      }
+    );
     return true;
   }
   function appointmentTravelTotalMinutes() {
@@ -15408,28 +15426,48 @@
     setInputTextComposed(input2, "");
     return true;
   }
+  var eindtijdBezig = "";
+  function eindtijdTypen(tekst) {
+    const fresh = getEndTimeInput();
+    if (!fresh) return false;
+    const ok = setAppointmentEndInputText(fresh, tekst);
+    [80, 220, 420].forEach((delay) => setTimeout(() => {
+      const nu = getEndTimeInput();
+      if (nu && inputTextValue(nu) !== tekst) setAppointmentEndInputText(nu, tekst);
+    }, delay));
+    return ok;
+  }
+  function zetEindtijdAsync(tekst) {
+    const tijd = String(tekst || "");
+    const toont = () => {
+      const inp = getEndTimeInput();
+      return !!inp && inputTextValue(inp) === tijd;
+    };
+    appointmentFlow.helperEndText = tijd;
+    eindtijdBezig = tijd;
+    const klaar = (ok) => {
+      if (eindtijdBezig === tijd) eindtijdBezig = "";
+      return ok;
+    };
+    return eerstViaFormulier(
+      () => zetVeldViaFormulier("end_time", tijd).then((ok) => ok && wachtTot(toont, { max: 600 }).then(Boolean)),
+      () => eindtijdTypen(tijd)
+    ).then(klaar, () => klaar(false));
+  }
   function setAppointmentEndTimePlusMinutes(minutes) {
     const startText = String(appointmentCurrentStartTimeText() || appointmentFlow.activeAppointmentStartTimeText || "").trim();
     if (!/^(\d{1,2}):(\d{2})$/.test(startText)) return false;
     appointmentFlow.activeAppointmentStartTimeText = startText;
     restoreAppointmentStartTime();
     const next = addMinutesText(startText, minutes);
-    if (!next) return false;
-    const apply3 = () => {
-      const fresh = getEndTimeInput();
-      if (!fresh) return false;
-      return setAppointmentEndInputText(fresh, next);
-    };
-    const ok = apply3();
-    [80, 220, 420].forEach((delay) => setTimeout(() => {
-      const fresh = getEndTimeInput();
-      if (fresh && inputTextValue(fresh) !== next) setAppointmentEndInputText(fresh, next);
-    }, delay));
-    return ok;
+    if (!next || !getEndTimeInput()) return false;
+    zetEindtijdAsync(next);
+    return true;
   }
   function enforceAppointmentEndTime(minutes) {
     if (!minutes) return false;
     if (appointmentFlow.appointmentEndTimeUserOwned) return false;
+    if (eindtijdBezig) return true;
     const fresh = appointmentCurrentStartTimeText();
     if (fresh) appointmentFlow.activeAppointmentStartTimeText = fresh;
     const startText = String(appointmentFlow.activeAppointmentStartTimeText || "").trim();
@@ -15443,7 +15481,7 @@
       appointmentFlow.appointmentEndTimeUserOwned = true;
       return false;
     }
-    if (current !== wanted) setAppointmentEndInputText(endInput, wanted);
+    if (current !== wanted) zetEindtijdAsync(wanted);
     else appointmentFlow.helperEndText = wanted;
     return true;
   }
@@ -17305,7 +17343,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.283";
+      return "1.6.284";
     }
   }();
 
@@ -20949,6 +20987,11 @@
       getEndTimeInput,
       getStartTimeInput,
       enforceAppointmentEndTime,
+      setAppointmentEndTimePlusMinutes,
+      zetEindtijdAsync,
+      setAppointmentTravelTotalMinutes,
+      clearAppointmentTravelTimes,
+      zetReistijdenAsync,
       applyAppointmentDuration,
       appointmentReadyToSave,
       appointmentCoreApplied,

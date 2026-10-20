@@ -88,7 +88,8 @@ import {
   selectedKnownLabels,
   setLabelsExclusive,
 } from './features/appointment/labels.js';
-import { enforceAppointmentEndTime } from './features/appointment/end-time.js';
+import { enforceAppointmentEndTime, setAppointmentEndTimePlusMinutes, zetEindtijdAsync } from './features/appointment/end-time.js';
+import { clearAppointmentTravelTimes, setAppointmentTravelTotalMinutes, zetReistijdenAsync } from './features/appointment/travel.js';
 import { eerstViaFormulier, zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
 import { wachtTot } from './core/wacht.js';
 import { pollFor } from './ons/dom.js';
@@ -319,6 +320,11 @@ export function exposeTestApi() {
     getEndTimeInput,
     getStartTimeInput,
     enforceAppointmentEndTime,
+    setAppointmentEndTimePlusMinutes,
+    zetEindtijdAsync,
+    setAppointmentTravelTotalMinutes,
+    clearAppointmentTravelTimes,
+    zetReistijdenAsync,
     applyAppointmentDuration,
     appointmentReadyToSave,
     appointmentCoreApplied,

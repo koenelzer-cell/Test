@@ -142,9 +142,12 @@ afspraakniveau (dat ONS alleen toont zolang er geen cliënt aan de afspraak
 hangt); het id komt dan uit de uursoorten van de medewerker zonder cliënt
 (`product_list?employee_ids[]=…`), met of zonder sterretje achter de naam.
 
-De titel zet de hulp ook rechtstreeks in het formulier (het veld `name` via
-ONS' eigen `onChange`); toont het titelveld hem daarna niet, dan typt hij
-hem zoals vroeger. De voornamen in de titel ('Face to face - Tamara') en de vraag welke cliënt
+De titel, de eindtijd en de reistijd heen en terug zet de hulp ook
+rechtstreeks in het formulier (de velden `name`, `end_time`,
+`travel_time_before` en `travel_time_after` via ONS' eigen `onChange`); toont
+het veld de waarde daarna niet, dan typt hij hem zoals vroeger. Zolang de
+hulp de eindtijd zo zet, telt de oude tijd in het veld niet als een eigen
+wijziging van de medewerker. De voornamen in de titel ('Face to face - Tamara') en de vraag welke cliënt
 nog een uursoort mist, haalt de hulp ook uit het formulier zelf: uit het
 afspraakmodel (de cliënten met hun id) en uit het uursoortveld van elke
 cliënt. Alleen als dat niet lukt, leest hij de cliëntkaarten op het scherm.

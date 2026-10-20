@@ -391,3 +391,83 @@ test('eerstViaFormulier: het scherm-pad alleen als het formulier-pad niet lukt',
   assert.equal(await api.eerstViaFormulier(() => false, () => Promise.resolve(7)), 7, 'scherm-pad mag een belofte geven');
   assert.equal(scherm, 2);
 });
+
+// Een afspraakformulier met begin- en eindtijd (uc-time-input met een input
+// in de shadow root) en reistijd heen/terug, plus een nagebootste main-world:
+// antwoordt `neemtOver`, dan zet hij de waarde in het veld (zoals Vue na
+// onChange) zonder input-events; anders ok false.
+function tijdenFormulier({ neemtOver = true } = {}) {
+  const { api, window } = bootHelper({ html: '<!doctype html><body>'
+    + '<uc-time-input aria-label="Begintijd"></uc-time-input><uc-time-input aria-label="Eindtijd"></uc-time-input>'
+    + '<div data-test-rect="100,0,100,20">Reistijd heen</div><input id="heen" inputmode="decimal" value="0" data-test-rect="125,0,80,20">'
+    + '<div data-test-rect="100,300,100,20">Reistijd terug</div><input id="terug" inputmode="decimal" value="0" data-test-rect="125,300,80,20">'
+    + '</body>' });
+  const d = window.document;
+  const veld = (aria, waarde) => {
+    const host = d.querySelector('uc-time-input[aria-label="' + aria + '"]');
+    host.attachShadow({ mode: 'open' }).innerHTML = '<input placeholder="uu:mm">';
+    const inp = host.shadowRoot.querySelector('input');
+    inp.value = waarde;
+    return inp;
+  };
+  const start = veld('Begintijd', '10:00');
+  const eind = veld('Eindtijd', '11:00');
+  const heen = d.getElementById('heen'), terug = d.getElementById('terug');
+  const getypt = [];
+  [eind, heen, terug].forEach((el) => el.addEventListener('input', () => getypt.push(el.id || 'eind')));
+  const gevraagd = [];
+  window.postMessage = (data) => window.dispatchEvent(new window.MessageEvent('message', { data, origin: window.location.origin, source: window }));
+  window.addEventListener('message', (ev) => {
+    const m = ev.data;
+    if (!m || m.dir !== 'to-main' || m.type !== 'zetVeld') return;
+    gevraagd.push([m.veld, m.waarde]);
+    if (neemtOver) ({ end_time: eind, travel_time_before: heen, travel_time_after: terug })[m.veld].value = String(m.waarde);
+    window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'veldGezet', id: m.id, ok: neemtOver }, origin: window.location.origin, source: window }));
+  });
+  return { api, window, start, eind, heen, terug, getypt, gevraagd };
+}
+
+test('eindtijd en reistijd gaan eerst via het afspraakmodel (onChange), zonder typen', async () => {
+  const f = tijdenFormulier();
+  assert.equal(f.api.setAppointmentEndTimePlusMinutes(45), true, 'meteen: het kan');
+  await f.api.wachtTot(() => f.eind.value === '10:45', { max: 1000 });
+  assert.equal(f.eind.value, '10:45');
+  assert.equal(f.api.setAppointmentTravelTotalMinutes(25), true);
+  await f.api.wachtTot(() => f.terug.value === '12', { max: 1000 });
+  assert.deepEqual([f.heen.value, f.terug.value], ['13', '12'], 'totaal verdeeld: heen naar boven afgerond');
+  assert.deepEqual(JSON.parse(JSON.stringify(f.gevraagd)), [['end_time', '10:45'], ['travel_time_before', 13], ['travel_time_after', 12]]);
+  assert.equal(f.api.clearAppointmentTravelTimes(), true);
+  await f.api.wachtTot(() => f.heen.value === '0' && f.terug.value === '0', { max: 1000 });
+  assert.deepEqual(f.getypt, [], 'niets getypt');
+  // De eindtijd-guard leest de tijd van de hulp niet als eigen wijziging.
+  assert.equal(f.api.appointmentEndGuardState().helperEndText, '10:45');
+  assert.equal(f.api.appointmentEndGuardState().userOwned, false);
+});
+
+test('eindtijd en reistijd: neemt het model het niet over, dan één keer typen', async () => {
+  const f = tijdenFormulier({ neemtOver: false });
+  assert.equal(await f.api.zetEindtijdAsync('11:15'), true);
+  assert.equal(f.eind.value, '11:15');
+  assert.ok(f.getypt.includes('eind'), 'getypt');
+  await f.api.zetReistijdenAsync(10, 5);
+  assert.deepEqual([f.heen.value, f.terug.value], ['10', '5']);
+  assert.ok(f.getypt.includes('heen') && f.getypt.includes('terug'));
+});
+
+test('eindtijd-guard: terwijl de hulp de eindtijd via het model zet, telt de oude tijd niet als eigen wijziging', async () => {
+  const f = tijdenFormulier();
+  f.api.resetAppointmentEndGuard();
+  // Het model antwoordt pas later: intussen staat er nog 11:00.
+  const traag = f.window.postMessage;
+  f.window.postMessage = (data) => setTimeout(() => traag(data), 150);
+  f.api.setAppointmentEndTimePlusMinutes(30);
+  assert.equal(f.api.enforceAppointmentEndTime(30), true);
+  assert.equal(f.api.appointmentEndGuardState().userOwned, false, 'niet als eigen wijziging gelezen');
+  await f.api.wachtTot(() => f.eind.value === '10:30', { max: 1500 });
+  assert.equal(f.eind.value, '10:30');
+  // Daarna zelf een andere tijd: dat is wel een eigen wijziging.
+  await new Promise((r) => setTimeout(r, 50));
+  f.eind.value = '12:00';
+  assert.equal(f.api.enforceAppointmentEndTime(30), false);
+  assert.equal(f.api.appointmentEndGuardState().userOwned, true);
+});
