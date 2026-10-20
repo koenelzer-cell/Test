@@ -1,23 +1,19 @@
 // Vragen naar aanleiding van de rapportagetekst: no-show en episodes.
 
 import { ONS } from '../../ons/selectors.js';
-import { isOwnPopup, pollFor, visible } from '../../ons/dom.js';
+import { deepQueryAll, isOwnPopup, pollFor, visible } from '../../ons/dom.js';
 import { clickOption, setInputText } from '../../ons/form-controls.js';
 import { helperPanel, registrationFlow } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { clearScreenMark, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { showRegistrationChoices, showRegistrationReportPrompt } from './screens.js';
 import { activeRegistrationClientForms } from './completeness.js';
-import { applyRegistrationNoShow, registrationReadyToSubmitPage } from './hour-type.js';
-import { hasRegistrationPrereqs } from './prereqs.js';
-import {
-  registrationReportTextFields,
-  registrationReportTextValue,
-  registrationTextHasNoShowCue,
-} from './report.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { registrationReportTextFields, registrationReportTextValue, registrationTextHasNoShowCue } from './report.js';
+import { schermen } from '../../screen/schermen.js';
+import { applyRegistrationChoice } from './screens.js';
+import { REGISTRATION_CHOICES } from '../../config/app-config.js';
+import { hasRegistrationPrereqs, registrationReadyToSubmitPage } from './prereqs.js';
 
 export function showRegistrationNoShowPrompt() {
   const body = $body(); if (!body || registrationFlow.registrationNoShowPromptOpen) return;
@@ -31,7 +27,7 @@ export function showRegistrationNoShowPrompt() {
         registrationFlow.registrationNoShowPromptOpen = false;
         registrationFlow.registrationNoShowPromptSuppressed = true;
         applyRegistrationNoShow();
-        setTimeout(showRegistrationChoices, 350);
+        setTimeout(schermen.showRegistrationChoices, 350);
       });
     },
     onNo: function () {
@@ -41,8 +37,8 @@ export function showRegistrationNoShowPrompt() {
         const afterNo = registrationFlow.registrationNoShowPromptAfterNo;
         registrationFlow.registrationNoShowPromptAfterNo = null;
         if (afterNo) afterNo();
-        else if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
-        else showRegistrationChoices();
+        else if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage()) schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+        else schermen.showRegistrationChoices();
         setStatus('No show overgeslagen | ga verder');
       });
     },
@@ -60,7 +56,7 @@ export function checkRegistrationNoShowText(sourceEl) {
     registrationFlow.registrationNoShowPromptSuppressed = false;
     registrationFlow.registrationNoShowPromptOpen = false;
     registrationFlow.registrationNoShowPromptAfterNo = null;
-    if (wasOpen) showRegistrationChoices();
+    if (wasOpen) schermen.showRegistrationChoices();
     return;
   }
   if (!registrationFlow.registrationNoShowPromptSuppressed) showRegistrationNoShowPrompt();
@@ -141,7 +137,7 @@ function showRegistrationEpisodesPrompt() {
         registrationFlow.registrationEpisodesPromptOpen = false;
         registrationFlow.registrationEpisodesPromptSuppressed = true;
         const clientNumber = getRegistrationClientNumber();
-        if (!clientNumber) { setStatus('Cliëntnummer niet gevonden', false); showRegistrationChoices(); return; }
+        if (!clientNumber) { setStatus('Cliëntnummer niet gevonden', false); schermen.showRegistrationChoices(); return; }
         setStatus('Dossier zoeken...');
         doEpisodesSearch(clientNumber, (url) => {
           if (url) {
@@ -150,7 +146,7 @@ function showRegistrationEpisodesPrompt() {
           } else {
             setStatus('Dossierlink niet gevonden', false);
           }
-          showRegistrationChoices();
+          schermen.showRegistrationChoices();
         });
       });
     },
@@ -158,8 +154,8 @@ function showRegistrationEpisodesPrompt() {
       safe(function () {
         registrationFlow.registrationEpisodesPromptOpen = false;
         registrationFlow.registrationEpisodesPromptSuppressed = true;
-        if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage()) showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
-        else showRegistrationChoices();
+        if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage()) schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+        else schermen.showRegistrationChoices();
         setStatus('Episodes overgeslagen');
       });
     },
@@ -172,8 +168,11 @@ export function checkRegistrationEpisodesText() {
   const fields = registrationReportTextFields();
   const hasCue = fields.some((el) => !isOwnPopup(el) && registrationTextHasEpisodesTrigger(registrationReportTextValue(el)));
   if (!hasCue) {
-    if (registrationFlow.registrationEpisodesPromptOpen) { registrationFlow.registrationEpisodesPromptOpen = false; registrationFlow.registrationEpisodesPromptSuppressed = false; showRegistrationChoices(); }
+    if (registrationFlow.registrationEpisodesPromptOpen) { registrationFlow.registrationEpisodesPromptOpen = false; registrationFlow.registrationEpisodesPromptSuppressed = false; schermen.showRegistrationChoices(); }
     return;
   }
   if (!registrationFlow.registrationEpisodesPromptSuppressed) showRegistrationEpisodesPrompt();
+}
+export function applyRegistrationNoShow() {
+  applyRegistrationChoice(REGISTRATION_CHOICES[0]);
 }

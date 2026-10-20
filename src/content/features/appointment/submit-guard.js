@@ -1,16 +1,14 @@
 // Opslaan blokkeren zolang er geen uursoort is.
 
 import { overrideEl } from '../../ons/selector-overrides.js';
-import { isOwnPopup, visible } from '../../ons/dom.js';
+import { deepQueryAll, isOwnPopup, visible } from '../../ons/dom.js';
 import { findRecurrenceField, findRecurrenceHeader } from '../../ons/appointment-form.js';
-import { appointmentLabelRequiredButMissing } from './fields.js';
-import { hasUursoortSelected, shouldRequireUursoortForSubmit } from './uursoort-field.js';
+import { appointmentLabelRequiredButMissing, nonClientFreeTitleComplete } from './fields.js';
+import { hasUursoortSelected, nonClientUursoortSet, shouldRequireUursoortForSubmit } from './uursoort-field.js';
 import { doorplannenBlocksSave } from './recurrence.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { setStatus } from '../../screen/status.js';
-import { highlightField } from '../quality.js';
-import { nonClientFreeTitleComplete, nonClientUursoortSet } from './non-client.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { highlightField } from '../../ui/highlight.js';
 
 export function submitButtons() {
   const ov = overrideEl('afsOpslaan'); if (ov) return [ov];

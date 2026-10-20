@@ -8,22 +8,12 @@ import { clean } from '../../ons/dom.js';
 import { inputTextValue } from '../../ons/form-controls.js';
 import { registrationFlow } from '../../state.js';
 import { safe } from '../../screen/status.js';
-import {
-  clickRegistrationTravelTimeButton,
-  registrationDirectTimeInput,
-  registrationIndirectTimeInput,
-  registrationTravelInput,
-  scheduleReapplyRegistrationSplit,
-  setRegistrationTimeSplit,
-  setRegistrationTravelTotalMinutes,
-} from './fields.js';
-import { _regToMin } from './completeness.js';
+import { _regToMin, clickRegistrationTravelTimeButton, registrationDirectTimeInput, registrationIndirectTimeInput, registrationTravelInput, scheduleReapplyRegistrationSplit, setRegistrationTimeSplit, setRegistrationTravelTotalMinutes } from './fields.js';
 import { ensureActiveRegistrationReportPrefix } from './report.js';
 import { ctxForcedVorm } from './context-menu.js';
-import { PAGE_SESSION } from '../../../shared/storage-keys.js';
+import { clearPendingRegistration, PENDING_REG_KEY } from './pending-store.js';
 
 // ===== Afspraaklabel -> registratievorm =====
-export const PENDING_REG_KEY = PAGE_SESSION.PENDING_REGISTRATION;
 // Id (occurrence) van de HUIDIGE registratie uit de URL — robuust voor beide vormen:
 // /registrations/{id}/edit én /calendar/invitee/{x}/registrations/{id}/...
 let _regIdOverride = null; // testhaak
@@ -32,23 +22,6 @@ export function currentRegistrationId() {
   if (_regIdOverride != null) return _regIdOverride;
   const m = (location.pathname || '').match(/\/registrations\/([^/?#]+)/);
   return m ? m[1] : null;
-}
-// Vergeet de onthouden registratievorm/tijden (bij indienen of terug naar de agenda).
-export function clearPendingRegistration() { try { sessionStorage.removeItem(PENDING_REG_KEY); } catch (e) {} }
-// Koppelt een ONS-afspraaklabel (bv. "JG Huisbezoek") aan een registratievorm
-// uit REGISTRATION_CHOICES. Onbekende labels (bv. Telefonisch/Digitaal, dat
-// geen eigen registratievorm heeft) geven null -> geen automatische route.
-export function matchRegistrationChoiceByLabel(label) {
-  const c = clean(label);
-  if (!c) return null;
-  // De koppeling zit in de registratievorm zelf (APP_CONFIG.registrationForms[].labels).
-  // Een vorm matcht als het afspraaklabel één van zijn gekoppelde labels bevat.
-  for (const form of (APP_CONFIG.registrationForms || [])) {
-    const labels = Array.isArray(form.labels) ? form.labels : [];
-    const hit = labels.some((w) => { const cw = clean(w); return !!cw && c.indexOf(cw) !== -1; });
-    if (hit) return REGISTRATION_CHOICES.find((x) => clean(x.label) === clean(form.vorm)) || null;
-  }
-  return null;
 }
 // Het afspraaklabel uit de OPMAAK van de detailpopup. Vangnet voor als de
 // details-API niets opleverde. Kent drie opmaken:
@@ -253,4 +226,19 @@ export function installDeclareClickCapture() {
       }), d));
     }
   }, true);
+}
+// Koppelt een ONS-afspraaklabel (bv. "JG Huisbezoek") aan een registratievorm
+// uit REGISTRATION_CHOICES. Onbekende labels (bv. Telefonisch/Digitaal, dat
+// geen eigen registratievorm heeft) geven null -> geen automatische route.
+export function matchRegistrationChoiceByLabel(label) {
+  const c = clean(label);
+  if (!c) return null;
+  // De koppeling zit in de registratievorm zelf (APP_CONFIG.registrationForms[].labels).
+  // Een vorm matcht als het afspraaklabel één van zijn gekoppelde labels bevat.
+  for (const form of (APP_CONFIG.registrationForms || [])) {
+    const labels = Array.isArray(form.labels) ? form.labels : [];
+    const hit = labels.some((w) => { const cw = clean(w); return !!cw && c.indexOf(cw) !== -1; });
+    if (hit) return REGISTRATION_CHOICES.find((x) => clean(x.label) === clean(form.vorm)) || null;
+  }
+  return null;
 }

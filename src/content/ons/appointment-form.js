@@ -8,6 +8,7 @@ import { overrideAll, overrideEl, UI_OVERRIDES } from './selector-overrides.js';
 import { area, clean, deepQueryAll, isOwnPopup, rect, visible } from './dom.js';
 import { clickBoxFor, findOpener, firstByDataQa, inputTextValue, isUsableBox, uiText } from './form-controls.js';
 import { firstNameFromName as voornaamUitNaam } from '../../shared/namen.js';
+import { findModal } from './modal.js';
 
 export function getEtiketTrigger() {
   if (CONFIG.etiketFieldSelector) { const f = document.querySelector(CONFIG.etiketFieldSelector); if (f) return f; }
@@ -499,4 +500,69 @@ export function findRecurrenceHeader() {
 export function findRecurrenceField() {
   const ovSel = UI_OVERRIDES.recurrenceType;
   return (ovSel ? deepQueryAll(ovSel) : deepQueryAll('[data-qa="recurrence-type"]')).find((el) => visible(el) && !isOwnPopup(el)) || null;
+}
+export function findNonClientUursoortTrigger() {
+  // Het uursoort-veld op afspraakniveau, via het label "Uursoort" in Afspraakdetails.
+  // Gebruik hier nooit de cliëntkaart: dezelfde discipline als de cliëntgebonden
+  // flow, maar dan met een eigen afspraakniveau-context.
+  const modal = findModal() || document;
+  const modalBox = modal && modal.getBoundingClientRect ? rect(modal) : { left: 0, width: window.innerWidth || document.documentElement.clientWidth || 1200 };
+  const detailsHead = deepQueryAll('h1,h2,h3,div,span,p', modal).find(function (el) {
+    return visible(el) && !isOwnPopup(el) && clean(el.textContent || '') === 'afspraakdetails';
+  });
+  const detailsLeft = detailsHead ? rect(detailsHead).left : (modalBox.left + modalBox.width * 0.45);
+  const rightSide = function (el) {
+    const r = rect(el);
+    if (r.width <= 0 || r.height <= 0) return false;
+    if (r.left < detailsLeft - 100) return false;
+    let n = el.parentElement;
+    for (let depth = 0; n && depth < 7; depth++, n = n.parentElement) {
+      const txt = clean(n.textContent || '');
+      if (txt.includes('genodigden') || txt.includes('clienten zijn aanwezig') || txt.includes('verwijder uit selectie')) return false;
+      if (txt.includes('afspraakdetails')) return true;
+    }
+    return true;
+  };
+  const direct = deepQueryAll('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]', modal)
+    .filter(function (el) { return visible(el) && !isOwnPopup(el) && rightSide(el); })
+    .sort(function (a, b) { return rect(a).top - rect(b).top; })[0];
+  if (direct) {
+    return direct;
+  }
+  const labels = deepQueryAll('label,div,span,p', modal).filter(function (el) {
+    return visible(el) && !isOwnPopup(el) && clean(el.textContent || '') === 'uursoort';
+  }).filter(function (label) {
+    const lr = rect(label);
+    if (lr.left < detailsLeft - 80) return false;
+    let n = label.parentElement;
+    for (let depth = 0; n && depth < 7; depth++, n = n.parentElement) {
+      const txt = clean(n.textContent || '');
+      if (txt.includes('genodigden') || txt.includes('clienten zijn aanwezig') || txt.includes('verwijder uit selectie')) return false;
+      if (txt.includes('afspraakdetails')) return true;
+    }
+    return true;
+  });
+  for (const label of labels) {
+    const lr = rect(label);
+    const candidates = deepQueryAll('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"], [data-qa="hour_type_select"], [role="combobox"],select,button,div,span,input', modal);
+    let best = null, bestScore = Infinity;
+    for (const el of candidates) {
+      if (!visible(el) || isOwnPopup(el) || el === label) continue;
+      const meta = clean((uiText(el) || '') + ' ' + ((el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.getAttribute('data-qa') || '')) || ''));
+      if (/reistijd|locatie|labels|notities|titel|begintijd|eindtijd/.test(meta)) continue;
+      const r = rect(el);
+      if (r.width < 150 || r.height < 22 || r.height > 90) continue;
+      if (r.top < lr.bottom - 8 || r.top > lr.bottom + 100) continue;
+      if (Math.abs(r.left - lr.left) > 280) continue;
+      const textBonus = /zoek naar uursoorten|uursoort/.test(meta) ? -500 : 0;
+      const hostBonus = /^UC-SELECT$/i.test(el.tagName || '') ? -700 : 0;
+      const score = textBonus + hostBonus + (r.top - lr.bottom) * 10 + Math.abs(r.left - lr.left);
+      if (score < bestScore) { best = el; bestScore = score; }
+    }
+    if (best) {
+      const nested = best.querySelector && best.querySelector('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"], [data-qa="hour_type_select"], [aria-label="Uursoort"]');
+      return nested || best;
+    }
+  }
+  return null;
 }

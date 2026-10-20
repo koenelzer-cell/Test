@@ -3,12 +3,11 @@
 
 import { REGISTRATION_CHOICES } from '../../config/app-config.js';
 import { overrideEl } from '../../ons/selector-overrides.js';
-import { area, clean, isOwnPopup, visible } from '../../ons/dom.js';
+import { area, clean, deepQueryAll, isOwnPopup, visible } from '../../ons/dom.js';
 import { setInputTextComposed } from '../../ons/form-controls.js';
 import { helperPanel, registrationFlow } from '../../state.js';
 import { setStatus } from '../../screen/status.js';
-import { clearPendingRegistration } from './pending.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { clearPendingRegistration } from './pending-store.js';
 
 export function registrationTextHasNoShowCue(text) {
   return /\b(afwezig|voicemail|geen gehoor|niet bereikbaar|onbereikbaar|neemt niet op|nam niet op|niet opgenomen|niet verschenen|niet gekomen|komt niet|kwam niet|no show|noshow|zonder bericht|geen reactie|reageert niet|niet thuis|deur niet open|op voicemail|ingesproken)\b/i.test(text || '');

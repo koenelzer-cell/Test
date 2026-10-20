@@ -3,10 +3,10 @@
 import { supportTopdeskUrl } from '../config/app-config.js';
 import { helperPanel } from '../state.js';
 import { $body, safe, showDisabledState } from '../screen/status.js';
-import { createCurrentScreenRestore } from './screen-restore.js';
 import { mkBackButton } from '../ui/controls.js';
 import { resetBody } from '../screen/screen-state.js';
 import { SCRIPT_VERSION } from '../../shared/version.js';
+import { schermen } from '../screen/schermen.js';
 
 function closeInfoPanel() {
   if (!helperPanel._infoPanelRestore) return;
@@ -22,7 +22,7 @@ export function toggleInfoPanel() {
 function showInfoPanel() {
   const body = $body(); if (!body) return;
   if (helperPanel._infoPanelRestore) return; // al open: niet opnieuw opbouwen
-  helperPanel._infoPanelRestore = helperPanel.helperEnabled ? createCurrentScreenRestore() : () => showDisabledState();
+  helperPanel._infoPanelRestore = helperPanel.helperEnabled ? schermen.createCurrentScreenRestore() : () => showDisabledState();
   const statusEl = helperPanel.popupEl && helperPanel.popupEl.querySelector('[data-status]');
   resetBody(body);
   body.appendChild(mkBackButton(() => safe(closeInfoPanel), 'Terug'));

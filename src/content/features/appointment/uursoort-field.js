@@ -2,13 +2,12 @@
 
 import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import { clickElementCenter, clickOption, openSelectCombobox, optionSearchRoots, optionText, searchInputForTrigger, setInputText, uiText } from '../../ons/form-controls.js';
-import { optionCandidates } from '../../ons/uursoort-options.js';
-import { entryUursoortIsSet, findClientEntries, getUursoortTrigger } from '../../ons/appointment-form.js';
+import { invalidUursoortOption, optionCandidates } from '../../ons/uursoort-options.js';
+import { entryUursoortIsSet, findClientEntries, findNonClientUursoortTrigger, getUursoortTrigger } from '../../ons/appointment-form.js';
 import { clearSelectField, clickEmptyModalSpot, openTypePick } from '../../ons/interaction.js';
 import { clickExactDropdownOption } from './labels.js';
 import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
-import { findNonClientUursoortTrigger } from './non-client.js';
 import { eerstViaFormulier, wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
 import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
 
@@ -174,4 +173,44 @@ export function anyUursoortPresent() {
   if (!trigger) return false;
   const txt = clean(uiText(trigger) || trigger.textContent || ('value' in trigger ? trigger.value : '') || '');
   return !!txt && !/zoek naar uursoorten|selecteer uursoort|uursoort|geen resultaten|voer minstens|toont /.test(txt);
+}
+export function nonClientUursoortSet() {
+  if (!appointmentFlow.activeNonClientOption) return false;
+  const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
+  if (!trigger) return false;
+  const wanted = appointmentFlow.activeNonClientOption.uursoort;
+  // 1) Chips zoals bij labels. Een spurious chip mag NIET kortsluiten: als er
+  //    chips zijn maar geen ervan matcht, alsnog de trigger-tekst controleren.
+  const chips = nonClientUursoortChips(trigger);
+  if (chips.some((chip) => nonClientHourTypeMatches(chip, wanted))) return true;
+  // 2) Trigger-tekst: een uc-select toont de gekozen waarde in het veld zelf
+  //    (geen losse verwijderbare chip).
+  const txt = clean(uiText(trigger) || trigger.textContent || ('value' in trigger ? trigger.value : '') ||
+    (trigger.getAttribute && (trigger.getAttribute('title') || trigger.getAttribute('value'))) || '');
+  if (!txt || /^(zoek naar uursoorten|selecteer uursoort|uursoort|zoek naar uursoort)$/.test(txt)) return false;
+  return nonClientHourTypeMatches(txt, wanted);
+}
+// Geeft de geselecteerde uursoort-chips naast het trigger-veld terug,
+// op dezelfde manier als selectedKnownLabels dat voor etiketten doet.
+export function nonClientUursoortChips(trigger) {
+  if (!trigger) return [];
+  const tr = rect(trigger);
+  const found = [];
+  const seen = new Set();
+  for (const el of deepQueryAll('div,span,button,[role="button"]')) {
+    if (!visible(el) || isOwnPopup(el)) continue;
+    const r = rect(el);
+    if (r.bottom < tr.top - 24 || r.top > tr.bottom + 24 || r.left < tr.left - 60 || r.right > tr.right + 120) continue;
+    const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    const c = clean(txt);
+    if (!c || /^zoek naar|selecteer uursoort/.test(c) || invalidUursoortOption(txt)) continue;
+    if (!seen.has(c)) { seen.add(c); found.push(txt); }
+  }
+  return found;
+}
+function nonClientHourTypeMatches(text, wanted) {
+  const c = clean(text);
+  const w = clean(wanted);
+  const loose = clean(String(wanted || '').replace(/[*#]+$/, ''));
+  return !!c && (c === w || (!!loose && c === loose) || c.includes(w) || (!!loose && c.includes(loose)));
 }

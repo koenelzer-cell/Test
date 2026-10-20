@@ -1,22 +1,17 @@
 // Voorwaarden voor de registratiehulp en wachten tot de pagina rustig is.
 
 import { mkText } from '../../ui/managed-text.js';
-import { clean, isOwnPopup, visible } from '../../ons/dom.js';
+import { clean, deepQueryAll, isOwnPopup, visible } from '../../ons/dom.js';
 import { helperPanel, registrationFlow } from '../../state.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
 import { markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
 import { hasRegistrationDate, hasRegistrationStartTime } from './fields.js';
-import {
-  registrationManualSubmitReady,
-  showRegistrationChoices,
-  showRegistrationReportPrompt,
-  showRegistrationSubmitOnly,
-} from './screens.js';
-import { registrationReadyToSubmitPage, visibleSelect2HourTypeContainers } from './hour-type.js';
+import { hasRegistrationEndTime, hasRegistrationHourTypeSelected, visibleSelect2HourTypeContainers } from './hour-type.js';
 import { restoreRegistrationExtras } from './pending.js';
 import { maybePrefetchUursoorten } from '../appointment/uursoort-source.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { schermen } from '../../screen/schermen.js';
+import { registrationReportNeedsContent } from './report.js';
 
 export function hasRegistrationClient() {
   const valuedClientInput = deepQueryAll('input,select').some((el) => {
@@ -42,9 +37,6 @@ export function hasRegistrationClient() {
     if (/rapportage|registratie maken|reistijd toevoegen|afwezigheid toevoegen/.test(text)) return false;
     return /geboren op\b|\(\d{3,}\)|\b\d{1,2}\s*jaar\b/.test(text);
   });
-}
-export function hasRegistrationPrereqs() {
-  return hasRegistrationClient() && hasRegistrationDate() && hasRegistrationStartTime();
 }
 export function showRegistrationNeedsClient() {
   const body = $body(); if (!body) return;
@@ -90,18 +82,30 @@ export function refreshRegistrationPrereqScreen() {
   // Na een refresh hersteld: de vorm is bekend -> rapportagescherm, ook zonder inhoud.
   if (registrationFlow.registrationRestoredToReport && registrationFlow.activeRegistrationChoice && !/richtlijn rapporteren|indienen/i.test(text)) {
     restoreRegistrationExtras(); // directe/indirecte tijd + reistijd terugzetten
-    showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+    schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
     return;
   }
   if (registrationFlow.activeRegistrationChoice && registrationReadyToSubmitPage() && !/richtlijn rapporteren|indienen/i.test(text)) {
-    showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+    schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
     return;
   }
   // Geen cliënt, maar wel uursoort + tijden -> alleen Indienen tonen.
   if (!registrationFlow.activeRegistrationChoice && registrationManualSubmitReady()) {
-    if (!(helperPanel.popupEl && helperPanel.popupEl.querySelector('[data-registration-helper-submit]'))) showRegistrationSubmitOnly();
+    if (!(helperPanel.popupEl && helperPanel.popupEl.querySelector('[data-registration-helper-submit]'))) schermen.showRegistrationSubmitOnly();
     return;
   }
-  if (/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text) && hasRegistrationPrereqs()) showRegistrationChoices();
+  if (/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text) && hasRegistrationPrereqs()) schermen.showRegistrationChoices();
   else if (!hasRegistrationPrereqs() && !/vul client, begintijd en datum in|vul cliënt, begintijd en datum in|voor clientgebonden registraties|voor cliëntgebonden registraties/i.test(text)) showRegistrationNeedsClient();
+}
+// Geen cliënt gekoppeld maar wel een uursoort ingevuld: dan is er geen rapportage
+// nodig. Toon enkel de Indienen-knop, zonder rapportage-richtlijn/groepsnotitie.
+export function registrationManualSubmitReady() {
+  return !hasRegistrationClient() && hasRegistrationDate() && hasRegistrationStartTime() &&
+    hasRegistrationEndTime() && hasRegistrationHourTypeSelected();
+}
+export function hasRegistrationPrereqs() {
+  return hasRegistrationClient() && hasRegistrationDate() && hasRegistrationStartTime();
+}
+export function registrationReadyToSubmitPage() {
+  return hasRegistrationPrereqs() && hasRegistrationEndTime() && hasRegistrationHourTypeSelected() && !registrationReportNeedsContent();
 }

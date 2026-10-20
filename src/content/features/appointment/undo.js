@@ -14,8 +14,8 @@ import { appointmentFlow } from '../../state.js';
 import { safe, setStatus, showLoadingState } from '../../screen/status.js';
 import { mkButton } from '../../ui/controls.js';
 import { OnsAdapter } from './ons-adapter.js';
-import { showChoices } from './choices.js';
 import { maybePrefetchUursoorten, resetPrefetchedUursoorten } from './uursoort-source.js';
+import { schermen } from '../../screen/schermen.js';
 
 // ===== Ongedaan maken =====
 // Vóór de hulp velden gaat invullen, leggen we vast wat er stond. "Verwijder
@@ -98,7 +98,7 @@ export function clearSettings() {
     const travelOk = clearAppointmentTravelTimes();
     clearKnownLabels((labelOk) => clearAllUursoorten(() => {
       appointmentFlow.appointmentClearingSettings = false;
-      showChoices();
+      schermen.showChoices();
       const msg = ['Instellingen verwijderd'];
       if (!titleOk) msg.push('titel niet gevonden');
       if (!endTimeOk) msg.push('eindtijd niet gevonden');

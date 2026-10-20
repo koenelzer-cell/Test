@@ -48,17 +48,6 @@ export function helperQualityIssues() {
   } catch (e) {}
   return out;
 }
-// Markeer een veld visueel zodat de gebruiker weet waar te handelen.
-export function highlightField(el, ms) {
-  try {
-    if (!el || el.nodeType !== 1) return;
-    const prevOutline = el.style.outline, prevOffset = el.style.outlineOffset;
-    el.style.outline = '2px solid #cc087d';
-    el.style.outlineOffset = '2px';
-    try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
-    setTimeout(() => { try { el.style.outline = prevOutline; el.style.outlineOffset = prevOffset; } catch (e) {} }, ms || 6000);
-  } catch (e) {}
-}
 // Waarschuwingsbanner met instelbare tekst + doorklik naar het meldkanaal.
 export function mkProblemBanner(missing) {
   const wrap = document.createElement('div');

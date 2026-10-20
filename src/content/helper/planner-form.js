@@ -15,14 +15,13 @@ import { appointmentFlow } from '../state.js';
 import { applyPendingAppointment } from '../features/appointment/prefill.js';
 import { zetTitelAsync } from '../features/appointment/title.js';
 import { setLabelsExclusive } from '../features/appointment/labels.js';
-import { showAppointmentReadyToSave } from '../features/appointment/save.js';
-import { clientsMissingUursoortEntries, showUursoortQueue } from '../features/appointment/uursoort-queue.js';
+import { clientsMissingUursoortEntries } from '../features/appointment/uursoort-queue.js';
 import { ensureClientExpanded, hasClientInAppointment } from '../features/appointment/clients.js';
 import { handleNonClientOption } from '../features/appointment/non-client.js';
 import { clientVoornamenAsync } from '../features/appointment/client-name.js';
 import { leesFormulier } from '../ons/form-model.js';
-import { showAppointmentNeedsPrereqs } from '../features/appointment/prereqs.js';
 import { inputTextValue } from '../ons/form-controls.js';
+import { schermen } from '../screen/schermen.js';
 
 // Het afspraaktype uit de beheerlijst waar dit label bij hoort.
 export function keuzeVoorLabel(naam) {
@@ -136,7 +135,7 @@ export function startVanuitPlanhulp() {
         appointmentFlow.planhulpVullenSinds = Date.now();
         wachtOpClientkaarten(() => { voegVoornamenToe(keuze).then(afronden, afronden); });
       };
-      showAppointmentNeedsPrereqs();
+      schermen.showAppointmentNeedsPrereqs();
       return;
     }
     const labels = choiceLabels(keuze);
@@ -145,7 +144,7 @@ export function startVanuitPlanhulp() {
       // Pas nu geldt het type als toegepast (zoals na een klik in de hulp).
       appointmentFlow.appointmentTypeApplied = true;
       if (titel && !clientLater) zetTitel(titel);
-      showAppointmentReadyToSave();
+      schermen.showAppointmentReadyToSave();
     };
     appointmentFlow.planhulpVullenSinds = Date.now();
     wachtOpClientkaarten(() => {
@@ -158,7 +157,7 @@ export function startVanuitPlanhulp() {
           if (!missen) { naarOpslaan(); return; }
           // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
           appointmentFlow.planhulpVullenSinds = 0;
-          showUursoortQueue([], () => setLabelsExclusive(labels, naarOpslaan));
+          schermen.showUursoortQueue([], () => setLabelsExclusive(labels, naarOpslaan));
         });
       });
     });

@@ -2,32 +2,17 @@
 // observers en timers.
 
 import { invalidateClientEntries } from '../ons/appointment-form.js';
-import { onAppointmentInput } from '../features/appointment/fields.js';
-import {
-  blockSubmitIfNoUursoort,
-  updateSubmitGuard,
-} from '../features/appointment/submit-guard.js';
+import { blockSubmitIfNoUursoort, updateSubmitGuard } from '../features/appointment/submit-guard.js';
 import { maybeDismissStrayInviteeModal } from '../features/appointment/invitee-guard.js';
-import {
-  agendaHelperDeactivate,
-  appointmentFlow,
-  helperPanel,
-  registrationFlow,
-} from '../state.js';
+import { agendaHelperDeactivate, appointmentFlow, helperPanel, registrationFlow } from '../state.js';
 import { safe } from '../screen/status.js';
-import { refreshAppointmentPrereqScreen } from '../features/appointment/prereqs.js';
 import { clearScreenMark } from '../screen/screen-state.js';
-import {
-  blockRegistrationSubmitIfReportEmpty,
-  updateRegistrationSubmitGuard,
-} from '../features/registration/report.js';
-import {
-  onRegistrationReportFocus,
-  onRegistrationReportInput,
-  onRegistrationTimeInteract,
-} from '../features/registration/input-handlers.js';
+import { blockRegistrationSubmitIfReportEmpty, updateRegistrationSubmitGuard } from '../features/registration/report.js';
+import { onRegistrationReportFocus, onRegistrationReportInput, onRegistrationTimeInteract } from '../features/registration/input-handlers.js';
 import { loadPendingRegistrationLabel } from '../features/registration/pending.js';
 import { ensureMounted, removePopup, reposition, scheduleMount } from './panel.js';
+import { schermen } from '../screen/schermen.js';
+import { onAppointmentInput } from '../features/appointment/gereed.js';
 
 export function activate(mode) {
   if (helperPanel.active && helperPanel.activeMode === mode) return;
@@ -85,7 +70,7 @@ export function activate(mode) {
     if (helperPanel.activeMode !== 'registrations') {
       // Vangnet: mocht de MutationObserver/input een cliënt- of datum/tijd-
       // wijziging missen, dan herkent dit interval die alsnog snel.
-      refreshAppointmentPrereqScreen();
+      schermen.refreshAppointmentPrereqScreen();
       updateSubmitGuard();
     } else {
       updateRegistrationSubmitGuard();

@@ -3,36 +3,22 @@
 
 import { CONFIG, nonClientCategoriesActive } from '../../config/app-config.js';
 import { clean } from '../../ons/dom.js';
-import {
-  appointmentReadyToSave,
-  appointmentSaveStageStillValid,
-  hasAppointmentDate,
-  hasAppointmentPrereqs,
-  hasAppointmentStartTime,
-} from './fields.js';
+import { hasAppointmentDate, hasAppointmentStartTime, nonClientFreeTitleComplete } from './fields.js';
 import { updateSubmitGuard } from './submit-guard.js';
-import { refreshFreeDayFromBackgroundCalendar, showFreeDayInactive } from './free-day.js';
+import { refreshFreeDayFromBackgroundCalendar } from './free-day.js';
 import { ensureClientExpanded, hasClientInAppointment } from './clients.js';
-import {
-  appointmentNeedsAvailabilityConfirmation,
-  showAvailabilityWarning,
-} from './availability.js';
-import { appointmentInSaveStage, showAppointmentReadyToSave } from './save.js';
+import { appointmentNeedsAvailabilityConfirmation } from './availability.js';
+import { appointmentInSaveStage } from './save.js';
 import { clickAddClientButton } from './invitee-guard.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { isScreen, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { showChoices } from './choices.js';
-import {
-  clearNonClientSettings,
-  handleNonClientOption,
-  nonClientFreeTitleComplete,
-  nonClientUursoortSet,
-  showNonClientCategory,
-} from './non-client.js';
-import { showManualUursoortInstruction } from './uursoort-screens.js';
+import { clearNonClientSettings, handleNonClientOption } from './non-client.js';
+import { schermen } from '../../screen/schermen.js';
+import { appointmentReadyToSave, appointmentSaveStageStillValid, hasAppointmentPrereqs } from './gereed.js';
+import { nonClientUursoortSet } from './uursoort-field.js';
 
 export function resumeAppointmentHelperAfterEnable() {
   helperPanel._infoPanelRestore = null;
@@ -47,7 +33,7 @@ export function resumeAppointmentHelperAfterEnable() {
   }
   ensureClientExpanded((expanded) => {
     appointmentFlow.appointmentForceChoiceOnce = true;
-    showChoices();
+    schermen.showChoices();
     updateSubmitGuard();
     setStatus(expanded ? 'Clientkaarten open' : 'Clientkaarten openen...', expanded);
   });
@@ -71,7 +57,7 @@ export function showAppointmentNeedsPrereqs() {
   }
   // Knop om een cliënt toe te voegen (klikt de echte ONS-knop).
   if (hasClientInAppointment()) {
-    showChoices();
+    schermen.showChoices();
     return;
   }
   // Beheerde categorieën uit config.nonClientCategories hebben voorrang (incl.
@@ -85,7 +71,7 @@ export function showAppointmentNeedsPrereqs() {
       safe(function () {
         const cat = _cats[i];
         if (cat.directOption) handleNonClientOption(cat.directOption);
-        else showNonClientCategory(cat);
+        else schermen.showNonClientCategory(cat);
       });
     },
     onReset: function () { safe(clearNonClientSettings); },
@@ -96,7 +82,7 @@ export function refreshAppointmentPrereqScreen() {
   const body = $body(); if (!body) return;
   if (Date.now() < helperPanel.suppressAutoUntil) return; // net op Terug geklikt: scherm met rust laten
   refreshFreeDayFromBackgroundCalendar();
-  if (appointmentFlow.appointmentFreeDay) { showFreeDayInactive(); return; } // vrije/grijze dag: niet optreden
+  if (appointmentFlow.appointmentFreeDay) { schermen.showFreeDayInactive(); return; } // vrije/grijze dag: niet optreden
   if (helperPanel._infoPanelRestore) return; // infopaneel open: niet overschrijven
   if (appointmentFlow.appointmentFlowBusy) return; // clientgebonden duur/reistijd/instellen: niet terugschieten naar keuze
   if (appointmentFlow.uursoortQueueActive) return; // per-cliënt uursoortlijst open: niet terugschieten naar keuze
@@ -104,12 +90,12 @@ export function refreshAppointmentPrereqScreen() {
   if (appointmentFlow.appointmentClearingSettings) { showLoadingState('Instellingen verwijderen...'); return; }
   // 'Overig' vrije-titel-flow: bewaar het titelscherm of de opslaanpagina.
   if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) {
-    if (hasClientInAppointment() && hasAppointmentPrereqs()) { appointmentFlow.nonClientFreeTitleScreenActive = false; appointmentFlow.activeNonClientOption = null; showChoices(); return; }
+    if (hasClientInAppointment() && hasAppointmentPrereqs()) { appointmentFlow.nonClientFreeTitleScreenActive = false; appointmentFlow.activeNonClientOption = null; schermen.showChoices(); return; }
     if (nonClientFreeTitleComplete(appointmentFlow.activeNonClientOption)) {
       // Titel is compleet: zorg dat we op de opslaanpagina staan/blijven.
       if (appointmentFlow.nonClientFreeTitleScreenActive || !text.includes('als de instellingen kloppen')) {
         appointmentFlow.nonClientFreeTitleScreenActive = false;
-        showAppointmentReadyToSave();
+        schermen.showAppointmentReadyToSave();
       }
       return;
     }
@@ -119,12 +105,12 @@ export function refreshAppointmentPrereqScreen() {
   // 'Geen uursoorten gevonden'-foutpagina niet overschrijven (tenzij er alsnog
   // handmatig een uursoort is gekozen).
   if (appointmentFlow.nonClientNoUursoortActive && appointmentFlow.activeNonClientOption && !appointmentFlow.activeNonClientOption.freeTitle) {
-    if (nonClientUursoortSet()) { appointmentFlow.nonClientNoUursoortActive = false; showAppointmentReadyToSave(); }
+    if (nonClientUursoortSet()) { appointmentFlow.nonClientNoUursoortActive = false; schermen.showAppointmentReadyToSave(); }
     return;
   }
   const text = clean(body.textContent || '');
   if (appointmentNeedsAvailabilityConfirmation() && !text.includes('al een afspraak') && !appointmentInSaveStage()) {
-    showAvailabilityWarning();
+    schermen.showAvailabilityWarning();
     return;
   }
   const choiceScreen = CONFIG.choices.every((choice) => text.includes(clean(choice.label)));
@@ -132,7 +118,7 @@ export function refreshAppointmentPrereqScreen() {
     // Het uursoort-wachtscherm werkt zichzelf bij via zijn eigen poll-lus;
     // hier alleen herstellen als dat scherm (door een refresh) verdwenen is.
     // Dat weten we nu uit de schermtoestand i.p.v. uit het bestaan van een timer.
-    if (!isScreen('manualUursoortInstruction')) showManualUursoortInstruction();
+    if (!isScreen('manualUursoortInstruction')) schermen.showManualUursoortInstruction();
     return;
   }
   if (appointmentFlow.appointmentSaveScreenActive) {
@@ -143,7 +129,7 @@ export function refreshAppointmentPrereqScreen() {
     appointmentFlow.appointmentSaveScreenActive = false; // opslaanfase echt weg (bv. cliënt/label/tijd verwijderd): refresh weer vrijgeven
   }
   if (appointmentReadyToSave() && !choiceScreen) {
-    showAppointmentReadyToSave();
+    schermen.showAppointmentReadyToSave();
     return;
   }
   const prereqScreen = text.includes('vul client, begintijd en datum in') || text.includes('voeg een client toe voor clientgerelateerde afspraken') || text.includes('voeg evt. een client toe aan de afspraak');
@@ -159,10 +145,10 @@ export function refreshAppointmentPrereqScreen() {
   // cliëntgebonden keuzescherm, ook als we nog op het niet-cliëntmenu staan.
   if (hasClientInAppointment() && hasAppointmentPrereqs() && !choiceScreen && !clientDurationScreen) {
     appointmentFlow.activeNonClientOption = null;
-    showChoices();
+    schermen.showChoices();
     return;
   }
-  if (prereqScreen && hasAppointmentPrereqs()) showChoices();
+  if (prereqScreen && hasAppointmentPrereqs()) schermen.showChoices();
   else if (!hasAppointmentPrereqs() && nonClientSubScreen) return; // gebruiker bladert door categorieën
   else if (!hasAppointmentPrereqs() && !prereqScreen) showAppointmentNeedsPrereqs();
 }

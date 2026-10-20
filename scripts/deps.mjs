@@ -12,14 +12,20 @@
 //   ons       kennis van de ONS-pagina: selectors, DOM, formuliervelden lezen
 //   domain    pure rekenlogica op ONS-gegevens
 //   services  netwerk: de ONS-API
-//   ui        bouwstenen voor schermen (knoppen, iconen, duurkiezer, React-brug)
-//   screen    diensten voor schermen: statusregel, schermvak, schermmarkering
+//   ui        bouwstenen voor schermen (knoppen, iconen, duurkiezer, React-brug, veld markeren)
+//   screen    diensten voor schermen: statusregel, schermvak, schermmarkering,
+//             schermregister (schermen.js: schermen openen elkaar daarlangs)
 //   features  wat de hulp doet (afspraak, registratie, agenda, …)
 //   helper    de regie: paneel opbouwen, aan/uit, routering, scherm herstellen
 //   entry     index.js en test-hooks.js
 //
 //   node scripts/deps.mjs            samenvatting + overtredingen
-//   node scripts/deps.mjs --strict   exitcode 1 bij overtredingen
+//   node scripts/deps.mjs --verbose  ook de modules van elke cyclus
+//   node scripts/deps.mjs --strict   exitcode 1 bij overtredingen of een cyclus
+//
+// Cycli: modules die elkaar (via een kring) importeren. Die zijn er niet en
+// mogen er niet bijkomen. Schermen openen elkaar via screen/schermen.js;
+// een hulpfunctie hoort in de laagste module die hem nodig heeft.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,12 +35,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = path.join(ROOT, 'src', 'content');
 const LAYERS = ['shared', 'core', 'platform', 'config', 'storage', 'state', 'ons', 'domain', 'services', 'ui', 'screen', 'features', 'helper', 'entry'];
 
-// Bewuste uitzonderingen, met reden. Houd deze lijst kort.
-const ALLOWED = [
-  // De beschikbaarheidswaarschuwing onderbreekt het huidige scherm en keert
-  // er daarna naar terug; dat herstellen is regie (helper/).
-  ['features/appointment/availability.js', 'helper/screen-restore.js'],
-];
+// Bewuste uitzonderingen, met reden. Houd deze lijst kort (nu leeg: een scherm
+// dat een ander scherm opent, doet dat via screen/schermen.js).
+const ALLOWED = [];
 // (Configuratiewijzigingen lopen niet via importen omhoog maar via
 // config/hooks.js; index.js koppelt de reacties bij het opstarten.)
 
@@ -97,4 +100,4 @@ console.log(`\nImporten tegen de laagindeling in: ${violations.length}`);
 violations.forEach((v) => console.log('  ' + v));
 console.log(`\nCyclische groepen: ${sccs.length}${sccs.length ? ' (grootste: ' + Math.max(...sccs.map((c) => c.length)) + ' modules)' : ''}`);
 if (process.argv.includes('--verbose')) sccs.forEach((c) => console.log('  - ' + c.sort().join(', ')));
-if (process.argv.includes('--strict') && violations.length) process.exit(1);
+if (process.argv.includes('--strict') && (violations.length || sccs.length)) process.exit(1);

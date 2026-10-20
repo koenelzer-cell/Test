@@ -1,12 +1,7 @@
 // Schermen van de registratiehulp: vorm kiezen, duur, tegen-tijd, reistijd,
 // rapportage.
 
-import {
-  APP_CONFIG,
-  gsNum,
-  helperNeedsTeamChoice,
-  REGISTRATION_CHOICES,
-} from '../../config/app-config.js';
+import { APP_CONFIG, gsNum, helperNeedsTeamChoice, REGISTRATION_CHOICES } from '../../config/app-config.js';
 import { registrationDurationLabel } from '../../core/datetime.js';
 import { mkText } from '../../ui/managed-text.js';
 import { clickEmptyModalSpot } from '../../ons/interaction.js';
@@ -17,52 +12,14 @@ import { onsahCategoryColor, onsahRegistrationIsDirect } from '../../ui/choice-s
 import { durationLabelStyle, mkDurationPicker, mkValuePicker } from '../../ui/duration-picker.js';
 import { clearScreenMark, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { showNeedsTeamChoice } from '../appointment/choices.js';
-import {
-  applyRegistrationSplitForChoice,
-  clickRegistrationTravelTimeButton,
-  hasRegistrationDate,
-  hasRegistrationStartTime,
-  registrationDurationMinutes,
-  registrationLiveTimeValue,
-  registrationTimeInput,
-  scheduleClearRegistrationTravelTimes,
-  scheduleReapplyRegistrationSplit,
-  setRegistrationDirectFullDuration,
-  setRegistrationEndTimePlusMinutes,
-  setRegistrationEndTimePlusOneHour,
-  setRegistrationEndTimePlusOneMinute,
-  setRegistrationIndirectFullDuration,
-  setRegistrationStartSplit,
-  setRegistrationTimeSplit,
-  setRegistrationTravelTotalMinutes,
-} from './fields.js';
+import { applyRegistrationPortion, applyRegistrationSplitForChoice, clickRegistrationTravelTimeButton, hasRegistrationStartTime, registrationDurationMinutes, registrationLiveTimeValue, registrationPortionApplies, registrationTimeInput, scheduleClearRegistrationTravelTimes, scheduleReapplyRegistrationSplit, setRegistrationDirectFullDuration, setRegistrationEndTimePlusMinutes, setRegistrationEndTimePlusOneHour, setRegistrationEndTimePlusOneMinute, setRegistrationIndirectFullDuration, setRegistrationStartSplit, setRegistrationTravelTotalMinutes } from './fields.js';
 import { mkRegistrationCompletenessNode, mkRegistrationSubmitNode } from './completeness.js';
-import {
-  clearRegistrationNoShowHourTypes,
-  hasRegistrationEndTime,
-  hasRegistrationHourTypeSelected,
-  registrationHasNoShowHourTypeSelected,
-  registrationHourTypeContexts,
-  registrationReadyToSubmitPage,
-  setRegistrationHourType,
-  showRegistrationHourTypeSelection,
-} from './hour-type.js';
-import {
-  armRegistrationSettleCheck,
-  hasRegistrationClient,
-  hasRegistrationPrereqs,
-  registrationRestoreHolding,
-  showRegistrationNeedsClient,
-} from './prereqs.js';
-import {
-  choicePrefix,
-  prefixRegistrationReport,
-  updateRegistrationReportSubmitButton,
-  updateRegistrationSubmitGuard,
-} from './report.js';
+import { clearRegistrationNoShowHourTypes, hasRegistrationEndTime, hasRegistrationHourTypeSelected, registrationHasNoShowHourTypeSelected, registrationHourTypeContexts, setRegistrationHourType } from './hour-type.js';
+import { armRegistrationSettleCheck, hasRegistrationPrereqs, registrationReadyToSubmitPage, registrationRestoreHolding } from './prereqs.js';
+import { choicePrefix, prefixRegistrationReport, updateRegistrationReportSubmitButton, updateRegistrationSubmitGuard } from './report.js';
 import { clearRegistrationSettings } from './reset.js';
 import { persistRegistrationForm, restoreRegistrationExtras } from './pending.js';
+import { schermen } from '../../screen/schermen.js';
 
 export function showRegistrationReportPrompt(choice) {
   const body = $body(); if (!body) return;
@@ -71,7 +28,7 @@ export function showRegistrationReportPrompt(choice) {
     registrationFlow.registrationRestoredToReport = false; // bewust weg van het (herstelde) rapportagescherm
     if (choice && choice.label !== 'No show') {
       const contexts = registrationHourTypeContexts();
-      showRegistrationHourTypeSelection(Math.max(0, contexts.length - 1));
+      schermen.showRegistrationHourTypeSelection(Math.max(0, contexts.length - 1));
     } else { registrationFlow.activeRegistrationChoice = null; showRegistrationChoices(); }
   };
   const msg = mkText('registratie_rapportage_titel', 'Schrijf nu je rapportage, volgens ', { fontWeight: '700', fontSize: '14px', margin: '8px 0 6px' });
@@ -96,12 +53,6 @@ export function showRegistrationReportPrompt(choice) {
   updateRegistrationReportSubmitButton();
   const usMissing = !hasRegistrationHourTypeSelected();
   setStatus(usMissing ? 'Voeg nog een uursoort toe' : (choice ? `${choice.label} duur afgerond` : ''), !usMissing);
-}
-// Geen cliënt gekoppeld maar wel een uursoort ingevuld: dan is er geen rapportage
-// nodig. Toon enkel de Indienen-knop, zonder rapportage-richtlijn/groepsnotitie.
-export function registrationManualSubmitReady() {
-  return !hasRegistrationClient() && hasRegistrationDate() && hasRegistrationStartTime() &&
-    hasRegistrationEndTime() && hasRegistrationHourTypeSelected();
 }
 export function showRegistrationSubmitOnly() {
   const body = $body(); if (!body) return;
@@ -150,25 +101,6 @@ function registrationNeedsDurationAsk() {
   const dur = registrationDurationMinutes();
   return dur !== null && dur <= 1; // 1 min = No show-restant -> nieuwe duur vragen
 }
-export function registrationPortionApplies(choice) {
-  return !!(choice && (choice.askIndirectPortion || choice.askDirectPortion));
-}
-// Zet de tegen-tijd (indirect bij directFull, direct bij indirectFull) op
-// `portionMinutes` en trekt dat van de hoofdtijd af. Totaal = registratieduur.
-export function applyRegistrationPortion(choice, portionMinutes) {
-  const total = registrationDurationMinutes();
-  if (total === null) return false;
-  const p = Math.max(0, Math.min(portionMinutes, total));
-  if (choice.askIndirectPortion) {
-    // hoofdtijd = direct; tegen-tijd = indirect
-    return setRegistrationTimeSplit({ directMinutes: total - p, indirectMinutes: p });
-  }
-  if (choice.askDirectPortion) {
-    // hoofdtijd = indirect; tegen-tijd = direct
-    return setRegistrationTimeSplit({ directMinutes: p, indirectMinutes: total - p });
-  }
-  return true;
-}
 function registrationPortionWord(choice) {
   return choice.askIndirectPortion ? 'indirecte' : 'directe';
 }
@@ -179,12 +111,12 @@ function proceedToReportOrHourType(choice) {
     clearRegistrationNoShowHourTypes(() => {
       clickEmptyModalSpot();
       updateRegistrationSubmitGuard();
-      showRegistrationHourTypeSelection();
+      schermen.showRegistrationHourTypeSelection();
       setStatus('No show-uursoort verwijderd | kies uursoort', false);
     });
     return;
   }
-  if (!hasRegistrationHourTypeSelected()) { showRegistrationHourTypeSelection(); return; }
+  if (!hasRegistrationHourTypeSelected()) { schermen.showRegistrationHourTypeSelection(); return; }
   showRegistrationReportPrompt(choice);
 }
 function continueAfterRegistrationChoice(choice) {
@@ -278,7 +210,7 @@ export function showRegistrationTravelSelection(choice) {
   });
 }
 export function applyRegistrationChoice(choice) {
-  if (!hasRegistrationPrereqs()) { showRegistrationNeedsClient(); return; }
+  if (!hasRegistrationPrereqs()) { schermen.showRegistrationNeedsClient(); return; }
   persistRegistrationForm(choice); // vorm onthouden zodat een refresh 'm herstelt
   registrationFlow.registrationRestoredToReport = false; // verse keuze: geen restore-override
   registrationFlow.activeRegistrationChoice = null;
@@ -353,9 +285,9 @@ export function showRegistrationChoices() {
   // Geen resetBody: dit scherm wordt herhaald getekend door de refresh-lus.
   // Leegmaken vóór de asynchrone React-render zou elke tik een lege flits geven;
   // de doorverwijzingen hieronder maken de body zelf leeg waar dat nodig is.
-  if (helperNeedsTeamChoice()) { showNeedsTeamChoice(); return; }
+  if (helperNeedsTeamChoice()) { schermen.showNeedsTeamChoice(); return; }
   markScreen('registrationChoices');
-  if (!hasRegistrationPrereqs()) { showRegistrationNeedsClient(); return; }
+  if (!hasRegistrationPrereqs()) { schermen.showRegistrationNeedsClient(); return; }
   // Na een refresh hersteld: de vorm is al toegepast -> direct het rapportagescherm
   // tonen i.p.v. het keuzemenu (ook als de rapportage nog leeg is). Maar pas als de
   // pagina rustig/geladen is, anders flikkert het tijdens het laden.

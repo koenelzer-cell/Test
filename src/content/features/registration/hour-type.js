@@ -2,13 +2,8 @@
 
 import { REGISTRATION_CHOICES } from '../../config/app-config.js';
 import { timeTextToMinutes } from '../../core/datetime.js';
-import { clean, isOwnPopup, pollFor, rect, visible } from '../../ons/dom.js';
-import {
-  clickElementCenter,
-  clickOption,
-  hasNestedOptionNode,
-  setInputText,
-} from '../../ons/form-controls.js';
+import { clean, deepQueryAll, isOwnPopup, pollFor, rect, visible } from '../../ons/dom.js';
+import { clickElementCenter, clickOption, hasNestedOptionNode, setInputText } from '../../ons/form-controls.js';
 import { splitUursoortCategoryText } from '../../ons/uursoort-options.js';
 import { firstNameFromName } from '../../ons/appointment-form.js';
 import { clickEmptyModalSpot } from '../../ons/interaction.js';
@@ -18,20 +13,8 @@ import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
 import { registrationLiveTimeValue, registrationTimeInput } from './fields.js';
-import {
-  applyRegistrationChoice,
-  showRegistrationChoices,
-  showRegistrationReportPrompt,
-} from './screens.js';
-import { hasRegistrationPrereqs } from './prereqs.js';
-import {
-  registrationPrefixRegex,
-  registrationReportNeedsContent,
-  registrationTextHasNoShowCue,
-  updateRegistrationSubmitGuard,
-} from './report.js';
-import { showRegistrationNoShowPrompt } from './prompts.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { registrationPrefixRegex, registrationTextHasNoShowCue, updateRegistrationSubmitGuard } from './report.js';
+import { schermen } from '../../screen/schermen.js';
 
 function selectHourTypeInNativeSelects(text) {
   const selects = deepQueryAll('select')
@@ -310,7 +293,7 @@ function backFromRegistrationHourTypeSelection(index = 0) {
     clickEmptyModalSpot();
     updateRegistrationSubmitGuard();
     if (index > 0) showRegistrationHourTypeSelection(index - 1);
-    else showRegistrationChoices();
+    else schermen.showRegistrationChoices();
     setStatus('Uursoort verwijderd');
   };
   if (context) clearRegistrationHourTypeForContext(context, afterClear);
@@ -323,9 +306,9 @@ export function showRegistrationHourTypeSelection(index = null) {
     ? Math.max(0, contexts.findIndex((ctx) => !registrationHourTypeSelectedInContainer(ctx.container)))
     : index;
   const context = contexts[selectedIndex] || null;
-  if (contexts.length && !context) { showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice); return; }
+  if (contexts.length && !context) { schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice); return; }
   if (contexts.length && contexts.every((ctx) => registrationHourTypeSelectedInContainer(ctx.container)) && index === null) {
-    showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+    schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
     return;
   }
   registrationFlow.activeRegistrationHourTypeIndex = selectedIndex;
@@ -344,17 +327,17 @@ export function showRegistrationHourTypeSelection(index = null) {
           registrationFlow.registrationNoShowPromptSuppressed = false;
           registrationFlow.registrationNoShowPromptAfterNo = () => {
             if (context && selectedIndex + 1 < contexts.length) showRegistrationHourTypeSelection(selectedIndex + 1);
-            else if (hasRegistrationHourTypeSelected()) showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+            else if (hasRegistrationHourTypeSelected()) schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
             else showRegistrationHourTypeSelection();
           };
-          showRegistrationNoShowPrompt();
+          schermen.showRegistrationNoShowPrompt();
           setStatus(`No show-uursoort gekozen voor ${context ? context.firstName : 'client'}`, false);
           return;
         }
         if (ok && context && selectedIndex + 1 < contexts.length) {
           showRegistrationHourTypeSelection(selectedIndex + 1);
         } else if (ok && hasRegistrationHourTypeSelected()) {
-          showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
+          schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
         }
         setStatus(ok ? `Uursoort gezet voor ${context ? context.firstName : 'client'}: ${opt}` : `Uursoort niet gevonden voor ${context ? context.firstName : 'client'}: ${opt}`, ok);
       });
@@ -440,9 +423,6 @@ export function clearRegistrationHourTypes(onDone) {
   };
   next();
 }
-export function applyRegistrationNoShow() {
-  applyRegistrationChoice(REGISTRATION_CHOICES[0]);
-}
 export function hasRegistrationEndTime() {
   const end = registrationTimeInput('declaration_end_time_display');
   return !!(end && timeTextToMinutes(registrationLiveTimeValue(end)) !== null);
@@ -462,7 +442,4 @@ export function hasRegistrationHourTypeSelected() {
     return !!String(sel.value || '').trim() && validRegistrationHourTypeOptionText(text || sel.value);
   });
   return false;
-}
-export function registrationReadyToSubmitPage() {
-  return hasRegistrationPrereqs() && hasRegistrationEndTime() && hasRegistrationHourTypeSelected() && !registrationReportNeedsContent();
 }

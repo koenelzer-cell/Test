@@ -4,7 +4,6 @@ import { choiceLabels, CONFIG, helperNeedsTeamChoice } from '../../config/app-co
 import { busyWhile, setBusyCursor } from '../../ons/busy-cursor.js';
 import { applyClientPresent } from '../../ons/form-controls.js';
 import { invalidateClientEntries } from '../../ons/appointment-form.js';
-import { appointmentReadyToSave, hasAppointmentPrereqs } from './fields.js';
 import { clearUursoort } from './uursoort-field.js';
 import { setTitleForChoice } from './client-name.js';
 import { setLabelsExclusive } from './labels.js';
@@ -12,24 +11,19 @@ import { scheduleAppointmentEndTime } from './end-time.js';
 import { clearAppointmentTravelTimes } from './travel.js';
 import { addResetButton, clearSettings, takeAppointmentSnapshot } from './undo.js';
 import { ensureClientExpanded, hasClientInAppointment } from './clients.js';
-import {
-  appointmentNeedsAvailabilityConfirmation,
-  showAvailabilityWarning,
-} from './availability.js';
-import { showAppointmentReadyToSave } from './save.js';
-import { showUursoortQueue } from './uursoort-queue.js';
+import { appointmentNeedsAvailabilityConfirmation } from './availability.js';
 import { appointmentFlow } from '../../state.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
-import { showAppointmentNeedsPrereqs } from './prereqs.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { mkButton } from '../../ui/controls.js';
 import { onsahChoiceDirectIndirectLabel, onsahChoiceDotColor } from '../../ui/choice-style.js';
 import { clearScreenMark, markScreen, resetBody } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
 import { appointmentMissingHooks, mkProblemBanner } from '../quality.js';
-import { applyAppointmentDuration, showAppointmentDurationSelection } from './duration.js';
+import { applyAppointmentDuration } from './duration.js';
 import { plannedAppointmentMinutes } from './prefill.js';
-import { showManualUursoortInstruction } from './uursoort-screens.js';
+import { schermen } from '../../screen/schermen.js';
+import { appointmentReadyToSave, hasAppointmentPrereqs } from './gereed.js';
 
 // De hulp vereist een gekozen team: toon een duidelijke melding i.p.v. een lege
 // keuzelijst. Het team kies je in de extensie-popup (kleurprofiel).
@@ -60,11 +54,11 @@ export function showChoices() {
   const forceChoice = appointmentFlow.appointmentForceChoiceOnce;
   appointmentFlow.appointmentForceChoiceOnce = false;
   if (!hasAppointmentPrereqs()) {
-    showAppointmentNeedsPrereqs();
+    schermen.showAppointmentNeedsPrereqs();
     return;
   }
   if (appointmentNeedsAvailabilityConfirmation()) {
-    showAvailabilityWarning();
+    schermen.showAvailabilityWarning();
     return;
   }
   // Formulier uit de planhulp zonder cliënt: nu er een cliënt is, verder
@@ -76,7 +70,7 @@ export function showChoices() {
     return;
   }
   if (!forceChoice && appointmentReadyToSave()) {
-    showAppointmentReadyToSave();
+    schermen.showAppointmentReadyToSave();
     return;
   }
   markScreen('choices');
@@ -136,7 +130,7 @@ function renderChoicesReact(body, blocked) {
     onSaveNav: function () {
       safe(function () {
         appointmentFlow.appointmentForceChoiceOnce = false;
-        showAppointmentReadyToSave();
+        schermen.showAppointmentReadyToSave();
       });
     },
   });
@@ -149,7 +143,7 @@ function renderChoicesBlocked(body) {
 }
 function prepareClientAndHandleChoice(choice) {
   setStatus(''); // wis o.a. de 'verwijder zelf nog de uursoorten' melding
-  if (!hasAppointmentPrereqs()) { showAppointmentNeedsPrereqs(); return; }
+  if (!hasAppointmentPrereqs()) { schermen.showAppointmentNeedsPrereqs(); return; }
   // Vastleggen wat er stond, vóórdat de hulp velden gaat invullen.
   takeAppointmentSnapshot();
   appointmentFlow.appointmentFlowBusy = true;
@@ -164,7 +158,7 @@ function prepareClientAndHandleChoice(choice) {
       const gepland = plannedAppointmentMinutes();
       if (gepland) applyAppointmentDuration(choice, gepland);
       else if (choice.defaultDuration > 0) applyAppointmentDuration(choice, choice.defaultDuration);
-      else showAppointmentDurationSelection(choice);
+      else schermen.showAppointmentDurationSelection(choice);
     });
   });
 }
@@ -198,7 +192,7 @@ export function handleChoice(choice) {
           // Geen cliënt (meer): eerst het label zetten (geen uursoort-coupling te
           // verwachten), daarna de handmatige instructie tonen.
           scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-          const afterLabel = () => ensureClientExpanded(() => { showManualUursoortInstruction(); _endBusy(); });
+          const afterLabel = () => ensureClientExpanded(() => { schermen.showManualUursoortInstruction(); _endBusy(); });
           setLabelsExclusive(choiceLabels(choice), afterLabel);
           setStatus(base + ' | voeg uursoort handmatig toe', titleOk && clOk);
         } else {
@@ -207,9 +201,9 @@ export function handleChoice(choice) {
           // vooraf ensureClientExpanded afwachten (dat verliep bij 4+ cliënten
           // in een time-out en viel dan onterecht terug op "handmatig").
           setStatus('Uursoorten uit cliëntkaart laden...');
-          showUursoortQueue([], () => {
+          schermen.showUursoortQueue([], () => {
             scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
-            const finishSave = () => { _endBusy(); showAppointmentReadyToSave(); };
+            const finishSave = () => { _endBusy(); schermen.showAppointmentReadyToSave(); };
             // Pas NU, nadat ONS al zijn eigen labels heeft gekoppeld, in één
             // gerichte pas: verwijder elk niet-gekozen label (via zijn eigen ×) en
             // zet het gekozen afspraaktype-label. Geen dubbel-zetten meer.

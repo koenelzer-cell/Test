@@ -2,106 +2,26 @@
 
 import { gsNum } from '../../config/app-config.js';
 import { registrationDurationLabel } from '../../core/datetime.js';
-import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
+import { clean, rect } from '../../ons/dom.js';
 import { inputTextValue, uiText } from '../../ons/form-controls.js';
-import { invalidUursoortOption } from '../../ons/uursoort-options.js';
-import { getTitleInputSafe, getUursoortTrigger } from '../../ons/appointment-form.js';
-import {
-  appointmentCurrentStartTimeText,
-  clearTitle,
-  hasAppointmentDate,
-  hasAppointmentEndTime,
-  hasAppointmentStartTime,
-  setAppointmentTitleText,
-} from './fields.js';
-import { clearUursoortViaScherm, setAppointmentUursoortByName } from './uursoort-field.js';
+import { findNonClientUursoortTrigger, getTitleInputSafe, getUursoortTrigger } from '../../ons/appointment-form.js';
+import { appointmentCurrentStartTimeText, clearTitle, hasAppointmentDate, hasAppointmentEndTime, hasAppointmentStartTime, nonClientFreeTitleComplete, setAppointmentTitleText } from './fields.js';
+import { clearUursoortViaScherm, nonClientUursoortChips, nonClientUursoortSet, setAppointmentUursoortByName } from './uursoort-field.js';
 import { updateSubmitGuard } from './submit-guard.js';
 import { clearKnownLabels, clickLabelChipRemovers, setLabelsExclusive, voegLabelToe } from './labels.js';
 import { zetTitelAsync } from './title.js';
 import { eerstViaFormulier, wisUursoortViaFormulier } from '../../ons/form-model.js';
-import {
-  clearEndTime,
-  enforceAppointmentEndTime,
-  scheduleAppointmentEndTime,
-  setAppointmentEndTimePlusMinutes,
-} from './end-time.js';
+import { clearEndTime, enforceAppointmentEndTime, scheduleAppointmentEndTime, setAppointmentEndTimePlusMinutes } from './end-time.js';
 import { clearAppointmentTravelTimes } from './travel.js';
-import { showAppointmentReadyToSave } from './save.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
-import { showAppointmentNeedsPrereqs } from './prereqs.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { durationLabelStyle, mkDurationPicker } from '../../ui/duration-picker.js';
 import { clearScreenMark, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { closeOnsModal, findModal } from '../../ons/modal.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { closeOnsModal } from '../../ons/modal.js';
+import { schermen } from '../../screen/schermen.js';
 
-export function findNonClientUursoortTrigger() {
-  // Het uursoort-veld op afspraakniveau, via het label "Uursoort" in Afspraakdetails.
-  // Gebruik hier nooit de cliëntkaart: dezelfde discipline als de cliëntgebonden
-  // flow, maar dan met een eigen afspraakniveau-context.
-  const modal = findModal() || document;
-  const modalBox = modal && modal.getBoundingClientRect ? rect(modal) : { left: 0, width: window.innerWidth || document.documentElement.clientWidth || 1200 };
-  const detailsHead = deepQueryAll('h1,h2,h3,div,span,p', modal).find(function (el) {
-    return visible(el) && !isOwnPopup(el) && clean(el.textContent || '') === 'afspraakdetails';
-  });
-  const detailsLeft = detailsHead ? rect(detailsHead).left : (modalBox.left + modalBox.width * 0.45);
-  const rightSide = function (el) {
-    const r = rect(el);
-    if (r.width <= 0 || r.height <= 0) return false;
-    if (r.left < detailsLeft - 100) return false;
-    let n = el.parentElement;
-    for (let depth = 0; n && depth < 7; depth++, n = n.parentElement) {
-      const txt = clean(n.textContent || '');
-      if (txt.includes('genodigden') || txt.includes('clienten zijn aanwezig') || txt.includes('verwijder uit selectie')) return false;
-      if (txt.includes('afspraakdetails')) return true;
-    }
-    return true;
-  };
-  const direct = deepQueryAll('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]', modal)
-    .filter(function (el) { return visible(el) && !isOwnPopup(el) && rightSide(el); })
-    .sort(function (a, b) { return rect(a).top - rect(b).top; })[0];
-  if (direct) {
-    return direct;
-  }
-  const labels = deepQueryAll('label,div,span,p', modal).filter(function (el) {
-    return visible(el) && !isOwnPopup(el) && clean(el.textContent || '') === 'uursoort';
-  }).filter(function (label) {
-    const lr = rect(label);
-    if (lr.left < detailsLeft - 80) return false;
-    let n = label.parentElement;
-    for (let depth = 0; n && depth < 7; depth++, n = n.parentElement) {
-      const txt = clean(n.textContent || '');
-      if (txt.includes('genodigden') || txt.includes('clienten zijn aanwezig') || txt.includes('verwijder uit selectie')) return false;
-      if (txt.includes('afspraakdetails')) return true;
-    }
-    return true;
-  });
-  for (const label of labels) {
-    const lr = rect(label);
-    const candidates = deepQueryAll('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"], [data-qa="hour_type_select"], [role="combobox"],select,button,div,span,input', modal);
-    let best = null, bestScore = Infinity;
-    for (const el of candidates) {
-      if (!visible(el) || isOwnPopup(el) || el === label) continue;
-      const meta = clean((uiText(el) || '') + ' ' + ((el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.getAttribute('data-qa') || '')) || ''));
-      if (/reistijd|locatie|labels|notities|titel|begintijd|eindtijd/.test(meta)) continue;
-      const r = rect(el);
-      if (r.width < 150 || r.height < 22 || r.height > 90) continue;
-      if (r.top < lr.bottom - 8 || r.top > lr.bottom + 100) continue;
-      if (Math.abs(r.left - lr.left) > 280) continue;
-      const textBonus = /zoek naar uursoorten|uursoort/.test(meta) ? -500 : 0;
-      const hostBonus = /^UC-SELECT$/i.test(el.tagName || '') ? -700 : 0;
-      const score = textBonus + hostBonus + (r.top - lr.bottom) * 10 + Math.abs(r.left - lr.left);
-      if (score < bestScore) { best = el; bestScore = score; }
-    }
-    if (best) {
-      const nested = best.querySelector && best.querySelector('uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"], [data-qa="hour_type_select"], [aria-label="Uursoort"]');
-      return nested || best;
-    }
-  }
-  return null;
-}
 // Titel van een optie. Bij een vrije titel ('Overig') direct typen: daarna
 // zet het titelscherm er meteen het voorvoegsel in, en een titel die later
 // via het model binnenkomt zou dat overschrijven.
@@ -138,7 +58,7 @@ export function clearNonClientSettings() {
     clearTimeout(guard);
     appointmentFlow.activeNonClientOption = null;
     appointmentFlow.appointmentClearingSettings = false;
-    showAppointmentNeedsPrereqs();
+    schermen.showAppointmentNeedsPrereqs();
     setStatus(text || 'Instellingen verwijderd', ok !== false);
   };
   const guard = setTimeout(function () {
@@ -214,7 +134,7 @@ export function showNonClientCategory(cat) {
     heading: cat.label,
     options: _opts.map(function (opt) { return { display: opt.display, info: !!opt.info }; }),
     tokens: ONSAH_TOKENS,
-    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(showAppointmentNeedsPrereqs); },
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(schermen.showAppointmentNeedsPrereqs); },
     onPick: function (i) { safe(function () { handleNonClientOption(_opts[i]); }); },
     onInfo: function (i) { safe(function () { showNonClientOptionInfo(_opts[i]); }); },
   });
@@ -246,37 +166,13 @@ function finishNonClientOption(opt) {
       // Naar opslaanpagina zodra datum + begin- + eindtijd kloppen (uursoort
       // mag handmatig; de opslaanpagina toont anders een uursoort-melding).
       if (hasAppointmentDate() && hasAppointmentStartTime() && hasAppointmentEndTime()) {
-        showAppointmentReadyToSave();
+        schermen.showAppointmentReadyToSave();
         return true;
       }
       return false;
     };
     [120, 350, 700, 1200].forEach(function (d) { setTimeout(function () { safe(tryShow); }, d); });
   });
-}
-function nonClientHourTypeMatches(text, wanted) {
-  const c = clean(text);
-  const w = clean(wanted);
-  const loose = clean(String(wanted || '').replace(/[*#]+$/, ''));
-  return !!c && (c === w || (!!loose && c === loose) || c.includes(w) || (!!loose && c.includes(loose)));
-}
-// Geeft de geselecteerde uursoort-chips naast het trigger-veld terug,
-// op dezelfde manier als selectedKnownLabels dat voor etiketten doet.
-function nonClientUursoortChips(trigger) {
-  if (!trigger) return [];
-  const tr = rect(trigger);
-  const found = [];
-  const seen = new Set();
-  for (const el of deepQueryAll('div,span,button,[role="button"]')) {
-    if (!visible(el) || isOwnPopup(el)) continue;
-    const r = rect(el);
-    if (r.bottom < tr.top - 24 || r.top > tr.bottom + 24 || r.left < tr.left - 60 || r.right > tr.right + 120) continue;
-    const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
-    const c = clean(txt);
-    if (!c || /^zoek naar|selecteer uursoort/.test(c) || invalidUursoortOption(txt)) continue;
-    if (!seen.has(c)) { seen.add(c); found.push(txt); }
-  }
-  return found;
 }
 function nonClientUursoortValueText() {
   const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
@@ -289,35 +185,8 @@ function nonClientUursoortValueText() {
   if (!txt || /^(zoek naar uursoorten|selecteer uursoort|uursoort|zoek naar uursoort)$/.test(txt)) return '';
   return txt;
 }
-export function nonClientUursoortSet() {
-  if (!appointmentFlow.activeNonClientOption) return false;
-  const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
-  if (!trigger) return false;
-  const wanted = appointmentFlow.activeNonClientOption.uursoort;
-  // 1) Chips zoals bij labels. Een spurious chip mag NIET kortsluiten: als er
-  //    chips zijn maar geen ervan matcht, alsnog de trigger-tekst controleren.
-  const chips = nonClientUursoortChips(trigger);
-  if (chips.some((chip) => nonClientHourTypeMatches(chip, wanted))) return true;
-  // 2) Trigger-tekst: een uc-select toont de gekozen waarde in het veld zelf
-  //    (geen losse verwijderbare chip).
-  const txt = clean(uiText(trigger) || trigger.textContent || ('value' in trigger ? trigger.value : '') ||
-    (trigger.getAttribute && (trigger.getAttribute('title') || trigger.getAttribute('value'))) || '');
-  if (!txt || /^(zoek naar uursoorten|selecteer uursoort|uursoort|zoek naar uursoort)$/.test(txt)) return false;
-  return nonClientHourTypeMatches(txt, wanted);
-}
 // 'Overig'-flow: geen uursoort, maar een verplichte vrije titel "Overig - ...".
 function nonClientFreeTitlePrefix(opt) { return (opt && opt.display ? opt.display : 'Overig') + ' - '; }
-export function nonClientFreeTitleComplete(opt) {
-  const inp = getTitleInputSafe();
-  const val = inp ? inputTextValue(inp) : '';
-  const trimmed = String(val || '').trim();
-  if (!trimmed) return false;
-  // Er moet iets staan ná "Overig -"; de prefix alleen telt niet als titel.
-  const prefixRe = new RegExp('^' + (opt && opt.display ? opt.display : 'Overig').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-\\s*', 'i');
-  if (!prefixRe.test(trimmed)) return false;
-  const rest = trimmed.replace(prefixRe, '');
-  return !!rest.trim();
-}
 function ensureNonClientFreeTitlePrefix(opt) {
   const prefix = nonClientFreeTitlePrefix(opt);
   const inp = getTitleInputSafe();
@@ -431,7 +300,7 @@ function showNonClientNoUursoort(opt) {
       helperPanel.suppressAutoUntil = Date.now() + 1200;
       safe(function () {
         appointmentFlow.nonClientNoUursoortActive = false;
-        showAppointmentNeedsPrereqs();
+        schermen.showAppointmentNeedsPrereqs();
       });
     },
     onAction: function () { safe(closeOnsModal); },
@@ -447,7 +316,7 @@ export function showNonClientDurationSelection(opt) {
   renderScreen(body, 'duration', {
     title: opt.display + ' duur:',
     tokens: ONSAH_TOKENS,
-    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(showAppointmentNeedsPrereqs); },
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(schermen.showAppointmentNeedsPrereqs); },
     pickerNode: mkDurationPicker(durValues, function (m) { return safe(function () {
     // Zelfde opzet als de cliëntflow: eerst eindtijd zetten + plannen, dan
     // na 80ms de uursoort/label-stappen (die elk de eindtijd opnieuw afdwingen).
@@ -494,13 +363,13 @@ export function showNonClientFreeTitlePrompt(opt) {
     tokens: ONSAH_TOKENS,
     onBack: function () {
       helperPanel.suppressAutoUntil = Date.now() + 1200;
-      safe(function () { appointmentFlow.nonClientFreeTitleScreenActive = false; showAppointmentNeedsPrereqs(); });
+      safe(function () { appointmentFlow.nonClientFreeTitleScreenActive = false; schermen.showAppointmentNeedsPrereqs(); });
     },
     onAction: function () { safe(function () { ensureNonClientFreeTitlePrefix(opt); }); },
   });
   updateSubmitGuard();
   // Geen Opslaan-knop hier: zodra er inhoud na de prefix staat, leidt
   // refreshAppointmentPrereqScreen automatisch door naar de generieke opslaanpagina.
-  if (nonClientFreeTitleComplete(opt)) { appointmentFlow.nonClientFreeTitleScreenActive = false; showAppointmentReadyToSave(); return; }
+  if (nonClientFreeTitleComplete(opt)) { appointmentFlow.nonClientFreeTitleScreenActive = false; schermen.showAppointmentReadyToSave(); return; }
   setStatus('Vul de titel aan', false);
 }

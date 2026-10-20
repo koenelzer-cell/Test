@@ -1,18 +1,11 @@
 // Registratieformulier: datum, tijden, direct/indirect-verdeling en reistijd.
 
-import {
-  addMinutesText,
-  addOneHourText,
-  minutesToDurationText,
-  timeTextToMinutes,
-} from '../../core/datetime.js';
+import { addMinutesText, addOneHourText, minutesToDurationText, timeTextToMinutes } from '../../core/datetime.js';
 import { overrideEl } from '../../ons/selector-overrides.js';
-import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
+import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import { clickOption, setInputTextComposed } from '../../ons/form-controls.js';
 import { registrationFlow } from '../../state.js';
 import { safe } from '../../screen/status.js';
-import { applyRegistrationPortion, registrationPortionApplies } from './screens.js';
-import { deepQueryAll } from '../../ons/dom.js';
 
 export function clickRegistrationTravelTimeButton() {
   const btn = overrideEl('regTravelAdd') || document.querySelector('#js_add_travel_time') ||
@@ -282,3 +275,23 @@ export function scheduleClearRegistrationTravelTimes() {
   setTimeout(() => safe(clearRegistrationTravelTimes), 120);
   setTimeout(() => safe(clearRegistrationTravelTimes), 420);
 }
+// Zet de tegen-tijd (indirect bij directFull, direct bij indirectFull) op
+// `portionMinutes` en trekt dat van de hoofdtijd af. Totaal = registratieduur.
+export function applyRegistrationPortion(choice, portionMinutes) {
+  const total = registrationDurationMinutes();
+  if (total === null) return false;
+  const p = Math.max(0, Math.min(portionMinutes, total));
+  if (choice.askIndirectPortion) {
+    // hoofdtijd = direct; tegen-tijd = indirect
+    return setRegistrationTimeSplit({ directMinutes: total - p, indirectMinutes: p });
+  }
+  if (choice.askDirectPortion) {
+    // hoofdtijd = indirect; tegen-tijd = direct
+    return setRegistrationTimeSplit({ directMinutes: p, indirectMinutes: total - p });
+  }
+  return true;
+}
+export function registrationPortionApplies(choice) {
+  return !!(choice && (choice.askIndirectPortion || choice.askDirectPortion));
+}
+export function _regToMin(raw) { const s = (raw == null ? '' : String(raw)).trim(); if (!s) return null; const hm = s.match(/^(\d{1,2}):(\d{2})$/); if (hm) return +hm[1] * 60 + +hm[2]; if (/^\d{1,4}$/.test(s)) return +s; return null; }

@@ -1,43 +1,26 @@
 // Opslaanscherm van de afspraakhulp.
 
 import { APP_CONFIG } from '../../config/app-config.js';
-import {
-  fetchWeekTijdvakken,
-  geladenTijdvakken,
-  huidigAfspraakTijdvak,
-  overlapMelding,
-  overlappendTijdvak,
-} from '../overlap.js';
+import { fetchWeekTijdvakken, geladenTijdvakken, huidigAfspraakTijdvak, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { mkText } from '../../ui/managed-text.js';
 import { clickOption } from '../../ons/form-controls.js';
-import {
-  findRecurrenceField,
-  findRecurrenceHeader,
-  getTitleInputSafe,
-} from '../../ons/appointment-form.js';
-import { appointmentReadyToSave } from './fields.js';
-import { hasUursoortSelected, shouldRequireUursoortForSubmit } from './uursoort-field.js';
+import { findRecurrenceField, findRecurrenceHeader, getTitleInputSafe } from '../../ons/appointment-form.js';
+import { nonClientFreeTitleComplete } from './fields.js';
+import { hasUursoortSelected, nonClientUursoortSet, shouldRequireUursoortForSubmit } from './uursoort-field.js';
 import { submitButtons, updateSubmitGuard } from './submit-guard.js';
 import { scheduleAppointmentEndTime } from './end-time.js';
 import { hasAppointmentSnapshot, restoreAppointmentSnapshot } from './undo.js';
 import { hasClientInAppointment } from './clients.js';
-import {
-  collapseRecurrence,
-  doorplannenBlocksSave,
-  expandRecurrence,
-  recurrenceHeaderExpanded,
-  recurrenceIsSet,
-} from './recurrence.js';
+import { collapseRecurrence, doorplannenBlocksSave, expandRecurrence, recurrenceHeaderExpanded, recurrenceIsSet } from './recurrence.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
-import { showAppointmentNeedsPrereqs } from './prereqs.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { mkToggleBox } from '../../ui/controls.js';
 import { markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { highlightField } from '../quality.js';
-import { showChoices } from './choices.js';
-import { nonClientFreeTitleComplete, nonClientUursoortSet } from './non-client.js';
+import { schermen } from '../../screen/schermen.js';
+import { appointmentReadyToSave } from './gereed.js';
+import { highlightField } from '../../ui/highlight.js';
 
 // Is de afspraak in de opslaan-fase? Dan niet meer onderbreken met de
 // beschikbaarheidsmelding (die hoort bij het begin, niet bij het opslaan).
@@ -170,7 +153,7 @@ export function showAppointmentReadyToSave() {
           appointmentFlow.pendingChoice = null;
           appointmentFlow.appointmentTypeApplied = false;
           appointmentFlow.activeAppointmentDurationMinutes = null;
-          showChoices();
+          schermen.showChoices();
         });
       });
     } : null,
@@ -186,8 +169,8 @@ export function showAppointmentReadyToSave() {
       helperPanel.suppressAutoUntil = Date.now() + 1200;
       safe(function () {
         appointmentFlow.appointmentSaveScreenActive = false; // bewust weg van de opslaanpagina
-        if (nonClient) { showAppointmentNeedsPrereqs(); return; }
-        appointmentFlow.appointmentForceChoiceOnce = true; showChoices();
+        if (nonClient) { schermen.showAppointmentNeedsPrereqs(); return; }
+        appointmentFlow.appointmentForceChoiceOnce = true; schermen.showChoices();
       });
     },
     saveDisabled: doorplannenBlocksSave(),

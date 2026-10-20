@@ -2,12 +2,11 @@
 
 import { APP_CONFIG } from '../../config/app-config.js';
 import { resolveText } from '../../ui/managed-text.js';
-import { clean, isOwnPopup, pollFor, visible } from '../../ons/dom.js';
+import { clean, deepQueryAll, isOwnPopup, pollFor, visible } from '../../ons/dom.js';
 import { clickElementCenter, clickOption, clickUiButton } from '../../ons/form-controls.js';
 import { findRecurrenceField, findRecurrenceHeader } from '../../ons/appointment-form.js';
 import { appointmentFlow } from '../../state.js';
-import { highlightField } from '../quality.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { highlightField } from '../../ui/highlight.js';
 
 // Platte tekst van de doorplannen-waarschuwing (beheerbaar, met terugval).
 export function doorplannenWarnText() {

@@ -3,25 +3,14 @@
 
 import { wachtTot } from '../../core/wacht.js';
 import { clean } from '../../ons/dom.js';
-import {
-  entryUursoortIsSet,
-  findClientEntries,
-  firstNameFromName,
-  invalidateClientEntries,
-} from '../../ons/appointment-form.js';
+import { entryUursoortIsSet, findClientEntries, firstNameFromName, invalidateClientEntries } from '../../ons/appointment-form.js';
 import { clearUursoort } from './uursoort-field.js';
 import { removeFirstNameFromTitle, setTitleForChoice } from './client-name.js';
-import {
-  clickInviteeToggle,
-  computeAppointmentUursoortState,
-  ensureClientExpanded,
-  inviteeToggleExpanded,
-} from './clients.js';
+import { clickInviteeToggle, computeAppointmentUursoortState, ensureClientExpanded, inviteeToggleExpanded } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { setStatus, showLoadingState } from '../../screen/status.js';
-import { showChoices } from './choices.js';
-import { showManualUursoortInstruction, showUursoort } from './uursoort-screens.js';
 import { listUursoortOptions, maybePrefetchUursoorten } from './uursoort-source.js';
+import { schermen } from '../../screen/schermen.js';
 
 export function uursoortContexts() {
   return findClientEntries()
@@ -172,7 +161,7 @@ export function showUursoortQueue(contexts, afterAll) {
         setTimeout(step, 180);
         return;
       }
-      showUursoort(opts, () => {
+      schermen.showUursoort(opts, () => {
         // Deze cliënt is nu handmatig gezet: niet opnieuw tonen, en NIET de
         // opslaanpagina laten flitsen - gewoon door naar de volgende cliënt.
         handled.add(clean(ctx.name));
@@ -205,7 +194,7 @@ function startUursoortForNewClients(names) {
     setStatus(`Uursoort kiezen voor ${contexts.map((ctx) => ctx.firstName).join(' - ')}...`);
     showUursoortQueue(contexts, () => {
       appointmentFlow.autoSelectingNewClient = false;
-      showChoices();
+      schermen.showChoices();
       setStatus('Uursoort voor nieuwe client gezet');
     });
   }));
@@ -239,7 +228,7 @@ export function handleClientListChanges() {
     if (addedNames.length && (state === 'MIXED' || state === 'CHOICE')) {
       startUursoortForNewClients(addedNames);
     } else {
-      ensureClientExpanded(() => showManualUursoortInstruction());
+      ensureClientExpanded(() => schermen.showManualUursoortInstruction());
     }
   }
 }

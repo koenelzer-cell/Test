@@ -1,18 +1,16 @@
 // Waarschuwing als een genodigde niet beschikbaar is.
 
 import { mkModalShell } from '../../ui/modal-shell.js';
-import { clean, isOwnPopup } from '../../ons/dom.js';
+import { clean, deepQueryAll, isOwnPopup } from '../../ons/dom.js';
 import { firstNameFromName } from '../../ons/appointment-form.js';
-import { appointmentInSaveStage, showAppointmentReadyToSave } from './save.js';
+import { appointmentInSaveStage } from './save.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
-import { createCurrentScreenRestore } from '../../helper/screen-restore.js';
 import { onsahFocusRing } from '../../ui/theme.js';
 import { mkButton, mkPillButton } from '../../ui/controls.js';
 import { resetBody } from '../../screen/screen-state.js';
 import { closeOnsModal } from '../../ons/modal.js';
-import { showChoices } from './choices.js';
-import { deepQueryAll } from '../../ons/dom.js';
+import { schermen } from '../../screen/schermen.js';
 
 function unavailableInvitees() {
   const out = [];
@@ -52,8 +50,8 @@ export function appointmentNeedsAvailabilityConfirmation() {
 export function showAvailabilityWarning() {
   const body = $body(); if (!body) return;
   const entries = unavailableInvitees().filter((entry) => !appointmentFlow.appointmentAvailabilityConfirmedPeople.has(availabilityPersonKey(entry)));
-  if (!entries.length) { showChoices(); return; }
-  if (!helperPanel._availabilityRestore) helperPanel._availabilityRestore = createCurrentScreenRestore();
+  if (!entries.length) { schermen.showChoices(); return; }
+  if (!helperPanel._availabilityRestore) helperPanel._availabilityRestore = schermen.createCurrentScreenRestore();
   const names = entries.map((entry) => entry.firstName).filter(Boolean);
   const nameText = names.length <= 1 ? (names[0] || 'Deze genodigde') : `${names.slice(0, -1).join(', ')} en ${names[names.length - 1]}`;
   setStatus('Let op: al een afspraak', false);
@@ -77,7 +75,7 @@ export function showAvailabilityWarning() {
     Object.assign(msg2.style, { fontSize: '13px', color: '#333', lineHeight: '1.45', padding: '4px 0 8px' });
     body.appendChild(msg2);
     body.appendChild(mkButton('Afsluiten', () => safe(closeOnsModal)));
-    body.appendChild(mkButton('Terug', () => safe(showChoices)));
+    body.appendChild(mkButton('Terug', () => safe(schermen.showChoices)));
     setStatus('Niet doorgaan gekozen', false);
   }));
   const yesBtn = mkPillButton('Ja, doorgaan', () => safe(() => {
@@ -88,10 +86,10 @@ export function showAvailabilityWarning() {
     // verder complete afspraak rechtstreeks naar de opslaanpagina, anders het keuzescherm.
     if (appointmentInSaveStage()) {
       if (appointmentFlow.activeNonClientOption && appointmentFlow.activeNonClientOption.freeTitle) appointmentFlow.nonClientFreeTitleScreenActive = false;
-      showAppointmentReadyToSave();
+      schermen.showAppointmentReadyToSave();
     } else {
       appointmentFlow.appointmentForceChoiceOnce = true;
-      showChoices();
+      schermen.showChoices();
     }
     setStatus('');
   }), { from: '#b45309', to: '#8a3d05', shadowRgb: '180,83,9' });

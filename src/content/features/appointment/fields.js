@@ -2,14 +2,10 @@
 
 import { allKnownLabels } from '../../config/app-config.js';
 import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
-import { setInputText, setInputTextComposed, typeIntoSearchField, uiText } from '../../ons/form-controls.js';
+import { inputTextValue, setInputText, setInputTextComposed, typeIntoSearchField, uiText } from '../../ons/form-controls.js';
 import { findClientEntries, getDateInput, getEndTimeInput, getEtiketTrigger, getStartTimeInput, getTitleInput, getTitleInputSafe } from '../../ons/appointment-form.js';
-import { hasUursoortSelected } from './uursoort-field.js';
-import { updateSubmitGuard } from './submit-guard.js';
 import { selectedKnownLabels } from './labels.js';
-import { hasClientInAppointment } from './clients.js';
-import { appointmentFlow, helperPanel } from '../../state.js';
-import { refreshAppointmentPrereqScreen } from './prereqs.js';
+import { appointmentFlow } from '../../state.js';
 import { ucTimeInputHost } from '../../ons/time-input.js';
 
 export function setAppointmentTitleText(text) {
@@ -80,43 +76,18 @@ export function restoreAppointmentStartTime() {
   // Begintijd is user-owned: only read it for eindtijd calculations, never write it.
   return false;
 }
-export function hasAppointmentPrereqs() {
-  return hasClientInAppointment() && hasAppointmentDate() && hasAppointmentStartTime();
-}
 export function hasAppointmentEndTime() {
   const endInput = getEndTimeInput();
   const text = String((endInput && 'value' in endInput ? endInput.value : '') || '').trim();
   return /^(\d{1,2}):(\d{2})$/.test(text);
 }
-function appointmentHasKnownLabel() {
+export function appointmentHasKnownLabel() {
   const trigger = getEtiketTrigger();
   if (!trigger) return false;
   const selected = selectedKnownLabels(trigger, allKnownLabels());
   if (selected.length) return true;
   const txt = clean(uiText(trigger) || trigger.textContent || '');
   return allKnownLabels().some((lbl) => txt.includes(clean(lbl)));
-}
-export function appointmentReadyToSave() {
-  return hasAppointmentPrereqs() && hasAppointmentEndTime() && hasUursoortSelected() && appointmentHasKnownLabel();
-}
-// 'Kern' van een toegepaste cliëntafspraak: alles behalve de eindtijd. De eindtijd
-// is op de opslaanpagina een normaal bewerkbaar veld; terwijl de medewerker die
-// overschrijft is hij even leeg/ongeldig. Zolang de kern staat, mag de refresh de
-// opslaanpagina NIET afbreken (anders springt hij terug naar het keuzemenu).
-export function appointmentCoreApplied() {
-  return hasAppointmentPrereqs() && hasUursoortSelected() && appointmentHasKnownLabel();
-}
-// Mag de opslaanpagina blijven staan bij een refresh?
-//  - Cliëntgebonden: de afspraak is klaar, of de kern (cliënt/tijd + uursoort +
-//    label) staat nog (de eindtijd mag de medewerker bewerken).
-//  - Niet-cliëntgebonden: er is een actieve niet-cliëntoptie (geen cliënt), en de
-//    afspraak heeft nog datum + begintijd. Zulke afspraken hebben géén cliënt en
-//    géén label, dus zonder deze tak brak de refresh de opslaanpagina af en sprong
-//    hij terug naar het eerste scherm.
-export function appointmentSaveStageStillValid() {
-  if (appointmentReadyToSave() || appointmentCoreApplied()) return true;
-  if (appointmentFlow.activeNonClientOption && !hasClientInAppointment() && hasAppointmentDate() && hasAppointmentStartTime()) return true;
-  return false;
 }
 // Cliëntafspraak zonder (herkend) label: opslaan blokkeren. Bewust fail-open:
 // niet-cliënt-opties (Overig/Acquisitie) en het geval waarin het labelveld niet
@@ -141,9 +112,14 @@ export function clearTitle() {
   }, 60);
   return true;
 }
-export function onAppointmentInput(e) {
-  if (!helperPanel.helperEnabled) return;
-  if (helperPanel.activeMode === 'registrations' || isOwnPopup(e.target)) return;
-  refreshAppointmentPrereqScreen();
-  updateSubmitGuard();
+export function nonClientFreeTitleComplete(opt) {
+  const inp = getTitleInputSafe();
+  const val = inp ? inputTextValue(inp) : '';
+  const trimmed = String(val || '').trim();
+  if (!trimmed) return false;
+  // Er moet iets staan ná "Overig -"; de prefix alleen telt niet als titel.
+  const prefixRe = new RegExp('^' + (opt && opt.display ? opt.display : 'Overig').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-\\s*', 'i');
+  if (!prefixRe.test(trimmed)) return false;
+  const rest = trimmed.replace(prefixRe, '');
+  return !!rest.trim();
 }

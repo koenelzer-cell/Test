@@ -8,9 +8,9 @@ import { computeTotals } from './unregistered-time.js';
 import { pushBadge, updateTotals } from './extension-sync.js';
 import { refreshAgendaWeekApi } from './week-overview.js';
 import { preloadPanelData } from './preload.js';
-import { clearPendingRegistration } from '../registration/pending.js';
 import { APP_CONFIG, CONFIG } from '../../config/app-config.js';
 import { MSG } from '../../../shared/messages.js';
+import { clearPendingRegistration } from '../registration/pending-store.js';
 
 const NEEDLE = '/invitees';
 // Mag de agenda nu rekenen? Normaal alleen als het tabblad focus heeft. Maar

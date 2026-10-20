@@ -1,25 +1,17 @@
 // Schermen rond de uursoortkeuze.
 
 import { mkText } from '../../ui/managed-text.js';
-import {
-  entryUursoortIsSet,
-  findClientEntries,
-  findClientUursoortTrigger,
-  firstNameFromName,
-  getUursoortTrigger,
-  invalidateClientEntries,
-} from '../../ons/appointment-form.js';
+import { entryUursoortIsSet, findClientEntries, findClientUursoortTrigger, firstNameFromName, getUursoortTrigger, invalidateClientEntries } from '../../ons/appointment-form.js';
 import { chooseUursoort, hasUursoortSelected } from './uursoort-field.js';
 import { scheduleAppointmentEndTime } from './end-time.js';
-import { showAppointmentReadyToSave } from './save.js';
 import { freshUursoortTriggerForContext } from './uursoort-queue.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { clearScreenMark, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { highlightField } from '../quality.js';
-import { showChoices } from './choices.js';
+import { schermen } from '../../screen/schermen.js';
+import { highlightField } from '../../ui/highlight.js';
 
 function clientsMissingUursoort() {
   return findClientEntries()
@@ -62,7 +54,7 @@ export function showManualUursoortInstruction() {
       tokens: ONSAH_TOKENS,
       onBack: function () {
         helperPanel.suppressAutoUntil = Date.now() + 1200;
-        safe(() => { appointmentFlow.appointmentAwaitingManualUursoort = false; appointmentFlow.appointmentForceChoiceOnce = true; showChoices(); });
+        safe(() => { appointmentFlow.appointmentAwaitingManualUursoort = false; appointmentFlow.appointmentForceChoiceOnce = true; schermen.showChoices(); });
       },
       onWatchTick: onWatchTick,
       watchIntervalMs: 600,
@@ -72,7 +64,7 @@ export function showManualUursoortInstruction() {
   const checkNow = () => {
     invalidateClientEntries();
     const names = renderMissing();
-    if (!names.length && hasUursoortSelected()) { showAppointmentReadyToSave(); return true; }
+    if (!names.length && hasUursoortSelected()) { schermen.showAppointmentReadyToSave(); return true; }
     setStatus(names.length ? `Wacht op uursoort: ${names.join(', ')}` : 'Uursoort gevonden', !names.length);
     return false;
   };
@@ -89,7 +81,7 @@ export function showUursoort(options, afterPick, clientContext = null) {
     emptyMessage: 'Geen uursoorten gevonden - open het veld handmatig.',
     emptyColor: '#b3261e',
     tokens: ONSAH_TOKENS,
-    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; appointmentFlow.autoSelectingNewClient = false; showChoices(); },
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; appointmentFlow.autoSelectingNewClient = false; schermen.showChoices(); },
     onPick: function (o) {
       safe(function () {
         setStatus('Bezig...');
@@ -100,7 +92,7 @@ export function showUursoort(options, afterPick, clientContext = null) {
         }
         chooseUursoort(o, (ok) => {
           const done = () => {
-            showAppointmentReadyToSave();
+            schermen.showAppointmentReadyToSave();
             setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
           };
           // Altijd via de wachtrij verder (ook als de verificatie ok=false gaf):

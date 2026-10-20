@@ -3,21 +3,16 @@
 import { isOwnPopup } from '../../ons/dom.js';
 import { helperPanel } from '../../state.js';
 import { scheduleReapplyRegistrationSplit } from './fields.js';
-import { refreshRegistrationPrereqScreen } from './prereqs.js';
-import {
-  ensureActiveRegistrationReportPrefix,
-  registrationPrimaryReportField,
-  registrationReportTextFields,
-  updateRegistrationSubmitGuard,
-} from './report.js';
+import { ensureActiveRegistrationReportPrefix, registrationPrimaryReportField, registrationReportTextFields, updateRegistrationSubmitGuard } from './report.js';
 import { checkRegistrationEpisodesText, checkRegistrationNoShowText } from './prompts.js';
 import { persistRegistrationTimes } from './pending.js';
+import { schermen } from '../../screen/schermen.js';
 
 export function onRegistrationReportInput(e) {
   if (!helperPanel.helperEnabled) return;
   if (helperPanel.activeMode !== 'registrations' || isOwnPopup(e.target)) return;
   const el = e.target;
-  refreshRegistrationPrereqScreen();
+  schermen.refreshRegistrationPrereqScreen();
   const idName = `${el && el.id || ''} ${el && el.name || ''}`;
   if (/declaration_(start|end)_time|declaration_(in)?direct_time|declaration_travel_time/.test(idName) || (el && (el.className || '').includes('js-time'))) {
     scheduleReapplyRegistrationSplit();

@@ -2,60 +2,15 @@
 // core/test-api.js).
 
 import { DEFAULT_APP_CONFIG } from './config/defaults.js';
-import {
-  allKnownLabels,
-  APP_CONFIG,
-  applyHelperConfig,
-  choiceLabels,
-  CONFIG,
-  effectiveChoices,
-  effectiveRegistrationForms,
-  helperNeedsTeamChoice,
-  nonClientCategoriesActive,
-  REGISTRATION_CHOICES,
-  setActiveProfileForTest,
-} from './config/app-config.js';
-import {
-  currentAgendaDate,
-  isRegistrationEditOrNew,
-  isRegistrationOverviewPage,
-  parseInviteeIdFromPath,
-  resolveInviteeId,
-  setInviteeIdOverride,
-} from './ons/agenda-location.js';
+import { allKnownLabels, APP_CONFIG, applyHelperConfig, choiceLabels, CONFIG, effectiveChoices, effectiveRegistrationForms, helperNeedsTeamChoice, nonClientCategoriesActive, REGISTRATION_CHOICES, setActiveProfileForTest } from './config/app-config.js';
+import { currentAgendaDate, isRegistrationEditOrNew, isRegistrationOverviewPage, parseInviteeIdFromPath, resolveInviteeId, setInviteeIdOverride } from './ons/agenda-location.js';
 import { _agFmtMin, agendaWeekNumber, agendaYmd } from './core/datetime.js';
-import {
-  _tijdvakCache,
-  _tijdvakkenOverlappen,
-  overlapMelding,
-  overlappendTijdvak,
-} from './features/overlap.js';
-import {
-  agendaEntryType,
-  computeDirectIndirect,
-  entryToVorm,
-  labelToAfspraaktype,
-  mapAgendaEntry,
-  mapAgendaWeekResponse,
-  parseStartVerdeling,
-  summarizeAgendaWeek,
-} from './domain/agenda-entries.js';
-import { fetchInviteeWeek, fetchWeekRegistrationDeclarabiliteit } from './services/ons-api/calendar.js';
-import {
-  clearLaatsteDetails,
-  detailsLabelNames,
-  laatsteDetailsLabels,
-  noteDetailsResponse,
-  occurrenceIdFromPopover,
-} from './services/ons-api/event-details.js';
+import { _tijdvakCache, _tijdvakkenOverlappen, overlapMelding, overlappendTijdvak } from './features/overlap.js';
+import { agendaEntryType, computeDirectIndirect, entryToVorm, labelToAfspraaktype, mapAgendaEntry, mapAgendaWeekResponse, parseStartVerdeling, summarizeAgendaWeek } from './domain/agenda-entries.js';
+import { createLimiter, fetchInviteeWeek, fetchWeekRegistrationDeclarabiliteit } from './services/ons-api/calendar.js';
+import { clearLaatsteDetails, detailsLabelNames, laatsteDetailsLabels, noteDetailsResponse, occurrenceIdFromPopover } from './services/ons-api/event-details.js';
 import { declarabiliteitBase, declarabiliteitPct } from './domain/declarabiliteit.js';
-import {
-  normalizeRegistrationLine,
-  parseRegistrationDetails,
-  parseWeekRegistrationOccurrences,
-  summarizeRegistrations,
-  summarizeWeekRegistrations,
-} from './domain/registrations.js';
+import { normalizeRegistrationLine, parseRegistrationDetails, parseWeekRegistrationOccurrences, summarizeRegistrations, summarizeWeekRegistrations } from './domain/registrations.js';
 import { _isClientUursoortName } from './domain/hour-types.js';
 import { _apiUrl } from './services/ons-api/endpoints.js';
 import { agendaRegistrationsSectionEl } from './features/agenda-overview/registrations-overview.js';
@@ -63,31 +18,9 @@ import { managedRichHtml, mkText, resolveText } from './ui/managed-text.js';
 import { __exposeForTest } from './core/test-api.js';
 import { firstByDataQa, inputBelongsToTrigger } from './ons/form-controls.js';
 import { collectClientUursoortOptionTexts } from './ons/uursoort-options.js';
-import {
-  entryUursoortIsSet,
-  entryUursoortText,
-  findClientEntries,
-  findRecurrenceField,
-  findRecurrenceHeader,
-  getEndTimeInput,
-  getEtiketTrigger,
-  getStartTimeInput,
-  invalidateClientEntries,
-  labelChips,
-} from './ons/appointment-form.js';
-import {
-  appointmentCoreApplied,
-  appointmentReadyToSave,
-  appointmentSaveStageStillValid,
-  hasAppointmentDate,
-  hasAppointmentStartTime,
-} from './features/appointment/fields.js';
-import {
-  removeLabelChipsByText,
-  selectedAllLabelChipTexts,
-  selectedKnownLabels,
-  setLabelsExclusive,
-} from './features/appointment/labels.js';
+import { entryUursoortIsSet, entryUursoortText, findClientEntries, findRecurrenceField, findRecurrenceHeader, getEndTimeInput, getEtiketTrigger, getStartTimeInput, invalidateClientEntries, labelChips } from './ons/appointment-form.js';
+import { hasAppointmentDate, hasAppointmentStartTime } from './features/appointment/fields.js';
+import { removeLabelChipsByText, selectedAllLabelChipTexts, selectedKnownLabels, setLabelsExclusive } from './features/appointment/labels.js';
 import { enforceAppointmentEndTime, setAppointmentEndTimePlusMinutes, zetEindtijdAsync } from './features/appointment/end-time.js';
 import { clearAppointmentTravelTimes, setAppointmentTravelTotalMinutes, zetReistijdenAsync } from './features/appointment/travel.js';
 import { eerstViaFormulier, zetLabelsViaFormulier, zetUursoortViaFormulier } from './ons/form-model.js';
@@ -96,105 +29,49 @@ import { pollFor } from './ons/dom.js';
 import { nietClientUursoortMetId } from './features/appointment/uursoort-source.js';
 import { keuzeVoorLabel, nietClientOptieVoorUursoort } from './helper/planner-form.js';
 import { clientVoornamenAsync, findClientFirstNames } from './features/appointment/client-name.js';
-import {
-  clearAppointmentSnapshot,
-  clearSettings,
-  hasAppointmentSnapshot,
-  takeAppointmentSnapshot,
-} from './features/appointment/undo.js';
+import { clearAppointmentSnapshot, clearSettings, hasAppointmentSnapshot, takeAppointmentSnapshot } from './features/appointment/undo.js';
 import { fetchProductList, parseProductList } from './services/ons-api/products.js';
-import {
-  clientsMissingUursoortEntries,
-  uursoortContexts,
-} from './features/appointment/uursoort-queue.js';
-import {
-  doorplannenBlocksSave,
-  doorplannenWarnText,
-  recurrenceHeaderExpanded,
-  recurrenceIsSet,
-  recurrenceValue,
-} from './features/appointment/recurrence.js';
+import { clientsMissingUursoortEntries, uursoortContexts } from './features/appointment/uursoort-queue.js';
+import { doorplannenBlocksSave, doorplannenWarnText, recurrenceHeaderExpanded, recurrenceIsSet, recurrenceValue } from './features/appointment/recurrence.js';
 import { appointmentFlow, registrationFlow } from './state.js';
-import {
-  durationChipLabel,
-  durationLabelStyle,
-  mkDurationPicker,
-  PICKER_CHIP_LIMIT,
-} from './ui/duration-picker.js';
+import { durationChipLabel, durationLabelStyle, mkDurationPicker, PICKER_CHIP_LIMIT } from './ui/duration-picker.js';
 import { clearScreenMark, currentScreen, markScreen } from './screen/screen-state.js';
 import { renderScreen } from './ui/react-bridge.js';
 import { closeOnsModal } from './ons/modal.js';
-import {
-  OnsAdapter,
-  onsGemisteVelden,
-  onsVergeetGemist,
-} from './features/appointment/ons-adapter.js';
+import { OnsAdapter, onsGemisteVelden, onsVergeetGemist } from './features/appointment/ons-adapter.js';
 import { appointmentMissingHooks, helperQualityIssues } from './features/quality.js';
 import { applyAppointmentDuration } from './features/appointment/duration.js';
-import {
-  _regCareFlags,
-  _regToMin,
-  activeRegistrationClientForms,
-  registrationClientFormIsRemoved,
-  registrationCompletenessIssues,
-} from './features/registration/completeness.js';
-import {
-  registrationPageSettled,
-  registrationRestoreHolding,
-} from './features/registration/prereqs.js';
-import {
-  _prefixScheiding,
-  choicePrefix,
-  registrationChoicePrefixRegex,
-  registrationPrefixRegex,
-} from './features/registration/report.js';
+import { _regCareFlags, activeRegistrationClientForms, registrationClientFormIsRemoved, registrationCompletenessIssues } from './features/registration/completeness.js';
+import { registrationPageSettled, registrationRestoreHolding } from './features/registration/prereqs.js';
+import { _prefixScheiding, choicePrefix, registrationChoicePrefixRegex, registrationPrefixRegex } from './features/registration/report.js';
 import { getRegistrationClientNumber } from './features/registration/prompts.js';
-import {
-  capturePendingRegistrationLabel,
-  clearPendingRegistration,
-  loadPendingRegistrationLabel,
-  matchRegistrationChoiceByLabel,
-  PENDING_REG_KEY,
-  persistRegistrationTimes,
-  popoverLabelFromDom,
-  restoreRegistrationExtras,
-  setRegistrationIdOverride,
-} from './features/registration/pending.js';
-import {
-  ctxForcedVorm,
-  pushRegistrationForms,
-  startRegistrationWithForm,
-} from './features/registration/context-menu.js';
+import { capturePendingRegistrationLabel, loadPendingRegistrationLabel, matchRegistrationChoiceByLabel, persistRegistrationTimes, popoverLabelFromDom, restoreRegistrationExtras, setRegistrationIdOverride } from './features/registration/pending.js';
+import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from './features/registration/context-menu.js';
 import { pickClientIdFromSearch } from './services/ons-api/clients.js';
 import { getEmployeeIdAsync } from './services/ons-api/employee.js';
 import { getJson, postJson } from './services/ons-api/http.js';
 import { buildUnavailability, describeUnavailability } from './domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from './features/leave/leave-request.js';
 import { UI_OVERRIDES } from './ons/selector-overrides.js';
-import {
-  classifyAgendaEntry,
-  isoLocalWithOffset,
-  parseDetectOverlap,
-  summarizeOpenRange,
-  weekStartsBetween,
-} from './domain/open-registrations.js';
+import { classifyAgendaEntry, isoLocalWithOffset, parseDetectOverlap, summarizeOpenRange, weekStartsBetween } from './domain/open-registrations.js';
 import { _setOnsOverlapForTest, fetchEntriesForRange } from './services/ons-api/open-registrations.js';
 import { openNewEvent, quickRegister, quickRegisterUrl } from './features/agenda/quick-register.js';
 import { createEvents, eventOptions } from './features/agenda/event-create.js';
 import { controleerOns } from './services/ons-api/formaat.js';
 import { searchClientsForPlan } from './features/agenda/client-lookup.js';
-import { newEventUrl } from './features/agenda/navigation.js';
+import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest, newEventUrl } from './features/agenda/navigation.js';
 import { onsDateText } from './features/appointment/prefill.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from './domain/free-slots.js';
-import { findFreeSlots, _forgetHolidays } from './features/agenda/free-slots.js';
+import { _forgetHolidays, findFreeSlots } from './features/agenda/free-slots.js';
 import { parseHolidays } from './domain/holidays.js';
-import { registerOpenItem, declareUrlUitDetails } from './features/agenda/register-item.js';
+import { declareUrlUitDetails, registerOpenItem } from './features/agenda/register-item.js';
 import { mergeOpenRangePerPersoon } from './features/agenda/open-range.js';
 import { _clearPreloadCache, cachedFreeSlots, cachedOpenRange, forgetFreeSlots, isCached, openAantal } from './features/agenda/preload.js';
-import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest } from './features/agenda/navigation.js';
 import { plannedProductionRow, productionWeekRow } from './features/agenda/production.js';
 import { plannedRatioRows } from './features/agenda/week-ratio.js';
-import { createLimiter } from './services/ons-api/calendar.js';
+import { _regToMin } from './features/registration/fields.js';
+import { clearPendingRegistration, PENDING_REG_KEY } from './features/registration/pending-store.js';
+import { appointmentCoreApplied, appointmentReadyToSave, appointmentSaveStageStillValid } from './features/appointment/gereed.js';
 
 // Test-hook: buitenste-scope-logica blootstellen (alleen onder testvlag).
 // Opstarten: interne functies blootstellen aan de jsdom-tests (alleen onder testvlag).

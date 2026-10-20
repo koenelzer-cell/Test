@@ -4,35 +4,22 @@
 import { rect, visible } from '../ons/dom.js';
 import { invalidateClientEntries } from '../ons/appointment-form.js';
 import { setSubmitBlocked, updateSubmitGuard } from '../features/appointment/submit-guard.js';
-import {
-  refreshFreeDayFromBackgroundCalendar,
-  showFreeDayInactive,
-} from '../features/appointment/free-day.js';
+import { refreshFreeDayFromBackgroundCalendar } from '../features/appointment/free-day.js';
 import { ensureClientExpanded, hasClientInAppointment } from '../features/appointment/clients.js';
 import { handleClientListChanges } from '../features/appointment/uursoort-queue.js';
 import { storageSet, STORE_HELPER_ENABLED } from '../storage/page-prefs.js';
 import { guardInviteeAddButton } from '../features/appointment/invitee-guard.js';
 import { appointmentFlow, helperPanel } from '../state.js';
 import { safe, showDisabledState, showLoadingState } from '../screen/status.js';
-import { createCurrentScreenRestore, refreshMainScreen } from './screen-restore.js';
-import {
-  refreshAppointmentPrereqScreen,
-  resumeAppointmentHelperAfterEnable,
-} from '../features/appointment/prereqs.js';
+import { resumeAppointmentHelperAfterEnable } from '../features/appointment/prereqs.js';
 import { onsahFocusRing } from '../ui/theme.js';
 import { setChevronIcon, svgInfoIcon, svgSpineCheck, svgSpinePause } from '../ui/icons.js';
 import { toggleInfoPanel } from './info-panel.js';
 import { findModal } from '../ons/modal.js';
-import { refreshRegistrationPrereqScreen } from '../features/registration/prereqs.js';
-import {
-  setRegistrationSubmitBlocked,
-  updateRegistrationSubmitGuard,
-} from '../features/registration/report.js';
-import {
-  checkRegistrationEpisodesText,
-  checkRegistrationNoShowText,
-} from '../features/registration/prompts.js';
+import { setRegistrationSubmitBlocked, updateRegistrationSubmitGuard } from '../features/registration/report.js';
+import { checkRegistrationEpisodesText, checkRegistrationNoShowText } from '../features/registration/prompts.js';
 import { SCRIPT_VERSION } from '../../shared/version.js';
+import { schermen } from '../screen/schermen.js';
 
 // Klapt het paneel ZIJWAARTS in/uit (breedte naar 0, spine blijft altijd
 // zichtbaar) i.p.v. het oude verticaal inklappen van de inhoud.
@@ -242,13 +229,13 @@ function buildPopup() {
       } else if (helperPanel.activeMode !== 'registrations') {
         resumeAppointmentHelperAfterEnable();
       } else {
-        refreshMainScreen();
+        schermen.refreshMainScreen();
       }
       // Vangnet: forceer de blokkade nogmaals nadat het scherm is opgebouwd,
       // ook als een van de bovenstaande takken de guard niet raakte.
       reapplyGuard();
     } else {
-      helperPanel._disabledRestore = helperPanel._infoPanelRestore || createCurrentScreenRestore();
+      helperPanel._disabledRestore = helperPanel._infoPanelRestore || schermen.createCurrentScreenRestore();
       helperPanel._infoPanelRestore = null;
       setSubmitBlocked(false);
       setRegistrationSubmitBlocked(false);
@@ -308,7 +295,7 @@ function buildPopup() {
   // — precies zoals bedoeld: het roze lipje blijft altijd rechts liggen.
   helperPanel.popupEl.appendChild(spine);
   helperPanel.popupEl.appendChild(mainCol);
-  refreshMainScreen();
+  schermen.refreshMainScreen();
   setPopupCollapsed(helperPanel.popupCollapsed);
   // Houd de popup volledig in beeld zodra de inhoud (en dus de hoogte) verandert.
   try {
@@ -359,7 +346,7 @@ export function ensureMounted() {
     return;
   }
   if (helperPanel.activeMode === 'registrations') {
-    refreshRegistrationPrereqScreen();
+    schermen.refreshRegistrationPrereqScreen();
     checkRegistrationNoShowText();
     checkRegistrationEpisodesText();
     updateRegistrationSubmitGuard();
@@ -372,8 +359,8 @@ export function ensureMounted() {
   // cache blijven hangen tot een volgende, ongerelateerde mutatie.
   invalidateClientEntries();
   refreshFreeDayFromBackgroundCalendar();
-  if (appointmentFlow.appointmentFreeDay) { showFreeDayInactive(); reposition(); return; }
-  refreshAppointmentPrereqScreen();
+  if (appointmentFlow.appointmentFreeDay) { schermen.showFreeDayInactive(); reposition(); return; }
+  schermen.refreshAppointmentPrereqScreen();
   if (hasClientInAppointment()) ensureClientExpanded(() => {});
   handleClientListChanges();
   updateSubmitGuard();

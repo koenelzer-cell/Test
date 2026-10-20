@@ -2,21 +2,17 @@
 
 import { APP_CONFIG, gsNum } from '../../config/app-config.js';
 import { registrationDurationLabel } from '../../core/datetime.js';
-import { appointmentCurrentStartTimeText, hasAppointmentPrereqs } from './fields.js';
-import {
-  enforceAppointmentEndTime,
-  scheduleAppointmentEndTime,
-  setAppointmentEndTimePlusMinutes,
-} from './end-time.js';
+import { appointmentCurrentStartTimeText } from './fields.js';
+import { enforceAppointmentEndTime, scheduleAppointmentEndTime, setAppointmentEndTimePlusMinutes } from './end-time.js';
 import { clearAppointmentTravelTimes, setAppointmentTravelTotalMinutes } from './travel.js';
 import { appointmentFlow, helperPanel } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
-import { showAppointmentNeedsPrereqs } from './prereqs.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { durationLabelStyle, mkDurationPicker, mkValuePicker } from '../../ui/duration-picker.js';
 import { markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
-import { handleChoice, showChoices } from './choices.js';
+import { schermen } from '../../screen/schermen.js';
+import { hasAppointmentPrereqs } from './gereed.js';
 
 // Past een gekozen (of standaard) afspraakduur toe: eindtijd zetten en doorgaan
 // naar reistijd (bij addTravelTime) of direct naar handleChoice. Wordt aangeroepen
@@ -39,7 +35,7 @@ export function applyAppointmentDuration(choice, minutes) {
     scheduleAppointmentEndTime(minutes);
     setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : 'Eindtijd niet gezet', endOk);
     setTimeout(() => {
-      handleChoice(choice);
+      schermen.handleChoice(choice);
       // forceer de eindtijd nogmaals nadat handleChoice de velden heeft aangeraakt
       scheduleAppointmentEndTime(minutes);
       [120, 350, 650].forEach((d) => setTimeout(() => safe(() => enforceAppointmentEndTime(minutes)), d));
@@ -48,7 +44,7 @@ export function applyAppointmentDuration(choice, minutes) {
 }
 export function showAppointmentDurationSelection(choice) {
   const body = $body(); if (!body) return;
-  if (!hasAppointmentPrereqs()) { showAppointmentNeedsPrereqs(); return; }
+  if (!hasAppointmentPrereqs()) { schermen.showAppointmentNeedsPrereqs(); return; }
   markScreen('appointmentDurationSelection', { choice: choice });
   appointmentFlow.appointmentFlowBusy = false;
   const _st = (choice.durationStep>0?choice.durationStep:gsNum('durationStepMin',15));
@@ -57,7 +53,7 @@ export function showAppointmentDurationSelection(choice) {
   renderScreen(body, 'duration', {
     title: `${choice.label} duur:`,
     tokens: ONSAH_TOKENS,
-    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(schermen.showChoices); },
     pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, undefined, durationLabelStyle('duur')),
   });
 }
@@ -71,12 +67,12 @@ export function showAppointmentTravelSelection(choice) {
   renderScreen(body, 'duration', {
     title: 'Totale reistijd (heen en terug):',
     tokens: ONSAH_TOKENS,
-    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(showChoices); },
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; safe(schermen.showChoices); },
     pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
       appointmentFlow.appointmentFlowBusy = true;
       const ok = setAppointmentTravelTotalMinutes(minutes);
       setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : 'Reistijdvelden niet gevonden', ok);
-      setTimeout(() => handleChoice(choice), 70);
+      setTimeout(() => schermen.handleChoice(choice), 70);
     }), choice.pickerStyle, undefined, durationLabelStyle('duur')),
   });
 }

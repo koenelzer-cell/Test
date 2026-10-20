@@ -3,20 +3,11 @@
 import { setInputTextComposed } from '../../ons/form-controls.js';
 import { registrationFlow } from '../../state.js';
 import { setStatus } from '../../screen/status.js';
-import {
-  clearRegistrationTravelTimes,
-  registrationDirectTimeInput,
-  registrationIndirectTimeInput,
-  registrationTimeInput,
-} from './fields.js';
-import { showRegistrationChoices } from './screens.js';
+import { clearRegistrationTravelTimes, registrationDirectTimeInput, registrationIndirectTimeInput, registrationTimeInput } from './fields.js';
 import { clearRegistrationHourTypes } from './hour-type.js';
-import {
-  registrationPrimaryReportField,
-  setRegistrationReportTextValue,
-  updateRegistrationSubmitGuard,
-} from './report.js';
-import { PENDING_REG_KEY } from './pending.js';
+import { registrationPrimaryReportField, setRegistrationReportTextValue, updateRegistrationSubmitGuard } from './report.js';
+import { schermen } from '../../screen/schermen.js';
+import { PENDING_REG_KEY } from './pending-store.js';
 
 export function clearRegistrationSettings() {
   // Wis eindtijd, rapportage, direct/indirect, reistijd en uursoort.
@@ -49,7 +40,7 @@ export function clearRegistrationSettings() {
   // uursoort
   clearRegistrationHourTypes(() => {
     updateRegistrationSubmitGuard();
-    showRegistrationChoices();
+    schermen.showRegistrationChoices();
     setStatus('Instellingen verwijderd');
   });
 }

@@ -12,7 +12,7 @@
 // voordat ONS het formulier tekent. Het typen hieronder blijft de terugval:
 // het slaat velden over die al goed staan.
 
-import { getDateInput, getStartTimeInput } from '../../ons/appointment-form.js';
+import { findNonClientUursoortTrigger, getDateInput, getStartTimeInput } from '../../ons/appointment-form.js';
 import { deepQueryAll } from '../../ons/dom.js';
 import { wachtTot } from '../../core/wacht.js';
 import { inputTextValue, typeIntoSearchField } from '../../ons/form-controls.js';
@@ -20,7 +20,6 @@ import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { setAppointmentEndTimePlusMinutes } from './end-time.js';
 import { isoLocalWithOffset } from '../../domain/open-registrations.js';
 import { zetUursoortViaFormulier, zetUursoortVoorClient } from '../../ons/form-model.js';
-import { findNonClientUursoortTrigger } from './non-client.js';
 
 const KEY = PAGE_SESSION.PENDING_APPOINTMENT;
 const GELDIG_MS = 2 * 60 * 1000;   // een klaargezet tijdstip geldt twee minuten
