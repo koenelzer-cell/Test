@@ -33,7 +33,7 @@ export function applyAppointmentDuration(choice, minutes) {
   } else {
     // Zelfde volgorde als Huisbezoek: eerst reistijd wissen, DAARNA eindtijd
     // zetten en plannen, zodat de eindtijd niet door clear/handleChoice
-    // wordt teruggedraaid (eerder werkte alleen Huisbezoek).
+    // wordt teruggedraaid.
     clearAppointmentTravelTimes();
     const endOk = setAppointmentEndTimePlusMinutes(minutes);
     scheduleAppointmentEndTime(minutes);

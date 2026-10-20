@@ -40,7 +40,7 @@ window.__onsahReact = {
       })
     );
   },
-  // Pagina's in het zijpaneel (vroeger modals in de ONS-pagina).
+  // Pagina's in het zijpaneel (Cliënttijd en Verhouding).
   renderBreakdownBody(container, summary, opts, fmtMin, tokens) {
     getRoot(container).render(createElement(BreakdownModalBody, { summary, opts, fmtMin, tokens }));
   },

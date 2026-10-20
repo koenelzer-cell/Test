@@ -69,8 +69,8 @@ function wisLabelsViaScherm(onDone, attempt = 0) {
   const chips = labelChips(trigger);
   if (!chips.length) { onDone(true); return; }
   // Klik elke chip-verwijderknop één keer. NOOIT via de dropdown wissen: een klik
-  // op een dropdown-optie ZET het label juist - dat was de bug waarbij 'Verwijder
-  // instellingen' (na handmatig verwijderen) het label terugplaatste.
+  // op een dropdown-optie ZET het label juist (dan zou 'Verwijder instellingen'
+  // een al verwijderd label terugplaatsen).
   for (const chip of chips) clickOption(chip.el);
   setTimeout(() => {
     if (!labelChips(trigger).length) { clickEmptyModalSpot(); onDone(true); return; }

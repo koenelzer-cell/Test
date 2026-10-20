@@ -8,8 +8,8 @@ export let agendaHelperDeactivate = null; // wordt door startDayColoring gezet
 export function setAgendaHelperDeactivate(fn) { agendaHelperDeactivate = fn; }
 /* ===== Gedeelde toestand van de hulp =====
    Alle toestand die door meerdere onderdelen gelezen én geschreven wordt,
-   staat in deze drie objecten — niet meer als losse variabelen verspreid door
-   het bestand. Zo is zichtbaar WAT er gedeeld wordt en wie de eigenaar is.
+   staat in deze drie objecten. Zo is zichtbaar WAT er gedeeld wordt en wie
+   de eigenaar is.
 
      helperPanel      — het zwevende hulppaneel op de pagina (in de code ook
                         "popup" genoemd; NIET de extensiepopup) en de modus.

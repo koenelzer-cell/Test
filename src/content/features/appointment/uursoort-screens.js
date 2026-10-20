@@ -42,14 +42,13 @@ export function showManualUursoortInstruction() {
   // Beheerbare teksten blijven mkText-knopen; ze worden één keer gebouwd en
   // bij elke hertekening hergebruikt.
   const _subNode = mkText('afspraak_uursoort_sub', 'Daarna gaat de afspraak vanzelf verder.', { fontSize: '12px', color: '#666', lineHeight: '1.35', padding: '0 0 8px' });
-  // #3 - Vriendelijke, instelbare instructie + markeer het uursoortveld.
+  // Vriendelijke, instelbare instructie + markeer het uursoortveld.
   const _instrNode = mkText('probleem_uursoort_zelf', 'Kies zelf de uursoort in het gemarkeerde veld hieronder.', { fontSize: '12px', color: '#704b00', lineHeight: '1.35', padding: '0 0 8px' });
   try { highlightField(getUursoortTrigger() || (typeof findClientUursoortTrigger === 'function' ? findClientUursoortTrigger() : null)); } catch (e) {}
-  // De lijst ontbrekende cliënten ververst elke 600ms; voorheen schreef de timer
-  // rechtstreeks in de DOM, nu gaat hij als prop mee in een hertekening.
-  // Elke tik: opnieuw kijken wie nog een uursoort mist en het scherm daarmee
-  // hertekenen. De lus zelf draait in het React-scherm (useInterval) en stopt
-  // vanzelf zodra we hier weg navigeren — geen losse stop-aanroepen meer nodig.
+  // De lijst ontbrekende cliënten ververst elke 600ms: elke tik opnieuw kijken
+  // wie nog een uursoort mist en het scherm daarmee hertekenen (als prop). De
+  // lus draait in het React-scherm (useInterval) en stopt vanzelf zodra we hier
+  // weg navigeren.
   const onWatchTick = () => safe(() => {
     if (!helperPanel.helperEnabled || helperPanel.activeMode === 'registrations' || helperPanel._infoPanelRestore) return;
     checkNow();
@@ -105,8 +104,8 @@ export function showUursoort(options, afterPick, clientContext = null) {
             setStatus(ok ? `uursoort "${o}" gezet` : `uursoort "${o}" niet gezet`, ok);
           };
           // Altijd via de wachtrij verder (ook als de verificatie ok=false gaf):
-          // anders sprong de hulp naar de opslaanpagina en werd cliënt 2+
-          // overgeslagen. De wachtrij herbekijkt zelf wie nog een uursoort mist.
+          // anders springt de hulp naar de opslaanpagina en slaat cliënt 2+
+          // over. De wachtrij herbekijkt zelf wie nog een uursoort mist.
           if (afterPick) afterPick(done);
           else done();
         }, freshTrigger || null, clientContext || null);

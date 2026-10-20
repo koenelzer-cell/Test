@@ -242,8 +242,7 @@ export function showRegistrationPortionDuration(choice) {
   const max = Math.floor(total / _ps) * _ps;
   const _vals = [];
   for (let minutes = _ps; minutes <= max; minutes += _ps) _vals.push(minutes);
-  // Ook deze vraag volgt nu de ingestelde duurkeuze-stijl; voorheen was dit
-  // altijd een vaste knoppenlijst, ongeacht wat er in het beheerscherm stond.
+  // Ook deze vraag volgt de duurkeuze-stijl uit het beheerscherm.
   renderScreen(body, 'duration', {
     title: `Duur ${woord} tijd:`,
     tokens: ONSAH_TOKENS,

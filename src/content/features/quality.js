@@ -10,10 +10,8 @@ import { OnsAdapter, onsGemisteVelden, onsVergeetGemist } from './appointment/on
 import { registrationCompletenessIssues } from './registration/completeness.js';
 import { ModuleBase, register } from '../platform/module-host.js';
 
-// De zelftest gebruikt nu de adapter: elk veld dat de hulp probeerde te lezen
-// en niet vond, komt hier automatisch in. Voorheen stonden hier drie
-// hardgecodeerde controles, waardoor bv. een verdwenen uursoort-veld niet werd
-// gemeld.
+// De zelftest gebruikt de adapter: elk veld dat de hulp probeerde te lezen en
+// niet vond, komt hier automatisch in (ook bijv. een verdwenen uursoortveld).
 export function appointmentMissingHooks() {
   onsVergeetGemist();
   OnsAdapter.afspraak.labelVeld();
@@ -50,7 +48,7 @@ export function helperQualityIssues() {
   } catch (e) {}
   return out;
 }
-// #3 - Markeer een veld visueel zodat de gebruiker weet waar te handelen.
+// Markeer een veld visueel zodat de gebruiker weet waar te handelen.
 export function highlightField(el, ms) {
   try {
     if (!el || el.nodeType !== 1) return;
@@ -61,7 +59,7 @@ export function highlightField(el, ms) {
     setTimeout(() => { try { el.style.outline = prevOutline; el.style.outlineOffset = prevOffset; } catch (e) {} }, ms || 6000);
   } catch (e) {}
 }
-// #2 - Waarschuwingsbanner met instelbare tekst + doorklik naar het meldkanaal.
+// Waarschuwingsbanner met instelbare tekst + doorklik naar het meldkanaal.
 export function mkProblemBanner(missing) {
   const wrap = document.createElement('div');
   Object.assign(wrap.style, { border: '1px solid #b3261e', background: '#fdecea', borderRadius: '8px', padding: '8px 10px', margin: '0 0 8px' });

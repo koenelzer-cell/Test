@@ -209,7 +209,7 @@ export function startUiInspector() {
   ];
   const C = { ok: '#1e8449', miss: '#c0392b', pick: '#cc087d' };
   let highlightsOn = true, onlyMissing = false, pickHook = null, root = null, panel = null, ov = null, refreshTimer = null, rowUpdaters = [];
-  let moObserver = null, domDirty = true, lastFull = 0; // #7: performance-gating
+  let moObserver = null, domDirty = true, lastFull = 0; // Performance-gating
 
   function css(el, s) { Object.assign(el.style, s); return el; }
   function overrideSel(h) { return (h[3] && overrides[h[3]]) ? overrides[h[3]] : null; }
@@ -308,7 +308,7 @@ export function startUiInspector() {
       els.forEach((el, idx) => {
         let r; try { r = el.getBoundingClientRect(); } catch (e) { return; }
         if (!r || (r.width === 0 && r.height === 0)) return;
-        // #1: het EERSTE zichtbare element is wat de extensie gebruikt ("actief").
+        // Het EERSTE zichtbare element is wat de extensie gebruikt ("actief").
         // Overige treffers dimmen en met stippellijn, zodat duidelijk is dat die
         // niet de gekozen zijn.
         const primary = idx === 0;
@@ -476,7 +476,7 @@ export function startUiInspector() {
     // in de bevestigstap kun je alsnog wisselen naar "Alleen dit".
     const s = (hook && hook[4] === 'rel') ? buildClassSelector(tgt) : buildSelector(tgt);
     exitPick();
-    // #2: niet meteen opslaan — eerst valideren/bevestigen (uniek? broos? shadow?).
+    // Niet meteen opslaan — eerst valideren/bevestigen (uniek? broos? shadow?).
     if (s && hook && hook[3]) { pendingPick = { hook: hook, selector: s, el: tgt }; renderPanel(); }
     else { setStatus('Kon geen bruikbare selector maken.'); }
   }
@@ -508,7 +508,7 @@ export function startUiInspector() {
     root.appendChild(panel); renderPanel();
     window.addEventListener('scroll', drawHighlights, true); window.addEventListener('resize', drawHighlights, true);
     drawHighlights();
-    // #7: alleen een volledige (zware) herscan doen wanneer de DOM structureel
+    // Alleen een volledige (zware) herscan doen wanneer de DOM structureel
     // veranderde — niet elke 0,5 s blind alle 36 selectors door alle shadow-
     // roots jagen. Een MutationObserver zet de 'dirty'-vlag; een veiligheids-
     // herscan draait hooguit elke 2 s. Scroll/resize hertekenen apart (goedkoop).
@@ -549,7 +549,7 @@ export function startUiInspector() {
     const st = css(document.createElement('div'), { fontSize: '11px', color: '#666', minHeight: '14px', margin: '0 0 8px' }); st.className = '__st';
     st.textContent = 'Klik een regel om het element te laten oplichten. "Herstel" = wijs het juiste element aan.'; body.appendChild(st);
 
-    // #2: validatie-/bevestigingsblok na 'Herstel' aanwijzen.
+    // Validatie-/bevestigingsblok na 'Herstel' aanwijzen.
     if (pendingPick) {
       const h = pendingPick.hook;
       const pk = css(document.createElement('div'), { border: '2px solid ' + C.pick, background: '#fff0f8', borderRadius: '8px', padding: '9px', margin: '0 0 10px' });
@@ -616,7 +616,7 @@ export function startUiInspector() {
         const name = hook ? hook[1] : k;
         const r = css(document.createElement('div'), { display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0' });
         const lab = document.createElement('span'); lab.style.flex = '1'; lab.style.fontSize = '11px';
-        // #3: markeer een herstelling die het verkeerde element aanwijst
+        // Markeer een herstelling die het verkeerde element aanwijst
         // (override vindt niets terwijl de standaard hier wél iets vindt).
         const broken = !!(hook && selectorInfo(overrides[k], null).count === 0 && defaultEls(hook).length > 0);
         const flag = broken ? ' <span style="color:#d98a0b;font-weight:700">⚠ werkt niet meer</span>' : '';
@@ -656,7 +656,7 @@ export function startUiInspector() {
         row.dataset.on = on ? '1' : '0';
         row.style.cursor = on ? 'pointer' : 'default';
         row.style.display = (onlyMissing && on) ? 'none' : 'flex';
-        // #3: override matcht niets, maar de standaard-selector wél → de
+        // Override matcht niets, maar de standaard-selector wél → de
         // herstelling wijst het verkeerde/verdwenen element aan.
         if (overrideSel(h) && !on && defaultEls(h).length > 0) {
           dot.textContent = '⚠'; dot.style.color = '#d98a0b';

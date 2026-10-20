@@ -49,8 +49,7 @@ function activateAgendaPage() {
   if (!agendaPage.totalsTimer) agendaPage.totalsTimer = setInterval(function () {
     if (!paginaActief()) return; // niets doen als het tabblad niet actief is (zijpaneel open telt als actief)
     try {
-      // Eén berekening per tik (voorheen werd computeTotals dubbel gedraaid:
-      // hier én binnen updateTotals). Badge + totalen delen nu dezelfde uitkomst.
+      // Eén berekening per tik: badge en totalen delen dezelfde uitkomst.
       const res = computeTotals();
       const cnt = Object.keys(res.past).filter((d) => (res.past[d].client + res.past[d].overig) > 0).length;
       pushBadge(cnt);

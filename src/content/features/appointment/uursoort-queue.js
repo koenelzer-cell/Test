@@ -90,9 +90,8 @@ export function clientsMissingUursoortEntries(exclude) {
   );
 }
 // contexts dient alleen als "welke cliënten horen bij deze flow"; de volgorde
-// en het overslaan bepalen we live. index blijft in de signatuur voor de
-// bestaande aanroepen, maar wordt niet meer gebruikt.
-export function showUursoortQueue(contexts, index, afterAll) {
+// en het overslaan bepalen we live.
+export function showUursoortQueue(contexts, afterAll) {
   if (appointmentFlow.uursoortQueueActive) return; // maar één wachtrij tegelijk (geen race tussen drivers)
   appointmentFlow.uursoortQueueActive = true;
   // Deze wachtrij hoort bij de huidige generatie. Wist de gebruiker de instellingen
@@ -144,8 +143,8 @@ export function showUursoortQueue(contexts, index, afterAll) {
       if (n > 25) {
         // Deze cliënt lukt echt niet automatisch (na ~5s uitklappen): overslaan zodat de
         // rest wél verwerkt wordt (opslaan blijft geblokkeerd tot de gebruiker die zelf
-        // invult). Ruimere limiet dan voorheen, zodat een traag remountende kaart bij
-        // meerdere cliënten niet af en toe onterecht wordt overgeslagen.
+        // invult). Ruim genomen, zodat een traag remountende kaart bij meerdere
+        // cliënten niet onterecht wordt overgeslagen.
         handled.add(key);
         setTimeout(step, 60);
         return;
@@ -204,7 +203,7 @@ function startUursoortForNewClients(names) {
       return;
     }
     setStatus(`Uursoort kiezen voor ${contexts.map((ctx) => ctx.firstName).join(' - ')}...`);
-    showUursoortQueue(contexts, 0, () => {
+    showUursoortQueue(contexts, () => {
       appointmentFlow.autoSelectingNewClient = false;
       showChoices();
       setStatus('Uursoort voor nieuwe client gezet');
@@ -227,16 +226,14 @@ export function handleClientListChanges() {
   appointmentFlow.knownClientNames = new Set(currentNames);
   if (firstSeed || !added.length) return;
   // Alleen ingrijpen als de gebruiker AL een afspraaktype koos (pendingChoice).
-  // Zonder keuze eerst gewoon het keuzemenu tonen - NIET automatisch uursoorten
-  // uitlezen (dat las eerder cliëntgegevens abusievelijk als uursoort in en sloeg
-  // het afspraaktype over).
+  // Zonder keuze eerst gewoon het keuzemenu tonen, NIET automatisch uursoorten
+  // uitlezen (dat kan cliëntgegevens als uursoort lezen en slaat het
+  // afspraaktype over).
   if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
     setTitleForChoice(appointmentFlow.pendingChoice, () => {});
-    // Belangrijk: een LATER toegevoegde cliënt werd overgeslagen omdat we alleen
-    // een algemene instructie toonden zonder de nieuwe cliënt(en) expliciet te
-    // verwerken. Stuur nu de concreet toegevoegde namen door naar de auto-wachtrij
-    // (die de nieuwe uursoortvelden zelf uitklapt en invult). Val alleen terug op
-    // de handmatige instructie als er geen concrete namen zijn.
+    // Een later toegevoegde cliënt: de namen gaan naar de auto-wachtrij (die de
+    // nieuwe uursoortvelden zelf uitklapt en invult). Alleen zonder concrete
+    // namen de handmatige instructie.
     const addedNames = added.map((e) => e.name).filter(Boolean);
     const state = computeAppointmentUursoortState();
     if (addedNames.length && (state === 'MIXED' || state === 'CHOICE')) {

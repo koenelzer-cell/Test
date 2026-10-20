@@ -19,10 +19,9 @@ let sidePanelPorts = 0;
 let zijpaneelTab = null;   // het ENIGE tabblad dat nu voor het zijpaneel meldt
 
 /* Eén zijpaneel voor het hele venster (manifest: side_panel.default_path).
-   Versie 1.6.223/224 probeerde een paneel per tabblad; in de praktijk kwam
-   het paneel dan niet terug na een tabwissel. Daarom zetten we bij elke start
-   van de worker het venster-brede paneel weer aan (ook om die instelling van
-   toen ongedaan te maken). */
+   Een paneel per tabblad komt na een tabwissel niet terug. Bij elke start van
+   de worker zetten we het venster-brede paneel daarom weer aan (dat herstelt
+   ook een paneel dat nog per tabblad stond ingesteld). */
 const PANEEL_PAD = 'pages/sidepanel.html';
 export function resetPanelOptions() {
   try {

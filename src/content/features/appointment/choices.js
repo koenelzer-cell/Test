@@ -92,7 +92,7 @@ export function showChoices() {
   ensureClientExpanded((expanded) => {
     if (!expanded) setStatus('Clientkaart openen...', false);
   });
-  // #2 - Zelftest: waarschuw proactief als een kern-hook niet herkend wordt
+  // Zelftest: waarschuw proactief als een kern-hook niet herkend wordt
   // (bv. na een ONS-wijziging), zodat een stille detectiefout meteen opvalt.
   // Deze banner gebruikt beheerbare tekst (mkText); die zeldzame foutsituatie
   // houdt daarom de oude, volledig vanilla opbouw aan.
@@ -207,7 +207,7 @@ export function handleChoice(choice) {
           // vooraf ensureClientExpanded afwachten (dat verliep bij 4+ cliënten
           // in een time-out en viel dan onterecht terug op "handmatig").
           setStatus('Uursoorten uit cliëntkaart laden...');
-          showUursoortQueue([], 0, () => {
+          showUursoortQueue([], () => {
             scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
             const finishSave = () => { _endBusy(); showAppointmentReadyToSave(); };
             // Pas NU, nadat ONS al zijn eigen labels heeft gekoppeld, in één

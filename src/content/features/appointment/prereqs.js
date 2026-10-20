@@ -138,7 +138,7 @@ export function refreshAppointmentPrereqScreen() {
   if (appointmentFlow.appointmentSaveScreenActive) {
     // Opslaanpagina met rust laten zolang de opslaanfase geldig is (cliënt- én
     // niet-cliëntgebonden). De medewerker mag de eindtijd bewerken zonder dat de
-    // hulp terugspringt; en een niet-cliëntafspraak wordt niet meer afgebroken.
+    // hulp terugspringt, ook bij een niet-cliëntafspraak.
     if (!choiceScreen && appointmentSaveStageStillValid()) return;
     appointmentFlow.appointmentSaveScreenActive = false; // opslaanfase echt weg (bv. cliënt/label/tijd verwijderd): refresh weer vrijgeven
   }

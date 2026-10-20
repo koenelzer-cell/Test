@@ -155,7 +155,6 @@ export function maakAfspraakMaken(ctx) {
         b.setAttribute('role', 'option');
         b.setAttribute('data-client-id', c.id);
         b.appendChild(el('span', { fontWeight: '600' }, c.name || 'Cliënt ' + c.id));
-        // Cliëntnummer, geboortedatum en postcode: om de juiste cliënt te kiezen.
         // Cliëntnummer, geboortedatum en postcode als labels: om de juiste cliënt te kiezen.
         if (c.number || c.birth || c.pc || c.outOfCare) b.appendChild(labels([c.number ? 'Cl ' + c.number : '', c.birth ? 'Geb ' + c.birth : '', pcTekst(c.pc), c.outOfCare ? 'Uit zorg' : ''], 'data-client-extra'));
         b.addEventListener('mouseenter', function () { b.style.background = T.brandWash; });

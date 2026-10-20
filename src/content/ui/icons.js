@@ -65,8 +65,8 @@ export function svgIcon(pathD) {
   svg.appendChild(path);
   return svg;
 }
-// Zijwaartse chevron: het paneel klapt in de spine (opzij), niet meer
-// verticaal samen. Links = "klap in (richting de spine)", rechts = "klap uit".
+// Zijwaartse chevron: het paneel klapt opzij in de spine. Links = "klap in
+// (richting de spine)", rechts = "klap uit".
 export function setChevronIcon(button, collapsed) {
   if (!button) return;
   button.textContent = '';

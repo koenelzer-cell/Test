@@ -355,7 +355,7 @@ export function exposeTestApi() {
     resolveText,
     mkText,
     managedRichHtml,
-    // #2: DOM-detectiefuncties blootstellen zodat de regressietests op de ECHTE
+    // DOM-detectiefuncties blootstellen zodat de regressietests op de ECHTE
     // ONS-DOM (button.label-tag, uc-time-input, data-qa) kunnen controleren.
     labelChips,
     selectedAllLabelChipTexts,

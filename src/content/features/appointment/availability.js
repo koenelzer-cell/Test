@@ -41,9 +41,9 @@ function availabilityPersonKey(entry) {
   return clean(entry.name || entry.firstName || '').toLowerCase().replace(/\s+/g, ' ');
 }
 export function appointmentNeedsAvailabilityConfirmation() {
-  // Verwijderd op verzoek: de "heeft al een afspraak, alsnog doorgaan?"-melding
-  // is uitgeschakeld. Hij liet het scherm heen en weer flippen en las soms
-  // onzin-namen in. Afspraakhulp bemoeit zich niet meer met beschikbaarheid.
+  // Uitgeschakeld op verzoek: de melding "heeft al een afspraak, alsnog
+  // doorgaan?" liet het scherm heen en weer springen en las soms onzin-namen.
+  // De afspraakhulp bemoeit zich niet met beschikbaarheid.
   return false;
 }
 // Onderbrekende dialoog (spine-modal) i.p.v. een inline Ja/Nee-prompt in het

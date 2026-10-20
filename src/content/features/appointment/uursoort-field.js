@@ -72,9 +72,6 @@ export function hasUursoortSelected() {
     const txt = clean(uiText(trigger) || trigger.textContent || trigger.value || trigger.getAttribute && (trigger.getAttribute('value') || trigger.getAttribute('title') || ''));
     return !!txt && !/zoek naar uursoorten|selecteer uursoort|uursoort|geen resultaten|voer minstens|toont /.test(txt);
   };
-  // (Fase 4) De oude geometrie-helper hasVisibleUursoortComboboxValue is
-  // verwijderd: die werd nergens meer aangeroepen sinds de cliënt-detectie op
-  // stabiele signalen draait (computeAppointmentUursoortState / entryUursoortIsSet).
   const entries = findClientEntries();
   // Cliënt-pad: gereed = centrale toestand READY_TO_SAVE (alle cliënten gezet).
   if (entries.length) return computeAppointmentUursoortState() === 'READY_TO_SAVE';
@@ -100,10 +97,9 @@ export function shouldRequireUursoortForSubmit() {
   return !!appointmentFlow.activeNonClientOption || findClientEntries().length > 0;
 }
 // Vind de daadwerkelijk geselecteerde optie(s) in de open dropdown, ONGEACHT
-// of de tekst als 'uursoort' herkend wordt. De oude aanpak zocht binnen
-// optionCandidates(), dat elke optie eerst door looksLikeUursoortOption haalt;
-// stond de geselecteerde uursoort daar niet in, dan werd hij nooit gevonden en
-// faalde het deselecteren keer op keer.
+// of de tekst als 'uursoort' herkend wordt (niet via optionCandidates(): die
+// filtert met looksLikeUursoortOption, en een uursoort die daar niet door komt
+// zou dan nooit gedeselecteerd worden).
 function selectedUursoortOptionEls(openedBy, trigger) {
   const out = [];
   const seen = new Set();

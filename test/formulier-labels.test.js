@@ -1,5 +1,5 @@
 // Labels van het open afspraakformulier zetten via ONS' eigen Vue-koppeling
-// (main-world, taak 6) in plaats van de dropdown te openen.
+// (main-world) in plaats van de dropdown te openen.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';

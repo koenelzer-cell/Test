@@ -20,10 +20,6 @@
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
-
-   (Tot versie 1.6.201 bood dit script ook opdrachten om velden te zetten of te
-   lezen — set-select, set-input, read-value. Niemand gebruikte die; ze zijn
-   verwijderd.)
    ========================================================================== */
 import { PAGE_BRIDGE, PAGE_COMMAND } from '../shared/messages.js';
 import { firstNameFromName } from '../shared/namen.js';
@@ -136,7 +132,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      twee minuten oud), dan zetten we daarin wat de medewerker daar al koos:
      valid_from, start_time, end_time en labels. Alleen velden die nog leeg
      zijn; de rest van het antwoord blijft precies zoals ONS het stuurde. Lukt
-     het niet, dan vult het content-script de velden zoals vroeger in.
+     het niet, dan vult het content-script de velden zelf in.
      PRIVACY: we lezen uit het model alleen meta.new_record en
      meta.create_url; medewerkers en cliënten raken we niet aan.
      ---------------------------------------------------------------------- */

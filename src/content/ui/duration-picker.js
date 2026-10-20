@@ -264,10 +264,8 @@ function mkTwoColumnDurationPicker(values, onPick) {
 // directe/indirecte tijd. `initial` is de startwaarde voor de schuifregelaar
 // (reistijd begint op 0, een duur op de eerste waarde).
 //
-// 'hourMinute' had eerder geen eigen tak en viel door naar het chipsrooster;
-// omdat dat óók de standaardwaarde is, werd de ingestelde stijl bij 16 of
-// minder opties genegeerd. Dezelfde fout was eerder al voor 'slider' en
-// 'columns' hersteld; dit is de derde.
+// Elke ingestelde stijl heeft een eigen tak, ook als de waarde gelijk is aan
+// de automatische keuze; zonder (of met een onbekende) stijl kiest hij zelf.
 export function mkDurationPicker(values, onPick, style, initial, labelStijl) {
   const start = (initial != null) ? initial : values[0];
   // 'minutenRooster': altijd alle waarden in één rooster, nooit een uren-stap.

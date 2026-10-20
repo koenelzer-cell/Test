@@ -2,11 +2,9 @@ import { BackButton } from './BackButton.jsx';
 import { useListKeyboard } from '../hooks/useListKeyboard.js';
 import { TileButton } from './TileButton.jsx';
 
-// Terugknop + titel + een lijst keuzeknoppen (of een melding als er niets is).
-// Deze vorm kwam meerdere keren bijna identiek voor in content.js:
-// showRegistrationHourTypeSelection en showUursoort. `loading` dekt het geval
-// waarin de opties nog opgehaald worden — voorheen werd daarvoor eerst een
-// half scherm gebouwd en daarna alles opnieuw.
+// Terugknop + titel + een lijst keuzeknoppen (of een melding als er niets is),
+// voor showRegistrationHourTypeSelection en showUursoort. `loading`: de opties
+// worden nog opgehaald; het scherm staat er dan al en vult zich daarna.
 export function PickListScreen({
   title, titleWeight = 700, loading, options, emptyMessage, emptyColor = '#c62828',
   tokens, onBack, onPick, keyboardEnabled = true,

@@ -2,7 +2,7 @@
 // overschrijven dit per sectie.
 
 // ===== Beheerbare configuratie (één bron) =====
-// Alle voorheen hardcoded lijsten staan hier bij elkaar. Dit is het formaat dat
+// Alle instelbare lijsten staan hier bij elkaar. Dit is het formaat dat
 // het (aparte) beheerscherm produceert. Een override kan via chrome.storage
 // (managed door IT, of local voor test) onder de sleutel 'helperConfig' worden
 // gezet; die vervangt per sectie de standaard hieronder. Zo is aanpassen

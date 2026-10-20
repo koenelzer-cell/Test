@@ -158,7 +158,7 @@ export function startVanuitPlanhulp() {
           if (!missen) { naarOpslaan(); return; }
           // Alleen de uursoort ontbreekt: alleen die vragen, dan opslaan.
           appointmentFlow.planhulpVullenSinds = 0;
-          showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+          showUursoortQueue([], () => setLabelsExclusive(labels, naarOpslaan));
         });
       });
     });

@@ -97,9 +97,8 @@ function applySurveyConfig(cfg) {
 //   config.json < lokale testconfig < beleid (chrome.storage.managed),
 // en daarna de lokaal in de UI-inspector herstelde selectors (winnen per sleutel).
 //
-// Tot 1.6.201 liepen deze vier verzoeken tegelijk en won de laatste die
-// binnenkwam. Omdat config.json via fetch meestal als laatste binnenkomt,
-// overschreef het dan het beleid en de lokaal herstelde selectors.
+// De vier bronnen worden na elkaar en in deze volgorde toegepast; tegelijk
+// zou config.json (meestal het laatst binnen) het beleid overschrijven.
 const SURVEY_SELECTOR_KEYS = ['surveyAgeSelector', 'surveyQuestionTextSelector', 'surveyClientNameSelector', 'surveyTitleSelector', 'surveyQuestionSelector', 'surveyNextStatusSelector'];
 export async function loadSurveyConfig() {
   try {

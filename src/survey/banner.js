@@ -181,7 +181,7 @@ function pushPage(on) {
   if (!body) return;
   const avail = 'calc(100vw - ' + surveyState.PANEL_W + 'px)';
   // Layout-containers die de inhoud dragen; die begrenzen we met MAX-width
-  // (niet width/right — dat maakte het scherm eerder leeg), zodat brede inhoud
+  // (niet width/right: dan wordt het scherm leeg), zodat brede inhoud
   // niet achter het paneel valt.
   const shells = document.querySelectorAll('.unify-layout,[class*="unify-layout"],[class*="_columns_" i],form');
   if (on) {

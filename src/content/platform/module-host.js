@@ -9,9 +9,6 @@ import { PAGE_BRIDGE } from '../../shared/messages.js';
 //   - Het meldingenkanaal bundelt de meldingen van alle actieve modules in één
 //     onopvallende balk linksonder.
 //
-// Tot versie 1.6.201 was dit een apart content-script (modules.js) dat
-// window.OnsAgendahulp beschikbaar maakte; nu is het een gewone module.
-//
 // Gebruik: register(ModuleBase.create({ id, urls, … }, { run(ctx, api) { api.setMessage(…) } })).
 
 

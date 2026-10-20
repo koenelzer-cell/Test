@@ -48,8 +48,8 @@ function recomputeUiOverrides() {
   Object.assign(UI_OVERRIDES, CONFIG_UI_SELECTORS, LOCAL_UI_SELECTORS);
   applyCentralUiSelectors(); applyAgendaSelectorOverrides();
 }
-// Neem de in config.json gepubliceerde uiSelectors over (ook ná de async
-// config-load — dat ging eerder mis: UI_OVERRIDES bleef leeg).
+// Neem de in config.json gepubliceerde uiSelectors over. Ook na het laden van
+// de configuratie (async) aanroepen, anders blijft UI_OVERRIDES leeg.
 export function seedUiOverridesFromConfig() { CONFIG_UI_SELECTORS = _pickStringSelectors(APP_CONFIG.uiSelectors); recomputeUiOverrides(); }
 // UI-inspector selector-overrides (géén diagnostiek): lokale overrides winnen per
 // sleutel over de centrale config en worden LIVE toegepast (geen herladen nodig).

@@ -56,8 +56,7 @@ export function setStatus(text, ok) {
 }
 // Laadstatus: drie stippen die na elkaar oplichten. JS-gedreven (setInterval
 // + inline style) i.p.v. een CSS @keyframes-animatie in een geïnjecteerde
-// <style>-tag — diezelfde constructie brak eerder de knop-opmaak omdat de
-// host-pagina een geïnjecteerde stylesheet kan negeren.
+// <style>-tag: de host-pagina kan een geïnjecteerde stylesheet negeren.
 export function showLoadingState(text) {
   const body = $body(); if (!body) return;
   resetBody(body);

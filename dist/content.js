@@ -13773,7 +13773,7 @@
             setStatus(base + " | voeg uursoort handmatig toe", titleOk && clOk);
           } else {
             setStatus("Uursoorten uit cliëntkaart laden...");
-            showUursoortQueue([], 0, () => {
+            showUursoortQueue([], () => {
               scheduleAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
               const finishSave = () => {
                 _endBusy();
@@ -13851,7 +13851,7 @@
       (e) => !(exclude && exclude.has(typeof clean === "function" ? clean(e.name) : e.name)) && !entryUursoortIsSet(e)
     );
   }
-  function showUursoortQueue(contexts, index, afterAll) {
+  function showUursoortQueue(contexts, afterAll) {
     if (appointmentFlow.uursoortQueueActive) return;
     appointmentFlow.uursoortQueueActive = true;
     const myGen = appointmentFlow.uursoortQueueGen;
@@ -13951,7 +13951,7 @@
         return;
       }
       setStatus(`Uursoort kiezen voor ${contexts.map((ctx) => ctx.firstName).join(" - ")}...`);
-      showUursoortQueue(contexts, 0, () => {
+      showUursoortQueue(contexts, () => {
         appointmentFlow.autoSelectingNewClient = false;
         showChoices();
         setStatus("Uursoort voor nieuwe client gezet");
@@ -17875,7 +17875,7 @@
               return;
             }
             appointmentFlow.planhulpVullenSinds = 0;
-            showUursoortQueue([], 0, () => setLabelsExclusive(labels, naarOpslaan));
+            showUursoortQueue([], () => setLabelsExclusive(labels, naarOpslaan));
           });
         });
       });
@@ -21069,7 +21069,7 @@
       resolveText,
       mkText,
       managedRichHtml,
-      // #2: DOM-detectiefuncties blootstellen zodat de regressietests op de ECHTE
+      // DOM-detectiefuncties blootstellen zodat de regressietests op de ECHTE
       // ONS-DOM (button.label-tag, uc-time-input, data-qa) kunnen controleren.
       labelChips,
       selectedAllLabelChipTexts,

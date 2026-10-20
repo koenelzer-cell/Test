@@ -110,7 +110,7 @@ function titelVoorOptie(opt) {
   else zetTitelAsync(opt.display);
 }
 // Labels van een niet-cliëntgebonden optie: JG Overig, plus het eigen label
-// uit de beheerlijst als dat is ingesteld (dat bleef vroeger niet staan).
+// uit de beheerlijst als dat is ingesteld.
 function nonClientLabels(opt) {
   return ['JG Overig'].concat(opt && opt.etiket ? [opt.etiket] : []);
 }

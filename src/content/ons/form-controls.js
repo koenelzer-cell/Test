@@ -379,8 +379,8 @@ export function searchInputForTrigger(trigger) {
   if (activeEl && /input|textarea/i.test(activeEl.tagName || '') && visible(activeEl) && !isOwnPopup(activeEl) && !isProtectedAppointmentStartInput(activeEl)) {
     const ph = clean((activeEl.getAttribute('placeholder') || '') + ' ' + (activeEl.getAttribute('aria-label') || ''));
     // Focus alleen vertrouwen als het veld ook echt bij deze trigger hoort:
-    // een nog openstaande dropdown van een vorige cliënt houdt de focus vast
-    // en werd voorheen klakkeloos overgenomen (uursoort bij verkeerde cliënt).
+    // een nog openstaande dropdown van een vorige cliënt kan de focus vasthouden
+    // (dan zou de uursoort bij de verkeerde cliënt komen).
     const focusUsable = !tr || inputBelongsToTrigger(activeEl, tr, trigger);
     if (focusUsable && !ph.includes('afspraken') && !ph.includes('clienten') && (/zoeken|zoek/.test(ph) || ph === '')) return activeEl;
   }
@@ -440,7 +440,7 @@ function selectDropdownLikeLabel(trigger, text, onResult, attempt = 0) {
     );
   }, 170);
 }
-// #1: pak het eerste zichtbare element met een stabiele ONS-testhaak (data-qa).
+// Pak het eerste zichtbare element met een stabiele ONS-testhaak (data-qa).
 // Deze veranderen niet mee met layout/opmaak en zijn dus betrouwbaarder dan
 // geometrie- of tekstdetectie.
 export function firstByDataQa(qa) {

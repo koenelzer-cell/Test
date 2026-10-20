@@ -31,7 +31,7 @@ import { ensureClientExpanded, hasClientInAppointment } from './clients.js';
 import { clearAllUursoorten } from './uursoort-queue.js';
 import { findModal } from '../../ons/modal.js';
 
-// #2 - Zelftest: welke kern-hooks herkent de hulp NIET op het afspraakscherm?
+// Zelftest: welke kern-hooks herkent de hulp NIET op het afspraakscherm?
 // Label/datum/begintijd horen altijd in de afspraakdetails te staan zodra het
 // keuzescherm verschijnt. Uursoort blijft buiten de check: dat veld zit soms in
 // een ingeklapte cliëntkaart en wordt bewust later door de gebruiker gekozen.

@@ -94,8 +94,8 @@ export function create(host, actions) {
     display: 'flex', alignItems: 'center', background: '#fff', padding: '12px',
     userSelect: 'none', borderBottom: '1px solid ' + T.line, flex: '0 0 auto'
   });
-  // Terugpijl in de kop (niet op de hoofdpagina): zelfde regel als vroeger de
-  // losse knop 'Terug'. Afspraak maken gaat terug naar de planhulp.
+  // Terugpijl in de kop (niet op de hoofdpagina). Afspraak maken gaat terug
+  // naar de planhulp, de rest naar de hoofdpagina.
   const terugPijl = document.createElement('button');
   terugPijl.type = 'button';
   terugPijl.setAttribute('data-terug', '');

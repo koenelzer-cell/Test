@@ -20,7 +20,7 @@ import { UI_OVERRIDES } from '../ons/selector-overrides.js';
 
 export function getEtiketTrigger() {
   if (CONFIG.etiketFieldSelector) { const f = document.querySelector(CONFIG.etiketFieldSelector); if (f) return f; }
-  // #1: eerst de stabiele ONS-haak data-qa="label_select"; tekst/geometrie als fallback.
+  // Eerst de stabiele ONS-haak data-qa="label_select"; tekst/geometrie als fallback.
   const byQa = firstByDataQa('label_select');
   if (byQa) return byQa;
   const t = findOpener({ placeholderRe: /label|etiket/i, displayTexts: ['zoek naar labels', 'zoek naar etiketten'], labelTexts: ['labels', 'label', 'etiket', 'etiketten'] });
@@ -440,8 +440,8 @@ function findClientEntriesFromModalStructure() {
       uursoortTrigger,
     };
     // Fallback: een leeg uursoort-veld ("Zoek naar uursoorten") heeft niet altijd
-    // data-qa="hour_type_select". Zonder deze fallback bleef de trigger van bv.
-    // cliënt 3 leeg en werd die cliënt in de wachtrij overgeslagen.
+    // data-qa="hour_type_select". Zonder deze fallback blijft de trigger van zo'n
+    // cliënt leeg en slaat de wachtrij hem over.
     if (!entry.uursoortTrigger) entry.uursoortTrigger = findUursoortTriggerForClient(entry, Infinity);
     entries.push(entry);
   }

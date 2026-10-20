@@ -38,8 +38,7 @@ connectConfigHooks({
   configApplied: syncWithUrl,
   teamChanged: deactivate,
 });
-// Het moduleplatform eerst: vóór 1.6.202 was dit een apart content-script
-// (modules.js) dat vóór de rest werd geladen.
+// Het moduleplatform eerst: de modules melden zich daar aan.
 startModuleHost();
 listenForMainWorldDetails();
 listenForOnsOverlapCalls();

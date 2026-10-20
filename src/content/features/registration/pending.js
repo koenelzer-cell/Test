@@ -41,7 +41,7 @@ export function clearPendingRegistration() { try { sessionStorage.removeItem(PEN
 export function matchRegistrationChoiceByLabel(label) {
   const c = clean(label);
   if (!c) return null;
-  // Koppeling zit nu in de registratievorm zelf (APP_CONFIG.registrationForms[].labels).
+  // De koppeling zit in de registratievorm zelf (APP_CONFIG.registrationForms[].labels).
   // Een vorm matcht als het afspraaklabel één van zijn gekoppelde labels bevat.
   for (const form of (APP_CONFIG.registrationForms || [])) {
     const labels = Array.isArray(form.labels) ? form.labels : [];

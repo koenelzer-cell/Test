@@ -7,9 +7,8 @@ import { useInterval } from '../hooks/useInterval.js';
 // (mkText) en de doorplannen-schakelaar bouwt op datzelfde tekstsysteem —
 // beide komen daarom als kant-en-klare knoop binnen. De rest is React.
 //
-// `onWatchTick` is de bewaking op de herhaling-instelling: die liep voorheen als
-// losse setInterval in content.js en moest overal handmatig gestopt worden.
-// Nu hoort hij bij dit scherm en stopt hij vanzelf als je hier weg navigeert.
+// `onWatchTick` is de bewaking op de herhaling-instelling. Hij hoort bij dit
+// scherm en stopt vanzelf als je hier weg navigeert.
 export function ReadyToSaveScreen({
   textNodes, toggleNode, tokens, onBack, onSave, saveDisabled, showUursoortNote,
   onWatchTick, watchIntervalMs, onUndo, overlapNote,
