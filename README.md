@@ -342,7 +342,7 @@ en oker).
   ONS-formulier voor het eerste moment en maakt de hulp na het opslaan
   dezelfde afspraak op de andere momenten; met 'Apart afspraakformulier' bij
   een gekozen tijd krijgt dat moment een eigen formulier. Niet voor
-  herhalende afspraken.
+  herhalende afspraken, en hooguit 20 momenten per keer.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
   Verslaglegging') tellen niet als bezet; valt een blok of begintijd erin, dan
   staat er een R bij de begintijd (met het label als uitleg). Alleen wat er echt in de agenda staat telt als bezet:

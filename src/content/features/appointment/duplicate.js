@@ -12,7 +12,8 @@
 // houden het alleen in het geheugen zolang de kopieën worden gemaakt, sturen
 // het alleen terug naar dezelfde ONS-omgeving en bewaren het nergens.
 
-import { PAGE_BRIDGE, MSG } from '../../../shared/messages.js';
+import { MSG, PAGE_EVENT } from '../../../shared/messages.js';
+import { onPageEvent } from '../../core/page-bridge.js';
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { duplicateEventPayload, inspectEventPayload, remainingMoments } from '../../domain/event-duplicate.js';
 import { postJson } from '../../services/ons-api/http.js';
@@ -21,6 +22,12 @@ import { storePendingAppointment } from './prefill.js';
 
 const KEY = PAGE_SESSION.PENDING_DUPLICATES;
 const GELDIG_MS = 30 * 60 * 1000;   // klaargezette momenten gelden een half uur
+// Hooguit zoveel momenten per keer, het eerste formulier meegeteld. De
+// klaargezette momenten komen via de pagina (main-world) terug en mogen dus
+// nooit onbeperkt afspraken laten maken.
+export const MAX_MOMENTEN = 20;
+const geldigMoment = (m) => !!m && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date))
+  && Number.isInteger(m.startMin) && m.startMin >= 0 && m.startMin < 24 * 60;
 const CREATE_URL = '/calendar/events';
 
 // moments: [{ date: 'YYYY-MM-DD', startMin }] die een kopie krijgen van de
@@ -41,7 +48,9 @@ function takePending(pendingText) {
     const p = JSON.parse(pendingText || 'null');
     sessionStorage.removeItem(KEY);
     if (!p || !Array.isArray(p.moments) || (Date.now() - p.ts) > GELDIG_MS) return null;
-    return { moments: p.moments, eigen: Array.isArray(p.eigen) ? p.eigen : [] };
+    const moments = p.moments.filter(geldigMoment).slice(0, MAX_MOMENTEN - 1);
+    const eigen = (Array.isArray(p.eigen) ? p.eigen : []).filter(geldigMoment).slice(0, MAX_MOMENTEN - 1 - moments.length);
+    return { moments, eigen };
   } catch (e) { return null; }
 }
 // Weg van het afspraakformulier zonder op te slaan: de momenten vervallen,
@@ -178,13 +187,5 @@ async function bijOpgeslagen(bodyText, pendingText) {
 }
 
 export function listenForCreatedEvents() {
-  try {
-    window.addEventListener('message', function (ev) {
-      if (!ev || ev.origin !== location.origin) return;
-      if (ev.source && ev.source !== window) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'eventCreated') return;
-      bijOpgeslagen(d.body, d.pending);
-    }, false);
-  } catch (e) {}
+  onPageEvent(PAGE_EVENT.CREATED, function (d) { bijOpgeslagen(d.body, d.pending); });
 }

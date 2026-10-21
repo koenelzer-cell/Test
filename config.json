@@ -881,10 +881,6 @@
     "registrationNeedle": "/registrations",
     "domains": []
   },
-  "rollout": {
-    "enabled": false,
-    "groups": {}
-  },
   "uiSelectors": {},
   "uursoortList": [],
   "labelList": []

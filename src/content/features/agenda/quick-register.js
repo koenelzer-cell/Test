@@ -15,7 +15,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 import { fetchOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { storePendingAppointment } from '../appointment/prefill.js';
-import { storePendingDuplicates } from '../appointment/duplicate.js';
+import { MAX_MOMENTEN, storePendingDuplicates } from '../appointment/duplicate.js';
 
 // Planhulp: het afspraakformulier van ONS openen en datum en begintijd laten
 // invullen zodra het er staat (features/appointment/prefill.js). De
@@ -24,6 +24,8 @@ export function openNewEvent(req) {
   req = req || {};
   const ymd = String(req.date || ''), hhmm = String(req.time || ''), minutes = parseInt(req.minutes, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: 'Ongeldig tijdstip.' };
+  const aantal = 1 + (Array.isArray(req.extra) ? req.extra.length : 0) + (Array.isArray(req.eigen) ? req.eigen.length : 0);
+  if (aantal > MAX_MOMENTEN) return { ok: false, error: 'Kies hooguit ' + MAX_MOMENTEN + ' momenten tegelijk.' };
   let ids = currentInviteeIds();
   if (!ids.length) { const id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };

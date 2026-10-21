@@ -536,12 +536,6 @@
     </div>
     <p class="uitleg" style="margin-top:6px">De hulp start zodra de URL het opgegeven URL-deel bevat. Een domeinenlijst beperkt de activatie verder; buiten de in het manifest toegestane domeinen uitbreiden kan hier niet.</p>
 
-    <h3 style="font-size:13px;margin:16px 0 6px">Gefaseerde uitrol</h3>
-    <label class="beheer-veld" style="flex-direction:row;align-items:center;gap:8px;max-width:640px"><input id="rolloutEnabled" type="checkbox" onchange="markDirty()"><span>Uitrol-gating inschakelen</span></label>
-    <div class="beheer-grid" style="max-width:640px;margin-top:8px">
-      <label class="beheer-veld" style="grid-column:1 / -1"><span>Groepen (één per regel: <code>naam: id1, id2</code>)</span><textarea id="rolloutGroups" rows="4" placeholder="pilot: 12345, 67890" onchange="markDirty()" style="font-family:Consolas,monospace"></textarea></label>
-    </div>
-    <p class="uitleg" style="margin-top:6px">Modules met een toegewezen groep draaien alleen voor de gebruikers in die groep zolang de gating aan staat. Staat de gating uit, dan zijn die modules voor iedereen actief. Gebruik dit om een functie eerst op een kleine groep te testen. De gebruikers-ID's komen overeen met de ONS-gebruiker.</p>
     <p class="uitleg" style="margin-top:10px">Het <b>werkdag-venster</b> (buiten deze tijden geen kleuren op de agenda) volgt automatisch je <b>Zone-profielen</b>: de vroegste begintijd tot de laatste eindtijd. Pas dat daar aan.</p>
   </div>
 
@@ -1134,7 +1128,6 @@ const DEFAULTS = {
   declarabiliteitRules: [ { match:'J&O/JBG', base:'direct' }, { match:'J&O', base:'direct' }, { match:'JBG', base:'direct' } ],
   support: { topdeskUrl: 'https://impegno.topdesk.net/' },
   activation: { appointmentNeedle: '/events/new', registrationNeedle: '/registrations', domains: [] },
-  rollout: { enabled: false, groups: {} },
   uiSelectors: {},
   uursoortList: [],
   labelList: [],
@@ -1460,7 +1453,7 @@ function mergeWithDefaults(value, defaults) {
 }
 function normalizeConfig(value) {
   const source=value&&value.helperConfig?value.helperConfig:value,out=mergeWithDefaults(source,DEFAULTS);
-  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','rollout','routesProxy'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
+  ['palette','profileSectors','zoneProfiles','uiSelectors','support','activation','routesProxy'].forEach((key)=>{if(source&&source[key]&&typeof source[key]==='object'&&!Array.isArray(source[key]))out[key]=clone(source[key]);});
   out.compatibility=Object.assign({},out.compatibility||{});
   out.compatibility.schemaVersion=Math.max(DEFAULTS.compatibility.schemaVersion,parseInt(out.compatibility.schemaVersion,10)||0);
   if(compareSemver(out.compatibility.minimumExtensionVersion,DEFAULTS.compatibility.minimumExtensionVersion)!==1)out.compatibility.minimumExtensionVersion=DEFAULTS.compatibility.minimumExtensionVersion;
@@ -1698,28 +1691,6 @@ function renderActivation(a) {
   set('#genApptNeedle', a.appointmentNeedle || '');
   set('#genRegNeedle', a.registrationNeedle || '');
   set('#genDomains', (Array.isArray(a.domains) ? a.domains : []).join(', '));
-}
-// Gefaseerde uitrol — hoofdschakelaar + groepen (naam → gebruikers-ID's). De
-// groepen worden als tekst beheerd: één groep per regel, "naam: id1, id2".
-function readRollout() {
-  const enabled = !!($('#rolloutEnabled') && $('#rolloutEnabled').checked);
-  const raw = ($('#rolloutGroups') && $('#rolloutGroups').value) || '';
-  const groups = {};
-  raw.split(/\r?\n/).forEach((line) => {
-    const t = line.trim(); if (!t) return;
-    const i = t.indexOf(':'); if (i < 0) return;
-    const name = t.slice(0, i).trim(); if (!name) return;
-    const ids = t.slice(i + 1).split(/[,;]/).map((s) => s.trim()).filter(Boolean);
-    groups[name] = ids;
-  });
-  return { enabled, groups };
-}
-function renderRollout(r) {
-  r = Object.assign({}, DEFAULTS.rollout, r || {});
-  if ($('#rolloutEnabled')) $('#rolloutEnabled').checked = !!r.enabled;
-  const groups = (r.groups && typeof r.groups === 'object') ? r.groups : {};
-  const lines = Object.keys(groups).map((name) => name + ': ' + (Array.isArray(groups[name]) ? groups[name].join(', ') : ''));
-  if ($('#rolloutGroups')) $('#rolloutGroups').value = lines.join('\n');
 }
 function readExtraKnownLabels() { const el = $('#extraLabels'); return el ? el.value.split(/[,;]/).map((s) => s.trim()).filter(Boolean) : (saved.extraKnownLabels || DEFAULTS.extraKnownLabels); }
 function renderExtraKnownLabels(list) { const el = $('#extraLabels'); if (el) el.value = (Array.isArray(list) ? list : (DEFAULTS.extraKnownLabels || [])).join(', '); }
@@ -2878,7 +2849,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), routesProxy:readRoutesProxy(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), rollout:readRollout(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), routesProxy:readRoutesProxy(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2886,7 +2857,7 @@ function renderAll(cfg) {
   _sectorNames = configuredSectorNames(cfg);
   _teamNames = teamNamesFrom(cfg);
   $('#tblChoices tbody').innerHTML = ''; sortByVolgorde(cfg.choices || []).forEach(addChoice);
-  renderExtraKnownLabels(cfg.extraKnownLabels); renderGeneralSettings(cfg.generalSettings); renderApiEndpoints(cfg.apiEndpoints); renderDeclarabiliteitRules(cfg.declarabiliteitRules); renderSupport(cfg.support); renderActivation(cfg.activation); renderRollout(cfg.rollout);
+  renderExtraKnownLabels(cfg.extraKnownLabels); renderGeneralSettings(cfg.generalSettings); renderApiEndpoints(cfg.apiEndpoints); renderDeclarabiliteitRules(cfg.declarabiliteitRules); renderSupport(cfg.support); renderActivation(cfg.activation);
   uiSelectorsState = (cfg.uiSelectors && typeof cfg.uiSelectors === 'object') ? clone(cfg.uiSelectors) : {}; renderUiSelectors();
   uursoortList = Array.isArray(cfg.uursoortList) ? cfg.uursoortList.slice() : []; labelList = Array.isArray(cfg.labelList) ? cfg.labelList.slice() : []; renderOptionLists();
   const _ncCats = cfg.nonClientCategories || DEFAULTS.nonClientCategories;

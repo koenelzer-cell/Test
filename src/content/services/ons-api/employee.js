@@ -4,9 +4,11 @@
 //   1. de URL (/invitees/{id}/… of employee_id[]=…)
 //   2. een veld in de pagina (employee_id, agenda_owner_id, …)
 //   3. de ONS-API /calendar/calendar_variables (invitee van type 'employee')
-//   4. een klein script in de pagina-context (zie employeeIdFromPageScript)
+//   4. onsContext() van de pagina, via de main-world
 
 import { agendaYmd } from '../../core/datetime.js';
+import { vraagMainWorld } from '../../core/page-bridge.js';
+import { PAGE_COMMAND } from '../../../shared/messages.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
 
@@ -14,7 +16,7 @@ export async function getEmployeeIdAsync() {
   return employeeIdFromUrl()
     || employeeIdFromDom()
     || (await employeeIdFromCalendarVariables())
-    || (await employeeIdFromPageScript());
+    || (await employeeIdFromPage());
 }
 
 function employeeIdFromUrl() {
@@ -41,40 +43,12 @@ async function employeeIdFromCalendarVariables() {
   }
 }
 
-// Laatste redmiddel: een inline-script in de pagina-context vraagt een globale
-// onsContext() van de pagina om een userId. Blokkeert de pagina inline-scripts
-// (CSP), dan komt er nooit antwoord; daarom geeft dit na
-// PAGE_SCRIPT_TIMEOUT_MS null terug. Zonder die grens bleef het ophalen van de
-// uursoorten eeuwig hangen en kwam de DOM-terugval nooit aan bod.
-const PAGE_SCRIPT_TIMEOUT_MS = 1500;
-function employeeIdFromPageScript() {
-  return new Promise((resolve) => {
-    const eventId = 'ons_data_' + Math.random().toString(36).slice(2, 11);
-    const script = document.createElement('script');
-    script.textContent = `
-      try {
-        let empId = null;
-        if (typeof onsContext === "function") {
-          let ctx = onsContext();
-          if (ctx && ctx.userId) empId = ctx.userId;
-        }
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: { empId: empId } }));
-      } catch(e) {
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: {} }));
-      }
-    `;
-    let settled = false;
-    const finish = (id) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      window.removeEventListener(eventId, listener);
-      script.remove();
-      resolve(id);
-    };
-    const listener = (e) => finish(e.detail && e.detail.empId ? String(e.detail.empId) : null);
-    const timer = setTimeout(() => finish(null), PAGE_SCRIPT_TIMEOUT_MS);
-    window.addEventListener(eventId, listener);
-    document.documentElement.appendChild(script);
-  });
+// Laatste redmiddel: onsContext() van de pagina zelf, die alleen de main-world
+// kan aanroepen. Komt er geen antwoord (geen main-world, of onsContext bestaat
+// niet), dan na een korte wachttijd null: het ophalen van de uursoorten mag
+// daar niet op blijven hangen.
+const PAGE_TIMEOUT_MS = 1500;
+async function employeeIdFromPage() {
+  const d = await vraagMainWorld(PAGE_COMMAND.READ_USER, PAGE_COMMAND.USER_READ, {}, PAGE_TIMEOUT_MS);
+  return d && d.ok === true && /^\d{1,12}$/.test(String(d.userId)) ? String(d.userId) : null;
 }

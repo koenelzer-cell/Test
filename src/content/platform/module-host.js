@@ -1,43 +1,19 @@
-import { PAGE_BRIDGE } from '../../shared/messages.js';
-
 // Moduleplatform en meldingenkanaal op de ONS-pagina.
 //
 //   - Een 'module' is een klein onderdeel dat elke seconde (alleen als het
 //     tabblad focus heeft) mag kijken of het iets te melden heeft. Het draait
-//     alleen op de pagina's (urls), omgevingen en voor de gebruikers
-//     (testGroup, gefaseerde uitrol) waarvoor het bedoeld is.
+//     alleen op de pagina's (urls) en omgevingen waarvoor het bedoeld is.
 //   - Het meldingenkanaal bundelt de meldingen van alle actieve modules in één
 //     onopvallende balk linksonder.
 //
-// Gebruik: register(ModuleBase.create({ id, urls, … }, { run(ctx, api) { api.setMessage(…) } })).
+// Gebruik: register(ModuleBase.create({ id, urls, … }, { run(api) { api.setMessage(…) } })).
 
 
-/* ── Omgeving en context (via main-world/index.js) ────────────────────── */
+/* ── Omgeving ─────────────────────────────────────────────────────────── */
 
+// De omgeving (bijv. 'impegno') is het eerste deel van de hostnaam.
 function onsEnvironment() {
-  try { return String(location.hostname.split('.')[0] || ''); } catch (e) { return ''; }
-}
-const context = { environment: onsEnvironment(), userId: '', url: location.href, ready: false };
-
-// Alleen berichten uit hetzelfde venster en dezelfde origin vertrouwen; een
-// script uit een ander frame of een andere origin kan zo geen (gespoofte)
-// context of gebruikers-ID aanleveren.
-function trustedMessage(ev) {
-  if (!ev) return false;
-  if (ev.origin !== location.origin) return false;
-  if (ev.source && ev.source !== window) return false;
-  return true;
-}
-function listenForContext() {
-  window.addEventListener('message', function (ev) {
-    if (!trustedMessage(ev)) return;
-    const d = ev && ev.data;
-    if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'context') return;
-    context.environment = d.environment || context.environment;
-    if (d.userId) context.userId = String(d.userId);
-    context.url = d.url || location.href;
-    context.ready = true;
-  }, false);
+  return String(location.hostname.split('.')[0] || '');
 }
 
 /* ── URL-scoping ──────────────────────────────────────────────────────── */
@@ -76,30 +52,6 @@ function clientHeaderVisible() {
     catch (e) {}
   }
   return false;
-}
-
-/* ── Gefaseerde uitrol ────────────────────────────────────────────────── */
-
-// Een module met een testGroup draait alleen voor gebruikers in die groep,
-// maar alléén zolang de uitrol-gating aan staat (config.rollout, beheerscherm).
-// Staat de gating uit, dan is de module gewoon voor iedereen beschikbaar.
-let ROLLOUT = { enabled: false, groups: {} };
-export function setRollout(cfg) {
-  if (!cfg || typeof cfg !== 'object') { ROLLOUT = { enabled: false, groups: {} }; return; }
-  ROLLOUT = { enabled: !!cfg.enabled, groups: (cfg.groups && typeof cfg.groups === 'object') ? cfg.groups : {} };
-}
-function userInGroup(userId, groupName) {
-  const members = ROLLOUT.groups[groupName];
-  if (!Array.isArray(members)) return false;
-  const id = String(userId || '').trim().toLowerCase();
-  if (!id) return false;
-  return members.some(function (m) { return String(m || '').trim().toLowerCase() === id; });
-}
-function isAllowedUser(meta) {
-  const tg = meta && meta.testGroup;
-  if (!tg || !ROLLOUT.enabled) return true; // geen groep of gating uit → iedereen
-  const groups = Array.isArray(tg) ? tg : [tg];
-  return groups.some(function (g) { return userInGroup(context.userId, g); });
 }
 
 /* ── Meldingenkanaal ──────────────────────────────────────────────────── */
@@ -201,11 +153,10 @@ export const ModuleBase = {
         if (meta.environments && meta.environments.length && meta.environments.indexOf(onsEnvironment()) === -1) return false;
         if (!urlMatches(meta.urls || meta.match, location.href)) return false;
         if (meta.requiresClientHeader && !clientHeaderVisible()) return false;
-        if (!isAllowedUser(meta)) return false;
         return true;
       },
       run: function () {
-        try { if (impl && impl.run) impl.run(context, messageApiFor(id)); }
+        try { if (impl && impl.run) impl.run(messageApiFor(id)); }
         catch (e) { /* één falende module breekt de rest niet */ }
       },
     };
@@ -223,7 +174,6 @@ export function startModuleHost() {
   if (started || window.__onsAgendahulpModules) return;
   started = true;
   window.__onsAgendahulpModules = true;   // dubbel injecteren voorkomen
-  listenForContext();
   setInterval(function () {
     if (!document.hasFocus()) return;
     for (let i = 0; i < REGISTRY.length; i++) {

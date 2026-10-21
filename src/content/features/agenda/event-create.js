@@ -9,7 +9,8 @@
 // afspraak; het verzoek gaat alleen naar dezelfde ONS-omgeving. Van het
 // formulier bewaren we alleen de instellingen in 'meta' (ja/nee en getallen).
 
-import { PAGE_BRIDGE } from '../../../shared/messages.js';
+import { PAGE_EVENT } from '../../../shared/messages.js';
+import { onPageEvent } from '../../core/page-bridge.js';
 import { PAGE_LOCAL } from '../../../shared/storage-keys.js';
 import { buildEventPayload, learnEventMeta, parseLabels, parseProductOptions } from '../../domain/event-create.js';
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
@@ -91,15 +92,9 @@ export async function createEvents(events, post) {
 // Instellingen van het formulier leren als de medewerker zelf een afspraak
 // opslaat. De vrije tijd van de planhulp klopt dan niet meer: vergeten.
 export function listenForEventMeta() {
-  try {
-    window.addEventListener('message', function (ev) {
-      if (!ev || ev.origin !== location.origin) return;
-      if (ev.source && ev.source !== window) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'eventMeta') return;
-      forgetFreeSlots();
-      const m = learnEventMeta(d.meta);
-      if (m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
-    }, false);
-  } catch (e) {}
+  onPageEvent(PAGE_EVENT.META, function (d) {
+    forgetFreeSlots();
+    const m = learnEventMeta(d.meta);
+    if (m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch (e) {} }
+  });
 }

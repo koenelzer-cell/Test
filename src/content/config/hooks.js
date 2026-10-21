@@ -8,7 +8,6 @@
 const hooks = {
   formsChanged: null,       // registratievormen gewijzigd -> rechtermuismenu bijwerken
   selectorsChanged: null,   // config.uiSelectors gewijzigd -> selector-overrides herberekenen
-  rolloutChanged: null,     // config.rollout gewijzigd -> moduleplatform (gefaseerde uitrol)
   configApplied: null,      // configuratie toegepast -> opnieuw bepalen welke hulp bij de URL hoort
   teamChanged: null,        // ander team gekozen -> de hulp opnieuw starten
 };

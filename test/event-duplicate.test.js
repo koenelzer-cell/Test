@@ -91,3 +91,15 @@ test('main-world geeft het opslaan-verzoek alleen door als er momenten klaarstaa
   assert.equal(gezien[0].body, body);
   assert.equal(gezien[0].pending, klaar);
 });
+
+test('een nagemaakt opslaan-bericht maakt hooguit 19 kopieën', async () => {
+  const { bootHelper } = await import('./helpers/harness.mjs');
+  const { window } = bootHelper({ url: 'https://impegno.onsagenda.nl/events/new' });
+  let gepost = 0;
+  window.fetch = () => { gepost++; return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}), text: () => Promise.resolve('{}') }); };
+  const moments = Array.from({ length: 50 }, (_, i) => ({ date: '2026-11-' + String(1 + (i % 28)).padStart(2, '0'), startMin: 480 + i }));
+  window.dispatchEvent(new window.MessageEvent('message', { origin: window.location.origin, source: window, data: { __onsah: true, dir: 'from-main', type: 'eventCreated',
+    body: JSON.stringify(VOORBEELD()), pending: JSON.stringify({ moments, ts: Date.now() }) } }));
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(gepost, 19);
+});

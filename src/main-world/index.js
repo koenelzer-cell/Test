@@ -2,26 +2,27 @@
    main-world — draait in de PAGINA-context van ONS (manifest: "world": "MAIN").
 
    Zes taken:
-     1) Context melden: omgeving (uit de hostnaam) en gebruikers-ID, voor de
-        gefaseerde uitrol in het meldingenkanaal (content/platform/module-host.js).
-     2) Details-watcher: de afspraaklabels uit ONS' eigen details-call
+     1) Details-watcher: de afspraaklabels uit ONS' eigen details-call
         doorgeven, zodat de registratiehulp de registratievorm kan kiezen.
-     3) Overlap-watcher: de URL van ONS' eigen overlapcontrole voor afspraken
+     2) Overlap-watcher: de URL van ONS' eigen overlapcontrole voor afspraken
         doorgeven, zodat de planhulp die controle kan nadoen.
-     4) Afspraak-watcher: alleen als de planhulp kopieën heeft klaargezet, het
+     3) Afspraak-watcher: alleen als de planhulp kopieën heeft klaargezet, het
         verzoek doorgeven waarmee ONS een nieuwe afspraak opslaat.
-     5) Leeg afspraakmodel aanvullen: alleen als de planhulp een afspraak heeft
+     4) Leeg afspraakmodel aanvullen: alleen als de planhulp een afspraak heeft
         klaargezet, datum, tijden en afspraaktype in het model zetten waaruit
         ONS het nieuwe afspraakformulier opbouwt.
+     5) Op verzoek het medewerker-id uit onsContext() van de pagina lezen.
      6) Labels en uursoort van het open afspraakformulier zetten op verzoek
         van de afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de
         dropdown, en lezen wat erin staat (cliënten, uursoorten, labels);
         ook titel, notities, tijden en reistijd via EventDetails.onChange.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
-   met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin.
+   met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin
+   (de typen staan in shared/messages.js: PAGE_EVENT en PAGE_COMMAND).
    ========================================================================== */
-import { PAGE_BRIDGE, PAGE_COMMAND } from '../shared/messages.js';
+import { PAGE_BRIDGE, PAGE_COMMAND, PAGE_EVENT } from '../shared/messages.js';
+import { parseEventOverlap } from '../shared/overlap.js';
 import { firstNameFromName } from '../shared/namen.js';
 import { PAGE_SESSION } from '../shared/storage-keys.js';
 
@@ -33,30 +34,6 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     // Gericht op de eigen origin (geen '*'), zodat de melding niet naar
     // cross-origin frames lekt.
     try { window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.FROM_MAIN, type: type }, payload || {}), location.origin); } catch (e) {}
-  }
-
-  // Omgeving (tenant/test/prod) uit de hostname, i.p.v. hardcoded.
-  function onsEnvironment() {
-    try { return String(location.hostname.split('.')[0] || ''); } catch (e) { return ''; }
-  }
-
-  // Gebruikers-ID uit ONS' eigen state (voor de gefaseerde uitrol).
-  function detectUserId() {
-    try { if (window.employeeId) return String(window.employeeId); } catch (e) {}
-    try {
-      const el = document.getElementById('altrechtUserId') || document.querySelector('input[name*="user" i][value]');
-      if (el && el.value) return String(el.value);
-    } catch (e) {}
-    try {
-      const html = document.body ? document.body.innerHTML : '';
-      const m = html.match(/"?userId"?\s*[:=]\s*"?(\d{1,10})/i);
-      if (m) return m[1];
-    } catch (e) {}
-    return '';
-  }
-
-  function announceContext() {
-    post('context', { environment: onsEnvironment(), userId: detectUserId(), url: location.href });
   }
 
   /* ---- details-watcher -------------------------------------------------
@@ -94,23 +71,24 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     try {
       if (!url || !DETAILS_RE.test(String(url))) return;
       const labels = labelNamesFrom(JSON.parse(text));
-      if (labels.length) post('details', { url: String(url), labels: labels });
+      if (labels.length) post(PAGE_EVENT.DETAILS, { url: String(url), labels: labels.slice(0, 20) });
     } catch (e) {}
   }
   /* ---- overlapcontrole van afspraken ------------------------------------
      Opent iemand een afspraak, dan vraagt ONS zelf
        /event_planner/overlap_detection?…
      Die URL geven we door (alleen eigen origin), zodat de planhulp de vorm
-     van dat verzoek kan leren (content/domain/event-overlap.js). Het antwoord
-     gaat mee, ingekort, alleen om te zien of de hulp het kan lezen; het
-     content-script maakt er ja/nee/onbekend van en bewaart het niet.
+     van dat verzoek kan leren (content/domain/event-overlap.js), met alleen
+     of het antwoord te lezen is; het antwoord zelf gaat niet mee.
      ---------------------------------------------------------------------- */
   const OVERLAP_RE = /\/event_planner\/overlap_detection(?:[?#]|$)/;
   function reportOverlap(url, text) {
     try {
       const abs = new URL(String(url), location.href);
       if (abs.origin !== location.origin) return;
-      post('eventOverlap', { url: abs.pathname + abs.search, body: String(text == null ? '' : text).slice(0, 4000) });
+      let json = null;
+      try { json = JSON.parse(String(text)); } catch (e) {}
+      post(PAGE_EVENT.OVERLAP, { url: abs.pathname + abs.search, leesbaar: parseEventOverlap(json) !== null });
     } catch (e) {}
   }
   /* ---- nieuwe afspraak opgeslagen --------------------------------------
@@ -222,9 +200,9 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
             const v = meta[k];
             if (typeof v === 'boolean' || v === null || typeof v === 'number') kaal[k] = v;
           });
-          post('eventMeta', { meta: kaal });
+          post(PAGE_EVENT.META, { meta: kaal });
         } catch (e) {}
-        try { if (klaar) post('eventCreated', { body: body, pending: klaar }); } catch (e) {}
+        try { if (klaar) post(PAGE_EVENT.CREATED, { body: body, pending: klaar }); } catch (e) {}
       };
     } catch (e) {}
     return null;
@@ -490,6 +468,15 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number) };
   }
 
+  // Het medewerker-id dat ONS zelf kent (onsContext), voor de product-API.
+  function leesGebruiker() {
+    try {
+      const ctx = typeof window.onsContext === 'function' ? window.onsContext() : null;
+      const id = ctx && ctx.userId;
+      return id ? { ok: true, userId: String(id) } : { ok: false };
+    } catch (e) { return { ok: false }; }
+  }
+
   window.addEventListener('message', function (ev) {
     try {
       if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
@@ -498,6 +485,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       const id = String(d.id || '').slice(0, 60);
       const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
       if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
+      if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_LABELS) {
@@ -508,10 +496,4 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       }
     } catch (e) {}
   });
-
-  // Context proactief melden zodra ONS geladen is (kort pollen, dan stoppen).
-  const CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;
-  let tries = 0;
-  const timer = setInterval(function () { announceContext(); if (++tries >= CONTEXT_TRIES) clearInterval(timer); }, CONTEXT_INTERVAL_MS);
-  announceContext();
 })();

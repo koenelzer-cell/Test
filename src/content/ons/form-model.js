@@ -7,7 +7,8 @@
 // viaScherm). Eerst via het formulier; lukt dat niet, dan één keer via het
 // scherm (klikken of typen).
 
-import { PAGE_BRIDGE, PAGE_COMMAND } from '../../shared/messages.js';
+import { PAGE_COMMAND } from '../../shared/messages.js';
+import { vraagMainWorld } from '../core/page-bridge.js';
 import { APP_CONFIG } from '../config/app-config.js';
 
 // Noodschakelaar (beheerscherm of bedrijfsbeleid): features.formViaModel ===
@@ -32,12 +33,12 @@ export function zetLabelsViaFormulier(namen, opties) {
   const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? '' : n).trim()).filter(Boolean);
   if (!lijst.length) return Promise.resolve(false);
   const o = typeof opties === 'number' ? { wachtMs: opties } : (opties || {});
-  return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
+  return vraagFormulier(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
 }
 
 // Alle labels weghalen (Verwijder instellingen). -> Promise<boolean>
 export function wisLabelsViaFormulier(wachtMs) {
-  return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
+  return vraagFormulier(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
 }
 
 // De uursoort van één uursoortveld (per cliënt) zetten. veld: het
@@ -48,7 +49,7 @@ export function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs)
   if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
   const doel = 'u' + (++volgnummer) + '-' + Date.now();
   try { veld.setAttribute('data-onsah-doel', doel); } catch (e) { return Promise.resolve(false); }
-  return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
+  return vraagFormulier(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
     { doel: doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs)
     .then((ok) => { try { veld.removeAttribute('data-onsah-doel'); } catch (e) {} return ok; });
 }
@@ -58,7 +59,7 @@ export function wisUursoortViaFormulier(veld, wachtMs) {
   if (!veld || !veld.setAttribute) return Promise.resolve(false);
   const doel = 'w' + (++volgnummer) + '-' + Date.now();
   try { veld.setAttribute('data-onsah-doel', doel); } catch (e) { return Promise.resolve(false); }
-  return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel: doel, wis: true }, wachtMs)
+  return vraagFormulier(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel: doel, wis: true }, wachtMs)
     .then((ok) => { try { veld.removeAttribute('data-onsah-doel'); } catch (e) {} return ok; });
 }
 
@@ -66,7 +67,7 @@ export function wisUursoortViaFormulier(veld, wachtMs) {
 // main-world vindt het veld zelf aan de cliënt. -> Promise<boolean>
 export function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
   if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-  return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
+  return vraagFormulier(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET,
     { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? '' : beschrijving).slice(0, 200) }, wachtMs);
 }
 
@@ -74,39 +75,21 @@ export function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtM
 // 'comment', 'start_time'/'end_time' ('14:00'), 'travel_time_before'/'after'
 // (minuten). -> Promise<boolean> (true = het model heeft de waarde)
 export function zetVeldViaFormulier(veld, waarde, wachtMs) {
-  return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde: waarde }, wachtMs);
+  return vraagFormulier(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde: waarde }, wachtMs);
 }
 
 // Wat het open formulier bevat (main-world, uit het Vue-model):
 // { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
 //   labelIds } of null als dat niet lukt. Geen volledige namen.
 export function leesFormulier(wachtMs) {
-  return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+  return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
 }
 
 // volledig: het hele antwoord teruggeven (of null) in plaats van true/false.
-function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
+function vraagFormulier(type, antwoordType, velden, wachtMs, volledig) {
   if (!formulierViaModelAan()) return Promise.resolve(volledig ? null : false);
-  return new Promise((klaar) => {
-    const id = type + '-' + (++volgnummer) + '-' + Date.now();
-    let gemeld = false;
-    const luister = (ev) => {
-      if (!ev || ev.origin !== location.origin || (ev.source && ev.source !== window)) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
-      einde(volledig ? (d.ok === true ? d : null) : d.ok === true);
-    };
-    const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
-    function einde(ok) {
-      if (gemeld) return;
-      gemeld = true;
-      clearTimeout(timer);
-      window.removeEventListener('message', luister);
-      klaar(ok);
-    }
-    window.addEventListener('message', luister);
-    try {
-      window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type: type, id: id }, velden), location.origin);
-    } catch (e) { einde(volledig ? null : false); }
+  return vraagMainWorld(type, antwoordType, velden, wachtMs || 1500).then((d) => {
+    const ok = !!d && d.ok === true;
+    return volledig ? (ok ? d : null) : ok;
   });
 }

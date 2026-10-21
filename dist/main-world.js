@@ -5,6 +5,16 @@
     TO_MAIN: "to-main",
     FROM_MAIN: "from-main"
   };
+  var PAGE_EVENT = {
+    DETAILS: "details",
+    // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
+    OVERLAP: "eventOverlap",
+    // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
+    META: "eventMeta",
+    // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+    CREATED: "eventCreated"
+    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+  };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
     // { id, labels: ['JG Huisbezoek', …], toevoegen? } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten (vervangen of toevoegen) of wissen
@@ -18,11 +28,53 @@
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
     // { id, ok, reden? }
+    READ_USER: "leesGebruiker",
+    // { id }  medewerker-id uit onsContext() van de pagina
+    USER_READ: "gebruikerGelezen",
+    // { id, ok, userId }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
     // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
   };
+
+  // src/shared/overlap.js
+  function parseDetectOverlap(json) {
+    if (typeof json === "boolean") return json;
+    if (Array.isArray(json)) return json.length > 0;
+    if (!json || typeof json !== "object") return null;
+    const boolKeys = ["overlap", "overlaps", "has_overlap", "hasOverlap", "overlapping", "is_overlapping", "isOverlapping"];
+    for (let i = 0; i < boolKeys.length; i++) {
+      const v = json[boolKeys[i]];
+      if (typeof v === "boolean") return v;
+      if (Array.isArray(v)) return v.length > 0;
+    }
+    const listKeys = ["registrations", "overlapping_registrations", "conflicts", "items", "data"];
+    for (let j = 0; j < listKeys.length; j++) {
+      if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
+    }
+    return null;
+  }
+  function parseEventOverlap(json) {
+    const bekend = parseDetectOverlap(json);
+    if (bekend !== null) return bekend;
+    if (!json || typeof json !== "object") return null;
+    const keys = Object.keys(json);
+    for (let i = 0; i < keys.length; i++) {
+      if (!/overlap|conflict/i.test(keys[i])) continue;
+      const v = json[keys[i]];
+      if (typeof v === "boolean") return v;
+      if (Array.isArray(v)) return v.length > 0;
+      if (typeof v === "number") return v > 0;
+    }
+    const lijsten = keys.filter(function(k) {
+      return Array.isArray(json[k]);
+    });
+    if (keys.length && lijsten.length === keys.length) return lijsten.some(function(k) {
+      return json[k].length > 0;
+    });
+    return null;
+  }
 
   // src/shared/namen.js
   function firstNameFromName(name) {
@@ -60,34 +112,6 @@
       } catch (e) {
       }
     }
-    function onsEnvironment() {
-      try {
-        return String(location.hostname.split(".")[0] || "");
-      } catch (e) {
-        return "";
-      }
-    }
-    function detectUserId() {
-      try {
-        if (window.employeeId) return String(window.employeeId);
-      } catch (e) {
-      }
-      try {
-        const el = document.getElementById("altrechtUserId") || document.querySelector('input[name*="user" i][value]');
-        if (el && el.value) return String(el.value);
-      } catch (e) {
-      }
-      try {
-        const html = document.body ? document.body.innerHTML : "";
-        const m = html.match(/"?userId"?\s*[:=]\s*"?(\d{1,10})/i);
-        if (m) return m[1];
-      } catch (e) {
-      }
-      return "";
-    }
-    function announceContext() {
-      post("context", { environment: onsEnvironment(), userId: detectUserId(), url: location.href });
-    }
     const DETAILS_RE = /\/(?:events|registrations)\/[^/?#]+\/details(?:[?#]|$)/;
     function labelNamesFrom(json) {
       if (!json || typeof json !== "object") return [];
@@ -109,7 +133,7 @@
       try {
         if (!url || !DETAILS_RE.test(String(url))) return;
         const labels = labelNamesFrom(JSON.parse(text));
-        if (labels.length) post("details", { url: String(url), labels });
+        if (labels.length) post(PAGE_EVENT.DETAILS, { url: String(url), labels: labels.slice(0, 20) });
       } catch (e) {
       }
     }
@@ -118,7 +142,12 @@
       try {
         const abs = new URL(String(url), location.href);
         if (abs.origin !== location.origin) return;
-        post("eventOverlap", { url: abs.pathname + abs.search, body: String(text == null ? "" : text).slice(0, 4e3) });
+        let json = null;
+        try {
+          json = JSON.parse(String(text));
+        } catch (e) {
+        }
+        post(PAGE_EVENT.OVERLAP, { url: abs.pathname + abs.search, leesbaar: parseEventOverlap(json) !== null });
       } catch (e) {
       }
     }
@@ -230,11 +259,11 @@
               const v = meta[k];
               if (typeof v === "boolean" || v === null || typeof v === "number") kaal[k] = v;
             });
-            post("eventMeta", { meta: kaal });
+            post(PAGE_EVENT.META, { meta: kaal });
           } catch (e) {
           }
           try {
-            if (klaar) post("eventCreated", { body, pending: klaar });
+            if (klaar) post(PAGE_EVENT.CREATED, { body, pending: klaar });
           } catch (e) {
           }
         };
@@ -577,6 +606,15 @@
         labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number)
       };
     }
+    function leesGebruiker() {
+      try {
+        const ctx = typeof window.onsContext === "function" ? window.onsContext() : null;
+        const id = ctx && ctx.userId;
+        return id ? { ok: true, userId: String(id) } : { ok: false };
+      } catch (e) {
+        return { ok: false };
+      }
+    }
     window.addEventListener("message", function(ev) {
       try {
         if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
@@ -590,6 +628,10 @@
         };
         if (d.type === PAGE_COMMAND.READ_FORM) {
           antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier());
+          return;
+        }
+        if (d.type === PAGE_COMMAND.READ_USER) {
+          antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker());
           return;
         }
         if (d.type === PAGE_COMMAND.SET_FIELD) {
@@ -613,12 +655,5 @@
       } catch (e) {
       }
     });
-    const CONTEXT_TRIES = 20, CONTEXT_INTERVAL_MS = 500;
-    let tries = 0;
-    const timer = setInterval(function() {
-      announceContext();
-      if (++tries >= CONTEXT_TRIES) clearInterval(timer);
-    }, CONTEXT_INTERVAL_MS);
-    announceContext();
   })();
 })();

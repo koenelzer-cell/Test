@@ -7,7 +7,8 @@
 process.env.TZ = 'Europe/Amsterdam';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildOverlapUrl, learnOverlapTemplate, parseEventOverlap } from '../src/content/domain/event-overlap.js';
+import { buildOverlapUrl, learnOverlapTemplate } from '../src/content/domain/event-overlap.js';
+import { parseEventOverlap } from '../src/shared/overlap.js';
 
 const P = '/event_planner/overlap_detection';
 const query = (url) => [...new URLSearchParams(url.split('?')[1]).entries()];
@@ -81,7 +82,8 @@ test('main-world geeft ONS’ eigen aanroep door, en alleen die', async () => {
   assert.equal(gezien.length, 1);
   assert.equal(gezien[0].url, P + '?invitee_ids%5B%5D=42479&start_date=09-10-2026&start_time=08:00&duration=3600');
   assert.ok(learnOverlapTemplate(gezien[0].url));
-  assert.equal(parseEventOverlap(JSON.parse(gezien[0].body)), false);
+  assert.equal(gezien[0].leesbaar, true, 'het antwoord is leesbaar');
+  assert.equal(gezien[0].body, undefined, 'het antwoord zelf gaat niet mee');
 });
 
 test('cliënt meenemen: van ONS leren we alleen de naam van de cliënt-parameter, nooit de id', () => {

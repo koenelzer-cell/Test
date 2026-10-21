@@ -75,7 +75,7 @@ export function mkProblemBanner(missing) {
 export function registerQualityModule() {
   register(ModuleBase.create(
     { id: 'kwaliteit', urls: ONS_URL_PATTERNS },
-    { run: function (ctx, api) {
+    { run: function (api) {
         let issues = [];
         try { if (helperPanel.helperEnabled) issues = helperQualityIssues(); } catch (e) { issues = []; }
         if (!issues.length) { api.clearMessage(); return; }

@@ -114,3 +114,31 @@ test('main-world vult het lege afspraakmodel ook aan als ONS het met XHR ophaalt
   ander.send();
   assert.equal(JSON.parse(ander.responseText).labels.length, 0);
 });
+
+test('planhulp: hooguit 20 momenten tegelijk', () => {
+  const { api, window } = bootHelper();
+  window.HTMLAnchorElement.prototype.click = function () {};
+  const momenten = (n) => Array.from({ length: n }, (_, i) => ({ date: '2026-11-' + String(3 + (i % 20)).padStart(2, '0'), time: '09:00' }));
+  const r = api.openNewEvent({ date: '2026-11-02', time: '09:00', minutes: 60, extra: momenten(20) });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, 'Kies hooguit 20 momenten tegelijk.');
+  assert.equal(window.sessionStorage.getItem('onsHelper.pendingDuplicates'), null, 'niets klaargezet');
+  assert.equal(api.openNewEvent({ date: '2026-11-02', time: '09:00', minutes: 60, extra: momenten(19) }).ok, true);
+});
+
+test('main-world geeft het medewerker-id uit onsContext() op verzoek, en alleen dat', async () => {
+  const { w } = await mainWorld();
+  const vraag = () => new Promise((klaar) => {
+    w.addEventListener('message', function luister(e) {
+      if (e.data && e.data.type === 'gebruikerGelezen') { w.removeEventListener('message', luister); klaar(e.data); }
+    });
+    // jsdom levert postMessage zonder origin af: daarom als MessageEvent.
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'leesGebruiker', id: 'g1' }, origin: w.location.origin, source: w }));
+  });
+  assert.equal((await vraag()).ok, false, 'zonder onsContext geen id');
+  w.onsContext = () => ({ userId: 4242, naam: 'Iemand' });
+  const d = await vraag();
+  assert.equal(d.ok, true);
+  assert.equal(d.userId, '4242');
+  assert.equal(d.naam, undefined);
+});

@@ -156,9 +156,6 @@ export const DEFAULT_APP_CONFIG = {
   // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
   // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
   activation: { appointmentNeedle: '/events/new', registrationNeedle: '/registrations', domains: [] },
-  // Gefaseerde uitrol: modules met een testGroup draaien alleen voor de
-  // gebruikers in die groep zolang 'enabled' aan staat. Uit = voor iedereen.
-  rollout: { enabled: false, groups: {} },
   // Centraal (beheerscherm) herstelde UI-selectors — geëxporteerd door de
   // UI-inspector en gepubliceerd in config.json, zodat correcties voor ALLE
   // gebruikers gelden i.p.v. alleen op één testapparaat.

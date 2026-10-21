@@ -96,31 +96,6 @@ export function summarizeOpenRange(entries, opts) {
   };
 }
 
-/* ── Antwoord van ONS lezen ──────────────────────────────────────────────
-   Dit endpoint is niet gedocumenteerd. De vorm van het antwoord is
-   afgeleid, niet gegarandeerd. Daarom: herkennen wat we kunnen en anders
-   null teruggeven, zodat de aanroeper op zijn eigen berekening terugvalt in
-   plaats van op een gok te handelen. */
-
-// /worksheet/registrations/detect_overlap -> true (overlap), false (geen) of
-// null (antwoord niet herkend).
-export function parseDetectOverlap(json) {
-  if (typeof json === 'boolean') return json;
-  if (Array.isArray(json)) return json.length > 0;
-  if (!json || typeof json !== 'object') return null;
-  const boolKeys = ['overlap', 'overlaps', 'has_overlap', 'hasOverlap', 'overlapping', 'is_overlapping', 'isOverlapping'];
-  for (let i = 0; i < boolKeys.length; i++) {
-    const v = json[boolKeys[i]];
-    if (typeof v === 'boolean') return v;
-    if (Array.isArray(v)) return v.length > 0;
-  }
-  const listKeys = ['registrations', 'overlapping_registrations', 'conflicts', 'items', 'data'];
-  for (let j = 0; j < listKeys.length; j++) {
-    if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
-  }
-  return null;
-}
-
 // Lokale datum + minuten sinds middernacht -> ISO-tijd met de tijdzone van die
 // dag, zoals ONS hem meestuurt: 2026-10-06T12:45:00+02:00.
 export function isoLocalWithOffset(dag, minutes) {

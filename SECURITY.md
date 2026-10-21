@@ -171,10 +171,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 
 ## Code-eigenschappen (security)
 - Manifest V3, content-scripts in de geïsoleerde wereld; een klein main-world
-  script (`src/main-world/`) meldt de gebruikerscontext en geeft de
-  afspraaklabels uit ONS' eigen details-aanroep door. Het zet of leest geen
-  formuliervelden (de ongebruikte opdrachten daarvoor zijn in 1.6.202
-  verwijderd). Eén antwoord van ONS vult het wel aan: het lege afspraakmodel
+  script (`src/main-world/`) geeft de afspraaklabels uit ONS' eigen
+  details-aanroep door, en van ONS' overlapcontrole alleen het adres en of
+  het antwoord te lezen is. Eén antwoord van ONS vult het aan: het lege afspraakmodel
   (`GET /calendar/events/new`, alleen same-origin, alleen met
   `meta.new_record: true`) krijgt datum, begin- en eindtijd en afspraaktype,
   maar alleen als de planhulp in dat tabblad hooguit twee minuten eerder een
@@ -221,15 +220,20 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     `{ title, items }`); HTML uit een module is daar niet mogelijk.
   - Geïmporteerde vragenlijst-XML komt uitsluitend in `<input>`-velden
     (`value`), niet in `innerHTML`.
-- **Main-world brug (postMessage):** berichten worden alleen vertrouwd als ze uit
-  hetzelfde venster (`event.source === window`) en dezelfde origin
-  (`event.origin === location.origin`) komen; er wordt gericht op de eigen origin
-  gepost (geen `'*'`). Zo kan een script uit een ander frame of een andere origin
-  de gebruikers-context (ID) of de afspraaklabels niet spoofen.
-- **Script in de paginacontext:** als laatste redmiddel om de medewerker-id te
-  vinden zet de hulp een klein, vast inline-script in de pagina (zonder
-  gebruikersinvoer). Blokkeert de pagina dat, dan geeft de hulp na 1,5 s op en
-  valt terug op het uitlezen van de uursoort-dropdown.
+- **Main-world brug (postMessage, `src/content/core/page-bridge.js`):**
+  berichten worden alleen aangenomen uit hetzelfde venster
+  (`event.source === window`) en dezelfde origin (`event.origin ===
+  location.origin`); er wordt gericht op de eigen origin gepost (geen `'*'`).
+  Een script uit een ander frame of een andere origin kan dus niets
+  aanleveren. Een script van de ONS-pagina zelf kan berichten wel nabootsen;
+  daarom controleert de ontvanger de inhoud: labelnamen worden ingekort en
+  geteld, een medewerker-id moet uit cijfers bestaan, en het opslaan-bericht
+  van een afspraak laat hooguit 19 kopieën maken (20 momenten per keer, ook
+  vanuit het zijpaneel).
+- **Medewerker-id:** als laatste redmiddel vraagt de hulp het aan
+  `onsContext()` van de pagina, via de main-world; komt er binnen 1,5 s geen
+  antwoord, dan valt de hulp terug op het uitlezen van de uursoort-dropdown.
+  De hulp zet geen eigen scripts in de pagina.
 - **URL's uit config** (TOPdesk-meldknop) worden afgedwongen op `^https?://`;
   een `javascript:`-URL valt terug op de standaard.
 - `config.json` en `dist/ui-inspector.js` zijn web-accessible resources met

@@ -75,10 +75,6 @@ export function applyHelperConfig(hc) {
     if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
     if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
   }
-  if (hc.rollout && typeof hc.rollout === 'object') {
-    APP_CONFIG.rollout = Object.assign({}, APP_CONFIG.rollout, hc.rollout);
-    runConfigHook('rolloutChanged', APP_CONFIG.rollout);
-  }
   if (hc.uiSelectors && typeof hc.uiSelectors === 'object') { APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors); runConfigHook('selectorsChanged'); }
   // Afgeleide lijst (tabel 3) opnieuw opbouwen.
   refreshEffectiveConfig();

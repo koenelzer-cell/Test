@@ -72,6 +72,14 @@ export const PAGE_BRIDGE = {
   TO_MAIN: 'to-main',
   FROM_MAIN: 'from-main',
 };
+// Wat de main-world uit zichzelf meldt (dir FROM_MAIN), over verzoeken die ONS
+// zelf doet.
+export const PAGE_EVENT = {
+  DETAILS: 'details',           // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
+  OVERLAP: 'eventOverlap',      // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
+  META: 'eventMeta',            // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+  CREATED: 'eventCreated',      // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+};
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
 // antwoord (dir FROM_MAIN, met hetzelfde id).
 export const PAGE_COMMAND = {
@@ -81,6 +89,8 @@ export const PAGE_COMMAND = {
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
   SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
+  READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina
+  USER_READ: 'gebruikerGelezen', // { id, ok, userId }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
 };

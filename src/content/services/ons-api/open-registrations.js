@@ -5,7 +5,8 @@
 // herkend, dan geeft hij null en valt de aanroeper terug op de eigen
 // berekening.
 
-import { isoLocalWithOffset, parseDetectOverlap, weekStartsBetween } from '../../domain/open-registrations.js';
+import { isoLocalWithOffset, weekStartsBetween } from '../../domain/open-registrations.js';
+import { parseDetectOverlap } from '../../../shared/overlap.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
 import { weekEntries } from './formaat.js';

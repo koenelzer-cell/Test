@@ -44,7 +44,7 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
 | `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, herinnering aan/uit, meldlink |
 | `sidepanel/` | zijpaneel | toont de Agendahulp of de vragenlijst-checklist van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda of vragenlijst |
-| `main-world/` | pagina-context van ONS | context (gebruiker) melden; de afspraaklabels uit ONS' eigen details-call doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek de labels van het open formulier zetten via Vue |
+| `main-world/` | pagina-context van ONS | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, en het medewerker-id uit `onsContext()` lezen |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
 | `ui-inspector/` | ONS-pagina's, een module die `content` pas laadt als de beheerder hem opent (`#ons-ui-inspector`; uit met `features.uiInspector: false`) | alle plekken in de pagina die de hulp gebruikt tonen, en een plek opnieuw laten aanwijzen |
@@ -161,7 +161,9 @@ content/survey ──ag-state/ag-gone/survey-state/survey-gone──▶ (uitgezo
 zijpaneel ──ag-*/survey-get-state/survey-open-item/sidepanel-state──▶ content of survey (gevolgd tabblad)
 zijpaneel ──poort 'agendahulp-sidepanel'──▶ service worker (zolang het zijpaneel open is)
 content ──open-tab {url}──▶ service worker (AFAS in een nieuw tabblad na verlof; alleen https)
-main-world ──window.postMessage {__onsah, dir:'from-main'}──▶ content (alleen eigen venster + origin)
+main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated)──▶ content
+content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, leesFormulier, leesGebruiker)──▶ main-world ──antwoord met hetzelfde id──▶ content
+   (window.postMessage met {__onsah, dir}, alleen eigen venster en origin; content: core/page-bridge.js)
 ```
 
 ## Opslag
@@ -236,7 +238,8 @@ de eigen overlapcontrole leidend. Een 'nee' van `detect_overlap` onderdrukt nooi
 
 `overlap_detection` (afspraken) is ook niet gedocumenteerd, en zelfs de
 parameters zijn onbekend. De hulp leert ze: ONS roept het endpoint zelf aan
-zodra je een afspraak opent; `main-world` geeft die URL door en
+zodra je een afspraak opent; `main-world` geeft die URL door (met alleen of
+het antwoord te lezen is, niet het antwoord zelf) en
 `domain/event-overlap.js` bepaalt per parameter de rol (medewerker, begin,
 eind, duur of vaste waarde). Cliënt-, titel- en naamvelden en het id van de
 eigen afspraak vallen eruit. Het sjabloon (alleen rollen en korte vaste

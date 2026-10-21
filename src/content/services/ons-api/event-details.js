@@ -5,7 +5,8 @@ import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { _agEntryLabels } from '../../domain/agenda-entries.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
-import { PAGE_BRIDGE } from '../../../shared/messages.js';
+import { PAGE_EVENT } from '../../../shared/messages.js';
+import { onPageEvent } from '../../core/page-bridge.js';
 
 /* ===== Afspraaklabels uit de details-API =====
    De detailpopup van een afspraak wordt door ONS gevoed met
@@ -94,23 +95,15 @@ export function warmPopoverDetails(scope) {
   if (!occ) return Promise.resolve([]);
   return fetchEventDetailsLabels(occ);
 }
-// De main-world-watcher (mainworld.js) meldt elke details-respons van ONS zelf.
-// Alleen berichten uit dit venster en deze origin worden vertrouwd.
-// Opstarten: luister naar de details-meldingen van mainworld.js.
+// Opstarten: de main-world meldt elke details-respons van ONS zelf.
 export function listenForMainWorldDetails() {
-  try {
-    window.addEventListener('message', function (ev) {
-      if (!ev || ev.origin !== location.origin) return;
-      if (ev.source && ev.source !== window) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'details') return;
-      if (!Array.isArray(d.labels) || !d.labels.length) return;
-      _laatsteDetails = {
-        occurrenceId: _occurrenceIdFromDetailsUrl(d.url) || null,
-        url: String(d.url == null ? '' : d.url),
-        labels: d.labels.map(function (l) { return String(l == null ? '' : l).trim(); }).filter(Boolean),
-        ts: Date.now()
-      };
-    }, false);
-  } catch (e) {}
+  onPageEvent(PAGE_EVENT.DETAILS, function (d) {
+    if (!Array.isArray(d.labels) || !d.labels.length) return;
+    _laatsteDetails = {
+      occurrenceId: _occurrenceIdFromDetailsUrl(d.url) || null,
+      url: String(d.url == null ? '' : d.url),
+      labels: d.labels.slice(0, 20).map(function (l) { return String(l == null ? '' : l).trim().slice(0, 100); }).filter(Boolean),
+      ts: Date.now()
+    };
+  });
 }

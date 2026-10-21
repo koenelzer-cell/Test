@@ -16,7 +16,7 @@ import { installUrlWatch, syncWithUrl } from './helper/routing.js';
 import { installContextMenuTracking, listenForContextMenuChoice, pushRegistrationForms } from './features/registration/context-menu.js';
 import { startDayColoring } from './features/agenda/index.js';
 import { startUiInspector } from './features/ui-inspector.js';
-import { setRollout, startModuleHost } from './platform/module-host.js';
+import { startModuleHost } from './platform/module-host.js';
 import { connectConfigHooks } from './config/hooks.js';
 import { deactivate } from './helper/lifecycle.js';
 import { koppelSchermen } from './screen/schermen.js';
@@ -42,7 +42,6 @@ import { showUursoortQueue } from './features/appointment/uursoort-queue.js';
 connectConfigHooks({
   formsChanged: pushRegistrationForms,
   selectorsChanged: seedUiOverridesFromConfig,
-  rolloutChanged: setRollout,
   configApplied: syncWithUrl,
   teamChanged: deactivate,
 });

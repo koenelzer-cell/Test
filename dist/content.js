@@ -25,8 +25,8 @@
   }
 
   // node_modules/date-fns/toDate.js
-  function toDate(argument, context2) {
-    return constructFrom(context2 || argument, argument);
+  function toDate(argument, context) {
+    return constructFrom(context || argument, argument);
   }
 
   // node_modules/date-fns/addDays.js
@@ -101,10 +101,10 @@
   }
 
   // node_modules/date-fns/_lib/normalizeDates.js
-  function normalizeDates(context2, ...dates) {
+  function normalizeDates(context, ...dates) {
     const normalize2 = constructFrom.bind(
       null,
-      context2 || dates.find((date) => typeof date === "object")
+      context || dates.find((date) => typeof date === "object")
     );
     return dates.map(normalize2);
   }
@@ -155,8 +155,8 @@
   }
 
   // node_modules/date-fns/_lib/normalizeInterval.js
-  function normalizeInterval(context2, interval) {
-    const [start, end] = normalizeDates(context2, interval.start, interval.end);
+  function normalizeInterval(context, interval) {
+    const [start, end] = normalizeDates(context, interval.start, interval.end);
     return { start, end };
   }
 
@@ -335,9 +335,9 @@
   // node_modules/date-fns/locale/_lib/buildLocalizeFn.js
   function buildLocalizeFn(args) {
     return (value, options) => {
-      const context2 = options?.context ? String(options.context) : "standalone";
+      const context = options?.context ? String(options.context) : "standalone";
       let valuesArray;
-      if (context2 === "formatting" && args.formattingValues) {
+      if (context === "formatting" && args.formattingValues) {
         const defaultWidth = args.defaultFormattingWidth || args.defaultWidth;
         const width = options?.width ? String(options.width) : defaultWidth;
         valuesArray = args.formattingValues[width] || args.formattingValues[defaultWidth];
@@ -2812,9 +2812,6 @@
     // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
     // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
     activation: { appointmentNeedle: "/events/new", registrationNeedle: "/registrations", domains: [] },
-    // Gefaseerde uitrol: modules met een testGroup draaien alleen voor de
-    // gebruikers in die groep zolang 'enabled' aan staat. Uit = voor iedereen.
-    rollout: { enabled: false, groups: {} },
     // Centraal (beheerscherm) herstelde UI-selectors — geëxporteerd door de
     // UI-inspector en gepubliceerd in config.json, zodat correcties voor ALLE
     // gebruikers gelden i.p.v. alleen op één testapparaat.
@@ -2876,8 +2873,6 @@
     // registratievormen gewijzigd -> rechtermuismenu bijwerken
     selectorsChanged: null,
     // config.uiSelectors gewijzigd -> selector-overrides herberekenen
-    rolloutChanged: null,
-    // config.rollout gewijzigd -> moduleplatform (gefaseerde uitrol)
     configApplied: null,
     // configuratie toegepast -> opnieuw bepalen welke hulp bij de URL hoort
     teamChanged: null
@@ -2980,10 +2975,6 @@
       APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
       if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
       if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
-    }
-    if (hc.rollout && typeof hc.rollout === "object") {
-      APP_CONFIG.rollout = Object.assign({}, APP_CONFIG.rollout, hc.rollout);
-      runConfigHook("rolloutChanged", APP_CONFIG.rollout);
     }
     if (hc.uiSelectors && typeof hc.uiSelectors === "object") {
       APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors);
@@ -3459,6 +3450,16 @@
     TO_MAIN: "to-main",
     FROM_MAIN: "from-main"
   };
+  var PAGE_EVENT = {
+    DETAILS: "details",
+    // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
+    OVERLAP: "eventOverlap",
+    // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
+    META: "eventMeta",
+    // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+    CREATED: "eventCreated"
+    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+  };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
     // { id, labels: ['JG Huisbezoek', …], toevoegen? } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten (vervangen of toevoegen) of wissen
@@ -3472,11 +3473,46 @@
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
     // { id, ok, reden? }
+    READ_USER: "leesGebruiker",
+    // { id }  medewerker-id uit onsContext() van de pagina
+    USER_READ: "gebruikerGelezen",
+    // { id, ok, userId }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
     // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
   };
+
+  // src/content/core/page-bridge.js
+  function onPageEvent(type, fn) {
+    const luister = (ev) => {
+      if (ev.origin !== location.origin || ev.source && ev.source !== window) return;
+      const d = ev.data;
+      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== type) return;
+      fn(d);
+    };
+    window.addEventListener("message", luister);
+    return () => window.removeEventListener("message", luister);
+  }
+  function toMainWorld(type, velden) {
+    window.postMessage({ ...velden, [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type }, location.origin);
+  }
+  var volgnummer = 0;
+  function vraagMainWorld(type, antwoordType, velden, wachtMs) {
+    return new Promise((klaar) => {
+      const id = type + "-" + ++volgnummer + "-" + Date.now();
+      const stop = onPageEvent(antwoordType, (d) => {
+        if (d.id === id) einde(d);
+      });
+      const timer = setTimeout(() => einde(null), wachtMs);
+      function einde(antwoord) {
+        clearTimeout(timer);
+        stop();
+        klaar(antwoord);
+      }
+      toMainWorld(type, { ...velden, id });
+    });
+  }
 
   // src/content/services/ons-api/event-details.js
   function _detailsBody(json) {
@@ -3547,24 +3583,17 @@
     return fetchEventDetailsLabels(occ);
   }
   function listenForMainWorldDetails() {
-    try {
-      window.addEventListener("message", function(ev) {
-        if (!ev || ev.origin !== location.origin) return;
-        if (ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "details") return;
-        if (!Array.isArray(d.labels) || !d.labels.length) return;
-        _laatsteDetails = {
-          occurrenceId: _occurrenceIdFromDetailsUrl(d.url) || null,
-          url: String(d.url == null ? "" : d.url),
-          labels: d.labels.map(function(l) {
-            return String(l == null ? "" : l).trim();
-          }).filter(Boolean),
-          ts: Date.now()
-        };
-      }, false);
-    } catch (e) {
-    }
+    onPageEvent(PAGE_EVENT.DETAILS, function(d) {
+      if (!Array.isArray(d.labels) || !d.labels.length) return;
+      _laatsteDetails = {
+        occurrenceId: _occurrenceIdFromDetailsUrl(d.url) || null,
+        url: String(d.url == null ? "" : d.url),
+        labels: d.labels.slice(0, 20).map(function(l) {
+          return String(l == null ? "" : l).trim().slice(0, 100);
+        }).filter(Boolean),
+        ts: Date.now()
+      };
+    });
   }
 
   // src/content/domain/registrations.js
@@ -3890,22 +3919,6 @@
       }, 0)
     };
   }
-  function parseDetectOverlap(json) {
-    if (typeof json === "boolean") return json;
-    if (Array.isArray(json)) return json.length > 0;
-    if (!json || typeof json !== "object") return null;
-    const boolKeys = ["overlap", "overlaps", "has_overlap", "hasOverlap", "overlapping", "is_overlapping", "isOverlapping"];
-    for (let i = 0; i < boolKeys.length; i++) {
-      const v = json[boolKeys[i]];
-      if (typeof v === "boolean") return v;
-      if (Array.isArray(v)) return v.length > 0;
-    }
-    const listKeys = ["registrations", "overlapping_registrations", "conflicts", "items", "data"];
-    for (let j = 0; j < listKeys.length; j++) {
-      if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
-    }
-    return null;
-  }
   function isoLocalWithOffset(dag, minutes) {
     let d = uitYmd(dag);
     if (!d || typeof minutes !== "number" || !(minutes >= 0) || minutes >= 24 * 60) return null;
@@ -4123,6 +4136,24 @@
     if (fout) return null;
     return tpl.path + "?" + delen.join("&");
   }
+
+  // src/shared/overlap.js
+  function parseDetectOverlap(json) {
+    if (typeof json === "boolean") return json;
+    if (Array.isArray(json)) return json.length > 0;
+    if (!json || typeof json !== "object") return null;
+    const boolKeys = ["overlap", "overlaps", "has_overlap", "hasOverlap", "overlapping", "is_overlapping", "isOverlapping"];
+    for (let i = 0; i < boolKeys.length; i++) {
+      const v = json[boolKeys[i]];
+      if (typeof v === "boolean") return v;
+      if (Array.isArray(v)) return v.length > 0;
+    }
+    const listKeys = ["registrations", "overlapping_registrations", "conflicts", "items", "data"];
+    for (let j = 0; j < listKeys.length; j++) {
+      if (Array.isArray(json[listKeys[j]])) return json[listKeys[j]].length > 0;
+    }
+    return null;
+  }
   function parseEventOverlap(json) {
     const bekend = parseDetectOverlap(json);
     if (bekend !== null) return bekend;
@@ -4165,30 +4196,18 @@
     if (!t) return "unknown";
     return t.readable ? "ready" : "unreadable";
   }
-  function learnFromOnsCall(url, body) {
+  function learnFromOnsCall(url, leesbaar) {
     const tpl = learnOverlapTemplate(url);
     if (!tpl) return false;
-    let json = null;
-    try {
-      json = JSON.parse(String(body || ""));
-    } catch (e) {
-    }
-    tpl.readable = parseEventOverlap(json) !== null;
+    tpl.readable = leesbaar === true;
     tpl.learnedAt = Date.now();
     saveOverlapTemplate(tpl);
     return true;
   }
   function listenForOnsOverlapCalls() {
-    try {
-      window.addEventListener("message", function(ev) {
-        if (!ev || ev.origin !== location.origin) return;
-        if (ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventOverlap") return;
-        learnFromOnsCall(d.url, d.body);
-      }, false);
-    } catch (e) {
-    }
+    onPageEvent(PAGE_EVENT.OVERLAP, function(d) {
+      learnFromOnsCall(d.url, d.leesbaar === true);
+    });
   }
   function fetchEventOverlap(req) {
     const t = loadOverlapTemplate();
@@ -5540,7 +5559,7 @@
   function formulierViaModelAan() {
     return !(APP_CONFIG.features && APP_CONFIG.features.formViaModel === false);
   }
-  var volgnummer = 0;
+  var volgnummer2 = 0;
   function eerstViaFormulier(viaFormulier, viaScherm) {
     return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
   }
@@ -5548,20 +5567,20 @@
     const lijst = (Array.isArray(namen) ? namen : [namen]).map((n) => String(n == null ? "" : n).trim()).filter(Boolean);
     if (!lijst.length) return Promise.resolve(false);
     const o = typeof opties === "number" ? { wachtMs: opties } : opties || {};
-    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
+    return vraagFormulier(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: lijst, toevoegen: o.toevoegen === true }, o.wachtMs);
   }
   function wisLabelsViaFormulier(wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
+    return vraagFormulier(PAGE_COMMAND.SET_LABELS, PAGE_COMMAND.LABELS_SET, { labels: [], wis: true }, wachtMs);
   }
   function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
     if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-    const doel = "u" + ++volgnummer + "-" + Date.now();
+    const doel = "u" + ++volgnummer2 + "-" + Date.now();
     try {
       veld.setAttribute("data-onsah-doel", doel);
     } catch (e) {
       return Promise.resolve(false);
     }
-    return vraagMainWorld(
+    return vraagFormulier(
       PAGE_COMMAND.SET_HOUR_TYPE,
       PAGE_COMMAND.HOUR_TYPE_SET,
       { doel, hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
@@ -5576,13 +5595,13 @@
   }
   function wisUursoortViaFormulier(veld, wachtMs) {
     if (!veld || !veld.setAttribute) return Promise.resolve(false);
-    const doel = "w" + ++volgnummer + "-" + Date.now();
+    const doel = "w" + ++volgnummer2 + "-" + Date.now();
     try {
       veld.setAttribute("data-onsah-doel", doel);
     } catch (e) {
       return Promise.resolve(false);
     }
-    return vraagMainWorld(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel, wis: true }, wachtMs).then((ok) => {
+    return vraagFormulier(PAGE_COMMAND.SET_HOUR_TYPE, PAGE_COMMAND.HOUR_TYPE_SET, { doel, wis: true }, wachtMs).then((ok) => {
       try {
         veld.removeAttribute("data-onsah-doel");
       } catch (e) {
@@ -5592,7 +5611,7 @@
   }
   function zetUursoortVoorClient(clientId, hourTypeId, beschrijving, wachtMs) {
     if (!/^\d{1,12}$/.test(String(clientId)) || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-    return vraagMainWorld(
+    return vraagFormulier(
       PAGE_COMMAND.SET_HOUR_TYPE,
       PAGE_COMMAND.HOUR_TYPE_SET,
       { clientId: String(clientId), hourTypeId: Number(hourTypeId), beschrijving: String(beschrijving == null ? "" : beschrijving).slice(0, 200) },
@@ -5600,36 +5619,16 @@
     );
   }
   function zetVeldViaFormulier(veld, waarde, wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
+    return vraagFormulier(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
   }
   function leesFormulier(wachtMs) {
-    return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+    return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
   }
-  function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
+  function vraagFormulier(type, antwoordType, velden, wachtMs, volledig) {
     if (!formulierViaModelAan()) return Promise.resolve(volledig ? null : false);
-    return new Promise((klaar) => {
-      const id = type + "-" + ++volgnummer + "-" + Date.now();
-      let gemeld = false;
-      const luister = (ev) => {
-        if (!ev || ev.origin !== location.origin || ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== antwoordType || d.id !== id) return;
-        einde(volledig ? d.ok === true ? d : null : d.ok === true);
-      };
-      const timer = setTimeout(() => einde(volledig ? null : false), wachtMs || 1500);
-      function einde(ok) {
-        if (gemeld) return;
-        gemeld = true;
-        clearTimeout(timer);
-        window.removeEventListener("message", luister);
-        klaar(ok);
-      }
-      window.addEventListener("message", luister);
-      try {
-        window.postMessage(Object.assign({ [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type, id }, velden), location.origin);
-      } catch (e) {
-        einde(volledig ? null : false);
-      }
+    return vraagMainWorld(type, antwoordType, velden, wachtMs || 1500).then((d) => {
+      const ok = !!d && d.ok === true;
+      return volledig ? ok ? d : null : ok;
     });
   }
 
@@ -6688,6 +6687,8 @@
   // src/content/features/appointment/duplicate.js
   var KEY3 = PAGE_SESSION.PENDING_DUPLICATES;
   var GELDIG_MS2 = 30 * 60 * 1e3;
+  var MAX_MOMENTEN = 20;
+  var geldigMoment = (m) => !!m && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date)) && Number.isInteger(m.startMin) && m.startMin >= 0 && m.startMin < 24 * 60;
   var CREATE_URL = "/calendar/events";
   function storePendingDuplicates(moments, eigen) {
     try {
@@ -6706,7 +6707,9 @@
       const p = JSON.parse(pendingText || "null");
       sessionStorage.removeItem(KEY3);
       if (!p || !Array.isArray(p.moments) || Date.now() - p.ts > GELDIG_MS2) return null;
-      return { moments: p.moments, eigen: Array.isArray(p.eigen) ? p.eigen : [] };
+      const moments = p.moments.filter(geldigMoment).slice(0, MAX_MOMENTEN - 1);
+      const eigen = (Array.isArray(p.eigen) ? p.eigen : []).filter(geldigMoment).slice(0, MAX_MOMENTEN - 1 - moments.length);
+      return { moments, eigen };
     } catch (e) {
       return null;
     }
@@ -6871,16 +6874,9 @@
     }
   }
   function listenForCreatedEvents() {
-    try {
-      window.addEventListener("message", function(ev) {
-        if (!ev || ev.origin !== location.origin) return;
-        if (ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventCreated") return;
-        bijOpgeslagen(d.body, d.pending);
-      }, false);
-    } catch (e) {
-    }
+    onPageEvent(PAGE_EVENT.CREATED, function(d) {
+      bijOpgeslagen(d.body, d.pending);
+    });
   }
 
   // src/content/domain/event-create.js
@@ -7025,26 +7021,26 @@
     if (type === "object" || type === "function") return (input2 && Object.getPrototypeOf(input2)?.constructor?.name) ?? "null";
     return type;
   }
-  function _addIssue(context2, label, dataset, config$1, other) {
+  function _addIssue(context, label, dataset, config$1, other) {
     const input2 = other && "input" in other ? other.input : dataset.value;
-    const expected = other?.expected ?? context2.expects ?? null;
+    const expected = other?.expected ?? context.expects ?? null;
     const received = other?.received ?? /* @__PURE__ */ _stringify(input2);
     const issue = {
-      kind: context2.kind,
-      type: context2.type,
+      kind: context.kind,
+      type: context.type,
       input: input2,
       expected,
       received,
       message: `Invalid ${label}: ${expected ? `Expected ${expected} but r` : "R"}eceived ${received}`,
-      requirement: context2.requirement,
+      requirement: context.requirement,
       path: other?.path,
       issues: other?.issues,
       lang: config$1.lang,
       abortEarly: config$1.abortEarly,
       abortPipeEarly: config$1.abortPipeEarly
     };
-    const isSchema = context2.kind === "schema";
-    const message$1 = other?.message ?? context2.message ?? /* @__PURE__ */ getSpecificMessage(context2.reference, issue.lang) ?? (isSchema ? /* @__PURE__ */ getSchemaMessage(issue.lang) : null) ?? config$1.message ?? /* @__PURE__ */ getGlobalMessage(issue.lang);
+    const isSchema = context.kind === "schema";
+    const message$1 = other?.message ?? context.message ?? /* @__PURE__ */ getSpecificMessage(context.reference, issue.lang) ?? (isSchema ? /* @__PURE__ */ getSchemaMessage(issue.lang) : null) ?? config$1.message ?? /* @__PURE__ */ getGlobalMessage(issue.lang);
     if (message$1 !== void 0) issue.message = typeof message$1 === "function" ? message$1(issue) : message$1;
     if (isSchema) dataset.typed = false;
     if (dataset.issues) dataset.issues.push(issue);
@@ -7624,7 +7620,7 @@
 
   // src/content/services/ons-api/employee.js
   async function getEmployeeIdAsync() {
-    return employeeIdFromUrl() || employeeIdFromDom() || await employeeIdFromCalendarVariables() || await employeeIdFromPageScript();
+    return employeeIdFromUrl() || employeeIdFromDom() || await employeeIdFromCalendarVariables() || await employeeIdFromPage();
   }
   function employeeIdFromUrl() {
     const href = String(location.href || "");
@@ -7644,37 +7640,10 @@
       return null;
     }
   }
-  var PAGE_SCRIPT_TIMEOUT_MS = 1500;
-  function employeeIdFromPageScript() {
-    return new Promise((resolve) => {
-      const eventId = "ons_data_" + Math.random().toString(36).slice(2, 11);
-      const script = document.createElement("script");
-      script.textContent = `
-      try {
-        let empId = null;
-        if (typeof onsContext === "function") {
-          let ctx = onsContext();
-          if (ctx && ctx.userId) empId = ctx.userId;
-        }
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: { empId: empId } }));
-      } catch(e) {
-        window.dispatchEvent(new CustomEvent("${eventId}", { detail: {} }));
-      }
-    `;
-      let settled = false;
-      const finish = (id) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        window.removeEventListener(eventId, listener);
-        script.remove();
-        resolve(id);
-      };
-      const listener = (e) => finish(e.detail && e.detail.empId ? String(e.detail.empId) : null);
-      const timer = setTimeout(() => finish(null), PAGE_SCRIPT_TIMEOUT_MS);
-      window.addEventListener(eventId, listener);
-      document.documentElement.appendChild(script);
-    });
+  var PAGE_TIMEOUT_MS = 1500;
+  async function employeeIdFromPage() {
+    const d = await vraagMainWorld(PAGE_COMMAND.READ_USER, PAGE_COMMAND.USER_READ, {}, PAGE_TIMEOUT_MS);
+    return d && d.ok === true && /^\d{1,12}$/.test(String(d.userId)) ? String(d.userId) : null;
   }
 
   // src/content/services/ons-api/week-cache.js
@@ -8884,23 +8853,16 @@
     return results;
   }
   function listenForEventMeta() {
-    try {
-      window.addEventListener("message", function(ev) {
-        if (!ev || ev.origin !== location.origin) return;
-        if (ev.source && ev.source !== window) return;
-        const d = ev.data;
-        if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "eventMeta") return;
-        forgetFreeSlots();
-        const m = learnEventMeta(d.meta);
-        if (m) {
-          try {
-            localStorage.setItem(META_KEY, JSON.stringify(m));
-          } catch (e) {
-          }
+    onPageEvent(PAGE_EVENT.META, function(d) {
+      forgetFreeSlots();
+      const m = learnEventMeta(d.meta);
+      if (m) {
+        try {
+          localStorage.setItem(META_KEY, JSON.stringify(m));
+        } catch (e) {
         }
-      }, false);
-    } catch (e) {
-    }
+      }
+    });
   }
 
   // src/content/ons/uursoort-options.js
@@ -9416,34 +9378,34 @@
   }
 
   // src/content/features/appointment/uursoort-source.js
-  function clientScope(context2, trigger) {
-    if (context2 && context2.card) return context2.card;
+  function clientScope(context, trigger) {
+    if (context && context.card) return context.card;
     if (trigger && trigger.closest) {
       return trigger.closest('ul[class*="_selected-clients_"] > li') || trigger.closest('ul[data-qa="selected_clients"] > li') || trigger.closest("li") || null;
     }
     return null;
   }
-  function scopeClientName(scope, context2) {
+  function scopeClientName(scope, context) {
     if (scope) {
       const el = scope.querySelector('span[class*="invitee-name"], span[class*="_invitee-name_"]');
       const nm = el ? String(el.innerText || el.textContent || "").trim() : "";
       if (nm) return nm;
     }
-    return context2 && context2.name ? String(context2.name).trim() : "";
+    return context && context.name ? String(context.name).trim() : "";
   }
-  async function getClientIdsAsync(context2, trigger) {
+  async function getClientIdsAsync(context, trigger) {
     const candidates = [];
     const add = (v) => {
       const s = String(v == null ? "" : v).trim();
       if (/^\d+$/.test(s) && !candidates.includes(s)) candidates.push(s);
     };
-    const scope = clientScope(context2, trigger);
-    const name = String(context2 && context2.name || scopeClientName(scope, null) || "").trim();
+    const scope = clientScope(context, trigger);
+    const name = String(context && context.name || scopeClientName(scope, null) || "").trim();
     if (name) {
       const byName = await findClientIdByName(name);
       if (byName) return [byName];
     }
-    if (context2 && context2.clientId != null) add(context2.clientId);
+    if (context && context.clientId != null) add(context.clientId);
     if (scope) {
       scope.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
       scope.querySelectorAll("[data-client-id],[data-patient-id]").forEach((el) => {
@@ -9465,16 +9427,16 @@
     document.querySelectorAll('input[name="event[client_ids][]"], input[name="client_id"], input[type="hidden"][name*="client"]').forEach((el) => add(el.value));
     return candidates;
   }
-  async function fetchClientUursoortOptionsApi(context2, trigger) {
+  async function fetchClientUursoortOptionsApi(context, trigger) {
     const employeeId = await getEmployeeIdAsync();
-    const clientIds = await getClientIdsAsync(context2, trigger);
+    const clientIds = await getClientIdsAsync(context, trigger);
     if (!employeeId) throw new Error("geen employee-id gevonden");
     if (!clientIds || clientIds.length === 0) throw new Error("geen client-id gevonden");
     return fetchProductList({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
   }
-  async function uursoortMetId(naam, context2, trigger) {
+  async function uursoortMetId(naam, context, trigger) {
     const employeeId = await getEmployeeIdAsync();
-    const clientIds = await getClientIdsAsync(context2, trigger);
+    const clientIds = await getClientIdsAsync(context, trigger);
     if (!employeeId || !clientIds || !clientIds.length) return null;
     const opties = await fetchProductOptions({ date: agendaYmd(/* @__PURE__ */ new Date()), employeeId, clientIds });
     const w = clean(naam);
@@ -9488,9 +9450,9 @@
     const w = clean(naam), wk = kaal(naam);
     return opties.filter((o) => clean(o.name) === w)[0] || opties.filter((o) => kaal(o.name) === wk)[0] || null;
   }
-  function prefetchClientUursoorten(context2, trigger) {
+  function prefetchClientUursoorten(context, trigger) {
     try {
-      fetchClientUursoortOptionsApi(context2 || null, trigger || null).catch(function() {
+      fetchClientUursoortOptionsApi(context || null, trigger || null).catch(function() {
       });
     } catch (e) {
     }
@@ -9709,10 +9671,10 @@
       }, 90);
     }, 120);
   }
-  function chooseUursoort(text2, onResult, triggerArg = null, context2 = null) {
+  function chooseUursoort(text2, onResult, triggerArg = null, context = null) {
     const trigger = triggerArg || getUursoortTrigger();
     eerstViaFormulier(
-      () => trigger ? uursoortMetId(text2, context2, trigger).then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
+      () => trigger ? uursoortMetId(text2, context, trigger).then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
       () => new Promise((klaar) => openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
         if (ok) setTimeout(clickEmptyModalSpot, 90);
         klaar(ok);
@@ -12377,19 +12339,19 @@
       trigger: entry.uursoortTrigger
     }));
   }
-  function freshUursoortContext(context2) {
-    if (!context2) return context2;
+  function freshUursoortContext(context) {
+    if (!context) return context;
     const entry = findClientEntries().find(
-      (item) => item.name === context2.name
+      (item) => item.name === context.name
     );
     return entry && entry.uursoortTrigger ? {
       firstName: entry.firstName,
       name: entry.name,
       trigger: entry.uursoortTrigger
-    } : context2;
+    } : context;
   }
-  function freshUursoortTriggerForContext(context2) {
-    return (freshUursoortContext(context2) || {}).trigger || null;
+  function freshUursoortTriggerForContext(context) {
+    return (freshUursoortContext(context) || {}).trigger || null;
   }
   function clearUursoortContexts(contexts, onDone, index = 0) {
     if (!contexts.length || index >= contexts.length) {
@@ -13859,29 +13821,7 @@
 
   // src/content/platform/module-host.js
   function onsEnvironment() {
-    try {
-      return String(location.hostname.split(".")[0] || "");
-    } catch (e) {
-      return "";
-    }
-  }
-  var context = { environment: onsEnvironment(), userId: "", url: location.href, ready: false };
-  function trustedMessage(ev) {
-    if (!ev) return false;
-    if (ev.origin !== location.origin) return false;
-    if (ev.source && ev.source !== window) return false;
-    return true;
-  }
-  function listenForContext() {
-    window.addEventListener("message", function(ev) {
-      if (!trustedMessage(ev)) return;
-      const d = ev && ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== "context") return;
-      context.environment = d.environment || context.environment;
-      if (d.userId) context.userId = String(d.userId);
-      context.url = d.url || location.href;
-      context.ready = true;
-    }, false);
+    return String(location.hostname.split(".")[0] || "");
   }
   function urlMatches(patterns2, url) {
     if (!patterns2 || !patterns2.length) return true;
@@ -13921,31 +13861,6 @@
       }
     }
     return false;
-  }
-  var ROLLOUT = { enabled: false, groups: {} };
-  function setRollout(cfg) {
-    if (!cfg || typeof cfg !== "object") {
-      ROLLOUT = { enabled: false, groups: {} };
-      return;
-    }
-    ROLLOUT = { enabled: !!cfg.enabled, groups: cfg.groups && typeof cfg.groups === "object" ? cfg.groups : {} };
-  }
-  function userInGroup(userId, groupName) {
-    const members = ROLLOUT.groups[groupName];
-    if (!Array.isArray(members)) return false;
-    const id = String(userId || "").trim().toLowerCase();
-    if (!id) return false;
-    return members.some(function(m) {
-      return String(m || "").trim().toLowerCase() === id;
-    });
-  }
-  function isAllowedUser(meta) {
-    const tg = meta && meta.testGroup;
-    if (!tg || !ROLLOUT.enabled) return true;
-    const groups = Array.isArray(tg) ? tg : [tg];
-    return groups.some(function(g) {
-      return userInGroup(context.userId, g);
-    });
   }
   var MESSAGES = {};
   var barEl = null;
@@ -14057,12 +13972,11 @@
           if (meta.environments && meta.environments.length && meta.environments.indexOf(onsEnvironment()) === -1) return false;
           if (!urlMatches(meta.urls || meta.match, location.href)) return false;
           if (meta.requiresClientHeader && !clientHeaderVisible()) return false;
-          if (!isAllowedUser(meta)) return false;
           return true;
         },
         run: function() {
           try {
-            if (impl && impl.run) impl.run(context, messageApiFor(id));
+            if (impl && impl.run) impl.run(messageApiFor(id));
           } catch (e) {
           }
         }
@@ -14079,7 +13993,6 @@
     if (started || window.__onsAgendahulpModules) return;
     started = true;
     window.__onsAgendahulpModules = true;
-    listenForContext();
     setInterval(function() {
       if (!document.hasFocus()) return;
       for (let i = 0; i < REGISTRY.length; i++) {
@@ -14159,7 +14072,7 @@
   function registerQualityModule() {
     register(ModuleBase.create(
       { id: "kwaliteit", urls: ONS_URL_PATTERNS },
-      { run: function(ctx, api) {
+      { run: function(api) {
         let issues = [];
         try {
           if (helperPanel.helperEnabled) issues = helperQualityIssues();
@@ -15885,8 +15798,8 @@
     setInputText(search, "");
     return true;
   }
-  function listRegistrationHourTypeOptions(onDone, context2 = null) {
-    const containers = context2 ? [context2.container] : visibleSelect2HourTypeContainers();
+  function listRegistrationHourTypeOptions(onDone, context = null) {
+    const containers = context ? [context.container] : visibleSelect2HourTypeContainers();
     const nativeOptions = nativeRegistrationHourTypeOptions();
     if (!containers.length) {
       onDone(nativeOptions);
@@ -15907,17 +15820,17 @@
       setTimeout(() => {
         const options = visibleSelect2Options(resultsRoot);
         registrationFlow.registrationHourTypeBusy = false;
-        onDone(context2 ? options : options.length ? options : nativeOptions);
+        onDone(context ? options : options.length ? options : nativeOptions);
       }, cleared ? 120 : 0);
     }, { timeout: 2500, interval: 90 });
   }
-  function clearRegistrationHourTypeForContext(context2, onDone) {
-    if (!context2 || !context2.container) {
+  function clearRegistrationHourTypeForContext(context, onDone) {
+    if (!context || !context.container) {
       if (onDone) onDone(false);
       return;
     }
     let touched = false;
-    const select2 = registrationHourTypeSelectForContainer(context2.container);
+    const select2 = registrationHourTypeSelectForContainer(context.container);
     if (select2) {
       const emptyOption = Array.from(select2.options || []).find((opt) => !opt.value);
       if (emptyOption) select2.value = emptyOption.value;
@@ -15930,8 +15843,8 @@
       }
       touched = true;
     }
-    const selection = context2.target || context2.container.closest(".select2-selection") || context2.container.parentElement || context2.container;
-    const clear = context2.container.querySelector && context2.container.querySelector(".select2-selection__clear") || selection.querySelector && selection.querySelector(".select2-selection__clear");
+    const selection = context.target || context.container.closest(".select2-selection") || context.container.parentElement || context.container;
+    const clear = context.container.querySelector && context.container.querySelector(".select2-selection__clear") || selection.querySelector && selection.querySelector(".select2-selection__clear");
     if (clear && visible(clear)) {
       clickOption(clear);
       touched = true;
@@ -15973,7 +15886,7 @@
   }
   function backFromRegistrationHourTypeSelection(index = 0) {
     const contexts = registrationHourTypeContexts();
-    const context2 = contexts[index] || null;
+    const context = contexts[index] || null;
     setStatus("Uursoort verwijderen...");
     const afterClear = () => {
       clickEmptyModalSpot();
@@ -15982,7 +15895,7 @@
       else schermen.showRegistrationChoices();
       setStatus("Uursoort verwijderd");
     };
-    if (context2) clearRegistrationHourTypeForContext(context2, afterClear);
+    if (context) clearRegistrationHourTypeForContext(context, afterClear);
     else clearRegistrationHourTypes(afterClear);
   }
   function showRegistrationHourTypeSelection(index = null) {
@@ -15990,8 +15903,8 @@
     if (!body) return;
     const contexts = registrationHourTypeContexts();
     const selectedIndex = index === null ? Math.max(0, contexts.findIndex((ctx) => !registrationHourTypeSelectedInContainer(ctx.container))) : index;
-    const context2 = contexts[selectedIndex] || null;
-    if (contexts.length && !context2) {
+    const context = contexts[selectedIndex] || null;
+    if (contexts.length && !context) {
       schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
       return;
     }
@@ -16001,7 +15914,7 @@
     }
     registrationFlow.activeRegistrationHourTypeIndex = selectedIndex;
     markScreen("registrationHourTypeSelection", { index: selectedIndex });
-    const title = context2 ? `Uursoort ${context2.firstName}` : "Uursoortselectie";
+    const title = context ? `Uursoort ${context.firstName}` : "Uursoortselectie";
     const onBack = () => {
       helperPanel.suppressAutoUntil = Date.now() + 1200;
       safe(() => backFromRegistrationHourTypeSelection(selectedIndex));
@@ -16017,24 +15930,24 @@
     setStatus("Uursoorten laden...");
     listRegistrationHourTypeOptions((options) => {
       const onPickOption = (opt) => safe(() => {
-        setRegistrationHourTypeForContext(opt, context2, (ok) => {
+        setRegistrationHourTypeForContext(opt, context, (ok) => {
           if (ok && registrationTextHasNoShowCue(opt)) {
             registrationFlow.registrationNoShowPromptSuppressed = false;
             registrationFlow.registrationNoShowPromptAfterNo = () => {
-              if (context2 && selectedIndex + 1 < contexts.length) showRegistrationHourTypeSelection(selectedIndex + 1);
+              if (context && selectedIndex + 1 < contexts.length) showRegistrationHourTypeSelection(selectedIndex + 1);
               else if (hasRegistrationHourTypeSelected()) schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
               else showRegistrationHourTypeSelection();
             };
             schermen.showRegistrationNoShowPrompt();
-            setStatus(`No show-uursoort gekozen voor ${context2 ? context2.firstName : "client"}`, false);
+            setStatus(`No show-uursoort gekozen voor ${context ? context.firstName : "client"}`, false);
             return;
           }
-          if (ok && context2 && selectedIndex + 1 < contexts.length) {
+          if (ok && context && selectedIndex + 1 < contexts.length) {
             showRegistrationHourTypeSelection(selectedIndex + 1);
           } else if (ok && hasRegistrationHourTypeSelected()) {
             schermen.showRegistrationReportPrompt(registrationFlow.activeRegistrationChoice);
           }
-          setStatus(ok ? `Uursoort gezet voor ${context2 ? context2.firstName : "client"}: ${opt}` : `Uursoort niet gevonden voor ${context2 ? context2.firstName : "client"}: ${opt}`, ok);
+          setStatus(ok ? `Uursoort gezet voor ${context ? context.firstName : "client"}: ${opt}` : `Uursoort niet gevonden voor ${context ? context.firstName : "client"}: ${opt}`, ok);
         });
       });
       renderScreen(body, "pickList", {
@@ -16047,7 +15960,7 @@
         emptyMessage: "Geen uursoorten gevonden"
       });
       setStatus(options.length ? "Kies uursoort" : "Uursoorten niet gevonden", !!options.length);
-    }, context2);
+    }, context);
   }
   function setHourTypeViaSelect2(text2, onDone) {
     const containers = visibleSelect2HourTypeContainers();
@@ -16081,18 +15994,18 @@
     };
     next();
   }
-  function setRegistrationHourTypeForContext(text2, context2, onDone) {
-    if (!context2) {
+  function setRegistrationHourTypeForContext(text2, context, onDone) {
+    if (!context) {
       setRegistrationHourType(text2, onDone);
       return;
     }
-    const target = context2.target || context2.container.closest(".select2-selection") || context2.container.parentElement || context2.container;
+    const target = context.target || context.container.closest(".select2-selection") || context.container.parentElement || context.container;
     clickElementCenter(target);
     setTimeout(() => {
-      const resultsRoot = select2ResultsElementForSelection(target, context2.container);
+      const resultsRoot = select2ResultsElementForSelection(target, context.container);
       setTimeout(() => {
         const ok = clickSelect2OptionTextInRoot(text2, resultsRoot);
-        setTimeout(() => onDone(!!ok && registrationHourTypeSelectedInContainer(context2.container)), 120);
+        setTimeout(() => onDone(!!ok && registrationHourTypeSelectedInContainer(context.container)), 120);
       }, 80);
     }, 120);
   }
@@ -18332,6 +18245,8 @@
     req = req || {};
     const ymd3 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd3) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
+    const aantal = 1 + (Array.isArray(req.extra) ? req.extra.length : 0) + (Array.isArray(req.eigen) ? req.eigen.length : 0);
+    if (aantal > MAX_MOMENTEN) return { ok: false, error: "Kies hooguit " + MAX_MOMENTEN + " momenten tegelijk." };
     let ids = currentInviteeIds();
     if (!ids.length) {
       const id = currentInviteeId(ymd3) || resolveInviteeId();
@@ -19759,7 +19674,6 @@
   connectConfigHooks({
     formsChanged: pushRegistrationForms,
     selectorsChanged: seedUiOverridesFromConfig,
-    rolloutChanged: setRollout,
     configApplied: syncWithUrl,
     teamChanged: deactivate
   });

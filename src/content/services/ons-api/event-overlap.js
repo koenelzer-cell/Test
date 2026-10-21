@@ -7,9 +7,11 @@
 // sjabloon is, of ONS' antwoord niet te lezen is, geeft de controle null
 // ('weet niet') en rekent de planhulp alleen op zijn eigen berekening.
 
-import { PAGE_BRIDGE } from '../../../shared/messages.js';
+import { PAGE_EVENT } from '../../../shared/messages.js';
+import { onPageEvent } from '../../core/page-bridge.js';
 import { PAGE_LOCAL } from '../../../shared/storage-keys.js';
-import { buildOverlapUrl, learnOverlapTemplate, parseEventOverlap } from '../../domain/event-overlap.js';
+import { buildOverlapUrl, learnOverlapTemplate } from '../../domain/event-overlap.js';
+import { parseEventOverlap } from '../../../shared/overlap.js';
 import { getJson } from './http.js';
 
 const KEY = PAGE_LOCAL.EVENT_OVERLAP_TEMPLATE;
@@ -32,28 +34,19 @@ export function overlapCheckStatus() {
   return t.readable ? 'ready' : 'unreadable';
 }
 
-// Eén aanroep van ONS verwerken (url + antwoordtekst uit de main-world).
-export function learnFromOnsCall(url, body) {
+// Eén aanroep van ONS verwerken: het adres, en of de main-world het antwoord
+// kon lezen.
+export function learnFromOnsCall(url, leesbaar) {
   const tpl = learnOverlapTemplate(url);
   if (!tpl) return false;
-  let json = null;
-  try { json = JSON.parse(String(body || '')); } catch (e) {}
-  tpl.readable = parseEventOverlap(json) !== null;
+  tpl.readable = leesbaar === true;
   tpl.learnedAt = Date.now();
   saveOverlapTemplate(tpl);
   return true;
 }
 
 export function listenForOnsOverlapCalls() {
-  try {
-    window.addEventListener('message', function (ev) {
-      if (!ev || ev.origin !== location.origin) return;
-      if (ev.source && ev.source !== window) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== 'eventOverlap') return;
-      learnFromOnsCall(d.url, d.body);
-    }, false);
-  } catch (e) {}
+  onPageEvent(PAGE_EVENT.OVERLAP, function (d) { learnFromOnsCall(d.url, d.leesbaar === true); });
 }
 
 // { ids, date, startMin, endMin } -> Promise<true|false|null>
