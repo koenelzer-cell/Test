@@ -2,6 +2,23 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.288
+
+- Een afspraakformulier uit de planhulp dat nog op een cliënt wacht, raakt
+  niet meer kwijt wat het nog moest invullen (type, titel, uursoort).
+- Route van de dag: de kaart verschijnt pas als je op **Kaart tonen** klikt;
+  pas dan gaan de adressen naar Google.
+- De planhulp neemt hooguit 20 momenten per keer.
+- De wekelijkse herinnering komt op het ingestelde uur, ook na de wissel naar
+  wintertijd. Stond je browser dicht, dan komt hij bij de volgende start.
+  Bij het aanzetten vraagt de browser of de extensie meldingen mag tonen.
+- In ONS Dossier toont het zijpaneel de vragenlijst-checklist betrouwbaarder,
+  en het getal op het icoon wordt niet meer onterecht leeggemaakt.
+- Wordt de extensie bijgewerkt terwijl ONS openstaat, dan vraagt een kaartje
+  linksonder om de pagina te herladen.
+- Kleine tekstwijzigingen (geen streepjes meer), bijvoorbeeld in de
+  samenvatting van een verlofaanvraag.
+
 ## 1.6.287
 
 - De extensie is kleiner: ongeveer 500 kB in plaats van 1,4 MB. Verder merk
