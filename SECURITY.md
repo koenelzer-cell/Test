@@ -225,9 +225,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   valt terug op het uitlezen van de uursoort-dropdown.
 - **URL's uit config** (TOPdesk-meldknop) worden afgedwongen op `^https?://`;
   een `javascript:`-URL valt terug op de standaard.
-- `config.json` is een web-accessible resource met `use_dynamic_url: true`,
-  zodat pagina-scripts het bestand niet via een raadbare URL kunnen uitlezen
-  (de content-scripts benaderen het gewoon via `chrome.runtime.getURL`).
+- `config.json` en `dist/ui-inspector.js` zijn web-accessible resources met
+  `use_dynamic_url: true`, zodat pagina-scripts ze niet via een raadbare URL
+  kunnen uitlezen (de content-scripts benaderen ze gewoon via
+  `chrome.runtime.getURL`). De UI-inspector staat daar omdat het
+  content-script hem pas met `import()` laadt als de beheerder hem opent.
 - Defensieve `try/catch` rond DOM-bewerkingen, zodat een fout de ONS-pagina niet
   blokkeert.
 - **Antwoorden van ONS** worden voor gebruik op vorm gecontroleerd (valibot,

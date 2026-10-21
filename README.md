@@ -114,6 +114,15 @@ Lagen, oplopend in voorrang:
 
 De sleutels van laag 5 staan in `managed_schema.json`.
 
+### UI-inspector
+
+Voor de beheerder: de knop **Open live UI-inspector in ONS** in het beheerscherm opent
+ONS met `#ons-ui-inspector`. De inspector toont welke plekken in de pagina de
+hulp vindt (groen) en mist (rood), en laat een gemiste plek opnieuw aanwijzen;
+die herstelling werkt meteen, zonder nieuwe versie. Hij blijft open na het
+herladen van de pagina tot je hem sluit. Hij is een aparte bundel die alleen
+laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
+
 ### Verlof aanvragen
 
 Onderaan het zijpaneel staat de knop **Verlof aanvragen**. De dialoog heeft

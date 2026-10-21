@@ -159,3 +159,37 @@ test('menu en wekker staan er na een herstart van de browser', async () => {
     await (tweede || eerste).sluit();
   }
 });
+
+test('UI-inspector: laadt pas op verzoek en is uit te zetten', async () => {
+  const { context, id, sluit } = await startBrowser();
+  try {
+    const ext = await extensiePagina(context, id);
+    const page = await context.newPage();
+    const fouten = await volgFouten(context, page);
+    const scripts = [];
+    page.on('request', (r) => { if (r.url().endsWith('/dist/ui-inspector.js')) scripts.push(r.url()); });
+
+    await page.goto(AGENDA);
+    await page.waitForTimeout(1000);
+    expect(scripts).toEqual([]);
+
+    // De knop in het beheerscherm opent ONS met #ons-ui-inspector.
+    await page.goto(AGENDA + '#ons-ui-inspector');
+    await expect(page.locator('#__ons-ins-root')).toHaveCount(1);
+    expect(page.url()).toBe(AGENDA);
+    expect(scripts.length).toBeGreaterThan(0);
+    // Hij blijft open na herladen, tot hij gesloten wordt.
+    await page.reload();
+    await expect(page.locator('#__ons-ins-root')).toHaveCount(1);
+
+    // features.uiInspector: false zet hem uit, ook als hij openstond.
+    await ext.page.evaluate(() => chrome.storage.local.set({ onsHelperConfig: { features: { uiInspector: false } } }));
+    await page.goto('about:blank');
+    await page.goto(AGENDA + '#ons-ui-inspector');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#__ons-ins-root')).toHaveCount(0);
+    expect(fouten).toEqual([]);
+  } finally {
+    await sluit();
+  }
+});

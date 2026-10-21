@@ -33,7 +33,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["config.json"],
+      "resources": ["config.json", "dist/ui-inspector.js"],
       "matches": [
         "https://*.onsagenda.nl/*",
         "https://impegno.ons-dossier.nl/*"

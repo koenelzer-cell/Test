@@ -16,7 +16,6 @@ export const LOCAL = {
   TEST_CONFIG: 'onsHelperConfig',          // lokale testconfiguratie (beheer); wint van config.json
   UI_OVERRIDES: 'onsHelper.uiOverrides',   // door de UI-inspector herstelde selectors
   INSPECTOR_OPEN: 'onsHelper.inspectorOpen', // UI-inspector blijft open bij paginawissel
-  OPEN_INSPECTOR: 'onsHelper.openInspector', // verzoek om de UI-inspector te openen
   SNAPSHOT: 'onsHelper.snapshot',          // laatste weekstand (service worker; alleen getallen)
   REMINDER_SETTINGS: 'onsHelper.reminders', // instellingen wekelijkse herinnering
   FORMS: 'onsHelper.forms',                // registratievormen voor het rechtermuismenu

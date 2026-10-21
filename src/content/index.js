@@ -79,7 +79,4 @@ listenForContextMenuChoice();
 installDeclareClickCapture();
 startDayColoring();
 registerQualityModule();
-
-// De UI-inspector (beheerdershulpmiddel) staat los van de hulp; hij opent
-// alleen op verzoek (#ons-ui-inspector of een vlag in chrome.storage.local).
-startUiInspector();
+HELPER_CONFIG_READY.then(startUiInspector);

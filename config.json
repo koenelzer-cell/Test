@@ -780,7 +780,8 @@
     "plannerDirect": true,
     "routeLink": true,
     "preload": true,
-    "formViaModel": true
+    "formViaModel": true,
+    "uiInspector": true
   },
   "surveys": [
     {
