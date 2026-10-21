@@ -321,4 +321,3 @@
     else document.addEventListener("DOMContentLoaded", start, { once: true });
   })();
 })();
-//# sourceMappingURL=edge-tab.js.map

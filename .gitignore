@@ -4,3 +4,5 @@ node_modules/
 test/build/
 test-results/
 playwright-report/
+# Sourcemaps maakt alleen npm run dev.
+dist/*.map

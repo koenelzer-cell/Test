@@ -332,4 +332,3 @@
   }
   init();
 })();
-//# sourceMappingURL=popup.js.map

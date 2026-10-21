@@ -10679,4 +10679,3 @@
   verbind();
   zoekOnsTab();
 })();
-//# sourceMappingURL=sidepanel.js.map

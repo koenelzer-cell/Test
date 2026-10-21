@@ -7,8 +7,9 @@
 // Waarom een bundelstap: content-scripts kunnen in Chrome/Edge geen ES-modules
 // zijn. De bron is wel in modules opgedeeld (import/export); esbuild voegt ze
 // per ingang samen tot één klassiek script (IIFE). De uitvoer is bewust NIET
-// geminificeerd, zodat een fout in de console nog leesbaar is; de sourcemaps
-// wijzen in DevTools terug naar src/.
+// geminificeerd, zodat een fout in de console nog leesbaar is. Sourcemaps
+// alleen bij --watch: ze wijzen in DevTools terug naar src/, maar horen niet in
+// versiebeheer of in het pakket.
 //
 //   node scripts/build.mjs            alles bouwen
 //   node scripts/build.mjs --watch    blijven meekijken (npm run dev)
@@ -32,7 +33,7 @@ const common = {
   logLevel: 'warning',
 };
 
-// Klassieke scripts (geen React). Niet geminificeerd, met sourcemap.
+// Klassieke scripts (geen React). Niet geminificeerd.
 const SCRIPT_ENTRIES = [
   // [bron, uitvoer]                                     waar het draait
   ['src/content/index.js', 'dist/content.js'],            // content-script, ONS-pagina's
@@ -50,7 +51,7 @@ const builds = [
     ...common,
     entryPoints: [entry],
     outfile,
-    sourcemap: 'linked',
+    sourcemap: watch ? 'linked' : false,
     charset: 'utf8',
   })),
   // De React-schermen (src/react/): geminificeerd, productiebuild van React.

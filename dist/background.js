@@ -616,4 +616,3 @@
     rescheduleAlarm();
   });
 })();
-//# sourceMappingURL=background.js.map
