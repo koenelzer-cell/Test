@@ -13,6 +13,8 @@ npm install
 npm run build        # src/ -> dist/ (esbuild) plus the React test bundle (test/build/)
 npm run dev          # build and watch
 npm run check        # manifest/syntax, imports between components, content-script layer rules
+npm run lint         # ESLint (recommended rules as warnings for now; no-var is an error)
+npm run format       # Prettier (not applied to the code base yet)
 npm test             # build, then all tests (node:test + jsdom, no browser or ONS needed)
 npm run test:e2e     # build, then the side panel in real Chromium (Playwright, e2e/)
 npm run release      # bump patch version, build, check, test, zip -> ONSAgendahulp-x.y.z.zip

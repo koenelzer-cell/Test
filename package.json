@@ -5,17 +5,24 @@
   "scripts": {
     "build": "node scripts/build.mjs --test",
     "check": "node scripts/check.mjs && node scripts/check-imports.mjs && node scripts/deps.mjs --strict",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "npm run build && node --test --test-force-exit test/*.test.js",
     "dev": "node scripts/build.mjs --watch",
     "release": "node scripts/release.mjs",
     "test:e2e": "npm run build && playwright test"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "acorn": "^8.19.0",
     "acorn-walk": "^8.3.5",
     "esbuild": "^0.24.0",
-    "jsdom": "^30.0.1"
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
+    "jsdom": "^30.0.1",
+    "prettier": "3.9.9"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

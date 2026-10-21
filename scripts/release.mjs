@@ -158,8 +158,9 @@ function release() {
   // is precies wat er straks in het pakket gaat.
   kop('Bouwen');
   run('npm', ['run', 'build']);
-  kop('Syntax, manifest en importen controleren');
+  kop('Syntax, manifest, importen en lint controleren');
   run('npm', ['run', 'check']);
+  run('npm', ['run', 'lint', '--', '--quiet']);
   kop('Tests');
   run('node', ['--test', '--test-force-exit', ...fs.readdirSync(path.join(ROOT, 'test'))
     .filter((f) => f.endsWith('.test.js')).map((f) => `test/${f}`)]);

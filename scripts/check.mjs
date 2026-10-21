@@ -48,8 +48,8 @@ for (const f of scripts) {
   if (!fs.existsSync(rel(f))) continue;
   const code = fs.readFileSync(rel(f), 'utf8');
   try {
-    if (isModule(f)) new vm.SourceTextModule(code); // eslint-disable-line no-new
-    else new vm.Script(code, { filename: f }); // eslint-disable-line no-new
+    if (isModule(f)) new vm.SourceTextModule(code);
+    else new vm.Script(code, { filename: f });
   } catch (e) {
     if (e instanceof TypeError && /SourceTextModule/.test(String(e))) continue; // zonder --experimental-vm-modules
     fouten.push(`syntaxfout in ${f}: ${e.message}`);
@@ -63,7 +63,7 @@ if (fs.existsSync(rel(BEHEER))) {
   let n = 0;
   for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
     n++;
-    try { new vm.Script(m[1], { filename: `${BEHEER} (inline #${n})` }); } // eslint-disable-line no-new
+    try { new vm.Script(m[1], { filename: `${BEHEER} (inline #${n})` }); }
     catch (e) { fouten.push(`syntaxfout in ${BEHEER} inline-script #${n}: ${e.message}`); }
   }
 }

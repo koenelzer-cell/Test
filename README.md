@@ -28,8 +28,9 @@ overeenkomt met `src/`.
 npm run dev     # bouwen + meekijken
 npm run build   # eenmalig bouwen (ook de testbundel)
 npm run check   # manifest, syntax, imports en laagindeling controleren
+npm run lint    # ESLint
 npm test        # bouwen + testsuite (jsdom, geen browser of ONS nodig)
-npm run test:e2e # bouwen + het zijpaneel in een echte Chromium (Playwright)
+npm run test:e2e # bouwen + zijpaneel en extensie in een echte Chromium (Playwright)
 ```
 
 `npm run test:e2e` opent het zijpaneel in Chromium met nep-antwoorden van ONS
@@ -42,6 +43,13 @@ beeld valt, dat knopteksten en datums in hun veld passen en dat er geen '·' of
 streepjes in de tekst staan. De schermafdrukken staan in het rapport
 (`npx playwright show-report`). De eerste keer: `npx playwright install
 chromium`. Een eigen Chromium gebruiken kan met `PW_CHROMIUM=/pad/naar/chrome`.
+
+Daarnaast laadt `e2e/extensie.spec.mjs` de uitgepakte extensie zelf, met vaste
+ONS-pagina's in plaats van ONS: geen fouten op de agenda, het
+afspraakformulier en ONS Dossier; de content-scripts antwoorden het
+zijpaneel; na het stoppen van de service worker en na een herstart van de
+browser staan menu, wekker, badge en zijpaneel er nog; en de UI-inspector
+laadt pas op verzoek.
 
 Bibliotheken die in de extensie worden meegebundeld: React (schermen),
 `valibot` (controleert of ONS-antwoorden de verwachte vorm hebben, zie

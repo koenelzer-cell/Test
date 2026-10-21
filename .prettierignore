@@ -1,0 +1,8 @@
+dist/
+test/build/
+release/
+playwright-report/
+test-results/
+package-lock.json
+tools/beheer/beheer.html
+*.md

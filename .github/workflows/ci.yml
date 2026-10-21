@@ -34,15 +34,19 @@ jobs:
       - name: Syntax, manifest en beheerscherm controleren
         run: npm run check
 
+      # Alleen fouten; de aanbevolen regels staan nog op waarschuwing.
+      - name: ESLint
+        run: npm run lint -- --quiet
+
       - name: Tests draaien (jsdom + fixtures)
         run: node --test --test-force-exit test/*.test.js
 
-      # Het zijpaneel in een echte Chromium: lay-out op een smal en breed
-      # paneel. De schermafdrukken staan in het rapport (artefact).
+      # Het zijpaneel in een echte Chromium (lay-out op een smal en breed
+      # paneel, schermafdrukken in het rapport) en de uitgepakte extensie zelf.
       - name: Chromium voor Playwright installeren
         run: npx playwright install --with-deps chromium
 
-      - name: Zijpaneel in Chromium (Playwright)
+      - name: Zijpaneel en extensie in Chromium (Playwright)
         run: npx playwright test
 
       - name: Playwright-rapport bewaren
