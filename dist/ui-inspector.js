@@ -2931,12 +2931,12 @@ function maakInspector() {
           msg = "✓ Matcht precies 1 element.";
           col = C.ok;
         } else {
-          msg = "⚠ Matcht " + info.count + " elementen — mogelijk niet uniek.";
+          msg = "⚠ Matcht " + info.count + " elementen, mogelijk niet uniek.";
           col = "#d98a0b";
         }
         if (!info.empty && !info.invalid && !isRel) {
-          if (info.brittle) msg += " · broze positie-selector (kan breken bij ONS-updates).";
-          if (info.shadow && / > /.test(inp.value)) msg += " · shadow-DOM: een descendant-pad piercet de shadow-grens mogelijk niet.";
+          if (info.brittle) msg += " Broze positie-selector (kan breken bij ONS-updates).";
+          if (info.shadow && / > /.test(inp.value)) msg += " Shadow-DOM: een descendant-pad piercet de shadow-grens mogelijk niet.";
         }
         fb.textContent = msg;
         fb.style.color = col;
@@ -3041,7 +3041,7 @@ function maakInspector() {
           row.style.cursor = "default";
           row.style.display = onlyMissing ? "none" : "flex";
           row.style.opacity = ".45";
-          dot.textContent = "–";
+          dot.textContent = "○";
           dot.style.color = "#999";
           return true;
         }

@@ -4039,7 +4039,7 @@
         Object.assign(li.style, { display: "flex", alignItems: "flex-start", gap: "8px", padding: "5px 0", borderBottom: "1px solid #f3f3f3" });
         const link = document.createElement("a");
         const isUnknown = !!item.unknown && !item.done;
-        link.textContent = item.question + (isUnknown ? "  — niet automatisch te controleren" : "");
+        link.textContent = item.question + (isUnknown ? " (niet automatisch te controleren)" : "");
         if (isUnknown) link.title = "Deze verplichte vraag kon niet automatisch worden gecontroleerd. Kijk haar zelf na.";
         const openColor = isUnknown ? "#b45309" : "#cc087d";
         Object.assign(link.style, {

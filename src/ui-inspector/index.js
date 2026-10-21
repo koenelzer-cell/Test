@@ -582,10 +582,10 @@ function maakInspector() {
         else if (isRel) { msg = info.count === 0 ? '⚠ Matcht niets op dit scherm.' : ('✓ Wordt toegepast op alle vergelijkbare elementen (' + info.count + ' gevonden).'); col = info.count === 0 ? '#d98a0b' : C.ok; }
         else if (info.count === 0) { msg = '⚠ Matcht niets op dit scherm.'; col = '#d98a0b'; }
         else if (info.count === 1) { msg = '✓ Matcht precies 1 element.'; col = C.ok; }
-        else { msg = '⚠ Matcht ' + info.count + ' elementen — mogelijk niet uniek.'; col = '#d98a0b'; }
+        else { msg = '⚠ Matcht ' + info.count + ' elementen, mogelijk niet uniek.'; col = '#d98a0b'; }
         if (!info.empty && !info.invalid && !isRel) {
-          if (info.brittle) msg += ' · broze positie-selector (kan breken bij ONS-updates).';
-          if (info.shadow && / > /.test(inp.value)) msg += ' · shadow-DOM: een descendant-pad piercet de shadow-grens mogelijk niet.';
+          if (info.brittle) msg += ' Broze positie-selector (kan breken bij ONS-updates).';
+          if (info.shadow && / > /.test(inp.value)) msg += ' Shadow-DOM: een descendant-pad piercet de shadow-grens mogelijk niet.';
         }
         fb.textContent = msg; fb.style.color = col; save.disabled = !ok; save.style.opacity = ok ? '1' : '.5'; save.style.cursor = ok ? 'pointer' : 'not-allowed';
       };
@@ -648,7 +648,7 @@ function maakInspector() {
         if (na) {
           row.dataset.on = '0'; row.style.cursor = 'default';
           row.style.display = onlyMissing ? 'none' : 'flex'; row.style.opacity = '.45';
-          dot.textContent = '–'; dot.style.color = '#999';
+          dot.textContent = '○'; dot.style.color = '#999';
           return true; // telt niet als 'ontbrekend' mee in de samenvatting
         }
         row.style.opacity = '';

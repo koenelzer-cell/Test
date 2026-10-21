@@ -91,5 +91,5 @@ export function showFreeDayInactive() {
     bodyStyle: { lineHeight: 1.35 },
   });
   setSubmitBlocked(false);
-  setStatus('Vrije dag — hulp inactief', false);
+  setStatus('Vrije dag, hulp inactief', false);
 }

@@ -134,7 +134,7 @@ export function showReminder() {
       chrome.notifications.create(NOTIFICATION_PREFIX + '.' + Date.now(), {
         type: 'basic',
         iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-        title: 'ONS Agendahulp — nog te registreren',
+        title: 'ONS Agendahulp: nog te registreren',
         message: body,
         // Eerlijk zijn over de bron: dit is de laatste stand die de hulp zag
         // terwijl de agenda openstond, niet een live meting.

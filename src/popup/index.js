@@ -62,7 +62,7 @@ function renderProfileChoice() {
   const sector = state.sector;
   const profiles = profilesForSector(sector);
   if (!profiles.length) { renderSectorChoice(); return; }
-  view.appendChild(el('h2', null, sector + ' — kies je agenda-indeling:'));
+  view.appendChild(el('h2', null, sector + ': kies je agenda-indeling'));
   profiles.forEach(function (key) {
     view.appendChild(choiceButton(key, {
       selected: state.colorProfile === key,

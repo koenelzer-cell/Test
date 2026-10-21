@@ -84,16 +84,20 @@ export function buildUnavailability(form, opts = {}) {
   return { unavailability: u };
 }
 
-// Korte omschrijving voor in de dialoog ("Elke 2 dagen · wo 7-10 t/m ma 12-10 · hele dag").
+// Korte omschrijving voor in de dialoog ("Elke 2 dagen, van wo 7-10 t/m ma 12-10, hele dag").
 // recurrence: 'none' | 'daily' | 'weekly' (zoals in het formulier).
 export function describeUnavailability(u, recurrence, dateLabel) {
   const label = dateLabel || ((d) => d);
-  const tijd = (u.start_time === '00:00' && u.end_time === '00:00') ? 'hele dag' : u.start_time + '–' + u.end_time;
-  if (!recurrence || recurrence === 'none') return label(u.valid_from) + ' · ' + tijd;
+  const tijd = (u.start_time === '00:00' && u.end_time === '00:00') ? 'hele dag' : u.start_time + ' tot ' + u.end_time;
+  if (!recurrence || recurrence === 'none') return label(u.valid_from) + ', ' + tijd;
   const n = Number(u.cycle_interval);
   const weekly = WEEKDAYS.filter((d) => u[d]);
   const elke = recurrence === 'daily'
     ? (n === 1 ? 'Elke dag' : 'Elke ' + n + ' dagen')
-    : (n === 1 ? 'Elke week' : 'Elke ' + n + ' weken') + ' op ' + weekly.map((d) => WEEKDAY_LABELS[d]).join(', ');
-  return elke + ' · ' + label(u.valid_from) + ' t/m ' + label(u.valid_to) + ' · ' + tijd;
+    : (n === 1 ? 'Elke week' : 'Elke ' + n + ' weken') + ' op ' + opsomming(weekly.map((d) => WEEKDAY_LABELS[d]));
+  return elke + ', van ' + label(u.valid_from) + ' t/m ' + label(u.valid_to) + ', ' + tijd;
+}
+// ['ma', 'wo', 'vr'] -> 'ma, wo en vr'
+function opsomming(lijst) {
+  return lijst.length > 1 ? lijst.slice(0, -1).join(', ') + ' en ' + lijst[lijst.length - 1] : lijst.join('');
 }

@@ -12251,7 +12251,7 @@
       bodyStyle: { lineHeight: 1.35 }
     });
     setSubmitBlocked(false);
-    setStatus("Vrije dag — hulp inactief", false);
+    setStatus("Vrije dag, hulp inactief", false);
   }
 
   // src/content/features/appointment/travel.js
@@ -17895,12 +17895,15 @@
   }
   function describeUnavailability(u, recurrence, dateLabel) {
     const label = dateLabel || ((d) => d);
-    const tijd = u.start_time === "00:00" && u.end_time === "00:00" ? "hele dag" : u.start_time + "–" + u.end_time;
-    if (!recurrence || recurrence === "none") return label(u.valid_from) + " · " + tijd;
+    const tijd = u.start_time === "00:00" && u.end_time === "00:00" ? "hele dag" : u.start_time + " tot " + u.end_time;
+    if (!recurrence || recurrence === "none") return label(u.valid_from) + ", " + tijd;
     const n = Number(u.cycle_interval);
     const weekly = WEEKDAYS.filter((d) => u[d]);
-    const elke = recurrence === "daily" ? n === 1 ? "Elke dag" : "Elke " + n + " dagen" : (n === 1 ? "Elke week" : "Elke " + n + " weken") + " op " + weekly.map((d) => WEEKDAY_LABELS[d]).join(", ");
-    return elke + " · " + label(u.valid_from) + " t/m " + label(u.valid_to) + " · " + tijd;
+    const elke = recurrence === "daily" ? n === 1 ? "Elke dag" : "Elke " + n + " dagen" : (n === 1 ? "Elke week" : "Elke " + n + " weken") + " op " + opsomming(weekly.map((d) => WEEKDAY_LABELS[d]));
+    return elke + ", van " + label(u.valid_from) + " t/m " + label(u.valid_to) + ", " + tijd;
+  }
+  function opsomming(lijst) {
+    return lijst.length > 1 ? lijst.slice(0, -1).join(", ") + " en " + lijst[lijst.length - 1] : lijst.join("");
   }
 
   // src/content/services/ons-api/unavailability.js

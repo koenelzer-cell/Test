@@ -34,7 +34,7 @@ test('verlof: wekelijks op wisselende dagen zet een vlag per gekozen dag', () =>
     description: 'Verlof', valid_from: '2026-10-07', start_time: '08:30', end_time: '12:30',
     recurrence_type: 'weekly', cycle_interval: '1', valid_to: '2026-11-30', monday: true, wednesday: true, friday: true,
   });
-  assert.equal(api.describeUnavailability(r.unavailability, 'weekly'), 'Elke week op ma, wo, vr · 2026-10-07 t/m 2026-11-30 · 08:30–12:30');
+  assert.equal(api.describeUnavailability(r.unavailability, 'weekly'), 'Elke week op ma, wo en vr, van 2026-10-07 t/m 2026-11-30, 08:30 tot 12:30');
 });
 
 test('verlof: de waarde van recurrence_type is instelbaar', () => {
