@@ -712,17 +712,4 @@ export function startUiInspector() {
     }
   } catch (e) {}
   window.__onsUiInspector = { open: openPanel, close: closePanel, toggle: toggle };
-  // Test-hook: de picker-kern blootstellen zodat de regressietests de
-  // selector-bouw en de icoon→element-oplossing kunnen controleren.
-  try {
-    if (window.__ONS_EXPOSE_FOR_TEST) {
-      window.__onsInspectorTestApi = {
-        buildSelector: buildSelector,
-        buildClassSelector: buildClassSelector,
-        resolveMeaningfulTarget: resolveMeaningfulTarget,
-        isIconLeaf: isIconLeaf,
-        selectorInfo: selectorInfo,
-      };
-    }
-  } catch (e) {}
 }

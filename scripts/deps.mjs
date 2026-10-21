@@ -4,7 +4,7 @@
 //
 // Lagen (laag → hoog). Een module mag importeren uit zijn eigen laag of lager:
 //   shared    src/shared/: constanten die alle onderdelen delen (berichten, opslagsleutels)
-//   core      datum/tijd, testhaak — geen afhankelijkheden
+//   core      datum/tijd, wachten — geen afhankelijkheden
 //   platform  moduleplatform + meldingenkanaal (platform/module-host.js)
 //   config    configuratie (standaard, geladen, afgeleid)
 //   storage   opslag van voorkeuren
@@ -17,7 +17,7 @@
 //             schermregister (schermen.js: schermen openen elkaar daarlangs)
 //   features  wat de hulp doet (afspraak, registratie, agenda, …)
 //   helper    de regie: paneel opbouwen, aan/uit, routering, scherm herstellen
-//   entry     index.js en test-hooks.js
+//   entry     index.js
 //
 //   node scripts/deps.mjs            samenvatting + overtredingen
 //   node scripts/deps.mjs --verbose  ook de modules van elke cyclus
@@ -42,7 +42,7 @@ const ALLOWED = [];
 // config/hooks.js; index.js koppelt de reacties bij het opstarten.)
 
 const layerOf = (rel) => {
-  if (rel === 'index.js' || rel === 'test-hooks.js') return 'entry';
+  if (rel === 'index.js') return 'entry';
   if (rel === 'state.js') return 'state';
   if (rel.startsWith('../shared/')) return 'shared';
   return rel.split('/')[0];

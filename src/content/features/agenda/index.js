@@ -8,37 +8,12 @@ import {
   listenForSidePanelMessages,
   pushPanelState,
 } from './side-panel-bridge.js';
-import { configProfileLegend, configProfileZones } from './zones.js';
 import { agendaPage } from './state.js';
 import { watchProfileChanges } from './profile.js';
-import {
-  classifyOccurrence,
-  isDeclared,
-  occurrenceIsPast,
-  occurrenceOverdue24h,
-} from './occurrences.js';
-import { computeTotals, listUnfinished } from './unregistered-time.js';
-import { editableWindowStart, windowStatusForDate } from './edit-window.js';
-import { __exposeForTest } from '../../core/test-api.js';
 import { setOnHelperConfigChanged } from '../../config/app-config.js';
 import { safe } from '../../screen/status.js';
 import { setAgendaHelperDeactivate } from '../../state.js';
 
-// Testhaak: agenda-logica blootstellen (alleen onder testvlag).
-function exposeAgendaTestApi() {
-  __exposeForTest({
-    computeTotals: computeTotals,
-    isDeclared: isDeclared,
-    classifyOccurrence: classifyOccurrence,
-    occurrenceIsPast: occurrenceIsPast,
-    occurrenceOverdue24h: occurrenceOverdue24h,
-    editableWindowStart: editableWindowStart,
-    windowStatusForDate: windowStatusForDate,
-    listUnfinished: listUnfinished,
-    configProfileZones: configProfileZones,
-    configProfileLegend: configProfileLegend,
-  });
-}
 // Opstarten: listeners, zijpaneel-koppeling en de eerste synchronisatie met
 // de URL. Wordt één keer aangeroepen vanuit content/index.js.
 export function startDayColoring() {
@@ -57,6 +32,4 @@ export function startDayColoring() {
   } else {
     syncAgendaPage();
   }
-  // Test-hook: agenda-logica blootstellen (alleen onder testvlag).
-  exposeAgendaTestApi();
 }

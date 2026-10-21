@@ -16,7 +16,6 @@ import { installUrlWatch, syncWithUrl } from './helper/routing.js';
 import { installContextMenuTracking, listenForContextMenuChoice, pushRegistrationForms } from './features/registration/context-menu.js';
 import { startDayColoring } from './features/agenda/index.js';
 import { startUiInspector } from './features/ui-inspector.js';
-import { exposeTestApi } from './test-hooks.js';
 import { setRollout, startModuleHost } from './platform/module-host.js';
 import { connectConfigHooks } from './config/hooks.js';
 import { deactivate } from './helper/lifecycle.js';
@@ -80,7 +79,6 @@ listenForContextMenuChoice();
 installDeclareClickCapture();
 startDayColoring();
 registerQualityModule();
-exposeTestApi();
 
 // De UI-inspector (beheerdershulpmiddel) staat los van de hulp; hij opent
 // alleen op verzoek (#ons-ui-inspector of een vlag in chrome.storage.local).

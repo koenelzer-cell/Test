@@ -12,7 +12,8 @@
 //
 //   node scripts/build.mjs            alles bouwen
 //   node scripts/build.mjs --watch    blijven meekijken (npm run dev)
-//   node scripts/build.mjs --test     ook de testbundel van de React-componenten
+//   node scripts/build.mjs --test     ook de testbundels (test/build/): het content-script
+//                                     met testhaken en de React-componenten
 
 import * as esbuild from 'esbuild';
 import path from 'node:path';
@@ -27,7 +28,7 @@ const common = {
   absWorkingDir: ROOT,
   bundle: true,
   format: 'iife',
-  target: 'chrome100',
+  target: 'chrome116',   // = minimum_chrome_version in manifest.json
   logLevel: 'warning',
 };
 
@@ -66,6 +67,14 @@ const builds = [
 ];
 
 if (withTests) {
+  // Het content-script met de interne functies voor de jsdom-tests
+  // (test/helpers/content-api.js). Alleen hier; dist/content.js heeft ze niet.
+  builds.push({
+    ...common,
+    entryPoints: ['test/helpers/content-api.js'],
+    outfile: 'test/build/content.js',
+    charset: 'utf8',
+  });
   // Losse ESM-bundel van de componenten voor de jsdom-tests (React extern).
   builds.push({
     absWorkingDir: ROOT,

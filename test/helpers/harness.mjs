@@ -1,4 +1,5 @@
-// Testharnas: start een jsdom-omgeving waarin de content-scriptbundel (dist/content.js) kan draaien, en geeft
+// Testharnas: start een jsdom-omgeving waarin de testbundel van het
+// content-script (test/build/content.js, zie content-api.js) draait, en geeft
 // de interne test-API terug (window.__onsHelperTestApi).
 //
 // Twee dingen moeten hier gestubd worden:
@@ -13,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CONTENT_JS = fs.readFileSync(path.join(ROOT, 'dist', 'content.js'), 'utf8');
+const CONTENT_JS = fs.readFileSync(path.join(ROOT, 'test', 'build', 'content.js'), 'utf8');
 
 export function fixture(name) {
   return fs.readFileSync(path.join(ROOT, 'test', 'fixtures', name), 'utf8');
@@ -76,7 +77,6 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     get() { return this.isConnected && !(this.hasAttribute && this.hasAttribute('data-test-hidden')) ? (this.parentElement || w.document.body) : null; },
   });
 
-  w.__ONS_EXPOSE_FOR_TEST = true;
   w.eval(CONTENT_JS);
 
   // Geeft het bericht aan alle onMessage-luisteraars; belooft het antwoord

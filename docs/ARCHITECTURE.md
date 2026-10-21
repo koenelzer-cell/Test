@@ -98,7 +98,7 @@ faalt op beide.
 | screen | `screen/` | wat schermen gebruiken: statusregel, het schermvak, `markScreen`, het schermregister `schermen` |
 | features | `features/` | wat de hulp doet |
 | helper | `helper/` | de regie: het paneel opbouwen, aan/uit, routering, scherm herstellen |
-| entry | `index.js`, `test-hooks.js` | opstarten |
+| entry | `index.js` | opstarten |
 
 Er zijn geen uitzonderingen op de laagindeling. Twee dingen lopen niet via
 importen maar via een koppeling die `index.js` bij het opstarten legt:
@@ -361,7 +361,7 @@ eenmalige start).
    schermen wordt geopend: aanmelden in `koppelSchermen` in `index.js` en
    openen met `schermen.showX()`.
 4. Een nieuw bericht of opslagsleutel: eerst in `src/shared/`.
-5. Testen: pure functies via `core/test-api.js` + `test-hooks.js` (jsdom), of
-   rechtstreeks importeren uit `src/` als de module geen browser nodig heeft
-   (zie `test/survey.test.js`).
+5. Testen: interne functies via `test/helpers/content-api.js` (de testbundel
+   van het content-script, in jsdom), of rechtstreeks importeren uit `src/`
+   als de module geen browser nodig heeft (zie `test/survey.test.js`).
 6. `npm run check && npm test`.

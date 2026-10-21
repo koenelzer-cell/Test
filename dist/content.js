@@ -2630,9 +2630,6 @@
 
   // src/content/ons/agenda-location.js
   var _inviteeIdOverride = null;
-  function setInviteeIdOverride(v) {
-    _inviteeIdOverride = v == null ? null : v;
-  }
   function _agInt(v) {
     const n = parseInt(v, 10);
     return Number.isFinite(n) ? n : null;
@@ -2915,9 +2912,6 @@
   function setActiveTeam(profile, sector) {
     ACTIVE_PROFILE = profile;
     ACTIVE_SECTOR = sector;
-  }
-  function setActiveProfileForTest(p) {
-    ACTIVE_PROFILE = p || null;
   }
   function anyTeamsDefined() {
     try {
@@ -3517,9 +3511,6 @@
       ts: Date.now()
     };
     return labels;
-  }
-  function clearLaatsteDetails() {
-    _laatsteDetails = null;
   }
   function laatsteDetailsLabels() {
     if (!_laatsteDetails) return [];
@@ -7493,9 +7484,6 @@
     if (!c || Date.now() - c.ts >= OVERLAP_TTL_MS) return void 0;
     return c.value;
   }
-  function _setOnsOverlapForTest(ymd3, startMin, endMin, value) {
-    _overlapCache[overlapKey(ymd3, startMin, endMin, "")] = { ts: Date.now(), promise: Promise.resolve(value), value };
-  }
   var MAX_RANGE_WEEKS = 26;
   function fetchEntriesForRange(inviteeId, fromYmd, toYmd, onProgress) {
     const weeks = weekStartsBetween(fromYmd, toYmd);
@@ -8486,9 +8474,6 @@
     }
     return feestdagenBelofte;
   }
-  function _forgetHolidays() {
-    feestdagenBelofte = null;
-  }
   function weekLaag(sjabloon, laag, start, id, wachtrij) {
     return haalWeek(sjabloon, id, start, { wachtrij }).then(function(lijst) {
       return lijst.map(function(e) {
@@ -8815,13 +8800,6 @@
       if (k.indexOf("plan|") === 0) delete _cache[k];
     });
     vergeetWeken();
-  }
-  function _clearPreloadCache() {
-    Object.keys(_cache).forEach((k) => delete _cache[k]);
-    vergeetWeken();
-    _laatstVooraf = 0;
-    _voorafSleutel = "";
-    _bezig3 = false;
   }
 
   // src/content/features/agenda/event-create.js
@@ -13562,9 +13540,6 @@
 
   // src/content/features/registration/pending.js
   var _regIdOverride = null;
-  function setRegistrationIdOverride(v) {
-    _regIdOverride = v == null ? null : String(v);
-  }
   function currentRegistrationId() {
     if (_regIdOverride != null) return _regIdOverride;
     const m = (location.pathname || "").match(/\/registrations\/([^/?#]+)/);
@@ -19159,31 +19134,7 @@
     else deactivateAgendaPage();
   }
 
-  // src/content/core/test-api.js
-  function __exposeForTest(map) {
-    try {
-      if (typeof window === "undefined" || !window.__ONS_EXPOSE_FOR_TEST) return;
-      window.__onsHelperTestApi = window.__onsHelperTestApi || {};
-      for (const k in map) if (Object.prototype.hasOwnProperty.call(map, k)) window.__onsHelperTestApi[k] = map[k];
-    } catch (e) {
-    }
-  }
-
   // src/content/features/agenda/index.js
-  function exposeAgendaTestApi() {
-    __exposeForTest({
-      computeTotals,
-      isDeclared,
-      classifyOccurrence,
-      occurrenceIsPast,
-      occurrenceOverdue24h,
-      editableWindowStart,
-      windowStatusForDate,
-      listUnfinished,
-      configProfileZones,
-      configProfileLegend
-    });
-  }
   function startDayColoring() {
     watchProfileChanges();
     setOnHelperConfigChanged(function() {
@@ -19206,7 +19157,6 @@
     } else {
       syncAgendaPage();
     }
-    exposeAgendaTestApi();
   }
 
   // src/content/features/ui-inspector.js
@@ -20260,398 +20210,6 @@
     } catch (e) {
     }
     window.__onsUiInspector = { open: openPanel, close: closePanel, toggle };
-    try {
-      if (window.__ONS_EXPOSE_FOR_TEST) {
-        window.__onsInspectorTestApi = {
-          buildSelector,
-          buildClassSelector,
-          resolveMeaningfulTarget,
-          isIconLeaf,
-          selectorInfo
-        };
-      }
-    } catch (e) {
-    }
-  }
-
-  // src/content/features/appointment/duration.js
-  function applyAppointmentDuration(choice, minutes) {
-    appointmentFlow.appointmentFlowBusy = true;
-    appointmentFlow.activeAppointmentDurationMinutes = minutes;
-    appointmentFlow.activeAppointmentStartTimeText = appointmentCurrentStartTimeText();
-    if (choice.addTravelTime) {
-      const endOk = setAppointmentEndTimePlusMinutes(minutes);
-      scheduleAppointmentEndTime(minutes);
-      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
-      setTimeout(() => showAppointmentTravelSelection(choice), 80);
-    } else {
-      clearAppointmentTravelTimes();
-      const endOk = setAppointmentEndTimePlusMinutes(minutes);
-      scheduleAppointmentEndTime(minutes);
-      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
-      setTimeout(() => {
-        schermen.handleChoice(choice);
-        scheduleAppointmentEndTime(minutes);
-        [120, 350, 650].forEach((d) => setTimeout(() => safe(() => enforceAppointmentEndTime(minutes)), d));
-      }, 80);
-    }
-  }
-  function showAppointmentDurationSelection(choice) {
-    const body = $body();
-    if (!body) return;
-    if (!hasAppointmentPrereqs()) {
-      schermen.showAppointmentNeedsPrereqs();
-      return;
-    }
-    markScreen("appointmentDurationSelection", { choice });
-    appointmentFlow.appointmentFlowBusy = false;
-    const _st = choice.durationStep > 0 ? choice.durationStep : gsNum("durationStepMin", 15);
-    const _mx = choice.maxDuration > 0 ? choice.maxDuration : gsNum("registrationMaxMin", 180);
-    const _durValues = [];
-    for (let m = _st; m <= _mx; m += _st) _durValues.push(m);
-    renderScreen(body, "duration", {
-      title: `${choice.label} duur:`,
-      tokens: ONSAH_TOKENS,
-      onBack: function() {
-        helperPanel.suppressAutoUntil = Date.now() + 1200;
-        safe(schermen.showChoices);
-      },
-      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, void 0, durationLabelStyle("duur"))
-    });
-  }
-  function showAppointmentTravelSelection(choice) {
-    const body = $body();
-    if (!body) return;
-    markScreen("appointmentTravelSelection", { choice });
-    appointmentFlow.appointmentFlowBusy = false;
-    const _ts = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelStepMin > 0 ? APP_CONFIG.generalSettings.travelStepMin : 5;
-    const _tm = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelMaxMin > 0 ? APP_CONFIG.generalSettings.travelMaxMin : 60;
-    const _travelValues = [];
-    for (let m = 0; m <= _tm; m += _ts) _travelValues.push(m);
-    renderScreen(body, "duration", {
-      title: "Totale reistijd (heen en terug):",
-      tokens: ONSAH_TOKENS,
-      onBack: function() {
-        helperPanel.suppressAutoUntil = Date.now() + 1200;
-        safe(schermen.showChoices);
-      },
-      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
-        appointmentFlow.appointmentFlowBusy = true;
-        const ok = setAppointmentTravelTotalMinutes(minutes);
-        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : "Reistijdvelden niet gevonden", ok);
-        setTimeout(() => schermen.handleChoice(choice), 70);
-      }), choice.pickerStyle, void 0, durationLabelStyle("duur"))
-    });
-  }
-
-  // src/content/test-hooks.js
-  function exposeTestApi() {
-    __exposeForTest({
-      registrationCompletenessIssues,
-      activeRegistrationClientForms,
-      registrationClientFormIsRemoved,
-      getRegistrationClientNumber,
-      helperQualityIssues,
-      appointmentMissingHooks,
-      closeOnsModal,
-      _regToMin,
-      _regCareFlags,
-      allKnownLabels,
-      choiceLabels,
-      setLabelsExclusive,
-      zetLabelsViaFormulier,
-      zetUursoortViaFormulier,
-      eerstViaFormulier,
-      wachtTot,
-      pollFor,
-      nietClientUursoortMetId,
-      keuzeVoorLabel,
-      findClientFirstNames,
-      clientVoornamenAsync,
-      CONFIG,
-      nietClientOptieVoorUursoort,
-      entryUursoortIsSet,
-      // Cliëntdetectie + schermtoestand: nodig voor de jsdom-tests rond de
-      // meerdere-cliënten-flow en de schermherkenning.
-      findClientEntries,
-      uursoortContexts,
-      clientsMissingUursoortEntries,
-      invalidateClientEntries,
-      inputBelongsToTrigger,
-      markScreen,
-      // Duurkeuze: nodig om te borgen dat de ingestelde stijl écht wordt gebruikt.
-      mkDurationPicker,
-      durationChipLabel,
-      durationLabelStyle,
-      renderScreen,
-      // Overlapcontrole vóór opslaan.
-      _tijdvakkenOverlappen,
-      overlappendTijdvak,
-      overlapMelding,
-      __setTijdvakken: function(laag, ymd3, rows) {
-        try {
-          _tijdvakCache[laag + "|" + resolveInviteeId() + "|" + ymd3] = { ts: Date.now(), rows: rows || [] };
-        } catch (e) {
-        }
-      },
-      // ONS-adapter: de gedocumenteerde naad naar ONS.
-      OnsAdapter,
-      onsGemisteVelden,
-      onsVergeetGemist,
-      // Ongedaan maken.
-      takeAppointmentSnapshot,
-      hasAppointmentSnapshot,
-      clearAppointmentSnapshot,
-      entryUursoortText,
-      // Rapportageprefix: één regel vs. sjabloon met regeleindes.
-      _prefixScheiding,
-      registrationPrefixRegex,
-      registrationChoicePrefixRegex,
-      choicePrefix,
-      PICKER_CHIP_LIMIT,
-      clearScreenMark,
-      __getCurrentScreen: function() {
-        try {
-          return currentScreen ? { name: currentScreen.name, args: currentScreen.args } : null;
-        } catch (e) {
-          return null;
-        }
-      },
-      matchRegistrationChoiceByLabel,
-      // Rechtermuismenu + momentopname.
-      startRegistrationWithForm,
-      ctxForcedVorm,
-      pushRegistrationForms,
-      // Labelherkenning uit de detailpopup: API-bron + opmaak-vangnet.
-      detailsLabelNames,
-      noteDetailsResponse,
-      laatsteDetailsLabels,
-      occurrenceIdFromPopover,
-      popoverLabelFromDom,
-      capturePendingRegistrationLabel,
-      __clearLaatsteDetails: clearLaatsteDetails,
-      loadPendingRegistrationLabel,
-      __setPendingRegistration: function(o) {
-        try {
-          if (o == null) sessionStorage.removeItem(PENDING_REG_KEY);
-          else sessionStorage.setItem(PENDING_REG_KEY, JSON.stringify(o));
-        } catch (e) {
-        }
-      },
-      __setCurrentRegistrationId: setRegistrationIdOverride,
-      clearPendingRegistration,
-      getRegistrationRestoreState: function() {
-        try {
-          return { fromAppointment: registrationFlow.registrationFromAppointment, autoApplied: registrationFlow.registrationAutoApplied, restoredToReport: registrationFlow.registrationRestoredToReport, activeChoiceLabel: registrationFlow.activeRegistrationChoice && registrationFlow.activeRegistrationChoice.label || null, autoChoiceLabel: registrationFlow.registrationAutoChoice && registrationFlow.registrationAutoChoice.label || null, pending: function() {
-            try {
-              return sessionStorage.getItem(PENDING_REG_KEY);
-            } catch (e) {
-              return null;
-            }
-          }() };
-        } catch (e) {
-          return null;
-        }
-      },
-      persistRegistrationTimes,
-      restoreRegistrationExtras,
-      registrationRestoreHolding,
-      registrationPageSettled,
-      __setRegistrationHoldStart: function(t) {
-        try {
-          registrationFlow.registrationRestoreHoldStart = t;
-        } catch (e) {
-        }
-      },
-      helperNeedsTeamChoice,
-      __setActiveProfile: setActiveProfileForTest,
-      applyHelperConfig,
-      effectiveChoices,
-      effectiveRegistrationForms,
-      nonClientCategoriesActive,
-      mapAgendaWeekResponse,
-      mapAgendaEntry,
-      parseInviteeIdFromPath,
-      agendaYmd,
-      resolveInviteeId,
-      fetchInviteeWeek,
-      fetchWeekRegistrationDeclarabiliteit,
-      summarizeAgendaWeek,
-      agendaEntryType,
-      labelToAfspraaktype,
-      _agFmtMin,
-      parseStartVerdeling,
-      entryToVorm,
-      computeDirectIndirect,
-      currentAgendaDate,
-      agendaWeekNumber,
-      normalizeRegistrationLine,
-      summarizeRegistrations,
-      parseWeekRegistrationOccurrences,
-      parseRegistrationDetails,
-      summarizeWeekRegistrations,
-      declarabiliteitPct,
-      declarabiliteitBase,
-      _apiUrl,
-      _isClientUursoortName,
-      isRegistrationEditOrNew,
-      isRegistrationOverviewPage,
-      agendaRegistrationsSectionEl,
-      __setInviteeIdOverride: setInviteeIdOverride,
-      getUiOverride: function(k) {
-        try {
-          return UI_OVERRIDES[k];
-        } catch (e) {
-          return void 0;
-        }
-      },
-      getEndTimeInput,
-      getStartTimeInput,
-      enforceAppointmentEndTime,
-      setAppointmentEndTimePlusMinutes,
-      zetEindtijdAsync,
-      setAppointmentTravelTotalMinutes,
-      clearAppointmentTravelTimes,
-      zetReistijdenAsync,
-      applyAppointmentDuration,
-      appointmentReadyToSave,
-      appointmentCoreApplied,
-      appointmentSaveStageStillValid,
-      collectClientUursoortOptionTexts,
-      parseProductList,
-      fetchProductList,
-      getEmployeeIdAsync,
-      getJson,
-      postJson,
-      buildUnavailability,
-      describeUnavailability,
-      requestLeave,
-      openInNewTab,
-      leaveRequestEnabled,
-      openLeaveDialog,
-      pickClientIdFromSearch,
-      clearSettings,
-      getUursoortQueueState: function() {
-        try {
-          return { active: appointmentFlow.uursoortQueueActive, gen: appointmentFlow.uursoortQueueGen, flowBusy: appointmentFlow.appointmentFlowBusy };
-        } catch (e) {
-          return null;
-        }
-      },
-      __setUursoortQueueActive: function(v) {
-        try {
-          appointmentFlow.uursoortQueueActive = !!v;
-        } catch (e) {
-        }
-      },
-      __setActiveNonClientOption: function(o) {
-        try {
-          appointmentFlow.activeNonClientOption = o || null;
-        } catch (e) {
-        }
-      },
-      appointmentEndGuardState: function() {
-        try {
-          return { helperEndText: appointmentFlow.helperEndText, userOwned: appointmentFlow.appointmentEndTimeUserOwned };
-        } catch (e) {
-          return null;
-        }
-      },
-      resetAppointmentEndGuard: function() {
-        try {
-          appointmentFlow.helperEndText = "";
-          appointmentFlow.appointmentEndTimeUserOwned = false;
-        } catch (e) {
-        }
-      },
-      getAppConfig: function() {
-        try {
-          return APP_CONFIG;
-        } catch (e) {
-          return null;
-        }
-      },
-      getDefaultConfig: function() {
-        try {
-          return DEFAULT_APP_CONFIG;
-        } catch (e) {
-          return null;
-        }
-      },
-      getRegistrationChoices: function() {
-        try {
-          return REGISTRATION_CHOICES;
-        } catch (e) {
-          return null;
-        }
-      },
-      resolveText,
-      mkText,
-      managedRichHtml,
-      // DOM-detectiefuncties blootstellen zodat de regressietests op de ECHTE
-      // ONS-DOM (button.label-tag, uc-time-input, data-qa) kunnen controleren.
-      labelChips,
-      selectedAllLabelChipTexts,
-      removeLabelChipsByText,
-      selectedKnownLabels,
-      getEtiketTrigger,
-      firstByDataQa,
-      hasAppointmentStartTime,
-      hasAppointmentDate,
-      // Doorplannen (herhaling): DOM-detectie blootstellen zodat de regressietests
-      // op de ECHTE ONS-DOM (Herhaling-kop + recurrence-type) kunnen controleren.
-      findRecurrenceHeader,
-      findRecurrenceField,
-      recurrenceHeaderExpanded,
-      recurrenceValue,
-      recurrenceIsSet,
-      doorplannenWarnText,
-      doorplannenBlocksSave,
-      // Open registraties: periodecontrole, snel registreren.
-      classifyAgendaEntry,
-      summarizeOpenRange,
-      weekStartsBetween,
-      parseDetectOverlap,
-      isoLocalWithOffset,
-      fetchEntriesForRange,
-      quickRegister,
-      quickRegisterUrl,
-      newEventUrl,
-      openNewEvent,
-      createEvents,
-      eventOptions,
-      controleerOns,
-      searchClientsForPlan,
-      onsDateText,
-      findFreeGaps,
-      reservationBlocks,
-      reservationsOverlapping,
-      findFreeSlots,
-      _forgetHolidays,
-      parseHolidays,
-      registerOpenItem,
-      declareUrlUitDetails,
-      mergeOpenRangePerPersoon,
-      cachedOpenRange,
-      openAantal,
-      isCached,
-      cachedFreeSlots,
-      forgetFreeSlots,
-      _clearPreloadCache,
-      currentInviteeIds,
-      jumpToDayVoorTest: jumpToDay,
-      productionWeekRow,
-      plannedProductionRow,
-      plannedRatioRows,
-      createLimiter,
-      __setOnsOverlap: _setOnsOverlapForTest,
-      __setDoorplannen: function(v) {
-        try {
-          appointmentFlow.appointmentDoorplannen = !!v;
-        } catch (e) {
-        }
-      }
-    });
   }
 
   // src/content/helper/screen-restore.js
@@ -20861,6 +20419,76 @@
     run(() => {
       clearTimeout(guard);
       clear();
+    });
+  }
+
+  // src/content/features/appointment/duration.js
+  function applyAppointmentDuration(choice, minutes) {
+    appointmentFlow.appointmentFlowBusy = true;
+    appointmentFlow.activeAppointmentDurationMinutes = minutes;
+    appointmentFlow.activeAppointmentStartTimeText = appointmentCurrentStartTimeText();
+    if (choice.addTravelTime) {
+      const endOk = setAppointmentEndTimePlusMinutes(minutes);
+      scheduleAppointmentEndTime(minutes);
+      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
+      setTimeout(() => showAppointmentTravelSelection(choice), 80);
+    } else {
+      clearAppointmentTravelTimes();
+      const endOk = setAppointmentEndTimePlusMinutes(minutes);
+      scheduleAppointmentEndTime(minutes);
+      setStatus(endOk ? `${choice.label} ${registrationDurationLabel(minutes)}` : "Eindtijd niet gezet", endOk);
+      setTimeout(() => {
+        schermen.handleChoice(choice);
+        scheduleAppointmentEndTime(minutes);
+        [120, 350, 650].forEach((d) => setTimeout(() => safe(() => enforceAppointmentEndTime(minutes)), d));
+      }, 80);
+    }
+  }
+  function showAppointmentDurationSelection(choice) {
+    const body = $body();
+    if (!body) return;
+    if (!hasAppointmentPrereqs()) {
+      schermen.showAppointmentNeedsPrereqs();
+      return;
+    }
+    markScreen("appointmentDurationSelection", { choice });
+    appointmentFlow.appointmentFlowBusy = false;
+    const _st = choice.durationStep > 0 ? choice.durationStep : gsNum("durationStepMin", 15);
+    const _mx = choice.maxDuration > 0 ? choice.maxDuration : gsNum("registrationMaxMin", 180);
+    const _durValues = [];
+    for (let m = _st; m <= _mx; m += _st) _durValues.push(m);
+    renderScreen(body, "duration", {
+      title: `${choice.label} duur:`,
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        safe(schermen.showChoices);
+      },
+      pickerNode: mkDurationPicker(_durValues, (minutes) => safe(() => applyAppointmentDuration(choice, minutes)), choice.pickerStyle, void 0, durationLabelStyle("duur"))
+    });
+  }
+  function showAppointmentTravelSelection(choice) {
+    const body = $body();
+    if (!body) return;
+    markScreen("appointmentTravelSelection", { choice });
+    appointmentFlow.appointmentFlowBusy = false;
+    const _ts = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelStepMin > 0 ? APP_CONFIG.generalSettings.travelStepMin : 5;
+    const _tm = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.travelMaxMin > 0 ? APP_CONFIG.generalSettings.travelMaxMin : 60;
+    const _travelValues = [];
+    for (let m = 0; m <= _tm; m += _ts) _travelValues.push(m);
+    renderScreen(body, "duration", {
+      title: "Totale reistijd (heen en terug):",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        safe(schermen.showChoices);
+      },
+      pickerNode: mkValuePicker(_travelValues, 0, (minutes) => safe(() => {
+        appointmentFlow.appointmentFlowBusy = true;
+        const ok = setAppointmentTravelTotalMinutes(minutes);
+        setStatus(ok ? `Reistijd gezet: ${registrationDurationLabel(minutes)} totaal` : "Reistijdvelden niet gevonden", ok);
+        setTimeout(() => schermen.handleChoice(choice), 70);
+      }), choice.pickerStyle, void 0, durationLabelStyle("duur"))
     });
   }
 
@@ -21213,7 +20841,6 @@
   installDeclareClickCapture();
   startDayColoring();
   registerQualityModule();
-  exposeTestApi();
   startUiInspector();
 })();
 /*! Bundled license information:
