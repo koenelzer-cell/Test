@@ -17530,24 +17530,24 @@
     updateRegistrationsOverviewPanel();
   }
   var _lastHref = location.href;
+  var _urlTimer = null;
+  function meldUrlWijziging() {
+    if (location.href === _lastHref) return;
+    _lastHref = location.href;
+    window.dispatchEvent(new Event("locationchange"));
+  }
   function installUrlWatch() {
     for (const m of ["pushState", "replaceState"]) {
       const orig = history[m];
       history[m] = function() {
         const r = orig.apply(this, arguments);
-        window.dispatchEvent(new Event("locationchange"));
+        meldUrlWijziging();
         return r;
       };
     }
-    window.addEventListener("popstate", () => window.dispatchEvent(new Event("locationchange")));
+    window.addEventListener("popstate", meldUrlWijziging);
     window.addEventListener("locationchange", syncWithUrl);
-    _lastHref = location.href;
-    setInterval(() => {
-      if (location.href !== _lastHref) {
-        _lastHref = location.href;
-        window.dispatchEvent(new Event("locationchange"));
-      }
-    }, 250);
+    _urlTimer = setInterval(meldUrlWijziging, 250);
   }
 
   // src/content/features/agenda/painting.js
@@ -19072,7 +19072,6 @@
     askSidePanelState();
     setAgendaHelperDeactivate(deactivateAgendaPage);
     window.addEventListener("locationchange", syncAgendaPage);
-    window.addEventListener("popstate", syncAgendaPage);
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", syncAgendaPage);
     } else {

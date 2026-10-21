@@ -49,23 +49,29 @@ export function syncWithUrl() {
   else deactivate();
   updateRegistrationsOverviewPanel();
 }
-// Opstarten: elke URL-wijziging (ONS is een single-page app) wordt een
-// 'locationchange'-event op window, waar syncWithUrl en de dagkleuring op
-// reageren.
+// Opstarten: elke URL-wijziging (ONS is een single-page app) wordt één
+// 'locationchange'-event op window, waar syncWithUrl, de dagkleuring en de
+// vragenlijst op reageren.
 let _lastHref = location.href;
+let _urlTimer = null;
+function meldUrlWijziging() {
+  if (location.href === _lastHref) return;
+  _lastHref = location.href;
+  window.dispatchEvent(new Event('locationchange'));
+}
 export function installUrlWatch() {
+  // Het patchen van history ziet alleen de navigaties van de extensie zelf (de
+  // pagina heeft in de geïsoleerde wereld een eigen history-object); die van
+  // ONS vangt het nakijken elke 250 ms.
   for (const m of ['pushState', 'replaceState']) {
     const orig = history[m];
-    history[m] = function () { const r = orig.apply(this, arguments); window.dispatchEvent(new Event('locationchange')); return r; };
+    history[m] = function () { const r = orig.apply(this, arguments); meldUrlWijziging(); return r; };
   }
-  window.addEventListener('popstate', () => window.dispatchEvent(new Event('locationchange')));
+  window.addEventListener('popstate', meldUrlWijziging);
   window.addEventListener('locationchange', syncWithUrl);
-
-  // In een extensie-content-script (geïsoleerde wereld) onderschept het patchen
-  // van history.pushState de navigaties van de pagina zelf niet. Daarom pollen
-  // we de URL en vuren locationchange bij elke wijziging.
-  _lastHref = location.href;
-  setInterval(() => {
-    if (location.href !== _lastHref) { _lastHref = location.href; window.dispatchEvent(new Event('locationchange')); }
-  }, 250);
+  _urlTimer = setInterval(meldUrlWijziging, 250);
+}
+export function stopUrlWatch() {
+  clearInterval(_urlTimer);
+  window.removeEventListener('locationchange', syncWithUrl);
 }

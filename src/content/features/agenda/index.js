@@ -25,8 +25,6 @@ export function startDayColoring() {
   // Stel de parent-hook in zodat activate(mode) van de hoofdhelper ons kan sluiten.
   setAgendaHelperDeactivate(deactivateAgendaPage);
   window.addEventListener('locationchange', syncAgendaPage);
-  window.addEventListener('popstate', syncAgendaPage);
-  // history is hierboven al gepatcht voor locationchange; sync direct
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', syncAgendaPage);
   } else {
