@@ -204,8 +204,16 @@
       }
     });
   }
-  function uitleg(st) {
-    return st.enabled ? "Elke " + (DAGEN[(st.weekday || 5) - 1] || "vrijdag") + " om " + String(st.hour).padStart(2, "0") + ":" + String(st.minute).padStart(2, "0") + " een melding als er nog tijd openstaat." : "Uit. Je krijgt geen meldingen.";
+  function uitleg(st, meldingenMogen) {
+    if (!st.enabled) return "Uit. Je krijgt geen meldingen.";
+    if (!meldingenMogen) return "Aan, maar de browser mag nog geen meldingen tonen. Zet de herinnering uit en weer aan om dat toe te staan.";
+    return "Elke " + (DAGEN[(st.weekday || 5) - 1] || "vrijdag") + " om " + String(st.hour).padStart(2, "0") + ":" + String(st.minute).padStart(2, "0") + " een melding als er nog tijd openstaat.";
+  }
+  var MELDINGEN = { permissions: ["notifications"] };
+  function meldingenToegestaan() {
+    return new Promise(function(resolve) {
+      chrome.permissions.contains(MELDINGEN, resolve);
+    });
   }
   function reminderToggle(setStatus2) {
     const wrap = el("div");
@@ -221,14 +229,29 @@
     const toelichting = el("div");
     toelichting.style.cssText = "font-size:11px;color:#666;margin-top:4px";
     wrap.appendChild(toelichting);
-    stuur({ type: MSG.REMINDER_GET }).then(function(r) {
-      const s = r && r.settings || {};
+    const zet = function(aan) {
+      stuur({ type: MSG.REMINDER_SETTINGS, enabled: aan }).then(function(res) {
+        if (res && res.settings) toelichting.textContent = uitleg(res.settings, aan);
+        setStatus2(aan ? "Herinnering aan." : "Herinnering uit.");
+      });
+    };
+    Promise.all([stuur({ type: MSG.REMINDER_GET }), meldingenToegestaan()]).then(function(r) {
+      const s = r[0] && r[0].settings || {};
       vink.checked = !!s.enabled;
-      toelichting.textContent = uitleg(s);
+      toelichting.textContent = uitleg(s, r[1]);
       vink.addEventListener("change", function() {
-        stuur({ type: MSG.REMINDER_SETTINGS, enabled: vink.checked }).then(function(res) {
-          if (res && res.settings) toelichting.textContent = uitleg(res.settings);
-          setStatus2(vink.checked ? "Herinnering aan." : "Herinnering uit.");
+        if (!vink.checked) {
+          zet(false);
+          chrome.permissions.remove(MELDINGEN);
+          return;
+        }
+        chrome.permissions.request(MELDINGEN, function(mag) {
+          if (mag) {
+            zet(true);
+            return;
+          }
+          vink.checked = false;
+          setStatus2("Zonder toestemming voor meldingen kan de herinnering niet aan.");
         });
       });
     });

@@ -125,7 +125,7 @@ export function reminderText(snap) {
 export function showReminder() {
   return Promise.all([loadSnapshot(), loadSettings()]).then(function (res) {
     const snap = res[0], s = res[1];
-    if (!s.enabled) return;
+    if (!s.enabled || !chrome.notifications) return;
     if (!snap || snap.openDays < s.minOpenDays) return;
     const body = reminderText(snap);
     if (!body) return;

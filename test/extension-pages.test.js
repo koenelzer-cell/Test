@@ -29,6 +29,7 @@ function fakeChrome() {
     set: (obj, cb) => { Object.assign(store[name], obj); if (cb) cb(); },
   });
   const calls = { badge: [], menus: [], sent: [], alarms: [], notifications: [] };
+  const toestemming = { meldingen: true, geeft: true, gevraagd: 0 };
   const chrome = {
     runtime: {
       id: 'test', lastError: undefined,
@@ -50,8 +51,14 @@ function fakeChrome() {
     },
     windows: { onFocusChanged: on('windows.onFocusChanged') },
     sidePanel: { open: () => Promise.resolve() },
+    // Toestemming voor meldingen: standaard gegeven; toestemming.geeft = false weigert de vraag.
+    permissions: {
+      contains: (p, cb) => cb(toestemming.meldingen), onAdded: on('permissions.onAdded'),
+      request: (p, cb) => { toestemming.gevraagd++; toestemming.meldingen = toestemming.geeft; cb(toestemming.geeft); },
+      remove: () => { toestemming.meldingen = false; },
+    },
   };
-  return { chrome, listeners, store, calls };
+  return { chrome, listeners, store, calls, toestemming };
 }
 
 // Stuur een bericht naar de geregistreerde onMessage-luisteraars; wacht op een
@@ -204,6 +211,45 @@ test('popup: een team kiezen bewaart sector en team in sync', async () => {
   await tick();
   assert.equal(env.store.sync.sector, sector);
   assert.equal(env.store.sync.colorProfile, team);
+});
+
+test('popup: de herinnering aanzetten vraagt toestemming voor meldingen', async () => {
+  const { document, env } = loadPage('pages/popup.html', 'dist/popup.js', (env) => {
+    env.toestemming.meldingen = false;
+    env.chrome.runtime.sendMessage = (msg, cb) => {
+      env.calls.sent.push(msg);
+      if (cb) cb(msg.type === 'reminder-settings' ? { ok: true, settings: { enabled: msg.enabled, weekday: 5, hour: 15, minute: 0 } } : { settings: { enabled: false } });
+    };
+  });
+  await tick(); await tick();
+  const vink = document.getElementById('herinner');
+  // Geweigerd: blijft uit, en de worker hoort niets.
+  env.toestemming.geeft = false;
+  vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
+  await tick();
+  assert.equal(env.toestemming.gevraagd, 1);
+  assert.equal(vink.checked, false);
+  assert.equal(env.calls.sent.filter((m) => m.type === 'reminder-settings').length, 0);
+  // Gegeven: aan.
+  env.toestemming.geeft = true;
+  vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
+  await tick();
+  assert.equal(env.calls.sent.filter((m) => m.type === 'reminder-settings' && m.enabled).length, 1);
+  assert.match(document.body.textContent, /Elke vrijdag om 15:00/);
+  // Uit: de toestemming gaat terug.
+  vink.checked = false; vink.dispatchEvent(new document.defaultView.Event('change'));
+  await tick();
+  assert.equal(env.toestemming.meldingen, false);
+});
+
+test('service worker: zonder toestemming voor meldingen geen melding en geen fout', async () => {
+  const { listeners, store, calls, chrome } = loadWorker();
+  delete chrome.notifications;
+  await send(listeners, { type: 'reminder-settings', enabled: true }, POPUP);
+  store.local['onsHelper.snapshot'] = { openDays: 2, openMinutes: 150, lateMinutes: 0, ts: Date.now() };
+  listeners['alarms.onAlarm'][0]({ name: 'onsHelper.reminder' });
+  await tick();
+  assert.equal(calls.notifications.length, 0);
 });
 
 test('zijpaneel: zonder ONS-tabblad een duidelijke melding', async () => {

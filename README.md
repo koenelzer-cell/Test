@@ -143,7 +143,9 @@ laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
 
 ### Wekelijkse herinnering
 
-In de popup staat **Wekelijkse herinnering** (standaard uit). Aan: elke
+In de popup staat **Wekelijkse herinnering** (standaard uit). Bij het aanzetten
+vraagt de browser of de extensie meldingen mag tonen; zonder die toestemming
+blijft de herinnering uit, en uitzetten geeft de toestemming terug. Aan: elke
 vrijdag om 15:00 een melding van de browser als er nog tijd openstaat, met
 de uren, het aantal dagen en het percentage directe tijd uit de laatste
 weekstand die de agenda zag (alleen getallen). De melding komt alleen als die

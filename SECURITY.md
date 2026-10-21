@@ -28,8 +28,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 ## Rechten (manifest)
 - `storage` — voorkeuren (gekozen team, aan/uit, herinnering) en het lezen van
   de centrale beleidsconfiguratie (`chrome.storage.managed`). Geen cliëntdata.
-- `alarms` + `notifications` — de wekelijkse herinnering (opt-in). De melding
-  bevat alleen getallen (uren, aantal dagen, percentage).
+- `alarms` — de wekker van de wekelijkse herinnering (opt-in).
+- `notifications` (optioneel) — de melding van die herinnering. De browser
+  vraagt de medewerker pas om deze toestemming bij het aanzetten van de
+  herinnering in de popup; uitzetten geeft hem terug. De melding bevat alleen
+  getallen (uren, aantal dagen, percentage).
 - `contextMenus` — het rechtermuismenu "Registreren als…" en "Agendahulp in
   zijpaneel" op ONS-pagina's.
 - `sidePanel` — het zijpaneel.

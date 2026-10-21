@@ -97,7 +97,16 @@ chrome.runtime.onMessage.addListener(onMessage);
 chrome.runtime.onConnect.addListener(onConnect);
 chrome.contextMenus.onClicked.addListener(onMenuClicked);
 chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === ALARM_NAME) onReminderAlarm(); });
-chrome.notifications.onClicked.addListener(onNotificationClicked);
+// Meldingen zijn een optionele toestemming: de popup vraagt erom als de
+// herinnering aangaat. Zonder die toestemming bestaat chrome.notifications niet.
+let luistertNaarMeldingen = false;
+function luisterNaarMeldingen() {
+  if (luistertNaarMeldingen || !chrome.notifications) return;
+  chrome.notifications.onClicked.addListener(onNotificationClicked);
+  luistertNaarMeldingen = true;
+}
+luisterNaarMeldingen();
+chrome.permissions.onAdded.addListener(luisterNaarMeldingen);
 
 // Van tabblad wisselen of binnen een tabblad navigeren verplaatst wie er voor
 // het zijpaneel meldt.

@@ -304,7 +304,7 @@
   function showReminder() {
     return Promise.all([loadSnapshot(), loadSettings()]).then(function(res) {
       const snap = res[0], s = res[1];
-      if (!s.enabled) return;
+      if (!s.enabled || !chrome.notifications) return;
       if (!snap || snap.openDays < s.minOpenDays) return;
       const body = reminderText(snap);
       if (!body) return;
@@ -621,7 +621,14 @@
   chrome.alarms.onAlarm.addListener(function(a) {
     if (a && a.name === ALARM_NAME) onReminderAlarm();
   });
-  chrome.notifications.onClicked.addListener(onNotificationClicked);
+  var luistertNaarMeldingen = false;
+  function luisterNaarMeldingen() {
+    if (luistertNaarMeldingen || !chrome.notifications) return;
+    chrome.notifications.onClicked.addListener(onNotificationClicked);
+    luistertNaarMeldingen = true;
+  }
+  luisterNaarMeldingen();
+  chrome.permissions.onAdded.addListener(luisterNaarMeldingen);
   try {
     chrome.tabs.onActivated.addListener(function() {
       verversZijpaneelTab();
