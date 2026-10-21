@@ -15,6 +15,7 @@ async function openPaneel(page, breedte) {
   await page.setViewportSize({ width: breedte, height: 900 });
   await page.setContent(HTML);
   await page.addScriptTag({ path: path.join(ROOT, 'dist/react-bundle.js') });
+  await page.addScriptTag({ content: `window.NEP_MANIFEST = ${lees('manifest.json')};` });
   await page.addScriptTag({ path: path.join(ROOT, 'e2e/nep-chrome.js') });
   await page.addScriptTag({ path: path.join(ROOT, 'dist/sidepanel.js') });
   await expect(page.locator('[data-hulpmiddelen]')).toBeVisible();

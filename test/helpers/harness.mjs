@@ -14,6 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const MANIFEST = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
 const CONTENT_JS = fs.readFileSync(path.join(ROOT, 'test', 'build', 'content.js'), 'utf8');
 
 export function fixture(name) {
@@ -37,7 +38,7 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     runtime: {
       id: 'test',
       lastError: undefined,
-      getManifest: () => ({ version: '1.6.181' }),
+      getManifest: () => ({ ...MANIFEST, version: '1.6.181' }),
       getURL: (p) => 'chrome-extension://test/' + p,
       onMessage: { addListener: (fn) => listeners.push(fn) },
       sendMessage: (msg, cb) => { sent.push(msg); if (typeof cb === 'function') cb(undefined); },

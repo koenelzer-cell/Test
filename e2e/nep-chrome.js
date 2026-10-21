@@ -59,7 +59,7 @@
   };
   var on = function () { return { addListener: function () {} }; };
   window.chrome = {
-    runtime: { onMessage: on(), connect: function () { return { onDisconnect: on(), postMessage: function () {} }; }, sendMessage: function () {}, lastError: undefined, getManifest: function () { return { version: 'e2e' }; } },
+    runtime: { onMessage: on(), connect: function () { return { onDisconnect: on(), postMessage: function () {} }; }, sendMessage: function () {}, lastError: undefined, getManifest: function () { return Object.assign({}, window.NEP_MANIFEST, { version: 'e2e' }); } },
     tabs: {
       query: function (q, cb) { cb([{ id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/invitees/1/calendar/workweek' }]); },
       sendMessage: function (id, msg, cb) { var f = antwoorden[msg && msg.type]; if (cb) cb(f ? f(msg) : null); },

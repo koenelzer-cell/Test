@@ -11,9 +11,14 @@
 //   npm run release -- --minor versie x.Y+1.0
 //   npm run release -- --major versie X+1.0.0
 //   npm run release -- --dry   niets wijzigen, alleen tonen wat er zou gebeuren
+//
+// Er komen twee pakketten uit: ONSAgendahulp-x.y.z.zip voor productie en
+// ONSAgendahulp-x.y.z-test.zip, dat ook op de testomgeving van ONS draait
+// (TESTOMGEVING hieronder) en in de browser 'ONS Agendahulp (test)' heet.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -38,6 +43,20 @@ const INHOUD = [
   'manifest.json', 'managed_schema.json', 'config.json',
   'dist', 'pages', 'admin', 'icons', 'assets',
 ];
+
+const TESTOMGEVING = 'https://impegno-staging-staging.ons-dossier.nl/*';
+
+// Het manifest van het testpakket: de testomgeving erbij, overal waar het
+// productie-dossier staat.
+function testManifest(manifest) {
+  const m = structuredClone(manifest);
+  const metTest = (lijst) => (lijst.includes('https://impegno.ons-dossier.nl/*') ? [...lijst, TESTOMGEVING] : lijst);
+  m.name += ' (test)';
+  m.host_permissions = metTest(m.host_permissions);
+  m.content_scripts.forEach((c) => { c.matches = metTest(c.matches); });
+  m.web_accessible_resources.forEach((w) => { w.matches = metTest(w.matches); });
+  return m;
+}
 
 function volgendeVersie(huidig) {
   const d = String(huidig).split('.').map((n) => parseInt(n, 10) || 0);
@@ -107,13 +126,19 @@ try {
 
   // ── Inpakken ──────────────────────────────────────────────────────────────
   const zip = `ONSAgendahulp-${nieuw}.zip`;
-  kop(`Inpakken als ${zip}`);
+  const testZip = `ONSAgendahulp-${nieuw}-test.zip`;
+  kop(`Inpakken als ${zip} en ${testZip}`);
   if (!dry) {
     fs.readdirSync(ROOT).filter((f) => /^ONSAgendahulp-.*\.zip$/.test(f))
       .forEach((f) => fs.unlinkSync(path.join(ROOT, f)));
     run('zip', ['-qr', zip, ...INHOUD, '-x', '*.DS_Store']);
-    const kb = Math.round(fs.statSync(path.join(ROOT, zip)).size / 1024);
-    console.log(`  ${zip} — ${kb} kB`);
+    // Het testpakket: dezelfde bestanden, een ander manifest.
+    const map = fs.mkdtempSync(path.join(os.tmpdir(), 'agendahulp-test-'));
+    INHOUD.forEach((f) => fs.cpSync(path.join(ROOT, f), path.join(map, f), { recursive: true }));
+    fs.writeFileSync(path.join(map, 'manifest.json'), JSON.stringify(testManifest(manifest), null, 2) + '\n');
+    execFileSync('zip', ['-qr', path.join(ROOT, testZip), ...INHOUD, '-x', '*.DS_Store'], { cwd: map, stdio: 'inherit' });
+    fs.rmSync(map, { recursive: true, force: true });
+    for (const z of [zip, testZip]) console.log(`  ${z} — ${Math.round(fs.statSync(path.join(ROOT, z)).size / 1024)} kB`);
   } else {
     console.log(grijs('  (proefdraai: niet ingepakt)'));
   }

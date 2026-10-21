@@ -9,6 +9,7 @@ import { appointmentFlow, helperPanel } from '../state.js';
 import { OnsAdapter, onsGemisteVelden, onsVergeetGemist } from './appointment/ons-adapter.js';
 import { registrationCompletenessIssues } from './registration/completeness.js';
 import { ModuleBase, register } from '../platform/module-host.js';
+import { ONS_URL_PATTERNS } from '../../shared/ons-hosts.js';
 
 // De zelftest gebruikt de adapter: elk veld dat de hulp probeerde te lezen en
 // niet vond, komt hier automatisch in (ook bijv. een verdwenen uursoortveld).
@@ -73,7 +74,7 @@ export function mkProblemBanner(missing) {
 // (platform/module-host.js).
 export function registerQualityModule() {
   register(ModuleBase.create(
-    { id: 'kwaliteit', urls: ['https://*.onsagenda.nl/*', 'https://*.ons-dossier.nl/*'] },
+    { id: 'kwaliteit', urls: ONS_URL_PATTERNS },
     { run: function (ctx, api) {
         let issues = [];
         try { if (helperPanel.helperEnabled) issues = helperQualityIssues(); } catch (e) { issues = []; }

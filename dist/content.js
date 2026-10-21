@@ -14105,6 +14105,19 @@
     }, ENGINE_INTERVAL_MS);
   }
 
+  // src/shared/ons-hosts.js
+  var ONS_URL_PATTERNS = function() {
+    try {
+      return chrome.runtime.getManifest().host_permissions || [];
+    } catch (e) {
+      return [];
+    }
+  }();
+  var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
+    const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
+    return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");
+  }).filter(Boolean);
+
   // src/content/features/quality.js
   function appointmentMissingHooks() {
     onsVergeetGemist();
@@ -14153,7 +14166,7 @@
   }
   function registerQualityModule() {
     register(ModuleBase.create(
-      { id: "kwaliteit", urls: ["https://*.onsagenda.nl/*", "https://*.ons-dossier.nl/*"] },
+      { id: "kwaliteit", urls: ONS_URL_PATTERNS },
       { run: function(ctx, api) {
         let issues = [];
         try {

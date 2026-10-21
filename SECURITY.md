@@ -35,8 +35,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - `sidePanel` — het zijpaneel.
 - `host_permissions` — beperkt tot de ONS-hosts van Impegno:
   - `https://impegno.ons-dossier.nl/*`
-  - `https://impegno-staging-staging.ons-dossier.nl/*` (testomgeving)
   - `https://*.onsagenda.nl/*`
+
+  Alleen het testpakket (`ONSAgendahulp-x.y.z-test.zip`, in de browser
+  "ONS Agendahulp (test)") heeft daarnaast de testomgeving
+  `https://impegno-staging-staging.ons-dossier.nl/*`. Dat pakket gaat niet
+  naar medewerkers.
 
   Daarnaast draait één klein content-script op `https://*.ioservice.net/*` dat
   op de IO-planning de knop "toevoegen" uitschakelt; het leest of verstuurt
@@ -44,7 +48,8 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 
 > Controleer vóór uitrol of alle medewerkers dezelfde tenant-subdomeinen
 > gebruiken. Gebruikt een deel een ander subdomein dan `impegno.`, voeg dat dan
-> expliciet toe aan `host_permissions` en de `content_scripts`-matches.
+> expliciet toe aan `host_permissions` en de `content_scripts`-matches. De
+> code leest de ONS-adressen uit `host_permissions`.
 
 ## Gegevens
 - **Wat wordt gelezen:** velden die zichtbaar in de ONS-UI staan — o.a.

@@ -98,8 +98,10 @@ gebruikt dan alleen nog het scherm.
 
 ## 4. Per versie: test in echte ONS (ongeveer 15 minuten)
 
-Bij voorkeur eerst op de testomgeving
-(`impegno-staging-staging.ons-dossier.nl`), daarna kort in productie.
+Eerst op de testomgeving (`impegno-staging-staging.ons-dossier.nl`) met het
+testpakket `ONSAgendahulp-x.y.z-test.zip` (heet in de browser "ONS Agendahulp
+(test)"), daarna kort in productie met het gewone pakket. Het gewone pakket
+draait niet op de testomgeving.
 
 1. Extensie laden: op `chrome://extensions` (of `edge://extensions`) geen
    fouten bij de service worker of de content-scripts.
@@ -136,7 +138,7 @@ noodschakelaar.
 
 ## 6. Een versie uitbrengen
 
-1. `npm run release` (bouwt, controleert, test, maakt de ZIP).
+1. `npm run release` (bouwt, controleert, test, maakt de ZIP en de test-ZIP).
 2. `CHANGELOG.md` bijwerken: wat medewerkers merken, in gewone taal.
 3. Committen, bron-ZIP maken (`git archive`), pushen.
 4. De test in echte ONS (hoofdstuk 4).

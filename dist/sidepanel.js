@@ -88,14 +88,22 @@
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
 
   // src/shared/ons-hosts.js
-  var ONS_URL_PATTERNS = [
-    "https://impegno.ons-dossier.nl/*",
-    "https://impegno-staging-staging.ons-dossier.nl/*",
-    "https://*.onsagenda.nl/*"
-  ];
-  var ONS_URL_RE = /^https:\/\/(impegno\.ons-dossier\.nl|impegno-staging-staging\.ons-dossier\.nl|[^/]+\.onsagenda\.nl)\//;
+  var ONS_URL_PATTERNS = function() {
+    try {
+      return chrome.runtime.getManifest().host_permissions || [];
+    } catch (e) {
+      return [];
+    }
+  }();
+  var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
+    const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
+    return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");
+  }).filter(Boolean);
   function isOnsUrl(url) {
-    return ONS_URL_RE.test(String(url || ""));
+    const u = String(url || "");
+    return ONS_URL_RES.some(function(re) {
+      return re.test(u);
+    });
   }
 
   // src/sidepanel/bewaard.js

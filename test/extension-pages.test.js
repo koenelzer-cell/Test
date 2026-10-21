@@ -33,7 +33,7 @@ function fakeChrome() {
     runtime: {
       id: 'test', lastError: undefined,
       getURL: (p) => 'chrome-extension://test/' + p,
-      getManifest: () => ({ version: '0.0.0' }),
+      getManifest: () => ({ ...JSON.parse(read('manifest.json')), version: '0.0.0' }),
       onMessage: on('runtime.onMessage'), onConnect: on('runtime.onConnect'),
       onInstalled: on('runtime.onInstalled'), onStartup: on('runtime.onStartup'),
       sendMessage: (msg, cb) => { calls.sent.push(msg); if (cb) cb(null); },
@@ -41,7 +41,7 @@ function fakeChrome() {
     },
     storage: { local: area('local'), sync: area('sync'), managed: area('managed'), onChanged: on('storage.onChanged') },
     action: { setBadgeBackgroundColor: () => {}, setBadgeText: (o) => calls.badge.push(o) },
-    contextMenus: { removeAll: (cb) => { calls.menus.length = 0; cb(); }, create: (o) => calls.menus.push(o), onClicked: on('contextMenus.onClicked') },
+    contextMenus: { removeAll: (cb) => { calls.menus.length = 0; cb(); }, create: (o, cb) => { calls.menus.push(o); if (cb) cb(); }, onClicked: on('contextMenus.onClicked') },
     alarms: { clear: () => {}, create: (n, o) => calls.alarms.push({ n, o }), onAlarm: on('alarms.onAlarm') },
     notifications: { create: () => {}, clear: () => {}, onClicked: on('notifications.onClicked') },
     tabs: {
