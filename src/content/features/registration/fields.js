@@ -201,8 +201,14 @@ export function applyRegistrationSplitForChoice(choice) {
   if (choice.directFullDuration) return setRegistrationDirectFullDuration();
   return true;
 }
+export function cancelReapplyRegistrationSplit() {
+  registrationFlow.reapplyRegistrationSplitTimers.forEach(clearTimeout);
+  registrationFlow.reapplyRegistrationSplitTimers = [];
+}
+// ONS rekent na een wijziging soms nog na en zet dan een tijd terug: de
+// verdeling daarom kort na elkaar drie keer opnieuw zetten.
 export function scheduleReapplyRegistrationSplit() {
-  clearTimeout(registrationFlow.reapplyRegistrationSplitTimer);
+  cancelReapplyRegistrationSplit();
   if (!registrationFlow.activeRegistrationChoice) return;
   const reapply = () => safe(() => {
     if (registrationFlow.activeRegistrationPortionMinutes !== null && registrationPortionApplies(registrationFlow.activeRegistrationChoice)) {
@@ -211,9 +217,7 @@ export function scheduleReapplyRegistrationSplit() {
       applyRegistrationSplitForChoice(registrationFlow.activeRegistrationChoice);
     }
   });
-  registrationFlow.reapplyRegistrationSplitTimer = setTimeout(reapply, 80);
-  setTimeout(reapply, 260);
-  setTimeout(reapply, 700);
+  registrationFlow.reapplyRegistrationSplitTimers = [80, 260, 700].map((ms) => setTimeout(reapply, ms));
 }
 export function registrationTravelInput(kind) {
   const there = kind === 'heen';

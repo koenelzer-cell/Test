@@ -101,7 +101,7 @@ export const registrationFlow = {
   registrationEpisodesPromptOpen: false, registrationEpisodesPromptSuppressed: false,
   registrationHourTypeBusy: false,   // voorkomt glitch: screen niet overschrijven terwijl uursoorten laden
   registrationFlowBusy: false,       // voorkomt glitch: screen niet overschrijven terwijl flow navigeert (reistijd → uursoort e.d.)
-  activeRegistrationChoice: null, reapplyRegistrationSplitTimer: null, activeRegistrationHourTypeIndex: null,
+  activeRegistrationChoice: null, reapplyRegistrationSplitTimers: [], activeRegistrationHourTypeIndex: null,
   activeRegistrationPortionMinutes: null, // tegen-tijd (indirect/direct) in minuten, of null
   // Registratie gestart vanuit een afspraak: het afspraaklabel bepaalt de
   // registratievorm (en dus direct/indirect), zodat de vorm-keuze wordt

@@ -2490,7 +2490,7 @@
     registrationFlowBusy: false,
     // voorkomt glitch: screen niet overschrijven terwijl flow navigeert (reistijd → uursoort e.d.)
     activeRegistrationChoice: null,
-    reapplyRegistrationSplitTimer: null,
+    reapplyRegistrationSplitTimers: [],
     activeRegistrationHourTypeIndex: null,
     activeRegistrationPortionMinutes: null,
     // tegen-tijd (indirect/direct) in minuten, of null
@@ -12790,8 +12790,12 @@
     if (choice.directFullDuration) return setRegistrationDirectFullDuration();
     return true;
   }
+  function cancelReapplyRegistrationSplit() {
+    registrationFlow.reapplyRegistrationSplitTimers.forEach(clearTimeout);
+    registrationFlow.reapplyRegistrationSplitTimers = [];
+  }
   function scheduleReapplyRegistrationSplit() {
-    clearTimeout(registrationFlow.reapplyRegistrationSplitTimer);
+    cancelReapplyRegistrationSplit();
     if (!registrationFlow.activeRegistrationChoice) return;
     const reapply = () => safe(() => {
       if (registrationFlow.activeRegistrationPortionMinutes !== null && registrationPortionApplies(registrationFlow.activeRegistrationChoice)) {
@@ -12800,9 +12804,7 @@
         applyRegistrationSplitForChoice(registrationFlow.activeRegistrationChoice);
       }
     });
-    registrationFlow.reapplyRegistrationSplitTimer = setTimeout(reapply, 80);
-    setTimeout(reapply, 260);
-    setTimeout(reapply, 700);
+    registrationFlow.reapplyRegistrationSplitTimers = [80, 260, 700].map((ms) => setTimeout(reapply, ms));
   }
   function registrationTravelInput(kind) {
     const there = kind === "heen";
@@ -16187,7 +16189,7 @@
       sessionStorage.removeItem(PENDING_REG_KEY);
     } catch (e) {
     }
-    clearTimeout(registrationFlow.reapplyRegistrationSplitTimer);
+    cancelReapplyRegistrationSplit();
     setStatus("Instellingen verwijderen...");
     const end = registrationTimeInput("declaration_end_time_display");
     if (end) setInputTextComposed(end, "");

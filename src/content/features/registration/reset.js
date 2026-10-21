@@ -3,7 +3,7 @@
 import { setInputTextComposed } from '../../ons/form-controls.js';
 import { registrationFlow } from '../../state.js';
 import { setStatus } from '../../screen/status.js';
-import { clearRegistrationTravelTimes, registrationDirectTimeInput, registrationIndirectTimeInput, registrationTimeInput } from './fields.js';
+import { cancelReapplyRegistrationSplit, clearRegistrationTravelTimes, registrationDirectTimeInput, registrationIndirectTimeInput, registrationTimeInput } from './fields.js';
 import { clearRegistrationHourTypes } from './hour-type.js';
 import { registrationPrimaryReportField, setRegistrationReportTextValue, updateRegistrationSubmitGuard } from './report.js';
 import { schermen } from '../../screen/schermen.js';
@@ -21,7 +21,7 @@ export function clearRegistrationSettings() {
   registrationFlow.registrationFromAppointment = false;
   registrationFlow.registrationRestoredToReport = false;
   try { sessionStorage.removeItem(PENDING_REG_KEY); } catch (e) {} // onthouden vorm vergeten
-  clearTimeout(registrationFlow.reapplyRegistrationSplitTimer);
+  cancelReapplyRegistrationSplit();
   setStatus('Instellingen verwijderen...');
   // eindtijd
   const end = registrationTimeInput('declaration_end_time_display');
