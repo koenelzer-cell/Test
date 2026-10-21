@@ -23,18 +23,29 @@ function activationDomainsOk() {
     return d.some((dom) => { dom = String(dom || '').trim().toLowerCase(); return dom && host.indexOf(dom) !== -1; });
   } catch (e) { return true; }
 }
+// Het afspraakformulier waarvoor de planhulp-voortzetting al gestart is. Een
+// configwijziging of een tweede locationchange op hetzelfde formulier start
+// hem niet opnieuw: dat zou een voortzetting die op een cliënt wacht wissen.
+let planhulpVoorHref = null;
+
 export function syncWithUrl() {
   forgetStaleDuplicates();
   if (!helperConfigReady) return;
   // (#2 uitrol) Centrale kill-switch heeft voorrang op de build-scope.
-  if (!RUNTIME_CONFIG.enabled) { deactivate(); removeRegistrationsOverviewPanel(); return; }
-  if (!activationDomainsOk()) { deactivate(); removeRegistrationsOverviewPanel(); return; }
+  if (!RUNTIME_CONFIG.enabled || !activationDomainsOk()) {
+    planhulpVoorHref = null;
+    deactivate(); removeRegistrationsOverviewPanel(); return;
+  }
   const wantEvents = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'events') && RUNTIME_CONFIG.appointmentHelperEnabled;
   const wantRegistrations = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
+  const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
+  if (!opFormulier) planhulpVoorHref = null;
   // De registratiehulp draait alleen op de invul-/edit-/new-pagina, NIET op het
   // kale /registrations-overzicht (daar tonen we het declarabiliteit-paneel).
-  if (wantEvents && location.href.includes(CONFIG.urlNeedle)) { activate('events'); startVanuitPlanhulp(); }
-  else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate('registrations');
+  if (opFormulier) {
+    activate('events');
+    if (planhulpVoorHref !== location.href) { planhulpVoorHref = location.href; startVanuitPlanhulp(); }
+  } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate('registrations');
   else deactivate();
   updateRegistrationsOverviewPanel();
 }

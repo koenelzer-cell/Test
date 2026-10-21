@@ -34,6 +34,8 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
   // worker of het zijpaneel aan het content-script geven).
   const listeners = [];
   const sent = [];
+  const storageListeners = [];
+  const gelezen = [];
   w.chrome = {
     runtime: {
       id: 'test',
@@ -44,9 +46,9 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
       sendMessage: (msg, cb) => { sent.push(msg); if (typeof cb === 'function') cb(undefined); },
     },
     storage: {
-      local: { get: (_k, cb) => cb && cb({}), set: (_v, cb) => cb && cb() },
+      local: { get: (k, cb) => { gelezen.push(k); if (cb) cb({}); }, set: (_v, cb) => cb && cb() },
       managed: { get: (_k, cb) => cb && cb({}) },
-      onChanged: { addListener: () => {} },
+      onChanged: { addListener: (fn) => storageListeners.push(fn) },
     },
   };
   // Geen echte netwerkcalls in tests.
@@ -88,5 +90,8 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     if (!async) setTimeout(() => resolve(undefined), 0);
   });
 
-  return { dom, window: w, document: w.document, api: w.__onsHelperTestApi || {}, sent, deliver };
+  // Een wijziging in chrome.storage melden, zoals de browser dat doet.
+  const storageChange = (changes, area = 'local') => storageListeners.forEach((fn) => fn(changes, area));
+
+  return { dom, window: w, document: w.document, api: w.__onsHelperTestApi || {}, sent, deliver, storageChange, gelezen };
 }

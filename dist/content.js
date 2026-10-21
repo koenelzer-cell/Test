@@ -7342,7 +7342,6 @@
     const features = cfg.helperConfig && cfg.helperConfig.features || cfg.features || {};
     if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
     if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-    runConfigHook("configApplied");
   }
   function loadManagedConfig() {
     function readStorage(area2, keys) {
@@ -7401,14 +7400,9 @@
     }
   }
   function watchConfigChanges() {
-    try {
-      if (chrome && chrome.storage && chrome.storage.onChanged) {
-        chrome.storage.onChanged.addListener((changes, area2) => {
-          if (area2 === "managed" || area2 === "local" || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
-        });
-      }
-    } catch (e) {
-    }
+    chrome.storage.onChanged.addListener((changes, area2) => {
+      if (area2 === "managed" || area2 === "local" && changes[LOCAL.TEST_CONFIG] || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
+    });
   }
   var helperConfigReady = false;
   function startConfigLoading() {
@@ -17594,24 +17588,26 @@
       return true;
     }
   }
+  var planhulpVoorHref = null;
   function syncWithUrl() {
     forgetStaleDuplicates();
     if (!helperConfigReady) return;
-    if (!RUNTIME_CONFIG.enabled) {
-      deactivate();
-      removeRegistrationsOverviewPanel();
-      return;
-    }
-    if (!activationDomainsOk()) {
+    if (!RUNTIME_CONFIG.enabled || !activationDomainsOk()) {
+      planhulpVoorHref = null;
       deactivate();
       removeRegistrationsOverviewPanel();
       return;
     }
     const wantEvents = (HELPER_SCOPE === "all" || HELPER_SCOPE === "events") && RUNTIME_CONFIG.appointmentHelperEnabled;
     const wantRegistrations = (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
-    if (wantEvents && location.href.includes(CONFIG.urlNeedle)) {
+    const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
+    if (!opFormulier) planhulpVoorHref = null;
+    if (opFormulier) {
       activate("events");
-      startVanuitPlanhulp();
+      if (planhulpVoorHref !== location.href) {
+        planhulpVoorHref = location.href;
+        startVanuitPlanhulp();
+      }
     } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate("registrations");
     else deactivate();
     updateRegistrationsOverviewPanel();

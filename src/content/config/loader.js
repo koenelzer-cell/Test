@@ -58,7 +58,6 @@ function applyRuntimeConfig(cfg) {
   const features = (cfg.helperConfig && cfg.helperConfig.features) || cfg.features || {};
   if (typeof features.appointmentAssistant === 'boolean') RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
   if (typeof features.registrationAssistant === 'boolean') RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-  runConfigHook('configApplied');
 }
 function loadManagedConfig() {
   function readStorage(area, keys) {
@@ -93,15 +92,16 @@ function loadManagedConfig() {
     });
   } catch (e) { return Promise.resolve(); }
 }
-// Opstarten: config opnieuw inlezen als beleid, lokale override of teamkeuze wijzigt.
+// Opstarten: config opnieuw inlezen als beleid, lokale override of teamkeuze
+// wijzigt. Alleen dan: in chrome.storage.local schrijven ook de service worker
+// (momentopname, vormen) en de UI-inspector, en elke herlaadbeurt brengt de
+// pagina opnieuw in lijn met de configuratie.
 export function watchConfigChanges() {
-  try {
-    if (chrome && chrome.storage && chrome.storage.onChanged) {
-      chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'managed' || area === 'local' || (area === 'sync' && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE]))) loadManagedConfig();
-      });
-    }
-  } catch (e) {}
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'managed'
+      || (area === 'local' && changes[LOCAL.TEST_CONFIG])
+      || (area === 'sync' && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE]))) loadManagedConfig();
+  });
 }
 // Activeer de hulp pas nadat alle configuratielagen zijn ingelezen. Anders
 // worden knoppen en teksten kort uit de code-standaard gebouwd en houden ze

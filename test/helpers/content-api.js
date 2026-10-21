@@ -294,4 +294,6 @@ window.__onsHelperTestApi = {
   createLimiter,
   __setOnsOverlap: _setOnsOverlapForTest,
   __setDoorplannen: function (v) { try { appointmentFlow.appointmentDoorplannen = !!v; } catch (e) {} },
+  getPlanhulpVerder: () => appointmentFlow.planhulpVerder,
+  __setPlanhulpVerder: (fn) => { appointmentFlow.planhulpVerder = fn; },
 };

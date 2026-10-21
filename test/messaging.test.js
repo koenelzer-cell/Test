@@ -64,3 +64,30 @@ test('de agenda verlaten meldt dat aan het zijpaneel', async () => {
   await tick();
   assert.ok(sent.some((m) => m && m.type === 'ag-gone'));
 });
+
+test('het afspraakformulier uit de planhulp blijft wachten op een cliënt als de opslag of de configuratie verandert', async () => {
+  const FORM = 'https://impegno.onsagenda.nl/events/new?invitee_ids%5B%5D=123';
+  const { api, window, storageChange, gelezen } = bootHelper({ url: FORM });
+  await tick();
+  const verder = () => {};
+  api.__setPlanhulpVerder(verder);
+
+  // De service worker schrijft zijn momentopname; de configuratie hoort daar
+  // niet op opnieuw te laden.
+  const voor = gelezen.length;
+  storageChange({ 'onsHelper.snapshot': { newValue: { ts: 1 } } });
+  await tick();
+  assert.equal(gelezen.length, voor, 'geen nieuwe configuratieronde');
+  assert.equal(api.getPlanhulpVerder(), verder);
+
+  // Een echte configuratiewijziging laadt opnieuw, maar start het formulier niet opnieuw.
+  storageChange({ onsHelperConfig: { newValue: {} } });
+  await tick();
+  assert.ok(gelezen.length > voor, 'de configuratie is opnieuw gelezen');
+  assert.equal(api.getPlanhulpVerder(), verder);
+
+  // Een ander formulier begint wel opnieuw.
+  window.history.pushState(null, '', FORM + '&start=2026-10-22');
+  await tick();
+  assert.equal(api.getPlanhulpVerder(), null);
+});
