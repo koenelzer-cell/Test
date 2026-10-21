@@ -98,7 +98,8 @@ configuratie). Gaat er iets mis, dan wordt er niets ingepakt.
 | `scripts/` | bouwen, controleren, uitbrengen |
 | `test/` | testsuite (jsdom) |
 | `e2e/` | het zijpaneel in een echte Chromium (Playwright) |
-| `docs/` | architectuur en het verslag van de herstructurering |
+| `docs/` | architectuur, uitrol (`UITROL.md`) en het verslag van de herstructurering |
+| `CHANGELOG.md` | wat er per versie veranderde, in gewone taal |
 
 ## Instellingen
 
@@ -158,8 +159,14 @@ nakijken, anders één keer via het scherm (klikken of typen). Wachten op het
 formulier (velden, cliëntkaarten) gebeurt op het moment dat de pagina
 verandert, niet met vaste wachttijden. Voornamen komen alleen uit het
 afspraakmodel of de cliëntkaarten, nooit uit andere tekst op de pagina. Bij
-een niet-cliëntgebonden optie met een eigen label blijft dat label nu naast
-'JG Overig' staan (het verdween eerder weer).
+een niet-cliëntgebonden optie met een eigen label blijft dat label naast
+'JG Overig' staan.
+
+Noodschakelaar: `features.formViaModel: false` (beheerscherm, of via het
+bedrijfsbeleid in `helperConfig`) zet de route via het afspraakmodel uit. De
+hulp klikt en typt dan alleen, leest de cliëntkaarten en zet vanuit de
+planhulp geen model klaar. Bedoeld voor als een ONS-update het model anders
+maakt; de uitrol, de pilot en de test per versie staan in `docs/UITROL.md`.
 
 Ook weghalen gaat zo: 'Verwijder instellingen' en het wissen van een
 uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te

@@ -246,9 +246,12 @@ Standaard staat alles aan (fail-open); een vlag op `false` schakelt uit:
 | `registrationHelperEnabled` | Registratiehulp |
 | `surveyHelperEnabled` | Vragenlijst-checklist |
 | `surveyAuditEnabled` | Achtergrond-audit + "Volgende status"-controle |
+| `helperConfig.features.formViaModel` | Invullen via het afspraakmodel van ONS (uit: alleen klikken en typen) |
 
 Zo kan een functie die door een ONS-wijziging breekt direct organisatiebreed
-worden uitgezet, terwijl de rest blijft werken.
+worden uitgezet, terwijl de rest blijft werken. Elke functie uit het
+beheerscherm kan zo uit via `helperConfig.features.<naam>`; zie
+`docs/UITROL.md` voor de uitrol, de pilot en terugdraaien.
 
 ## Bekende risico's / aandachtspunten
 - **Afhankelijkheid van de ONS-DOM:** een ONS-release kan selectors breken.

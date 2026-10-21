@@ -19,7 +19,7 @@ import { inputTextValue, typeIntoSearchField } from '../../ons/form-controls.js'
 import { PAGE_SESSION } from '../../../shared/storage-keys.js';
 import { setAppointmentEndTimePlusMinutes } from './end-time.js';
 import { isoLocalWithOffset } from '../../domain/open-registrations.js';
-import { zetUursoortViaFormulier, zetUursoortVoorClient } from '../../ons/form-model.js';
+import { formulierViaModelAan, zetUursoortViaFormulier, zetUursoortVoorClient } from '../../ons/form-model.js';
 
 const KEY = PAGE_SESSION.PENDING_APPOINTMENT;
 const GELDIG_MS = 2 * 60 * 1000;   // een klaargezet tijdstip geldt twee minuten
@@ -31,7 +31,7 @@ const GELDIG_MS = 2 * 60 * 1000;   // een klaargezet tijdstip geldt twee minuten
 export function storePendingAppointment(req) {
   const minutes = parseInt(req.minutes, 10);
   const klaar = { date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() };
-  const model = modelVelden(req, minutes);
+  const model = formulierViaModelAan() ? modelVelden(req, minutes) : null;
   if (model) klaar.model = model;
   // Gekozen uursoorten (alleen id's en de naam van de uursoort).
   if (Array.isArray(req.uursoorten) && req.uursoorten.length) klaar.uursoorten = req.uursoorten;

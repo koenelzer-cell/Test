@@ -8,6 +8,15 @@
 // scherm (klikken of typen).
 
 import { PAGE_BRIDGE, PAGE_COMMAND } from '../../shared/messages.js';
+import { APP_CONFIG } from '../config/app-config.js';
+
+// Noodschakelaar (beheerscherm of bedrijfsbeleid): features.formViaModel ===
+// false zet de route via het ONS-model uit. Elke zetter gaat dan meteen via
+// het scherm, lezen valt terug op de cliëntkaarten en de planhulp zet geen
+// model klaar. Voor als een ONS-update het model anders maakt.
+export function formulierViaModelAan() {
+  return !(APP_CONFIG.features && APP_CONFIG.features.formViaModel === false);
+}
 
 let volgnummer = 0;
 
@@ -77,6 +86,7 @@ export function leesFormulier(wachtMs) {
 
 // volledig: het hele antwoord teruggeven (of null) in plaats van true/false.
 function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
+  if (!formulierViaModelAan()) return Promise.resolve(volledig ? null : false);
   return new Promise((klaar) => {
     const id = type + '-' + (++volgnummer) + '-' + Date.now();
     let gemeld = false;

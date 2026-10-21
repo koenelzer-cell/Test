@@ -63,8 +63,11 @@ Each change ships as a release ZIP plus a source ZIP:
 
 ```bash
 npm run release
+# CHANGELOG.md: add the version, in plain Dutch, what colleagues notice
 git add -A && git commit -m "…"
 git archive --format=zip -o ONSAgendahulp-x.y.z-bron.zip HEAD
 ```
+
+Distribution, pilot, emergency switches (managed policy, `features.formViaModel`), the per-release test in real ONS and rollback are in `docs/UITROL.md`.
 
 `*.zip` is git-ignored. The version lives in `manifest.json` and as fallback in `src/shared/version.js`; `npm run release` updates both.

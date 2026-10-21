@@ -471,3 +471,18 @@ test('eindtijd-guard: terwijl de hulp de eindtijd via het model zet, telt de oud
   assert.equal(f.api.enforceAppointmentEndTime(30), false);
   assert.equal(f.api.appointmentEndGuardState().userOwned, true);
 });
+
+test('noodschakelaar formViaModel uit: niets via het ONS-model, meteen typen (geen wachttijd)', async () => {
+  const f = tijdenFormulier();
+  f.api.getAppConfig().features.formViaModel = false;
+  const start = Date.now();
+  assert.equal(await f.api.zetEindtijdAsync('11:45'), true);
+  assert.ok(Date.now() - start < 500, 'geen wachttijd op de main-world');
+  assert.equal(f.eind.value, '11:45');
+  assert.ok(f.getypt.includes('eind'), 'getypt');
+  await f.api.zetReistijdenAsync(5, 5);
+  assert.deepEqual([f.heen.value, f.terug.value], ['5', '5']);
+  assert.deepEqual(JSON.parse(JSON.stringify(f.gevraagd)), [], 'geen enkel verzoek aan de main-world');
+  assert.equal(await f.api.zetLabelsViaFormulier(['JG Huisbezoek']), false);
+  f.api.getAppConfig().features.formViaModel = true;
+});

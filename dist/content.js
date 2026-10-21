@@ -2751,7 +2751,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
@@ -5548,6 +5548,9 @@
   }
 
   // src/content/ons/form-model.js
+  function formulierViaModelAan() {
+    return !(APP_CONFIG.features && APP_CONFIG.features.formViaModel === false);
+  }
   var volgnummer = 0;
   function eerstViaFormulier(viaFormulier, viaScherm) {
     return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
@@ -5614,6 +5617,7 @@
     return vraagMainWorld(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
   }
   function vraagMainWorld(type, antwoordType, velden, wachtMs, volledig) {
+    if (!formulierViaModelAan()) return Promise.resolve(volledig ? null : false);
     return new Promise((klaar) => {
       const id = type + "-" + ++volgnummer + "-" + Date.now();
       let gemeld = false;
@@ -6562,7 +6566,7 @@
   function storePendingAppointment(req) {
     const minutes = parseInt(req.minutes, 10);
     const klaar = { date: req.date, time: req.time, minutes: minutes > 0 ? minutes : null, ts: Date.now() };
-    const model = modelVelden(req, minutes);
+    const model = formulierViaModelAan() ? modelVelden(req, minutes) : null;
     if (model) klaar.model = model;
     if (Array.isArray(req.uursoorten) && req.uursoorten.length) klaar.uursoorten = req.uursoorten;
     if (req.uursoortAfspraak) klaar.uursoortAfspraak = req.uursoortAfspraak;
@@ -15638,7 +15642,7 @@
     try {
       return chrome.runtime.getManifest().version;
     } catch (e) {
-      return "1.6.285";
+      return "1.6.286";
     }
   }();
 
