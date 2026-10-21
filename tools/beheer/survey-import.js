@@ -1,6 +1,6 @@
 /* ============================================================================
-   surveyImport.js  —  Parser voor ONS-vragenlijstexports (XML).
-   Wordt geladen door het beheerscherm (beheer_u.html). Zo kun je bij
+   survey-import.js  —  Parser voor ONS-vragenlijstexports (XML).
+   Wordt geladen door het beheerscherm (beheer.html). Zo kun je bij
    "Vragenlijsten" een ONS-XML importeren i.p.v. de vragen handmatig over te
    typen: de vraagteksten rollen als tabelrijen in de editor, waar je vervolgens
    per vraag de regel/voorwaarde instelt.

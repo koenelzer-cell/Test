@@ -53,7 +53,7 @@ src/
 ├── react/         React-schermen                → dist/react-bundle.js
 └── shared/        berichten, opslagsleutels, hosts, versie, chrome.storage-hulp
 pages/             popup.html, sidepanel.html
-admin/             beheerscherm (+ surveyImport.js)
+admin/             beheerscherm (+ survey-import.js)
 ```
 
 - **Eén regel**: bron in `src/`, de browser laadt `dist/`. `scripts/build.mjs`

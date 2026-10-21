@@ -289,7 +289,7 @@
 <datalist id="labelOptions"></datalist>
 <datalist id="teamOptions"></datalist>
 <nav class="settings-menu" aria-label="Instellingenmenu">
-  <h2>Instellingen</h2><span class="menu-sub">ONS Agendahulp 1.6.92</span>
+  <h2>Instellingen</h2><span class="menu-sub" id="beheerVersie"></span>
   <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="4" x2="12" y2="4"/><circle cx="5.5" cy="4" r="1.5" fill="currentColor" stroke="none"/><line x1="2" y1="7" x2="12" y2="7"/><circle cx="9" cy="7" r="1.5" fill="currentColor" stroke="none"/><line x1="2" y1="10" x2="12" y2="10"/><circle cx="4.5" cy="10" r="1.5" fill="currentColor" stroke="none"/></svg><strong>Basis</strong></div><span class="menu-groep-uitleg">Lijsten en algemeen gedrag</span>
     <button class="menu-item" data-menu-target="algemeen" onclick="showSettingsPage('algemeen')">Algemene instellingen</button>
   </div>
@@ -324,7 +324,7 @@
   </div>
 </nav>
 <header>
-  <img class="header-logo" src="icons/icon48.png" alt="" width="48" height="48">
+  <img class="header-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAy0lEQVR42u3aUQ6DIAyAYV5MPKRX8Ro7kw87gyfYHbbsxahTAistVP8mfSIl/YIhEQghIZ79+K6R4d+o1XARUKvNJyFabz6K8NL8IcJb8z8IAAAEAK/NLwjpBOuwqCsKOArNOnWAVa0I8OiGTa5jPxbLszpVQE6DklQBWDWfi2gWkIoA4AZwFq9pVhsDAABAQcB3UutkBQAAAMAuxCcEoBZA5afeCqB6rNLCziM+2NJagSpno5xQc8EBgJvK+90VX/epwSUee3h7bvMBLvEUILfjC8gAAAAASUVORK5CYII=" alt="" width="48" height="48">
   <div class="header-tekst">
     <h1>ONS Agendahulp — Beheerscherm</h1>
     <p>Pas de configuratie aan en klik <b>Opslaan</b>. Voor een snelle test exporteer je <code>config.json</code> en kies je in de extensiepopup <b>Importeer testconfig</b>; de actieve ONS-pagina wordt automatisch vernieuwd. Voor productie vervang je <code>config.json</code> in de extensiemap of laat je IT het via beleid uitrollen. Alleen voor de beheerder.</p>
@@ -608,9 +608,9 @@
     <p class="uitleg">Voorkomt dat een nieuwe configuratie met een te oude extensie wordt uitgerold.</p>
     <div class="beheer-grid">
       <label class="beheer-veld"><span>Configuratieschema</span><input id="compatSchema" type="number" min="1" value="2" oninput="markDirty();scheduleConfigAudit()"></label>
-      <label class="beheer-veld"><span>Minimale extensieversie</span><input id="compatMin" type="text" value="1.6.81" oninput="markDirty();scheduleConfigAudit()"></label>
+      <label class="beheer-veld"><span>Minimale extensieversie</span><input id="compatMin" type="text" oninput="markDirty();scheduleConfigAudit()"></label>
     </div>
-    <div id="compatStatus" class="beheer-resultaat">Beheerscherm voor extensie 1.6.81. Importeer bij Troubleshooting een ZIP voor een directe versiecontrole.</div>
+    <div id="compatStatus" class="beheer-resultaat">Importeer bij Troubleshooting een ZIP voor een directe versiecontrole.</div>
   </div>
 
   <div class="kaart" id="functies" data-settings-page>
@@ -881,7 +881,7 @@
 
 <script type="text/plain" id="domCheckSource">
 /* =====================================================================
-   ONS Agendahulp — DOM zelftest  (v1.6.81)
+   ONS Agendahulp — DOM zelftest
    ---------------------------------------------------------------------
    GEBRUIK:
    1. Open ONS Agenda in Chrome/Edge (ingelogd, op de pagina die je
@@ -953,7 +953,7 @@
   ];
 
   const sev = { kritiek: '#c0392b', belangrijk: '#b9770e', info: '#7f8c8d' };
-  console.log('%cONS Agendahulp — DOM zelftest (v1.6.81)', 'font-size:14px;font-weight:bold;color:#cc087d');
+  console.log('%cONS Agendahulp — DOM zelftest', 'font-size:14px;font-weight:bold;color:#cc087d');
   console.log('Locatie: ' + location.href);
   console.log('(groen = gevonden, — = niet op dit scherm; check per scherm)\n');
 
@@ -994,7 +994,7 @@
 
 </script>
 
-<script src="surveyImport.js"></script>
+<script src="survey-import.js"></script>
 <script>
 // ===== Standaard (identiek aan de extensie) =====
 const DEFAULTS = {
@@ -1166,7 +1166,8 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
-const MANAGER_VERSION = '1.6.181';
+// De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
+const MANAGER_VERSION = '1.6.286';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', surveyRequired:'Verplichte-vragencontrole', surveyAudit:'Achtergrondaudit vragenlijsten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -2094,7 +2095,7 @@ function readSurveys() {
   }).filter((s) => s.name && s.questions.length);
 }
 // Importeer een ONS-vragenlijst (XML) → laadt de vraagteksten als nieuwe
-// vragenlijst-kaart in, zodat je niets hoeft over te typen. surveyImport.js
+// vragenlijst-kaart in, zodat je niets hoeft over te typen. survey-import.js
 // levert de parser (window.OnsSurveyImport).
 function importSurveyXml(event) {
   const input = event && event.target;
@@ -2102,7 +2103,7 @@ function importSurveyXml(event) {
   const info = document.getElementById('surveyXmlImportInfo');
   const setInfo = (t, ok) => { if (info) { info.textContent = t; info.style.color = ok === false ? '#b3261e' : '#1b7f3b'; } };
   if (!file) return;
-  if (!window.OnsSurveyImport || typeof window.OnsSurveyImport.parseSurveyToConfig !== 'function') { setInfo('Import-module (surveyImport.js) niet geladen.', false); return; }
+  if (!window.OnsSurveyImport || typeof window.OnsSurveyImport.parseSurveyToConfig !== 'function') { setInfo('Import-module (survey-import.js) niet geladen.', false); return; }
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -3987,6 +3988,7 @@ function initSectionCode() {
 
 renderAll(loadStored() || clone(DEFAULTS));
 committed=clone(saved);
+$('#beheerVersie').textContent = 'ONS Agendahulp ' + MANAGER_VERSION;
 showSettingsPage(initialSettingsPage(),false);
 window.addEventListener('hashchange',()=>showSettingsPage(String(location.hash||'').replace(/^#/,''),false));
 initThema();

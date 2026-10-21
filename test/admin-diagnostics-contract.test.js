@@ -1,4 +1,4 @@
-// Het beheerscherm (admin/beheer_u.html) heeft een "Probleemoplosser" die een
+// Het beheerscherm (tools/beheer/beheer.html) heeft een "Probleemoplosser" die een
 // extensie-ZIP inleest en de code met tekstpatronen controleert: wordt
 // config.json geladen, worden alle beheerinstellingen gebruikt, kent de code
 // de ONS-velden, enzovoort. Dat is een verborgen contract tussen het
@@ -8,7 +8,7 @@
 // refactor het contract, dan faalt dit hier — in plaats van dat de beheerder
 // in de probleemoplosser ineens rode meldingen ziet terwijl er niets mis is.
 //
-// Houd de patronen hieronder gelijk aan die in admin/beheer_u.html.
+// Houd de patronen hieronder gelijk aan die in tools/beheer/beheer.html.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

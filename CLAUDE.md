@@ -37,7 +37,7 @@ Single test file or test: build first (tests load `dist/`), then
 - **No `var`:** `const`, or `let` when the binding is reassigned (a `var` in a loop shared by async callbacks once dropped registrations from the week figures).
 - **Inline styles only** (`element.style`), no injected class stylesheets: ONS's CSS/CSP ignores them. Keyframes go in the single small style block in `zorgVoorStijl()` (side panel) or the edge tab.
 - **New message type or storage key:** add it to `src/shared/messages.js` / `src/shared/storage-keys.js` first.
-- **New config setting:** add it to `src/content/config/defaults.js`, `config.json`, and the admin page `admin/beheer_u.html` (its `DEFAULTS`, read and write functions). The admin page's `troubleValidateConfigWiring` checks that config keys appear in `dist/content.js`.
+- **New config setting:** add it to `src/content/config/defaults.js`, `config.json`, and the admin page `tools/beheer/beheer.html` (its `DEFAULTS`, read and write functions). The admin page's `troubleValidateConfigWiring` checks that config keys appear in `dist/content.js`.
 
 ## Side panel (most active area)
 

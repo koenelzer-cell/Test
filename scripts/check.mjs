@@ -57,7 +57,7 @@ for (const f of scripts) {
 }
 
 // ── 3. Beheerscherm ────────────────────────────────────────────────────────
-const BEHEER = 'admin/beheer_u.html';
+const BEHEER = 'tools/beheer/beheer.html';
 if (fs.existsSync(rel(BEHEER))) {
   const html = fs.readFileSync(rel(BEHEER), 'utf8');
   let n = 0;

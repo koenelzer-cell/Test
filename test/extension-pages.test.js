@@ -823,7 +823,7 @@ test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop
 });
 
 test('nergens hoofdletterstijl in de extensie', () => {
-  const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/survey.js', 'dist/edge-tab.js', 'admin/beheer_u.html'];
+  const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/survey.js', 'dist/edge-tab.js', 'tools/beheer/beheer.html'];
   for (const b of bestanden) assert.doesNotMatch(read(b), /uppercase/, b);
 });
 

@@ -12,9 +12,12 @@
 //   npm run release -- --major versie X+1.0.0
 //   npm run release -- --dry   niets wijzigen, alleen tonen wat er zou gebeuren
 //
-// Er komen twee pakketten uit: ONSAgendahulp-x.y.z.zip voor productie en
-// ONSAgendahulp-x.y.z-test.zip, dat ook op de testomgeving van ONS draait
-// (TESTOMGEVING hieronder) en in de browser 'ONS Agendahulp (test)' heet.
+// Er komen drie ZIP's uit:
+//   ONSAgendahulp-x.y.z.zip         de extensie
+//   ONSAgendahulp-x.y.z-test.zip    dezelfde extensie, die ook op de testomgeving
+//                                   van ONS draait (TESTOMGEVING hieronder) en in de
+//                                   browser 'ONS Agendahulp (test)' heet
+//   ONSAgendahulp-x.y.z-beheer.zip  het beheerscherm (tools/beheer/), voor de beheerder
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -41,8 +44,9 @@ function run(cmd, argv) {
 // niet mee — dus geen node_modules, geen tests, geen bronbestanden.
 const INHOUD = [
   'manifest.json', 'managed_schema.json', 'config.json',
-  'dist', 'pages', 'admin', 'icons', 'assets',
+  'dist', 'pages', 'icons', 'assets',
 ];
+const BEHEER = 'tools/beheer';
 
 const TESTOMGEVING = 'https://impegno-staging-staging.ons-dossier.nl/*';
 
@@ -85,6 +89,10 @@ try {
     } else {
       fs.writeFileSync(contentPad, content.replace(`return '${huidig}'`, `return '${nieuw}'`));
     }
+    // Het beheerscherm noemt de versie waar het bij hoort.
+    const beheerPad = path.join(ROOT, BEHEER, 'beheer.html');
+    const beheer = fs.readFileSync(beheerPad, 'utf8').replace(/const MANAGER_VERSION = '[^']*';/, `const MANAGER_VERSION = '${nieuw}';`);
+    fs.writeFileSync(beheerPad, beheer);
   }
 
   // ── Bouwen, controleren, testen ───────────────────────────────────────────
@@ -127,7 +135,8 @@ try {
   // ── Inpakken ──────────────────────────────────────────────────────────────
   const zip = `ONSAgendahulp-${nieuw}.zip`;
   const testZip = `ONSAgendahulp-${nieuw}-test.zip`;
-  kop(`Inpakken als ${zip} en ${testZip}`);
+  const beheerZip = `ONSAgendahulp-${nieuw}-beheer.zip`;
+  kop(`Inpakken als ${zip}, ${testZip} en ${beheerZip}`);
   if (!dry) {
     fs.readdirSync(ROOT).filter((f) => /^ONSAgendahulp-.*\.zip$/.test(f))
       .forEach((f) => fs.unlinkSync(path.join(ROOT, f)));
@@ -138,7 +147,8 @@ try {
     fs.writeFileSync(path.join(map, 'manifest.json'), JSON.stringify(testManifest(manifest), null, 2) + '\n');
     execFileSync('zip', ['-qr', path.join(ROOT, testZip), ...INHOUD, '-x', '*.DS_Store'], { cwd: map, stdio: 'inherit' });
     fs.rmSync(map, { recursive: true, force: true });
-    for (const z of [zip, testZip]) console.log(`  ${z} — ${Math.round(fs.statSync(path.join(ROOT, z)).size / 1024)} kB`);
+    execFileSync('zip', ['-qr', path.join(ROOT, beheerZip), '.', '-x', '*.DS_Store'], { cwd: path.join(ROOT, BEHEER), stdio: 'inherit' });
+    for (const z of [zip, testZip, beheerZip]) console.log(`  ${z} — ${Math.round(fs.statSync(path.join(ROOT, z)).size / 1024)} kB`);
   } else {
     console.log(grijs('  (proefdraai: niet ingepakt)'));
   }

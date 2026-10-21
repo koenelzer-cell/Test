@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bootHelper } from './helpers/harness.mjs';
 
-// De stijlen die het beheerscherm aanbiedt (PICKER_STYLES in beheer_u.html).
+// De stijlen die het beheerscherm aanbiedt (PICKER_STYLES in beheer.html).
 const STIJLEN = ['hourMinute', 'slider', 'columns'];
 
 // Weinig opties: precies het geval waarin de terugval vroeger toesloeg.

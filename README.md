@@ -77,8 +77,9 @@ npm run release -- --dry   # tonen wat er zou gebeuren, niets wijzigen
 Dit hoogt het versienummer op (in `manifest.json` én de terugvalwaarde in
 `src/shared/version.js`), bouwt, draait `check` en de tests, controleert dat
 het manifest compleet is en dat `dist/` niet ouder is dan `src/`, en maakt pas
-daarna de ZIP (`dist/`, `pages/`, `admin/`, `icons/`, `assets/`, manifest en
-configuratie). Gaat er iets mis, dan wordt er niets ingepakt.
+daarna de ZIP (`dist/`, `pages/`, `icons/`, `assets/`, manifest en
+configuratie), de test-ZIP en de beheer-ZIP (het beheerscherm). Gaat er iets
+mis, dan wordt er niets ingepakt.
 
 ## Mappen
 
@@ -92,7 +93,7 @@ configuratie). Gaat er iets mis, dan wordt er niets ingepakt.
 | `src/main-world/`, `src/edge-tab/`, `src/io-planning-block/` | kleine content-scripts |
 | `src/react/` | React-schermen → `dist/react-bundle.js` |
 | `src/shared/` | berichttypes, opslagsleutels, ONS-hosts, versie, datums (`datum.js`), veilige HTML (`veilige-html.js`) |
-| `admin/` | beheerscherm: stelt `config.json` samen (open `admin/beheer_u.html` lokaal) |
+| `tools/beheer/` | beheerscherm: stelt `config.json` en het beleid samen (open `beheer.html` lokaal in de browser); zit niet in de extensie |
 | `config.json` | afspraaktypes, registratievormen, teksten, kleuren, teams |
 | `managed_schema.json` | instellingen die via bedrijfsbeleid gezet kunnen worden |
 | `scripts/` | bouwen, controleren, uitbrengen |

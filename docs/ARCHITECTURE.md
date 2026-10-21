@@ -20,7 +20,7 @@ manifest.json ──┬─ service worker ........ dist/background.js     ← sr
 
 src/shared/   wat alle onderdelen delen: berichten, opslagsleutels, hosts, versie,
               datums (datum.js, date-fns) en veilige HTML (veilige-html.js, DOMPurify)
-admin/        beheerscherm (losse HTML-pagina, niet door de extensie geladen)
+tools/beheer/ beheerscherm (losse HTML-pagina, niet in het extensiepakket)
 config.json   gebundelde configuratie (gemaakt met het beheerscherm)
 ```
 
