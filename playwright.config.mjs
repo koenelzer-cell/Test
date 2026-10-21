@@ -1,6 +1,8 @@
-// Playwright: het zijpaneel in een echte Chromium (npm run test:e2e).
-// De tests in e2e/ laden pages/sidepanel.html met dist/ en een nep-'chrome'
-// (e2e/nep-chrome.js), dus er is geen ONS en geen geladen extensie nodig.
+// Playwright: tests in een echte Chromium (npm run test:e2e).
+//   e2e/zijpaneel.spec.mjs  pages/sidepanel.html met dist/ en een nep-'chrome'
+//                           (e2e/nep-chrome.js), zonder geladen extensie;
+//   e2e/extensie.spec.mjs   de uitgepakte extensie zelf, met vaste ONS-pagina's.
+// Geen van beide heeft ONS nodig.
 // PW_CHROMIUM: pad naar een eigen Chromium als de meegeleverde niet past.
 import { defineConfig } from '@playwright/test';
 
