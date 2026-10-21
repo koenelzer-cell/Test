@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.287
+
+- De extensie is kleiner: ongeveer 500 kB in plaats van 1,4 MB. Verder merk
+  je als medewerker niets.
+- Voor de beheerder: het beheerscherm zit niet meer in de extensie maar in
+  een eigen ZIP (`ONSAgendahulp-x.y.z-beheer.zip`). De UI-inspector laadt pas
+  als je hem opent, en is uit te zetten met `uiInspector`.
+- Voor wie test: op de testomgeving van ONS werkt alleen nog het testpakket
+  (`ONSAgendahulp-x.y.z-test.zip`, in de browser "ONS Agendahulp (test)").
+
 ## 1.6.286
 
 - Voor de beheerder: een noodschakelaar om het invullen via het afspraakmodel
