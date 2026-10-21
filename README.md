@@ -74,6 +74,11 @@ Ga in Chrome of Edge naar `chrome://extensions` respectievelijk
 `edge://extensions`, zet Ontwikkelaarsmodus aan en kies **Uitgepakte extensie
 laden** met deze map.
 
+Wordt de extensie bijgewerkt of opnieuw geladen terwijl ONS openstaat, dan
+stopt de hulp in die tabbladen en vraagt hij de pagina te herladen (een
+kaartje linksonder met **Pagina herladen**); het lipje verdwijnt dan ook. De
+vragenlijstcontrole in ONS Dossier blijft tot het herladen werken.
+
 ### Een versie uitbrengen
 
 ```bash

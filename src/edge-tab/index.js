@@ -30,6 +30,7 @@
    ========================================================================== */
 
 import { MSG } from '../shared/messages.js';
+import { bijLosgekoppeld } from '../shared/losgekoppeld.js';
 
 (function () {
   if (window.__onsEdgeTab) return;
@@ -258,4 +259,6 @@ import { MSG } from '../shared/messages.js';
   }
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
+  // Na een update van de extensie opent het lipje niets meer.
+  bijLosgekoppeld(function () { if (tab) tab.remove(); if (tipEl) tipEl.remove(); });
 })();

@@ -86,6 +86,16 @@
     // { index }
   };
 
+  // src/shared/losgekoppeld.js
+  var ELKE_MS = 2e3;
+  function bijLosgekoppeld(opruimen) {
+    const timer = setInterval(() => {
+      if (chrome.runtime && chrome.runtime.id) return;
+      clearInterval(timer);
+      opruimen();
+    }, ELKE_MS);
+  }
+
   // src/edge-tab/index.js
   (function() {
     if (window.__onsEdgeTab) return;
@@ -319,5 +329,9 @@
     }
     if (document.body) start();
     else document.addEventListener("DOMContentLoaded", start, { once: true });
+    bijLosgekoppeld(function() {
+      if (tab) tab.remove();
+      if (tipEl) tipEl.remove();
+    });
   })();
 })();

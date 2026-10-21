@@ -196,3 +196,21 @@ test('UI-inspector: laadt pas op verzoek en is uit te zetten', async () => {
     await sluit();
   }
 });
+
+test('na herladen van de extensie vraagt een open ONS-pagina om herladen', async () => {
+  const { context, id, sluit } = await startBrowser();
+  try {
+    const page = await context.newPage();
+    const fouten = await volgFouten(context, page);
+    await page.goto(AGENDA);
+    await expect(page.locator('#onsah-edge-tab')).toHaveCount(1);
+    const ext = await extensiePagina(context, id);
+    // Zoals bij een update: de extensie start opnieuw, de pagina blijft staan.
+    await ext.page.evaluate(() => { chrome.runtime.reload(); }).catch(() => {});
+    await expect(page.locator('[data-ons-agendahulp="herladen"]')).toBeVisible({ timeout: 6000 });
+    await expect(page.locator('#onsah-edge-tab')).toHaveCount(0);
+    expect(fouten).toEqual([]);
+  } finally {
+    await sluit();
+  }
+});

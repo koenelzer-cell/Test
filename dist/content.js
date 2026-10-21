@@ -13993,11 +13993,12 @@
   }
   var ENGINE_INTERVAL_MS = 1e3;
   var started = false;
+  var engine = null;
   function startModuleHost() {
     if (started || window.__onsAgendahulpModules) return;
     started = true;
     window.__onsAgendahulpModules = true;
-    setInterval(function() {
+    engine = setInterval(function() {
       if (!document.hasFocus()) return;
       for (let i = 0; i < REGISTRY.length; i++) {
         const m = REGISTRY[i];
@@ -14012,6 +14013,11 @@
       } catch (e) {
       }
     }, ENGINE_INTERVAL_MS);
+  }
+  function stopModuleHost() {
+    clearInterval(engine);
+    if (barEl) barEl.remove();
+    barEl = null;
   }
 
   // src/shared/ons-hosts.js
@@ -17549,6 +17555,10 @@
     window.addEventListener("locationchange", syncWithUrl);
     _urlTimer = setInterval(meldUrlWijziging, 250);
   }
+  function stopUrlWatch() {
+    clearInterval(_urlTimer);
+    window.removeEventListener("locationchange", syncWithUrl);
+  }
 
   // src/content/features/agenda/painting.js
   var CLASS = "ons-helper-offhours";
@@ -19104,6 +19114,73 @@
     });
   }
 
+  // src/shared/losgekoppeld.js
+  var ELKE_MS = 2e3;
+  function bijLosgekoppeld(opruimen) {
+    const timer = setInterval(() => {
+      if (chrome.runtime && chrome.runtime.id) return;
+      clearInterval(timer);
+      opruimen();
+    }, ELKE_MS);
+  }
+
+  // src/content/helper/losgekoppeld.js
+  var ICON_VERVERS = "M17.7 6.3A8 8 0 1 0 19.7 14h-2.1a6 6 0 1 1-1.4-6.2L13 11h7V4z";
+  function bewaakVerbinding() {
+    bijLosgekoppeld(() => {
+      for (const stap of [stopUrlWatch, stopModuleHost, deactivate, deactivateAgendaPage]) {
+        try {
+          stap();
+        } catch (e) {
+        }
+      }
+      toonHerladen();
+    });
+  }
+  function toonHerladen() {
+    const kaart = document.createElement("div");
+    kaart.setAttribute("data-ons-agendahulp", "herladen");
+    Object.assign(kaart.style, {
+      position: "fixed",
+      left: "16px",
+      bottom: "16px",
+      zIndex: "2147483647",
+      maxWidth: "320px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: "8px",
+      background: "#fff",
+      color: "#201d1f",
+      border: "1px solid #ece7e5",
+      borderLeft: "4px solid #cc087d",
+      borderRadius: "12px",
+      padding: "10px 12px",
+      boxShadow: "0 4px 16px rgba(0,0,0,.16)",
+      font: '13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+    });
+    kaart.appendChild(document.createTextNode("De Agendahulp is bijgewerkt. Herlaad de pagina om hem weer te gebruiken."));
+    const knop = document.createElement("button");
+    knop.type = "button";
+    Object.assign(knop.style, {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      border: "0",
+      borderRadius: "8px",
+      padding: "6px 12px",
+      background: "#cc087d",
+      color: "#fff",
+      font: '600 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      cursor: "pointer"
+    });
+    knop.appendChild(svgIcon(ICON_VERVERS));
+    knop.appendChild(document.createTextNode("Pagina herladen"));
+    knop.addEventListener("click", () => location.reload());
+    kaart.appendChild(knop);
+    (document.body || document.documentElement).appendChild(kaart);
+  }
+
   // src/content/helper/screen-restore.js
   function refreshMainScreen() {
     if (!helperPanel.helperEnabled) {
@@ -19733,6 +19810,7 @@
   startDayColoring();
   registerQualityModule();
   HELPER_CONFIG_READY.then(startUiInspector);
+  bewaakVerbinding();
 })();
 /*! Bundled license information:
 

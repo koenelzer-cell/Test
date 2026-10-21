@@ -168,13 +168,14 @@ export function register(mod) { REGISTRY.push(mod); }
 
 const ENGINE_INTERVAL_MS = 1000;
 let started = false;
+let engine = null;
 // Eén keer starten (vanuit content/index.js). Elke seconde, alleen als het
 // tabblad focus heeft: modules laten draaien en de balk bijwerken.
 export function startModuleHost() {
   if (started || window.__onsAgendahulpModules) return;
   started = true;
   window.__onsAgendahulpModules = true;   // dubbel injecteren voorkomen
-  setInterval(function () {
+  engine = setInterval(function () {
     if (!document.hasFocus()) return;
     for (let i = 0; i < REGISTRY.length; i++) {
       const m = REGISTRY[i];
@@ -185,4 +186,9 @@ export function startModuleHost() {
     }
     try { renderMessages(); } catch (e) {}
   }, ENGINE_INTERVAL_MS);
+}
+export function stopModuleHost() {
+  clearInterval(engine);
+  if (barEl) barEl.remove();
+  barEl = null;
 }

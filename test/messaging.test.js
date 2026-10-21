@@ -91,3 +91,15 @@ test('het afspraakformulier uit de planhulp blijft wachten op een cliënt als de
   await tick();
   assert.equal(api.getPlanhulpVerder(), null);
 });
+
+test('na een update van de extensie stopt de hulp en vraagt hij om herladen', async () => {
+  const { window, document } = bootHelper({ url: AGENDA });
+  await tick();
+  // Zo ziet een content-script eruit als de extensie intussen is bijgewerkt.
+  delete window.chrome.runtime.id;
+  await tick(2200);
+  const melding = document.querySelector('[data-ons-agendahulp="herladen"]');
+  assert.ok(melding, 'een melding in de pagina');
+  assert.match(melding.textContent, /Herlaad de pagina/);
+  assert.ok([...melding.querySelectorAll('button')].some((b) => b.textContent === 'Pagina herladen'));
+});
