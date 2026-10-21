@@ -136,6 +136,16 @@ die herstelling werkt meteen, zonder nieuwe versie. Hij blijft open na het
 herladen van de pagina tot je hem sluit. Hij is een aparte bundel die alleen
 laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
 
+### Wekelijkse herinnering
+
+In de popup staat **Wekelijkse herinnering** (standaard uit). Aan: elke
+vrijdag om 15:00 een melding van de browser als er nog tijd openstaat, met
+de uren, het aantal dagen en het percentage directe tijd uit de laatste
+weekstand die de agenda zag (alleen getallen). De melding komt alleen als die
+stand hooguit twee weken oud is. Stond de browser op dat moment dicht, dan
+komt de melding bij de volgende start, tot drie dagen later. Een klik op de
+melding opent het ONS-tabblad.
+
 ### Verlof aanvragen
 
 Onderaan het zijpaneel staat de knop **Verlof aanvragen**. De dialoog heeft

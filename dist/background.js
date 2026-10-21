@@ -130,6 +130,8 @@
     // laatste weekstand (service worker; alleen getallen)
     REMINDER_SETTINGS: "onsHelper.reminders",
     // instellingen wekelijkse herinnering
+    REMINDER_HANDLED: "onsHelper.reminderHandled",
+    // tijdstip (ms) van de laatst afgehandelde herinnering
     FORMS: "onsHelper.forms"
     // registratievormen voor het rechtermuismenu
   };
@@ -213,8 +215,8 @@
   // src/background/reminder.js
   var ALARM_NAME = "onsHelper.reminder";
   var NOTIFICATION_PREFIX = "onsHelper.reminder";
-  var WEEK_MINUTES = 7 * 24 * 60;
   var SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1e3;
+  var INHALEN_MS = 3 * 24 * 60 * 60 * 1e3;
   var DEFAULT_SETTINGS = {
     enabled: false,
     // bewust uit: een melding is opdringerig, dus opt-in
@@ -239,7 +241,7 @@
       if (msg.weekday >= 1 && msg.weekday <= 7) next.weekday = msg.weekday | 0;
       if (msg.hour >= 0 && msg.hour <= 23) next.hour = msg.hour | 0;
       if (msg.minute >= 0 && msg.minute <= 59) next.minute = msg.minute | 0;
-      return writeLocal({ [LOCAL.REMINDER_SETTINGS]: next }).then(rescheduleAlarm).then(function() {
+      return writeLocal({ [LOCAL.REMINDER_SETTINGS]: next, [LOCAL.REMINDER_HANDLED]: Date.now() }).then(rescheduleAlarm).then(function() {
         return next;
       });
     });
@@ -254,17 +256,29 @@
     target.setDate(target.getDate() + delta);
     return target.getTime();
   }
+  function previousFireTime(s, from) {
+    const vorige = new Date(nextFireTime(s, from));
+    vorige.setDate(vorige.getDate() - 7);
+    return vorige.getTime();
+  }
   function rescheduleAlarm() {
     return loadSettings().then(function(s) {
-      try {
-        chrome.alarms.clear(ALARM_NAME);
-      } catch (e) {
-      }
-      if (!s.enabled) return;
-      try {
-        chrome.alarms.create(ALARM_NAME, { when: nextFireTime(s), periodInMinutes: WEEK_MINUTES });
-      } catch (e) {
-      }
+      chrome.alarms.clear(ALARM_NAME);
+      if (s.enabled) chrome.alarms.create(ALARM_NAME, { when: nextFireTime(s) });
+    });
+  }
+  function onReminderAlarm() {
+    return showReminder().then(function() {
+      return writeLocal({ [LOCAL.REMINDER_HANDLED]: Date.now() });
+    }).then(rescheduleAlarm);
+  }
+  function catchUpReminder(now) {
+    const nu = now || Date.now();
+    return Promise.all([loadSettings(), readLocal([LOCAL.REMINDER_HANDLED])]).then(function(r) {
+      const s = r[0], afgehandeld = r[1][LOCAL.REMINDER_HANDLED] || 0;
+      const gemist = previousFireTime(s, new Date(nu));
+      if (s.enabled && afgehandeld < gemist && nu - gemist <= INHALEN_MS) return onReminderAlarm();
+      return rescheduleAlarm();
     });
   }
   function fmtHM(min) {
@@ -605,7 +619,7 @@
   chrome.runtime.onConnect.addListener(onConnect);
   chrome.contextMenus.onClicked.addListener(onMenuClicked);
   chrome.alarms.onAlarm.addListener(function(a) {
-    if (a && a.name === ALARM_NAME) showReminder();
+    if (a && a.name === ALARM_NAME) onReminderAlarm();
   });
   chrome.notifications.onClicked.addListener(onNotificationClicked);
   try {
@@ -620,11 +634,11 @@
   }
   chrome.runtime.onInstalled.addListener(function() {
     rebuildMenuFromStorage();
-    rescheduleAlarm();
+    catchUpReminder();
   });
-  resetPanelOptions();
   chrome.runtime.onStartup.addListener(function() {
     rebuildMenuFromStorage();
-    rescheduleAlarm();
+    catchUpReminder();
   });
+  resetPanelOptions();
 })();

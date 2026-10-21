@@ -17,7 +17,7 @@ import { MSG } from '../shared/messages.js';
 import { isOnsUrl } from '../shared/ons-hosts.js';
 import { setBadge } from './badge.js';
 import { saveSnapshot, loadSnapshot } from './snapshot.js';
-import { ALARM_NAME, loadSettings, updateSettings, showReminder, rescheduleAlarm, onNotificationClicked } from './reminder.js';
+import { ALARM_NAME, loadSettings, updateSettings, showReminder, catchUpReminder, onReminderAlarm, onNotificationClicked } from './reminder.js';
 import { rebuildMenuFromStorage, updateForms, onMenuClicked } from './context-menu.js';
 import { onConnect, onTabUpdated, verversZijpaneelTab, answerSidePanelQuery, openSidePanel, resetPanelOptions } from './side-panel.js';
 
@@ -96,7 +96,7 @@ function openTab(url, fromTab, sendResponse) {
 chrome.runtime.onMessage.addListener(onMessage);
 chrome.runtime.onConnect.addListener(onConnect);
 chrome.contextMenus.onClicked.addListener(onMenuClicked);
-chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === ALARM_NAME) showReminder(); });
+chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === ALARM_NAME) onReminderAlarm(); });
 chrome.notifications.onClicked.addListener(onNotificationClicked);
 
 // Van tabblad wisselen of binnen een tabblad navigeren verplaatst wie er voor
@@ -108,7 +108,7 @@ try {
 } catch (e) {}
 
 // Na installatie én na elke browserstart: menu en wekker terugzetten.
-chrome.runtime.onInstalled.addListener(function () { rebuildMenuFromStorage(); rescheduleAlarm(); });
+chrome.runtime.onInstalled.addListener(function () { rebuildMenuFromStorage(); catchUpReminder(); });
+chrome.runtime.onStartup.addListener(function () { rebuildMenuFromStorage(); catchUpReminder(); });
 // Venster-breed zijpaneel aan (zie side-panel.js).
 resetPanelOptions();
-chrome.runtime.onStartup.addListener(function () { rebuildMenuFromStorage(); rescheduleAlarm(); });

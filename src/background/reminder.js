@@ -3,7 +3,10 @@
 //
 // Een MV3-worker wordt afgesloten zodra hij niets doet. Daarom staat de
 // instelling in chrome.storage.local en is de wekker een chrome.alarms-wekker
-// (geen setTimeout, die overleeft de sluiting niet).
+// (geen setTimeout, die overleeft de sluiting niet). De wekker gaat één keer af
+// en plant dan de volgende: een herhaling van precies een week zou bij de
+// wissel van zomer- naar wintertijd een uur verschuiven. Stond de browser dicht
+// op het moment zelf, dan komt de melding bij de volgende start alsnog.
 
 import { LOCAL } from '../shared/storage-keys.js';
 import { ONS_URL_PATTERNS } from '../shared/ons-hosts.js';
@@ -12,9 +15,10 @@ import { loadSnapshot } from './snapshot.js';
 
 export const ALARM_NAME = 'onsHelper.reminder';
 const NOTIFICATION_PREFIX = 'onsHelper.reminder';
-const WEEK_MINUTES = 7 * 24 * 60;
 // Hoe oud mag de momentopname zijn voordat we hem niet meer durven te melden?
 const SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+// Een gemiste herinnering komt bij het starten nog, als hij hooguit zo oud is.
+const INHALEN_MS = 3 * 24 * 60 * 60 * 1000;
 
 const DEFAULT_SETTINGS = {
   enabled: false,        // bewust uit: een melding is opdringerig, dus opt-in
@@ -41,7 +45,9 @@ export function updateSettings(msg) {
     if (msg.weekday >= 1 && msg.weekday <= 7) next.weekday = msg.weekday | 0;
     if (msg.hour >= 0 && msg.hour <= 23) next.hour = msg.hour | 0;
     if (msg.minute >= 0 && msg.minute <= 59) next.minute = msg.minute | 0;
-    return writeLocal({ [LOCAL.REMINDER_SETTINGS]: next }).then(rescheduleAlarm).then(function () { return next; });
+    // Nieuwe instellingen gelden vanaf nu: een eerder moment wordt niet ingehaald.
+    return writeLocal({ [LOCAL.REMINDER_SETTINGS]: next, [LOCAL.REMINDER_HANDLED]: Date.now() })
+      .then(rescheduleAlarm).then(function () { return next; });
   });
 }
 
@@ -58,11 +64,37 @@ export function nextFireTime(s, from) {
   return target.getTime();
 }
 
+// Het laatste moment op de ingestelde weekdag + tijd vóór 'from' (of gelijk).
+export function previousFireTime(s, from) {
+  const vorige = new Date(nextFireTime(s, from));
+  vorige.setDate(vorige.getDate() - 7);
+  return vorige.getTime();
+}
+
 export function rescheduleAlarm() {
   return loadSettings().then(function (s) {
-    try { chrome.alarms.clear(ALARM_NAME); } catch (e) {}
-    if (!s.enabled) return;
-    try { chrome.alarms.create(ALARM_NAME, { when: nextFireTime(s), periodInMinutes: WEEK_MINUTES }); } catch (e) {}
+    chrome.alarms.clear(ALARM_NAME);
+    if (s.enabled) chrome.alarms.create(ALARM_NAME, { when: nextFireTime(s) });
+  });
+}
+
+// De wekker ging af: melden (als er iets te melden is), onthouden dat dit
+// moment is afgehandeld, en de volgende plannen.
+export function onReminderAlarm() {
+  return showReminder()
+    .then(function () { return writeLocal({ [LOCAL.REMINDER_HANDLED]: Date.now() }); })
+    .then(rescheduleAlarm);
+}
+
+// Bij het starten van de browser of de extensie: de wekker opnieuw zetten, en
+// een herinnering die in de tussentijd had moeten komen alsnog afhandelen.
+export function catchUpReminder(now) {
+  const nu = now || Date.now();
+  return Promise.all([loadSettings(), readLocal([LOCAL.REMINDER_HANDLED])]).then(function (r) {
+    const s = r[0], afgehandeld = r[1][LOCAL.REMINDER_HANDLED] || 0;
+    const gemist = previousFireTime(s, new Date(nu));
+    if (s.enabled && afgehandeld < gemist && nu - gemist <= INHALEN_MS) return onReminderAlarm();
+    return rescheduleAlarm();
   });
 }
 

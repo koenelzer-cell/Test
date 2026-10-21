@@ -28,7 +28,7 @@ function fakeChrome() {
     },
     set: (obj, cb) => { Object.assign(store[name], obj); if (cb) cb(); },
   });
-  const calls = { badge: [], menus: [], sent: [], alarms: [] };
+  const calls = { badge: [], menus: [], sent: [], alarms: [], notifications: [] };
   const chrome = {
     runtime: {
       id: 'test', lastError: undefined,
@@ -43,7 +43,7 @@ function fakeChrome() {
     action: { setBadgeBackgroundColor: () => {}, setBadgeText: (o) => calls.badge.push(o) },
     contextMenus: { removeAll: (cb) => { calls.menus.length = 0; cb(); }, create: (o, cb) => { calls.menus.push(o); if (cb) cb(); }, onClicked: on('contextMenus.onClicked') },
     alarms: { clear: () => {}, create: (n, o) => calls.alarms.push({ n, o }), onAlarm: on('alarms.onAlarm') },
-    notifications: { create: () => {}, clear: () => {}, onClicked: on('notifications.onClicked') },
+    notifications: { create: (id, o) => calls.notifications.push(o), clear: () => {}, onClicked: on('notifications.onClicked') },
     tabs: {
       query: (q, cb) => cb([]), sendMessage: (id, msg, cb) => { calls.sent.push({ tab: id, msg }); if (cb) cb(null); },
       update: () => {}, onActivated: on('tabs.onActivated'), onUpdated: on('tabs.onUpdated'),
@@ -131,6 +131,39 @@ test('service worker: antwoordt alleen de afzender die het bericht mag sturen', 
   assert.equal(calls.badge.length, 0);
   assert.equal(await send(listeners, { type: 'reminder-get' }, ONS_TAB), undefined, 'de herinnering is van de popup');
   assert.equal(await send(listeners, { type: 'reminder-settings', enabled: true }, anderTabblad), undefined);
+});
+
+test('service worker: de herinnering is een eenmalige wekker, en een gemiste komt bij het starten alsnog', async () => {
+  const { listeners, store, calls } = loadWorker();
+  // Ingesteld op een uur geleden (deze weekdag), met openstaande uren.
+  const uurGeleden = new Date(Date.now() - 60 * 60 * 1000);
+  await send(listeners, { type: 'reminder-settings', enabled: true, weekday: uurGeleden.getDay() || 7, hour: uurGeleden.getHours(), minute: uurGeleden.getMinutes() }, POPUP);
+  assert.equal(calls.alarms.at(-1).o.periodInMinutes, undefined, 'geen herhaling van precies een week');
+  assert.ok(calls.alarms.at(-1).o.when > Date.now(), 'de volgende keer ligt in de toekomst');
+  store.local['onsHelper.snapshot'] = { openDays: 2, openMinutes: 150, lateMinutes: 0, ts: Date.now() };
+
+  // Net ingesteld: dat eerdere moment hoort niet ingehaald te worden.
+  listeners['runtime.onStartup'][0]();
+  await tick();
+  assert.equal(calls.notifications.length, 0);
+
+  // De browser stond dicht toen de wekker af had moeten gaan.
+  store.local['onsHelper.reminderHandled'] = Date.now() - 2 * 60 * 60 * 1000;
+  listeners['runtime.onStartup'][0]();
+  await tick();
+  assert.equal(calls.notifications.length, 1);
+  assert.match(calls.notifications[0].message, /2 u 30 min nog niet geregistreerd/);
+  // Eén keer: daarna is hij afgehandeld.
+  listeners['runtime.onStartup'][0]();
+  await tick();
+  assert.equal(calls.notifications.length, 1);
+
+  // De wekker zelf: melden en de volgende plannen.
+  const wekkers = calls.alarms.length;
+  listeners['alarms.onAlarm'][0]({ name: 'onsHelper.reminder' });
+  await tick();
+  assert.equal(calls.notifications.length, 2);
+  assert.equal(calls.alarms.length, wekkers + 1);
 });
 
 test('service worker: zonder open zijpaneel is het antwoord "dicht"', async () => {
