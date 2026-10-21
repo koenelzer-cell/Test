@@ -1,7 +1,9 @@
 // Rijtijden voor de planhulp en Route van de dag: Google Routes API.
 //
-// PRIVACY: naar Google gaat ALLEEN een postcode (6 tekens): geen huisnummer,
-// geen naam. Uitkomsten blijven in het geheugen van het zijpaneel.
+// PRIVACY: naar de Routes API gaat alleen een postcode (6 tekens): geen
+// huisnummer, geen naam. Uitkomsten blijven in het geheugen van het zijpaneel.
+// De links (mapsUrls) en de kaart (embedUrl) bevatten wel de adressen; die
+// gaan pas naar Google als de medewerker erop klikt.
 //
 // Zonder server: rechtstreeks met de Routes-sleutel uit het beheerscherm
 // (proxy = { key }), of via de eigen routes-proxy (proxy = { url, token }).

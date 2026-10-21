@@ -449,7 +449,8 @@ en oker).
     (`server/routes-proxy`), die dan voorrang heeft. Zonder sleutel:
     geen kortste volgorde.
   - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
-    toont Route van de dag meteen de route op een kaart.
+    toont Route van de dag de route op een kaart, na een klik op 'Kaart
+    tonen'. Hoe je de sleutels beperkt staat in `SECURITY.md`.
 - **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
   (met apart: kopieën op meerdere momenten, afspraak meteen maken en Huisbezoek/efficiënter indelen), Route
@@ -460,12 +461,12 @@ en oker).
   detailvenster van ONS. 'Route openen' opent Google Maps met alle stops
   (10 per route; meer = meerdere aansluitende routes), optioneel vanaf een
   vertrekpunt dat alleen op dit apparaat wordt bewaard. Met een
-  Embed-sleutel staat de kaart er meteen bij; de adressen gaan dan naar
-  Google zodra je de pagina opent (zonder sleutel pas als je 'Route
-  openen' klikt). **QR-code tonen** zet op de plek van de kaart een
-  QR-code van de route (per deel bij meer dan 10 stops; volgt de kortste
-  volgorde als die berekend is), 'Kaart tonen' zet de kaart terug: scan met
-  de camera van je telefoon en Google Maps opent met de route. De code wordt in de extensie zelf gemaakt
+  Embed-sleutel toont **Kaart tonen** de route op een kaart; pas dan gaan de
+  adressen naar Google, net als bij 'Route openen'. **QR-code tonen** zet op
+  dezelfde plek een QR-code van de route (per deel bij meer dan 10 stops;
+  volgt de kortste volgorde als die berekend is): scan met de camera van je
+  telefoon en Google Maps opent met de route. Nog eens klikken verbergt de
+  kaart of de QR-code weer. De code wordt in de extensie zelf gemaakt
   (`qrcode-generator`, MIT); er gaat niets naar een QR-dienst. Uit te zetten
   in het beheerscherm (`routeLink`).
 - **Snel registreren**: datum, begintijd en duur invullen opent het

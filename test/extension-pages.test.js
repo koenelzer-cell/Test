@@ -721,7 +721,7 @@ test('zijpaneel: planhulp zonder kopieën (beheer): één moment tegelijk', asyn
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
 });
 
-test('zijpaneel: route van de dag - eerst de kaart, QR-code tonen op dezelfde plek, kortste volgorde via de eigen server', async () => {
+test('zijpaneel: route van de dag - kaart pas na een klik, QR-code op dezelfde plek, kortste volgorde via de eigen server', async () => {
   const geopend = [], proxy = [];
   const { document, dom } = zijpaneelMetTools({
     'ag-day-route': (msg, cb) => cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
@@ -733,9 +733,14 @@ test('zijpaneel: route van de dag - eerst de kaart, QR-code tonen op dezelfde pl
   await tick();
   navKnop(document, 'Route van de dag').click();
   await tick();
-  const kaart = document.querySelector('[data-kaart]');
-  assert.match(kaart.src, /^https:\/\/www\.google\.com\/maps\/embed\/v1\/directions\?key=EMBEDSLEUTEL_alleen_embed_123&origin=Teststraat/, 'eerst de kaart');
+  assert.equal(document.querySelector('[data-kaart]'), null, 'geen kaart (en dus geen adressen naar Google) zonder klik');
   assert.equal(document.querySelector('[data-route-qr]'), null);
+  knop(document, 'Kaart tonen').click();
+  const kaart = document.querySelector('[data-kaart]');
+  assert.match(kaart.src, /^https:\/\/www\.google\.com\/maps\/embed\/v1\/directions\?key=EMBEDSLEUTEL_alleen_embed_123&origin=Teststraat/);
+  knop(document, 'Kaart verbergen').click();
+  assert.equal(document.querySelector('[data-kaart]'), null);
+  knop(document, 'Kaart tonen').click();
   knop(document, 'QR-code tonen').click();
   assert.equal(document.querySelector('[data-kaart]'), null, 'QR-code in plaats van de kaart');
   const qr = document.querySelector('[data-route-qr] svg');

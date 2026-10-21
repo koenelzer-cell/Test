@@ -8964,7 +8964,7 @@
     function pageRoute() {
       const box = el("div");
       const rt = BEWAARD.route;
-      box.appendChild(txt("help", "Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. ‘Route openen’ opent Google Maps; de adressen gaan dan naar Google, net als met de kaartlink in ONS.", { margin: "0 2px 10px" }));
+      box.appendChild(txt("help", "Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. ‘Kaart tonen’ en ‘Route openen’ sturen de adressen naar Google, net als de kaartlink in ONS.", { margin: "0 2px 10px" }));
       const vk = kaart();
       const vrij = el("div", { display: "flex", gap: "8px" });
       const k = maakKiezers();
@@ -9053,7 +9053,8 @@
           if (p.missing) blok.appendChild(txt("help", p.missing + (p.missing === 1 ? " afspraak zonder adres staat" : " afspraken zonder adres staan") + " niet in de route.", { margin: "6px 0 0" }));
           const vertrekAdres = leesVertrek();
           const pid = p.id || "p" + i;
-          rt.qr = rt.qr || {};
+          rt.weergave = rt.weergave || {};
+          const toon2 = rt.weergave[pid];
           const metPcQr = p.stops.filter(function(st) {
             return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);
           });
@@ -9069,7 +9070,7 @@
             return st.address;
           }), vertrekAdres, true) : p.urls || [];
           const kaartKey = ctx.state && ctx.state.mapsEmbedKey;
-          if (rt.qr[pid] && qrUrls.length) {
+          if (toon2 === "qr" && qrUrls.length) {
             const qrBox = el("div", { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginTop: "10px", padding: "12px", border: "1px solid " + T.line, borderRadius: "12px", background: "#fff" });
             qrBox.setAttribute("data-route-qr", p.id || "");
             qrUrls.forEach(function(u, n) {
@@ -9083,7 +9084,7 @@
             });
             qrBox.appendChild(txt("help", "Scan met de camera van je telefoon; Google Maps opent met de route" + (kortVolg ? " in de kortste volgorde" : "") + ".", { margin: "4px 0 0", fontSize: "11.5px", textAlign: "center" }));
             blok.appendChild(qrBox);
-          } else if (kaartKey && kaartStops.length) {
+          } else if (toon2 === "kaart" && kaartKey && kaartStops.length) {
             const ifr = document.createElement("iframe");
             ifr.src = embedUrl(kaartKey, kaartStops, vertrekAdres);
             ifr.title = "Kaart van de route";
@@ -9095,15 +9096,19 @@
           } else if (!kaartKey && kaartStops.length) {
             blok.appendChild(txt("help", "Voor de kaart: vul in het beheerscherm (Functies → Google Maps) een sleutel voor de Maps Embed API in.", { margin: "8px 0 0", fontSize: "11.5px" }));
           }
-          if (qrUrls.length) {
-            const wissel = secondaryBtn(rt.qr[pid] ? "Kaart tonen" : "QR-code tonen", function() {
-              rt.qr[pid] = !rt.qr[pid];
+          const knoppen = el("div", { display: "flex", gap: "8px", marginTop: "8px" });
+          const wisselKnop = function(w, tekst, attr) {
+            const b = secondaryBtn(toon2 === w ? tekst[1] : tekst[0], function() {
+              rt.weergave[pid] = toon2 === w ? null : w;
               renderPagina();
             });
-            wissel.style.marginTop = "8px";
-            wissel.setAttribute("data-route-qr-knop", p.id || "");
-            blok.appendChild(wissel);
-          }
+            Object.assign(b.style, { flex: "1 1 0", minWidth: "0" });
+            b.setAttribute(attr, p.id || "");
+            knoppen.appendChild(b);
+          };
+          if (kaartKey && kaartStops.length) wisselKnop("kaart", ["Kaart tonen", "Kaart verbergen"], "data-route-kaart-knop");
+          if (qrUrls.length) wisselKnop("qr", ["QR-code tonen", "QR-code verbergen"], "data-route-qr-knop");
+          if (knoppen.children.length) blok.appendChild(knoppen);
           const vertrekPc = normPostcode((String(vertrekAdres).match(/\b[1-9]\d{3}\s?[A-Za-z]{2}\b/) || [""])[0]);
           const metPc = p.stops.filter(function(st) {
             return st.address && /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/.test(st.address);

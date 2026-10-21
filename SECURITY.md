@@ -64,8 +64,8 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     leest per afspraak met een cliënt (niet op een kantoorlocatie) van de gekozen dag het adres uit de details van ONS
     (de Google Maps-link `clients[].address.mapUrl`). Geen naam of andere
     gegevens. Het adres wordt niet opgeslagen en gaat pas naar Google als de
-    medewerker op 'Route openen' klikt — net als de kaartlink in ONS zelf, maar
-    met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
+    medewerker op 'Kaart tonen' of 'Route openen' klikt, net als de kaartlink
+    in ONS zelf, maar met alle adressen van die dag tegelijk. Het optionele vertrekpunt staat
     alleen in de `localStorage` van het zijpaneel op dit apparaat.
   - **Afspraak maken vanuit de planhulp**: pas na een klik van de
     medewerker, met het overzicht vooraf. Het verzoek (POST
@@ -112,11 +112,18 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     `qrcode-generator`, MIT). Geen QR-dienst, geen sms of mail: de adressen
     gaan pas naar Google als de medewerker de code met de eigen telefoon
     scant en de link opent.
-  - **Kaart** (optioneel, `routesProxy.embedKey`): laadt in Route van de dag
-    meteen een Google Maps Embed-kaart met de adressen van de route (de
-    medewerker opent die pagina zelf). Die sleutel
-    staat in de extensie en moet in Google Cloud beperkt zijn tot alleen de
-    Maps Embed API (kosteloos); nooit de Routes-sleutel gebruiken.
+  - **Kaart** (optioneel, `routesProxy.embedKey`): na een klik op 'Kaart
+    tonen' laadt Route van de dag een Google Maps Embed-kaart met de adressen
+    van de route. Zonder klik gaat er niets naar Google. Die sleutel staat in
+    de extensie en is dus leesbaar voor wie de extensie heeft.
+
+  **De Google-sleutels beperken** (Google Cloud Console, API's en services,
+  Inloggegevens): geef de kaart en de rijtijden elk een eigen sleutel. Zet bij
+  elke sleutel onder *API-beperkingen* alleen de API die hij nodig heeft
+  (Maps Embed API voor `embedKey`, Routes API voor `routesKey`) en stel onder
+  *Quota* een dagmaximum in. Gebruik nooit de Routes-sleutel als
+  Embed-sleutel, en gebruik de eigen routes-proxy als de Routes-sleutel niet
+  in de extensie mag staan.
   - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS
     (met cliëntgegevens zoals ONS ze zelf verstuurt) wordt in het geheugen
     gehouden om dezelfde afspraak op de gekozen momenten aan te maken, en
