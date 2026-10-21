@@ -15624,13 +15624,9 @@
   }
 
   // src/shared/version.js
-  var SCRIPT_VERSION = function() {
-    try {
-      return chrome.runtime.getManifest().version;
-    } catch (e) {
-      return "1.6.286";
-    }
-  }();
+  function extensionVersion() {
+    return chrome.runtime.getManifest().version;
+  }
 
   // src/content/helper/info-panel.js
   function closeInfoPanel() {
@@ -15659,7 +15655,7 @@
     Object.assign(title.style, { fontWeight: "700", fontSize: "14px", margin: "6px 0 2px" });
     body.appendChild(title);
     const ver = document.createElement("div");
-    ver.textContent = `Versie ${SCRIPT_VERSION}`;
+    ver.textContent = `Versie ${extensionVersion()}`;
     Object.assign(ver.style, { fontSize: "13px", color: "#333", margin: "0 0 8px" });
     body.appendChild(ver);
     const help = document.createElement("div");
@@ -17026,8 +17022,8 @@
     const infoBtn = document.createElement("button");
     infoBtn.setAttribute("data-info-toggle", "");
     infoBtn.setAttribute("data-popup-control", "");
-    infoBtn.setAttribute("aria-label", `Info en versie ${SCRIPT_VERSION}`);
-    infoBtn.title = `Info en versie ${SCRIPT_VERSION}`;
+    infoBtn.title = `Info en versie ${extensionVersion()}`;
+    infoBtn.setAttribute("aria-label", infoBtn.title);
     infoBtn.appendChild(svgInfoIcon());
     Object.assign(infoBtn.style, { background: "#f6f2f0", border: "1px solid #ece7e5", borderRadius: "8px", color: "#6b6367", cursor: "pointer", lineHeight: "1", padding: "5px 7px", width: "28px", height: "28px", display: "inline-flex", alignItems: "center", justifyContent: "center" });
     infoBtn.addEventListener("click", (e) => {
@@ -18526,7 +18522,6 @@
     });
     return uit;
   }
-  var VERSION = SCRIPT_VERSION;
   function afspraakTypesVoorPaneel() {
     try {
       return effectiveChoices().map(function(c) {
@@ -18562,7 +18557,7 @@
         return { color: l.color, text: l.text };
       }),
       windowLabel: workdayWindowLabel(),
-      version: VERSION,
+      version: extensionVersion(),
       week: agendaPage._agLastWeek,
       weekError: agendaPage._agWeekError || "",
       // Zodat het zijpaneel kan laten zien dat er herrekend wordt; zonder dit

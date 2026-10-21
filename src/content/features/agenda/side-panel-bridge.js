@@ -40,10 +40,9 @@ function panelFeatures() {
 }
 import { agendaYmd } from '../../core/datetime.js';
 import { currentAgendaDate } from '../../ons/agenda-location.js';
-import { SCRIPT_VERSION } from '../../../shared/version.js';
+import { extensionVersion } from '../../../shared/version.js';
 import { MSG } from '../../../shared/messages.js';
 
-const VERSION = SCRIPT_VERSION;
 /* ===== De Agendahulp in het zijpaneel =====
    Het zijpaneel tekent hetzelfde paneel (agendapanel.js), maar kan de
    ONS-pagina niet lezen of aansturen. Daarom stuurt dit script de toestand
@@ -90,7 +89,7 @@ function agPanelState() {
     }) : [],
     legend: (activeLegend() || []).map(function (l) { return { color: l.color, text: l.text }; }),
     windowLabel: workdayWindowLabel(),
-    version: VERSION,
+    version: extensionVersion(),
     week: agendaPage._agLastWeek,
     weekError: agendaPage._agWeekError || '',
     // Zodat het zijpaneel kan laten zien dat er herrekend wordt; zonder dit

@@ -5,7 +5,7 @@ import { helperPanel } from '../state.js';
 import { $body, safe, showDisabledState } from '../screen/status.js';
 import { mkBackButton } from '../ui/controls.js';
 import { resetBody } from '../screen/screen-state.js';
-import { SCRIPT_VERSION } from '../../shared/version.js';
+import { extensionVersion } from '../../shared/version.js';
 import { schermen } from '../screen/schermen.js';
 
 function closeInfoPanel() {
@@ -33,7 +33,7 @@ function showInfoPanel() {
   body.appendChild(title);
 
   const ver = document.createElement('div');
-  ver.textContent = `Versie ${SCRIPT_VERSION}`;
+  ver.textContent = `Versie ${extensionVersion()}`;
   Object.assign(ver.style, { fontSize: '13px', color: '#333', margin: '0 0 8px' });
   body.appendChild(ver);
 

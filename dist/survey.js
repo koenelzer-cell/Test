@@ -3451,13 +3451,9 @@
   }
 
   // src/shared/version.js
-  var SCRIPT_VERSION = function() {
-    try {
-      return chrome.runtime.getManifest().version;
-    } catch (e) {
-      return "1.6.286";
-    }
-  }();
+  function extensionVersion() {
+    return chrome.runtime.getManifest().version;
+  }
 
   // src/survey/banner.js
   function loadPanelWidth() {
@@ -3539,7 +3535,7 @@
     Object.assign(title.style, { flex: "1 1 auto", minWidth: "0", fontSize: "13px", fontWeight: "700" });
     const version = document.createElement("span");
     version.setAttribute("data-survey-version", "");
-    version.textContent = "v" + SCRIPT_VERSION;
+    version.textContent = "v" + extensionVersion();
     version.title = "Geladen versie van de vragenlijstcontrole";
     Object.assign(version.style, { flex: "0 0 auto", fontSize: "10px", fontWeight: "700", color: "#a49a9d" });
     const ctrlStyle = { flex: "0 0 auto", width: "24px", height: "24px", padding: "0", border: "1px solid #ece7e5", borderRadius: "7px", background: "#f6f2f0", color: "#6b6367", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
@@ -4762,7 +4758,7 @@
     if (!/ons-dossier/i.test(location.hostname)) return;
     if (window.name === "ons-helper-survey-scan") return;
     try {
-      document.documentElement.setAttribute("data-ons-agendahulp-survey-version", SCRIPT_VERSION);
+      document.documentElement.setAttribute("data-ons-agendahulp-survey-version", extensionVersion());
     } catch (e) {
     }
     startSurveyCheck();

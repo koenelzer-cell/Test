@@ -71,15 +71,20 @@ laden** met deze map.
 ```bash
 npm run release            # x.y.Z+1
 npm run release -- --minor # x.Y+1.0
-npm run release -- --dry   # tonen wat er zou gebeuren, niets wijzigen
+npm run release -- --dry   # alles behalve ophogen en inpakken
+# CHANGELOG.md bijwerken, committen
+npm run release -- --bron  # bron-ZIP van die commit
 ```
 
-Dit hoogt het versienummer op (in `manifest.json` én de terugvalwaarde in
-`src/shared/version.js`), bouwt, draait `check` en de tests, controleert dat
-het manifest compleet is en dat `dist/` niet ouder is dan `src/`, en maakt pas
-daarna de ZIP (`dist/`, `pages/`, `icons/`, `assets/`, manifest en
-configuratie), de test-ZIP en de beheer-ZIP (het beheerscherm). Gaat er iets
-mis, dan wordt er niets ingepakt.
+Dit bouwt, draait `check` en de tests en stelt de pakketten samen. Elk pakket
+wordt nagekeken: alles waar het manifest en de pagina's naar verwijzen is er,
+in `dist/` staat niets dat niet geladen wordt, en er zit geen sourcemap of
+testhaak in. Pas dan hoogt het het versienummer op (`manifest.json` en de
+versie in het beheerscherm) en schrijft het naar `release/`: de ZIP
+(`dist/`, `pages/`, `icons/`, `assets/`, manifest en configuratie), de
+test-ZIP (ook voor de testomgeving van ONS) en de beheer-ZIP (het
+beheerscherm). Gaat er iets mis, dan verandert er niets. Eerdere ZIP's in
+`release/` blijven staan.
 
 ## Mappen
 

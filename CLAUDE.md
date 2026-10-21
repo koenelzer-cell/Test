@@ -59,15 +59,15 @@ Single test file or test: build first (tests load `dist/`), then
 
 ## Releasing
 
-Each change ships as a release ZIP plus a source ZIP:
+Each change ships as release ZIPs plus a source ZIP, all in `release/`:
 
 ```bash
-npm run release
+npm run release          # build, check, test, verify the packages, then bump and zip
 # CHANGELOG.md: add the version, in plain Dutch, what colleagues notice
 git add -A && git commit -m "…"
-git archive --format=zip -o ONSAgendahulp-x.y.z-bron.zip HEAD
+npm run release -- --bron  # source ZIP of HEAD
 ```
 
 Distribution, pilot, emergency switches (managed policy, `features.formViaModel`), the per-release test in real ONS and rollback are in `docs/UITROL.md`.
 
-`*.zip` is git-ignored. The version lives in `manifest.json` and as fallback in `src/shared/version.js`; `npm run release` updates both.
+`*.zip` and `release/` are git-ignored. The version lives only in `manifest.json` (code reads it with `extensionVersion()`); `npm run release` also updates `MANAGER_VERSION` in the admin page.

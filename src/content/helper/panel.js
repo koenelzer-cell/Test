@@ -18,7 +18,7 @@ import { toggleInfoPanel } from './info-panel.js';
 import { findModal } from '../ons/modal.js';
 import { setRegistrationSubmitBlocked, updateRegistrationSubmitGuard } from '../features/registration/report.js';
 import { checkRegistrationEpisodesText, checkRegistrationNoShowText } from '../features/registration/prompts.js';
-import { SCRIPT_VERSION } from '../../shared/version.js';
+import { extensionVersion } from '../../shared/version.js';
 import { schermen } from '../screen/schermen.js';
 
 // Klapt het paneel ZIJWAARTS in/uit (breedte naar 0, spine blijft altijd
@@ -245,8 +245,8 @@ function buildPopup() {
   const infoBtn = document.createElement('button');
   infoBtn.setAttribute('data-info-toggle', '');
   infoBtn.setAttribute('data-popup-control', '');
-  infoBtn.setAttribute('aria-label', `Info en versie ${SCRIPT_VERSION}`);
-  infoBtn.title = `Info en versie ${SCRIPT_VERSION}`;
+  infoBtn.title = `Info en versie ${extensionVersion()}`;
+  infoBtn.setAttribute('aria-label', infoBtn.title);
   infoBtn.appendChild(svgInfoIcon());
   Object.assign(infoBtn.style, { background: '#f6f2f0', border: '1px solid #ece7e5', borderRadius: '8px', color: '#6b6367', cursor: 'pointer', lineHeight: '1', padding: '5px 7px', width: '28px', height: '28px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' });
   infoBtn.addEventListener('click', (e) => {

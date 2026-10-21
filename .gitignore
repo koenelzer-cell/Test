@@ -6,3 +6,4 @@ test-results/
 playwright-report/
 # Sourcemaps maakt alleen npm run dev.
 dist/*.map
+release/

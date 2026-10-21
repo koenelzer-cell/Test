@@ -139,8 +139,9 @@ noodschakelaar.
 
 ## 6. Een versie uitbrengen
 
-1. `npm run release` (bouwt, controleert, test, maakt de ZIP en de test-ZIP).
+1. `npm run release` (bouwt, controleert, test, kijkt de pakketten na en
+   maakt in `release/` de ZIP, de test-ZIP en de beheer-ZIP).
 2. `CHANGELOG.md` bijwerken: wat medewerkers merken, in gewone taal.
-3. Committen, bron-ZIP maken (`git archive`), pushen.
+3. Committen, `npm run release -- --bron` (de bron-ZIP), pushen.
 4. De test in echte ONS (hoofdstuk 4).
 5. Indienen in de winkel of op de eigen server zetten; eerst de pilotgroep.

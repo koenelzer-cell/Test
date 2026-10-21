@@ -5,7 +5,7 @@ import { PANEL_MAX, PANEL_MIN, PANEL_W_KEY, surveyState } from './state.js';
 import { saveManualAge } from './client-age.js';
 import { clearChecklist, loadChecklist, saveChecklist } from './checklist.js';
 import { hideBanner, renderChecklist } from './checklist-view.js';
-import { SCRIPT_VERSION } from '../shared/version.js';
+import { extensionVersion } from '../shared/version.js';
 
 // Opstarten: de onthouden paneelbreedte.
 export function loadPanelWidth() {
@@ -65,7 +65,7 @@ export function ensureBanner() {
   Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', fontSize: '13px', fontWeight: '700' });
   const version = document.createElement('span');
   version.setAttribute('data-survey-version', '');
-  version.textContent = 'v' + SCRIPT_VERSION;
+  version.textContent = 'v' + extensionVersion();
   version.title = 'Geladen versie van de vragenlijstcontrole';
   Object.assign(version.style, { flex: '0 0 auto', fontSize: '10px', fontWeight: '700', color: '#a49a9d' });
   const ctrlStyle = { flex: '0 0 auto', width: '24px', height: '24px', padding: '0', border: '1px solid #ece7e5', borderRadius: '7px', background: '#f6f2f0', color: '#6b6367', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };

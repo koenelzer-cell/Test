@@ -9,7 +9,7 @@
 // verplichte-vragencontrole werken als een ander onderdeel een fout geeft.
 
 import { startSurveyCheck } from './start.js';
-import { SCRIPT_VERSION } from '../shared/version.js';
+import { extensionVersion } from '../shared/version.js';
 
 (function () {
   // Alleen op het dossier (ons-dossier); geen overhead op de agenda-app.
@@ -18,7 +18,7 @@ import { SCRIPT_VERSION } from '../shared/version.js';
   // controleren, mogen hem niet opnieuw starten (all_frames-recursie).
   if (window.name === 'ons-helper-survey-scan') return;
   try {
-    document.documentElement.setAttribute('data-ons-agendahulp-survey-version', SCRIPT_VERSION);
+    document.documentElement.setAttribute('data-ons-agendahulp-survey-version', extensionVersion());
   } catch (e) {}
   startSurveyCheck();
 })();
