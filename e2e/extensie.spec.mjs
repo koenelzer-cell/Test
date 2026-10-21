@@ -96,9 +96,11 @@ test('laadt zonder fouten op ONS Agenda en ONS Dossier', async () => {
       await page.goto(url);
       await page.waitForTimeout(1500);
     }
-    // Content-scripts draaien: de agendahulp en de vragenlijst antwoorden het zijpaneel.
+    // Content-scripts draaien: de agendahulp antwoordt het zijpaneel; de
+    // vragenlijst (die alleen antwoordt met een checklist) merkt de pagina.
     expect(await naarTab(ext, AGENDA.replace(/\?.*/, '*'), { type: 'ag-get-state' })).toHaveProperty('state');
-    expect(await naarTab(ext, DOSSIER, { type: 'survey-get-state' })).toHaveProperty('state');
+    const dossier = context.pages().find((p) => p.url() === DOSSIER);
+    expect(await dossier.evaluate(() => document.documentElement.getAttribute('data-ons-agendahulp-survey-version'))).toMatch(/^\d+\.\d+\.\d+$/);
     // Het randlipje (edge-tab) en de main-world staan op de pagina.
     const agenda = context.pages().find((p) => p.url().startsWith(AGENDA.replace(/\?.*/, '')));
     await expect(agenda.locator('#onsah-edge-tab')).toHaveCount(1);

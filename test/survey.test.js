@@ -93,3 +93,22 @@ test('bedrijfsbeleid wint van config.json, ook als config.json later binnenkomt'
     delete globalThis.chrome; delete globalThis.fetch;
   }
 });
+
+test('een frame zonder checklist antwoordt het zijpaneel niet en zet geen badge', async () => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://impegno.ons-dossier.nl/clients/1/surveys', runScripts: 'outside-only', pretendToBeVisual: true });
+  const w = dom.window;
+  const luisteraars = [], verstuurd = [];
+  w.chrome = {
+    runtime: { getManifest: () => ({ version: '9.9.9' }), getURL: (p) => 'chrome-extension://t/' + p, lastError: undefined,
+      sendMessage: (m) => verstuurd.push(m), onMessage: { addListener: (fn) => luisteraars.push(fn) } },
+    storage: { local: { get: (k, cb) => cb({}) }, managed: { get: (k, cb) => cb({}) }, onChanged: { addListener: () => {} } },
+  };
+  w.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve(null) });
+  w.eval(fs.readFileSync(path.join(ROOT, 'dist', 'survey.js'), 'utf8'));
+  await new Promise((r) => setTimeout(r, 50));
+  const antwoorden = [];
+  const wachtOpAntwoord = luisteraars.map((fn) => fn({ type: 'survey-get-state' }, {}, (r) => antwoorden.push(r)));
+  assert.deepEqual(antwoorden, [], 'geen antwoord zonder checklist');
+  assert.ok(!wachtOpAntwoord.includes(true), 'en ook geen belofte van een later antwoord');
+  assert.deepEqual(verstuurd.filter((m) => m && m.type === 'badge'), []);
+});

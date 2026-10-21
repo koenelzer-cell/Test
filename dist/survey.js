@@ -2986,7 +2986,7 @@
   }
 
   // src/survey/checklist.js
-  var _lastBadge = -1;
+  var _lastBadge = 0;
   function sendBadge(count) {
     const c = Math.max(0, count | 0);
     if (c === _lastBadge) return;
@@ -3896,11 +3896,9 @@
         }
         if (msg.type === MSG.SURVEY_GET_STATE) {
           surveyState._zijpaneelOpen = true;
-          try {
-            sendResponse({ state: checklistVoorZijpaneel(surveyState._laatsteChecklist) });
-          } catch (e) {
-          }
-          return true;
+          const state = checklistVoorZijpaneel(surveyState._laatsteChecklist);
+          if (state) sendResponse({ state });
+          return;
         }
         if (msg.type === MSG.SURVEY_OPEN_ITEM) {
           try {

@@ -92,8 +92,12 @@ export function listenForSidePanel() {
       }
       if (msg.type === MSG.SURVEY_GET_STATE) {
         surveyState._zijpaneelOpen = true;
-        try { sendResponse({ state: checklistVoorZijpaneel(surveyState._laatsteChecklist) }); } catch (e) {}
-        return true;
+        // Elk frame krijgt dit bericht en het eerste antwoord telt: alleen een
+        // frame met een checklist antwoordt. Zonder antwoord toont het
+        // zijpaneel de agendahulp.
+        const state = checklistVoorZijpaneel(surveyState._laatsteChecklist);
+        if (state) sendResponse({ state });
+        return;
       }
       if (msg.type === MSG.SURVEY_OPEN_ITEM) { try { openChecklistItem(msg.index | 0); } catch (e) {} return; }
     });

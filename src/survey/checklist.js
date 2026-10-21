@@ -21,7 +21,10 @@ import { absoluteSurveyUrl, surveyEditUrlFromOverview, surveyResultId } from './
 import { MSG } from '../shared/messages.js';
 import { veiligeHtml } from '../shared/veilige-html.js';
 
-let _lastBadge = -1;
+// Het badgegetal van dit tabblad zet alleen een frame dat een checklist
+// heeft (gehad): een frame zonder checklist (een ander frame, of de agenda in
+// ONS Dossier) stuurt geen 0 die het getal van een ander overschrijft.
+let _lastBadge = 0;
 export function sendBadge(count) {
   const c = Math.max(0, count | 0);
   if (c === _lastBadge) return;
