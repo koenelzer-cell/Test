@@ -319,7 +319,14 @@
   var MENU_ROOT = "onsHelper.register";
   var MENU_PANEL = "onsHelper.panel";
   var MAX_FORMS = 25;
+  var opbouw = Promise.resolve();
   function buildMenu(forms) {
+    opbouw = opbouw.then(function() {
+      return bouwMenu(forms);
+    });
+    return opbouw;
+  }
+  function bouwMenu(forms) {
     return new Promise(function(resolve) {
       try {
         chrome.contextMenus.removeAll(function() {
@@ -348,8 +355,7 @@
             title: "Agendahulp in zijpaneel",
             contexts: ["all"],
             documentUrlPatterns: ONS_URL_PATTERNS
-          });
-          resolve();
+          }, resolve);
         });
       } catch (e) {
         resolve();

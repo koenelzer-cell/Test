@@ -16,7 +16,16 @@ const MENU_ROOT = 'onsHelper.register';
 const MENU_PANEL = 'onsHelper.panel';
 const MAX_FORMS = 25;
 
+// Eén opbouw tegelijk. removeAll en create zijn asynchroon; een installatie en
+// een tabblad dat net zijn vormen stuurt, bouwen anders door elkaar heen en
+// maken dubbele ids aan.
+let opbouw = Promise.resolve();
 function buildMenu(forms) {
+  opbouw = opbouw.then(function () { return bouwMenu(forms); });
+  return opbouw;
+}
+
+function bouwMenu(forms) {
   return new Promise(function (resolve) {
     try {
       chrome.contextMenus.removeAll(function () {
@@ -33,11 +42,11 @@ function buildMenu(forms) {
             });
           });
         }
+        // Klaar zodra het laatste item er staat; create werkt op volgorde.
         chrome.contextMenus.create({
           id: MENU_PANEL, title: 'Agendahulp in zijpaneel', contexts: ['all'],
           documentUrlPatterns: ONS_URL_PATTERNS,
-        });
-        resolve();
+        }, resolve);
       });
     } catch (e) { resolve(); }
   });
