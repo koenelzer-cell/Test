@@ -3,8 +3,10 @@
 // onthouden we alleen in dit zijpaneel (localStorage van de extensie); er gaat
 // niets naar buiten.
 
+import { PANEL_LOCAL } from '../shared/storage-keys.js';
+
 const BRAND = '#cc087d';
-const SLEUTEL = 'onsHelper.rondleiding.';
+const SLEUTEL = PANEL_LOCAL.TOUR_DONE;
 
 export function rondleidingGedaan(naam) {
   try { return localStorage.getItem(SLEUTEL + naam) === '1'; } catch (e) { return true; }

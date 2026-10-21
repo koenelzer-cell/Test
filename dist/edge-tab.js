@@ -86,6 +86,25 @@
     // { index }
   };
 
+  // src/shared/storage-keys.js
+  var PAGE_SESSION = {
+    PENDING_REGISTRATION: "onsHelper.pendingReg",
+    // registratie vanuit een afspraak (label, vorm, tijden)
+    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
+    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
+    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
+    PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
+    SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
+    SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
+    // + resultaat-id
+    SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
+    SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
+    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge",
+    EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
+    // het lipje heeft deze sessie al eens gewiebeld
+  };
+
   // src/shared/losgekoppeld.js
   var ELKE_MS = 2e3;
   function bijLosgekoppeld(opruimen) {
@@ -104,7 +123,7 @@
     const ROZE = "#cc087d";
     const ROZE_DIEP = "#8c0a58";
     const STIJL_ID = "onsah-edge-tab-stijl";
-    const NUDGE_KEY = "onsHelper.edgeTabNudged";
+    const NUDGE_KEY = PAGE_SESSION.EDGE_TAB_NUDGED;
     let tab = null, chev = null, labelEl = null, tipEl = null;
     let open = false;
     const VERS_MS = 5e3;

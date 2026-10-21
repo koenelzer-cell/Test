@@ -173,13 +173,14 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 | Waar | Wat |
 |---|---|
 | `chrome.storage.sync` | gekozen bedrijfsonderdeel en team (reist mee naar andere apparaten) |
-| `chrome.storage.local` | lokale testconfig, UI-inspector-herstel, momentopname, herinnering, registratievormen |
+| `chrome.storage.local` | lokale testconfig, UI-inspector-herstel, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen |
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
-| localStorage van de ONS-pagina | aan/uit-schakelaars, breedte vragenlijstpaneel |
-| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, vragenlijst-checklist en -cache (weg bij sluiten tabblad) |
+| localStorage van de ONS-pagina | aan/uit-schakelaars, breedte vragenlijstpaneel, geleerde vorm van ONS-verzoeken |
+| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, vragenlijst-checklist en -cache, het lipje (weg bij sluiten tabblad) |
+| localStorage van het zijpaneel | vertrekpunt van Route van de dag, geziene rondleidingen |
 
-De sleutels en plekken zijn bij de herstructurering niet veranderd: bestaande
-voorkeuren blijven werken zonder migratie.
+Een nieuwe sleutel komt eerst in dat bestand. Bestaande namen en plekken
+veranderen niet zonder migratie: dan raakt een medewerker een voorkeur kwijt.
 
 ## Configuratie
 

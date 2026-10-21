@@ -43,4 +43,11 @@ export const PAGE_SESSION = {
   SURVEY_AUDIT_CACHE: 'onsHelper.surveyCategoryAuditCache',
   SURVEY_AUDIT_RESUME: 'onsHelper.surveyAuditResume',
   SURVEY_MANUAL_AGE: 'onsHelper.surveyManualAge',
+  EDGE_TAB_NUDGED: 'onsHelper.edgeTabNudged',            // het lipje heeft deze sessie al eens gewiebeld
+};
+
+// localStorage van het zijpaneel (origin van de extensie) — alleen dit apparaat.
+export const PANEL_LOCAL = {
+  ROUTE_START: 'onsah.routeVertrekpunt',   // vertrekpunt voor Route van de dag
+  TOUR_DONE: 'onsHelper.rondleiding.',     // + naam van de rondleiding: '1' als hij gezien is
 };

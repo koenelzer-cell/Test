@@ -30,6 +30,7 @@
    ========================================================================== */
 
 import { MSG } from '../shared/messages.js';
+import { PAGE_SESSION } from '../shared/storage-keys.js';
 import { bijLosgekoppeld } from '../shared/losgekoppeld.js';
 
 (function () {
@@ -41,7 +42,7 @@ import { bijLosgekoppeld } from '../shared/losgekoppeld.js';
   const ROZE = '#cc087d';
   const ROZE_DIEP = '#8c0a58';
   const STIJL_ID = 'onsah-edge-tab-stijl';
-  const NUDGE_KEY = 'onsHelper.edgeTabNudged';  // sessionStorage: één keer per sessie wiebelen
+  const NUDGE_KEY = PAGE_SESSION.EDGE_TAB_NUDGED;  // één keer per sessie wiebelen
   let tab = null, chev = null, labelEl = null, tipEl = null;
   let open = false;
   const VERS_MS = 5000;        // zo lang telt een 'open' van het zijpaneel zelf

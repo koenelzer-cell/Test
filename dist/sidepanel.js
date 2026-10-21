@@ -2930,9 +2930,17 @@
     return b;
   }
 
+  // src/shared/storage-keys.js
+  var PANEL_LOCAL = {
+    ROUTE_START: "onsah.routeVertrekpunt",
+    // vertrekpunt voor Route van de dag
+    TOUR_DONE: "onsHelper.rondleiding."
+    // + naam van de rondleiding: '1' als hij gezien is
+  };
+
   // src/sidepanel/rondleiding.js
   var BRAND = "#cc087d";
-  var SLEUTEL = "onsHelper.rondleiding.";
+  var SLEUTEL = PANEL_LOCAL.TOUR_DONE;
   function rondleidingGedaan(naam) {
     try {
       return localStorage.getItem(SLEUTEL + naam) === "1";
@@ -8921,7 +8929,7 @@
   }
 
   // src/sidepanel/pagina-route.js
-  var VERTREK_KEY = "onsah.routeVertrekpunt";
+  var VERTREK_KEY = PANEL_LOCAL.ROUTE_START;
   function maakRoute(ctx) {
     const { actions, renderPagina } = ctx;
     let vertrekGeheugen = null;

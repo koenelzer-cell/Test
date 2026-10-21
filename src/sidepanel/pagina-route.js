@@ -6,9 +6,10 @@ import { HULP_KLEUR, ICON_ROUTE, ICON_VERVERS, T, dagLang, dayLabel, el, fieldLa
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, vraagRoutes } from './geo.js';
 import { maakKiezers } from './kiezers.js';
 import { qrSvg } from './qr.js';
+import { PANEL_LOCAL } from '../shared/storage-keys.js';
 
 // Vertrekpunt alleen op dit apparaat (localStorage van het zijpaneel).
-const VERTREK_KEY = 'onsah.routeVertrekpunt';
+const VERTREK_KEY = PANEL_LOCAL.ROUTE_START;
 
 export function maakRoute(ctx) {
   const { actions, renderPagina } = ctx;

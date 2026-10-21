@@ -99,7 +99,9 @@
     // + resultaat-id
     SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
     SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
-    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge"
+    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge",
+    EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
+    // het lipje heeft deze sessie al eens gewiebeld
   };
 
   // src/main-world/index.js
