@@ -9,8 +9,10 @@
 // gebruiker op dit moment bekijkt. Anders blijft een agenda-tab op de
 // achtergrond zijn weekoverzicht sturen terwijl je op een vragenlijst zit.
 //
-// Deze toestand staat bewust in variabelen en niet in opslag: de poort zelf
-// houdt de worker wakker zolang het zijpaneel open is.
+// Deze toestand staat bewust in variabelen en niet in opslag. Een open poort
+// houdt de worker niet wakker: na een tijd zonder werk sluit de browser hem en
+// valt de poort weg. Het zijpaneel verbindt dan meteen opnieuw
+// (sidepanel/index.js), en die verbinding start de worker met de juiste telling.
 
 import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { isOnsUrl } from '../shared/ons-hosts.js';

@@ -6,7 +6,8 @@
 //  - de extensie laadt zonder fouten, op ONS Agenda en op ONS Dossier;
 //  - de content-scripts draaien en antwoorden het zijpaneel;
 //  - de service worker overleeft het afsluiten door de browser: na een
-//    herstart antwoordt hij weer, en menu, wekker en badge staan er nog.
+//    herstart antwoordt hij weer, en menu, wekker en zijpaneel staan er nog;
+//  - hij antwoordt alleen afzenders die het bericht mogen sturen.
 import { test, expect, chromium } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -77,8 +78,7 @@ const naarTab = (ext, url, bericht) => ext.page.evaluate(async ({ url, bericht }
 
 const naarWorker = (ext, bericht) => ext.page.evaluate((b) => chrome.runtime.sendMessage(b), bericht);
 
-// Het badgegetal staat per tabblad: het tabblad dat het bericht stuurde (hier
-// de extensiepagina zelf, op de ONS-pagina het content-script).
+// Het badgegetal staat per tabblad: het tabblad dat het bericht stuurde.
 const badge = (ext) => ext.page.evaluate(async () => chrome.action.getBadgeText({ tabId: (await chrome.tabs.getCurrent()).id }));
 
 const menuBestaat = (ext, menuId) => ext.page.evaluate((m) => new Promise((klaar) => {
@@ -118,8 +118,10 @@ test('service worker werkt na afsluiten en herstarten', async () => {
     await page.goto(AGENDA);
     await expect.poll(() => menuBestaat(ext, 'onsHelper.panel')).toBe(true);
     await naarWorker(ext, { type: 'reminder-settings', enabled: true, weekday: 5, hour: 15, minute: 0 });
+    // Badge en tabblad openen zijn voor content-scripts in een ONS-tabblad.
     await naarWorker(ext, { type: 'badge', count: 3 });
-    await expect.poll(() => badge(ext)).toBe('3');
+    expect(await naarWorker(ext, { type: 'open-tab', url: 'https://voorbeeld.nl/' })).toBeUndefined();
+    expect(await badge(ext)).toBe('');
     const wekker = await ext.page.evaluate(() => chrome.alarms.get('onsHelper.reminder'));
     expect(wekker).toBeTruthy();
 
@@ -133,7 +135,6 @@ test('service worker werkt na afsluiten en herstarten', async () => {
     await expect.poll(() => ext.status.draait).toBe(true);
     expect(await menuBestaat(ext, 'onsHelper.panel')).toBe(true);
     expect(await ext.page.evaluate(() => chrome.alarms.get('onsHelper.reminder'))).toEqual(wekker);
-    expect(await badge(ext)).toBe('3');
     expect(await ext.page.evaluate(() => chrome.sidePanel.getOptions({}))).toMatchObject({ enabled: true, path: 'pages/sidepanel.html' });
     expect(await naarTab(ext, AGENDA.replace(/\?.*/, '*'), { type: 'ag-get-state' })).toHaveProperty('state');
     expect(ext.status.fouten).toEqual([]);

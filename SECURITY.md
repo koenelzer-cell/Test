@@ -230,6 +230,10 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   geteld, een medewerker-id moet uit cijfers bestaan, en het opslaan-bericht
   van een afspraak laat hooguit 19 kopieën maken (20 momenten per keer, ook
   vanuit het zijpaneel).
+- **Service worker:** neemt alleen berichten van deze extensie aan, en per
+  soort alleen van de juiste afzender: badge, momentopname, vormen, zijpaneel
+  en een tabblad openen (alleen https) van een content-script in een
+  ONS-tabblad; de herinnering van een pagina van de extensie (de popup).
 - **Medewerker-id:** als laatste redmiddel vraagt de hulp het aan
   `onsContext()` van de pagina, via de main-world; komt er binnen 1,5 s geen
   antwoord, dan valt de hulp terug op het uitlezen van de uursoort-dropdown.

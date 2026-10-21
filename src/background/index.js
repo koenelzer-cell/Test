@@ -14,16 +14,30 @@
 // worden; dat gebeurt hieronder.
 
 import { MSG } from '../shared/messages.js';
+import { isOnsUrl } from '../shared/ons-hosts.js';
 import { setBadge } from './badge.js';
 import { saveSnapshot, loadSnapshot } from './snapshot.js';
 import { ALARM_NAME, loadSettings, updateSettings, showReminder, rescheduleAlarm, onNotificationClicked } from './reminder.js';
 import { rebuildMenuFromStorage, updateForms, onMenuClicked } from './context-menu.js';
 import { onConnect, onTabUpdated, verversZijpaneelTab, answerSidePanelQuery, openSidePanel, resetPanelOptions } from './side-panel.js';
 
+// Wie mag wat vragen. Een content-script in een ONS-tabblad (badge,
+// momentopname, vormen, zijpaneel, tabblad openen), of een pagina van de
+// extensie zelf (de popup: herinnering). Andere afzenders, ook een
+// content-script in een ander tabblad, krijgen geen antwoord.
+const VAN_ONS_TABBLAD = new Set([MSG.BADGE, MSG.SUMMARY, MSG.FORMS, MSG.OPEN_SIDE_PANEL, MSG.SIDEPANEL_QUERY, MSG.OPEN_TAB]);
+const VAN_EXTENSIEPAGINA = new Set([MSG.REMINDER_GET, MSG.REMINDER_SETTINGS, MSG.REMINDER_TEST]);
+function magBericht(type, sender) {
+  if (!sender || sender.id !== chrome.runtime.id) return false;
+  if (VAN_ONS_TABBLAD.has(type)) return !!sender.tab && isOnsUrl(sender.tab.url);
+  if (VAN_EXTENSIEPAGINA.has(type)) return String(sender.url || '').startsWith(chrome.runtime.getURL(''));
+  return false;
+}
+
 // Berichten. Een handler die later antwoordt, geeft true terug.
 function onMessage(msg, sender, sendResponse) {
-  if (!msg || typeof msg !== 'object') return;
-  const tabId = sender && sender.tab && sender.tab.id;
+  if (!msg || typeof msg !== 'object' || !magBericht(msg.type, sender)) return;
+  const tabId = sender.tab && sender.tab.id;
 
   switch (msg.type) {
     case MSG.BADGE:
@@ -58,8 +72,6 @@ function onMessage(msg, sender, sendResponse) {
       if (tabId == null) return;
       openSidePanel(tabId, sendResponse);
       return true;
-    // De panelen zenden hun toestand uit naar open extensiepagina's (het
-    // zijpaneel); de worker hoeft daar niets mee.
     default:
       return;
   }

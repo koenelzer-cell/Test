@@ -56,7 +56,10 @@ function fakeChrome() {
 
 // Stuur een bericht naar de geregistreerde onMessage-luisteraars; wacht op een
 // eventueel asynchroon antwoord.
-function send(listeners, msg, sender = { tab: { id: 7 } }) {
+// Zoals de browser een bericht van een content-script in een ONS-tabblad aflevert.
+const ONS_TAB = { id: 'test', url: 'https://impegno.onsagenda.nl/invitees/1', tab: { id: 7, url: 'https://impegno.onsagenda.nl/invitees/1' } };
+const POPUP = { id: 'test', url: 'chrome-extension://test/pages/popup.html' };
+function send(listeners, msg, sender = ONS_TAB) {
   return new Promise((resolve) => {
     let answered = false;
     const reply = (r) => { answered = true; resolve(r); };
@@ -103,15 +106,31 @@ test('service worker: registratievormen worden het rechtermuismenu', async () =>
 
 test('service worker: herinnering staat standaard uit en is aan te zetten', async () => {
   const { listeners, store, calls } = loadWorker();
-  const start = await send(listeners, { type: 'reminder-get' });
+  const start = await send(listeners, { type: 'reminder-get' }, POPUP);
   assert.equal(start.settings.enabled, false);
-  const res = await send(listeners, { type: 'reminder-settings', enabled: true, hour: 99 });
+  const res = await send(listeners, { type: 'reminder-settings', enabled: true, hour: 99 }, POPUP);
   assert.equal(res.ok, true);
   assert.equal(res.settings.enabled, true);
   assert.equal(res.settings.hour, 15, 'een ongeldig uur hoort genegeerd te worden');
   assert.equal(store.local['onsHelper.reminders'].enabled, true);
   await tick();
   assert.ok(calls.alarms.length >= 1, 'de wekker hoort gezet te worden');
+});
+
+test('service worker: antwoordt alleen de afzender die het bericht mag sturen', async () => {
+  const { listeners, calls, chrome } = loadWorker();
+  const gemaakt = [];
+  chrome.tabs.create = (o, cb) => { gemaakt.push(o); cb({}); };
+  const anderTabblad = { id: 'test', url: 'https://voorbeeld.nl/', tab: { id: 9, url: 'https://voorbeeld.nl/' } };
+  const andereExtensie = { ...ONS_TAB, id: 'iemand-anders' };
+  for (const sender of [anderTabblad, andereExtensie, POPUP]) {
+    assert.equal(await send(listeners, { type: 'open-tab', url: 'https://voorbeeld.nl/' }, sender), undefined);
+    await send(listeners, { type: 'badge', count: 3 }, sender);
+  }
+  assert.equal(gemaakt.length, 0);
+  assert.equal(calls.badge.length, 0);
+  assert.equal(await send(listeners, { type: 'reminder-get' }, ONS_TAB), undefined, 'de herinnering is van de popup');
+  assert.equal(await send(listeners, { type: 'reminder-settings', enabled: true }, anderTabblad), undefined);
 });
 
 test('service worker: zonder open zijpaneel is het antwoord "dicht"', async () => {
@@ -263,7 +282,7 @@ test('service worker: opent alleen https-adressen in een nieuw tabblad naast het
   const { listeners, chrome } = loadWorker();
   const gemaakt = [];
   chrome.tabs.create = (o, cb) => { gemaakt.push(o); cb({}); };
-  const sender = { tab: { id: 7, index: 3, windowId: 2 } };
+  const sender = { ...ONS_TAB, tab: { ...ONS_TAB.tab, index: 3, windowId: 2 } };
   assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'https://login.afasonline.com/83031/Apps' }, sender)) }, { ok: true });
   assert.deepEqual({ ...gemaakt[0] }, { url: 'https://login.afasonline.com/83031/Apps', active: true, index: 4, windowId: 2 });
   assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'javascript:alert(1)' }, sender)) }, { ok: false });

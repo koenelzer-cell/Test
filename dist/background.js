@@ -87,6 +87,25 @@
   };
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
 
+  // src/shared/ons-hosts.js
+  var ONS_URL_PATTERNS = function() {
+    try {
+      return chrome.runtime.getManifest().host_permissions || [];
+    } catch (e) {
+      return [];
+    }
+  }();
+  var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
+    const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
+    return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");
+  }).filter(Boolean);
+  function isOnsUrl(url) {
+    const u = String(url || "");
+    return ONS_URL_RES.some(function(re) {
+      return re.test(u);
+    });
+  }
+
   // src/background/badge.js
   var BADGE_COLOR = "#cc087d";
   function setBadge(count, tabId) {
@@ -188,25 +207,6 @@
   function loadSnapshot() {
     return readLocal([LOCAL.SNAPSHOT]).then(function(v) {
       return v[LOCAL.SNAPSHOT] || null;
-    });
-  }
-
-  // src/shared/ons-hosts.js
-  var ONS_URL_PATTERNS = function() {
-    try {
-      return chrome.runtime.getManifest().host_permissions || [];
-    } catch (e) {
-      return [];
-    }
-  }();
-  var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
-    const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
-    return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");
-  }).filter(Boolean);
-  function isOnsUrl(url) {
-    const u = String(url || "");
-    return ONS_URL_RES.some(function(re) {
-      return re.test(u);
     });
   }
 
@@ -516,9 +516,17 @@
   }
 
   // src/background/index.js
+  var VAN_ONS_TABBLAD = /* @__PURE__ */ new Set([MSG.BADGE, MSG.SUMMARY, MSG.FORMS, MSG.OPEN_SIDE_PANEL, MSG.SIDEPANEL_QUERY, MSG.OPEN_TAB]);
+  var VAN_EXTENSIEPAGINA = /* @__PURE__ */ new Set([MSG.REMINDER_GET, MSG.REMINDER_SETTINGS, MSG.REMINDER_TEST]);
+  function magBericht(type, sender) {
+    if (!sender || sender.id !== chrome.runtime.id) return false;
+    if (VAN_ONS_TABBLAD.has(type)) return !!sender.tab && isOnsUrl(sender.tab.url);
+    if (VAN_EXTENSIEPAGINA.has(type)) return String(sender.url || "").startsWith(chrome.runtime.getURL(""));
+    return false;
+  }
   function onMessage(msg, sender, sendResponse) {
-    if (!msg || typeof msg !== "object") return;
-    const tabId = sender && sender.tab && sender.tab.id;
+    if (!msg || typeof msg !== "object" || !magBericht(msg.type, sender)) return;
+    const tabId = sender.tab && sender.tab.id;
     switch (msg.type) {
       case MSG.BADGE:
         setBadge(msg.count | 0, tabId);
@@ -563,8 +571,6 @@
         if (tabId == null) return;
         openSidePanel(tabId, sendResponse);
         return true;
-      // De panelen zenden hun toestand uit naar open extensiepagina's (het
-      // zijpaneel); de worker hoeft daar niets mee.
       default:
         return;
     }
