@@ -145,8 +145,10 @@ laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
 
 In de popup staat het blok **Werktijden**. Met **Instellen** vul je per
 werkdag (ma t/m vr) in of je werkt en van hoe laat tot hoe laat; de velden
-staan eerst op de dagindeling van je team. Opslaan kijkt na dat het begin voor
-het einde ligt. Dicht toont het blok een samenvatting, bijvoorbeeld 'ma t/m do
+staan eerst op de dagindeling van je team. Tijden staan altijd in 24 uur
+(09:00, 17:00), ook in een Engelstalige browser; kort typen mag ('9' wordt
+09:00, '1230' wordt 12:30). Opslaan kijkt na dat het begin voor het einde
+ligt. Dicht toont het blok een samenvatting, bijvoorbeeld 'ma t/m do
 08:30 tot 17:00, vr 08:30 tot 12:30'. **Wissen** (na bevestigen) zet terug naar
 de dagindeling van het team. De tijden staan in `chrome.storage.sync` en
 reizen mee naar je andere apparaten.
@@ -177,7 +179,7 @@ melding opent het ONS-tabblad.
 
 Onderaan het zijpaneel staat de knop **Verlof aanvragen**. De dialoog heeft
 dezelfde velden als *Onbeschikbaarheid toevoegen* in ONS: omschrijving,
-begindatum, begin- en eindtijd of *hele dag*, en herhaling (*niet*,
+begindatum, begin- en eindtijd (24 uur, bijv. 09:00) of *hele dag*, en herhaling (*niet*,
 *dagelijks* of *wekelijks* op gekozen weekdagen, iedere N dagen/weken, tot een
 datum). Bij opslaan legt de hulp de onbeschikbaarheid vast in ONS, opent AFAS
 in een nieuw tabblad en ververst de agenda. In `config.json` (`leaveRequest`)

@@ -263,10 +263,14 @@ test('popup: eigen werktijden instellen, nakijken en wissen', async () => {
   const rij = (dag) => blok.querySelector('[data-dag="' + dag + '"]');
   const velden = (dag) => rij(dag).querySelectorAll('input');
   assert.equal(velden(1)[1].value, '08:00', 'gevuld met de dagindeling van het team');
+  assert.equal(blok.querySelectorAll('input[type="time"]').length, 0, 'geen tijdkiezer van de browser (die toont AM/PM)');
+  assert.doesNotMatch(blok.textContent, /De agenda kleurt/);
   // Woensdag vrij, vrijdag tot half een.
   velden(3)[0].checked = false; velden(3)[0].dispatchEvent(new document.defaultView.Event('change'));
   assert.equal(velden(3)[1].disabled, true);
-  velden(5)[2].value = '12:30';
+  // Kort typen mag: '1230' wordt 12:30.
+  velden(5)[2].value = '1230'; velden(5)[2].dispatchEvent(new document.defaultView.Event('blur'));
+  assert.equal(velden(5)[2].value, '12:30');
   // Eerst een fout: begin na het einde.
   velden(1)[1].value = '18:00';
   knop('Opslaan').click();

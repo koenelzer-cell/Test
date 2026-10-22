@@ -23,6 +23,7 @@ import { ONSAH_TOKENS, onsahFocusRing } from '../../ui/theme.js';
 import { mkModalShell } from '../../ui/modal-shell.js';
 import { mkPillButton } from '../../ui/controls.js';
 import { MSG } from '../../../shared/messages.js';
+import { createTimeField, normalizeTime } from '../../../shared/time-field.js';
 
 const MODAL_ID = 'onsah-leave-modal';
 const RELOAD_DELAY_MS = 1500;
@@ -60,6 +61,14 @@ function input(type, value) {
   const i = document.createElement('input');
   i.type = type;
   i.value = value;
+  i.style.cssText = CONTROL_CSS;
+  onsahFocusRing(i);
+  return i;
+}
+
+// Tijd in 24-uursnotatie, ook als de browser in het Engels staat.
+function timeField(value, label) {
+  const i = createTimeField(value, label);
   i.style.cssText = CONTROL_CSS;
   onsahFocusRing(i);
   return i;
@@ -119,8 +128,8 @@ export function openLeaveDialog() {
   // Zelfde velden en volgorde als 'Onbeschikbaarheid toevoegen' in ONS.
   const description = input('text', cfg.description);
   const date = input('date', today);
-  const startTime = input('time', '09:00');
-  const endTime = input('time', '17:00');
+  const startTime = timeField('09:00', 'Begintijd');
+  const endTime = timeField('17:00', 'Eindtijd');
   const allDay = checkbox('Hele dag', false);
   allDay.wrap.style.paddingBottom = '9px';
   const recurrence = select([['none', 'Niet'], ['daily', 'Dagelijks'], ['weekly', 'Wekelijks']], 'none');
@@ -193,7 +202,9 @@ export function openLeaveDialog() {
   function form() {
     return {
       description: description.value, date: date.value,
-      startTime: startTime.value, endTime: endTime.value, allDay: allDay.box.checked,
+      startTime: normalizeTime(startTime.value) || startTime.value,
+      endTime: normalizeTime(endTime.value) || endTime.value,
+      allDay: allDay.box.checked,
       recurrence: recurrence.value, interval: interval.value, until: until.value,
       weekdays: WEEKDAYS.filter((d) => dayBoxes[d].checked),
     };

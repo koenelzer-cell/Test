@@ -17989,6 +17989,32 @@
     });
   }
 
+  // src/shared/time-field.js
+  function normalizeTime(text2) {
+    const s = String(text2 == null ? "" : text2).trim().replace(/[.,]/g, ":");
+    const m = /^(\d{1,2})(?::(\d{2}))?$/.exec(s) || /^(\d{1,2})(\d{2})$/.exec(s);
+    if (!m) return null;
+    const hours = +m[1], minutes = m[2] == null ? 0 : +m[2];
+    if (hours > 23 || minutes > 59) return null;
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+  }
+  function createTimeField(value, label) {
+    const input2 = document.createElement("input");
+    input2.type = "text";
+    input2.inputMode = "numeric";
+    input2.autocomplete = "off";
+    input2.maxLength = 5;
+    input2.placeholder = "uu:mm";
+    input2.value = value || "";
+    input2.setAttribute("aria-label", label);
+    input2.addEventListener("blur", () => {
+      const time = normalizeTime(input2.value);
+      if (time) input2.value = time;
+      input2.setAttribute("aria-invalid", time || !input2.value ? "false" : "true");
+    });
+    return input2;
+  }
+
   // src/content/features/leave/leave-request.js
   var MODAL_ID = "onsah-leave-modal";
   var RELOAD_DELAY_MS = 1500;
@@ -18017,6 +18043,12 @@
     const i = document.createElement("input");
     i.type = type;
     i.value = value;
+    i.style.cssText = CONTROL_CSS;
+    onsahFocusRing(i);
+    return i;
+  }
+  function timeField(value, label) {
+    const i = createTimeField(value, label);
     i.style.cssText = CONTROL_CSS;
     onsahFocusRing(i);
     return i;
@@ -18070,8 +18102,8 @@
     const body = modal.body;
     const description = input("text", cfg.description);
     const date = input("date", today);
-    const startTime = input("time", "09:00");
-    const endTime = input("time", "17:00");
+    const startTime = timeField("09:00", "Begintijd");
+    const endTime = timeField("17:00", "Eindtijd");
     const allDay = checkbox("Hele dag", false);
     allDay.wrap.style.paddingBottom = "9px";
     const recurrence = select([["none", "Niet"], ["daily", "Dagelijks"], ["weekly", "Wekelijks"]], "none");
@@ -18147,8 +18179,8 @@
       return {
         description: description.value,
         date: date.value,
-        startTime: startTime.value,
-        endTime: endTime.value,
+        startTime: normalizeTime(startTime.value) || startTime.value,
+        endTime: normalizeTime(endTime.value) || endTime.value,
         allDay: allDay.box.checked,
         recurrence: recurrence.value,
         interval: interval.value,

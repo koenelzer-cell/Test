@@ -109,6 +109,12 @@ test('verlof: de dialoog heeft de velden van ONS', () => {
   for (const label of ['Omschrijving', 'Begindatum', 'Begintijd', 'Eindtijd', 'Hele dag', 'Herhaling', 'Herhaal iedere', 'Herhaal tot']) {
     assert.match(modal.textContent, new RegExp(label));
   }
+  // Tijden in 24-uursnotatie, ook in een Engelse browser: geen tijdkiezer van de browser.
+  assert.equal(modal.querySelectorAll('input[type="time"]').length, 0);
+  const begin = modal.querySelector('input[aria-label="Begintijd"]');
+  assert.equal(begin.value, '09:00');
+  begin.value = '930'; begin.dispatchEvent(new window.Event('blur'));
+  assert.equal(begin.value, '09:30');
   const herhaling = modal.querySelector('select');
   assert.deepEqual(Array.from(herhaling.options, (o) => o.textContent), ['Niet', 'Dagelijks', 'Wekelijks']);
   // Wekelijks toont de weekdagen.

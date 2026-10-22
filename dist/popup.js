@@ -311,6 +311,32 @@
     }).join(", ");
   }
 
+  // src/shared/time-field.js
+  function normalizeTime(text) {
+    const s = String(text == null ? "" : text).trim().replace(/[.,]/g, ":");
+    const m = /^(\d{1,2})(?::(\d{2}))?$/.exec(s) || /^(\d{1,2})(\d{2})$/.exec(s);
+    if (!m) return null;
+    const hours = +m[1], minutes = m[2] == null ? 0 : +m[2];
+    if (hours > 23 || minutes > 59) return null;
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+  }
+  function createTimeField(value, label) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.autocomplete = "off";
+    input.maxLength = 5;
+    input.placeholder = "uu:mm";
+    input.value = value || "";
+    input.setAttribute("aria-label", label);
+    input.addEventListener("blur", () => {
+      const time = normalizeTime(input.value);
+      if (time) input.value = time;
+      input.setAttribute("aria-invalid", time || !input.value ? "false" : "true");
+    });
+    return input;
+  }
+
   // src/popup/work-hours.js
   var ICON_EDIT = "M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.33-2.33a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.82-1.84z";
   var ICON_SAVE = "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z";
@@ -355,10 +381,9 @@
         works.checked = !!w;
         label.appendChild(works);
         label.appendChild(document.createTextNode(DAY_NAMES[day]));
-        const start = el("input", { type: "time", step: "300", "aria-label": "Begin " + DAY_NAMES[day] });
-        const end = el("input", { type: "time", step: "300", "aria-label": "Einde " + DAY_NAMES[day] });
-        start.value = minutesToHm((w || team).start);
-        end.value = minutesToHm((w || team).end);
+        const start = createTimeField(minutesToHm((w || team).start), "Begin " + DAY_NAMES[day]);
+        const end = createTimeField(minutesToHm((w || team).end), "Einde " + DAY_NAMES[day]);
+        start.className = end.className = "time-field";
         const sync = () => {
           start.disabled = end.disabled = !works.checked;
         };
@@ -371,17 +396,21 @@
         wrap.appendChild(row);
         return { day, works, start, end };
       });
-      wrap.appendChild(el("div", { class: "hint" }, "De agenda kleurt alleen binnen je werktijden, en de planhulp zoekt daar vrije tijd. Zonder vinkje: geen werkdag."));
       const actions = el("div", { class: "section-actions" });
       actions.appendChild(button("primary", ICON_SAVE, "Opslaan", () => {
         const raw = {};
         for (const r of rows) {
           if (!r.works.checked) continue;
-          if (!(hmToMinutes(r.end.value) > hmToMinutes(r.start.value))) {
+          const start = normalizeTime(r.start.value), end = normalizeTime(r.end.value);
+          if (!start || !end) {
+            setStatus2("Vul op " + DAY_NAMES[r.day] + " een tijd in als 09:00.");
+            return;
+          }
+          if (!(hmToMinutes(end) > hmToMinutes(start))) {
             setStatus2("Op " + DAY_NAMES[r.day] + " moet het begin voor het einde liggen.");
             return;
           }
-          raw[r.day] = { start: r.start.value, end: r.end.value };
+          raw[r.day] = { start, end };
         }
         if (!Object.keys(raw).length) {
           setStatus2("Vink minstens één werkdag aan, of wis je werktijden.");

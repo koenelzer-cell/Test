@@ -48,8 +48,9 @@
     input[type=checkbox] { accent-color: var(--roze); }
     .day-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
     .day-check { display: inline-flex; align-items: center; gap: 6px; width: 46px; font-weight: 600; cursor: pointer; }
-    .day-row input[type=time] { font: inherit; padding: 4px 6px; border: 1px solid var(--rand); border-radius: 6px; }
-    .day-row input[type=time]:disabled { color: #aaa; background: #f6f6f6; }
+    .time-field { width: 64px; font: inherit; font-variant-numeric: tabular-nums; text-align: center; padding: 5px 6px; border: 1px solid var(--rand); border-radius: 6px; }
+    .time-field:disabled { color: #aaa; background: #f6f6f6; }
+    .time-field[aria-invalid=true] { border-color: #b3261e; }
     .section-actions { display: flex; gap: 8px; margin-top: 10px; }
     button.small, button.primary, button.danger {
       display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius);

@@ -6,6 +6,7 @@
 import { SYNC } from '../shared/storage-keys.js';
 import { syncArea } from '../shared/chrome-storage.js';
 import { DAY_NAMES, WORKDAYS, describeWorkHours, hmToMinutes, minutesToHm, normalizeWorkHours } from '../shared/work-hours.js';
+import { createTimeField, normalizeTime } from '../shared/time-field.js';
 import { popupConfig } from './config.js';
 import { el, icon } from './dom.js';
 
@@ -54,10 +55,9 @@ export function workHoursSection(colorProfile, setStatus) {
       works.checked = !!w;
       label.appendChild(works);
       label.appendChild(document.createTextNode(DAY_NAMES[day]));
-      const start = el('input', { type: 'time', step: '300', 'aria-label': 'Begin ' + DAY_NAMES[day] });
-      const end = el('input', { type: 'time', step: '300', 'aria-label': 'Einde ' + DAY_NAMES[day] });
-      start.value = minutesToHm((w || team).start);
-      end.value = minutesToHm((w || team).end);
+      const start = createTimeField(minutesToHm((w || team).start), 'Begin ' + DAY_NAMES[day]);
+      const end = createTimeField(minutesToHm((w || team).end), 'Einde ' + DAY_NAMES[day]);
+      start.className = end.className = 'time-field';
       const sync = () => { start.disabled = end.disabled = !works.checked; };
       works.addEventListener('change', sync);
       sync();
@@ -68,17 +68,21 @@ export function workHoursSection(colorProfile, setStatus) {
       wrap.appendChild(row);
       return { day, works, start, end };
     });
-    wrap.appendChild(el('div', { class: 'hint' }, 'De agenda kleurt alleen binnen je werktijden, en de planhulp zoekt daar vrije tijd. Zonder vinkje: geen werkdag.'));
     const actions = el('div', { class: 'section-actions' });
     actions.appendChild(button('primary', ICON_SAVE, 'Opslaan', () => {
       const raw = {};
       for (const r of rows) {
         if (!r.works.checked) continue;
-        if (!(hmToMinutes(r.end.value) > hmToMinutes(r.start.value))) {
+        const start = normalizeTime(r.start.value), end = normalizeTime(r.end.value);
+        if (!start || !end) {
+          setStatus('Vul op ' + DAY_NAMES[r.day] + ' een tijd in als 09:00.');
+          return;
+        }
+        if (!(hmToMinutes(end) > hmToMinutes(start))) {
           setStatus('Op ' + DAY_NAMES[r.day] + ' moet het begin voor het einde liggen.');
           return;
         }
-        raw[r.day] = { start: r.start.value, end: r.end.value };
+        raw[r.day] = { start, end };
       }
       if (!Object.keys(raw).length) { setStatus('Vink minstens één werkdag aan, of wis je werktijden.'); return; }
       syncArea().set({ [SYNC.WORK_HOURS]: raw }, () => {

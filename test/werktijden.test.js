@@ -68,3 +68,10 @@ test('kleuring: de zones van het team, alleen binnen de eigen werktijden', async
   assert.deepEqual(zones('2026-10-21'), [], 'woensdag is geen werkdag');
   assert.deepEqual(zones('2026-10-23'), [[9, 11.5], [11.5, 12], [12, 12.5]], 'vrijdag 09:00 tot 12:30');
 });
+
+test('tijdveld: invoer wordt een Nederlandse tijd (24 uur, uu:mm)', async () => {
+  const { normalizeTime } = await import('../src/shared/time-field.js');
+  const geval = { '9': '09:00', '930': '09:30', '0930': '09:30', '9:30': '09:30', '9.30': '09:30', '17': '17:00', '1730': '17:30', ' 08:15 ': '08:15', '23:59': '23:59' };
+  for (const [in_, uit] of Object.entries(geval)) assert.equal(normalizeTime(in_), uit, in_);
+  for (const fout of ['', '24:00', '9:60', '5 PM', 'abc', '12345']) assert.equal(normalizeTime(fout), null, fout);
+});
