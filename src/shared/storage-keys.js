@@ -9,6 +9,7 @@
 export const SYNC = {
   SECTOR: 'sector',               // gekozen bedrijfsonderdeel (popup)
   COLOR_PROFILE: 'colorProfile',  // gekozen team / dagindeling (popup)
+  WORK_HOURS: 'workHours',        // eigen werktijden per weekdag (popup; zie shared/work-hours.js)
 };
 
 // chrome.storage.local — alleen dit apparaat.

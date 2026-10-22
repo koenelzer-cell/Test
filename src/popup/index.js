@@ -1,7 +1,8 @@
 // Extensiepopup: kies je bedrijfsonderdeel ("Waar werk je?") en je team
 // (agenda-indeling). 'sector' en 'colorProfile' staan in chrome.storage.sync;
 // het content-script past daarmee de keuzes en de dagindeling aan.
-// Daaronder: de wekelijkse herinnering en een link om een probleem te melden.
+// Daaronder: je eigen werktijden, de wekelijkse herinnering en een link om een
+// probleem te melden.
 //
 // De popup verwerkt of exporteert bewust geen paginagegevens.
 
@@ -9,6 +10,7 @@ import { SYNC } from '../shared/storage-keys.js';
 import { syncArea } from '../shared/chrome-storage.js';
 import { loadPopupConfig, configuredSectors, profilesForSector, supportUrl } from './config.js';
 import { reminderToggle } from './reminder-toggle.js';
+import { workHoursSection } from './work-hours.js';
 import { el } from './dom.js';
 
 const view = document.getElementById('view');
@@ -72,9 +74,10 @@ function renderProfileChoice() {
   appendFooter();
 }
 
-// Herinnering + een eenvoudige supportlink (opent TOPdesk in een nieuw
-// tabblad; geen diagnose, geen klembord, geen paginagegevens).
+// Werktijden, herinnering en een eenvoudige supportlink (opent TOPdesk in een
+// nieuw tabblad; geen diagnose, geen klembord, geen paginagegevens).
 function appendFooter() {
+  view.appendChild(workHoursSection(state.colorProfile, setStatus));
   view.appendChild(reminderToggle(setStatus));
   const wrap = el('div', { class: 'support-link' });
   wrap.style.cssText = 'margin-top:14px;padding-top:12px;border-top:1px solid #e5e5e5';

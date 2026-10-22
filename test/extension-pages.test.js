@@ -27,6 +27,7 @@ function fakeChrome() {
       cb(out);
     },
     set: (obj, cb) => { Object.assign(store[name], obj); if (cb) cb(); },
+    remove: (keys, cb) => { (Array.isArray(keys) ? keys : [keys]).forEach((k) => delete store[name][k]); if (cb) cb(); },
   });
   const calls = { badge: [], menus: [], sent: [], alarms: [], notifications: [] };
   const toestemming = { meldingen: true, geeft: true, gevraagd: 0 };
@@ -250,6 +251,42 @@ test('service worker: zonder toestemming voor meldingen geen melding en geen fou
   listeners['alarms.onAlarm'][0]({ name: 'onsHelper.reminder' });
   await tick();
   assert.equal(calls.notifications.length, 0);
+});
+
+test('popup: eigen werktijden instellen, nakijken en wissen', async () => {
+  const { document, env } = loadPage('pages/popup.html', 'dist/popup.js', (env) => { env.store.sync.colorProfile = 'JGGZ'; });
+  await tick(); await tick();
+  const blok = document.querySelector('[data-werktijden]');
+  assert.match(blok.textContent, /Niet ingesteld: de dagindeling van je team geldt/);
+  const knop = (tekst) => [...blok.querySelectorAll('button')].find((b) => b.textContent === tekst);
+  knop('Instellen').click();
+  const rij = (dag) => blok.querySelector('[data-dag="' + dag + '"]');
+  const velden = (dag) => rij(dag).querySelectorAll('input');
+  assert.equal(velden(1)[1].value, '08:00', 'gevuld met de dagindeling van het team');
+  // Woensdag vrij, vrijdag tot half een.
+  velden(3)[0].checked = false; velden(3)[0].dispatchEvent(new document.defaultView.Event('change'));
+  assert.equal(velden(3)[1].disabled, true);
+  velden(5)[2].value = '12:30';
+  // Eerst een fout: begin na het einde.
+  velden(1)[1].value = '18:00';
+  knop('Opslaan').click();
+  await tick();
+  assert.equal(env.store.sync.workHours, undefined, 'niet opgeslagen');
+  assert.match(document.getElementById('status').textContent, /Op ma moet het begin voor het einde liggen/);
+  velden(1)[1].value = '08:30';
+  knop('Opslaan').click();
+  await tick();
+  assert.deepEqual(JSON.parse(JSON.stringify(env.store.sync.workHours)), {
+    1: { start: '08:30', end: '17:00' }, 2: { start: '08:00', end: '17:00' }, 4: { start: '08:00', end: '17:00' }, 5: { start: '08:00', end: '12:30' },
+  });
+  assert.equal(blok.querySelector('[data-werktijden-samenvatting]').textContent, 'ma 08:30 tot 17:00, di 08:00 tot 17:00, do 08:00 tot 17:00, vr 08:00 tot 12:30');
+  // Wissen, na bevestigen.
+  document.defaultView.confirm = () => true;
+  knop('Aanpassen').click();
+  knop('Wissen').click();
+  await tick();
+  assert.equal('workHours' in env.store.sync, false);
+  assert.match(blok.textContent, /Niet ingesteld/);
 });
 
 test('zijpaneel: zonder ONS-tabblad een duidelijke melding', async () => {

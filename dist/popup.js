@@ -3,8 +3,10 @@
   var SYNC = {
     SECTOR: "sector",
     // gekozen bedrijfsonderdeel (popup)
-    COLOR_PROFILE: "colorProfile"
+    COLOR_PROFILE: "colorProfile",
     // gekozen team / dagindeling (popup)
+    WORK_HOURS: "workHours"
+    // eigen werktijden per weekdag (popup; zie shared/work-hours.js)
   };
   var LOCAL = {
     TEST_CONFIG: "onsHelperConfig",
@@ -190,6 +192,19 @@
     if (text != null) n.textContent = text;
     return n;
   }
+  function icon(pathD) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", pathD);
+    svg.appendChild(path);
+    return svg;
+  }
 
   // src/popup/reminder-toggle.js
   var DAGEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"];
@@ -254,6 +269,149 @@
           setStatus2("Zonder toestemming voor meldingen kan de herinnering niet aan.");
         });
       });
+    });
+    return wrap;
+  }
+
+  // src/shared/work-hours.js
+  var WORKDAYS = [1, 2, 3, 4, 5];
+  var DAY_NAMES = { 1: "ma", 2: "di", 3: "wo", 4: "do", 5: "vr" };
+  function hmToMinutes(hm) {
+    const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hm || ""));
+    return m ? +m[1] * 60 + +m[2] : null;
+  }
+  function minutesToHm(minutes) {
+    return String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0");
+  }
+  function normalizeWorkHours(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const hours = {};
+    let any = false;
+    for (const day of WORKDAYS) {
+      const start = raw[day] ? hmToMinutes(raw[day].start) : null;
+      const end = raw[day] ? hmToMinutes(raw[day].end) : null;
+      hours[day] = start != null && end != null && end > start ? { start, end } : null;
+      if (hours[day]) any = true;
+    }
+    return any ? hours : null;
+  }
+  function describeWorkHours(hours) {
+    if (!hours) return "";
+    const groups = [];
+    for (const day of WORKDAYS) {
+      const w = hours[day];
+      if (!w) continue;
+      const last = groups[groups.length - 1];
+      if (last && last.to === day - 1 && last.start === w.start && last.end === w.end) last.to = day;
+      else groups.push({ from: day, to: day, start: w.start, end: w.end });
+    }
+    return groups.map((g) => {
+      const days = g.from === g.to ? DAY_NAMES[g.from] : g.to === g.from + 1 ? DAY_NAMES[g.from] + " en " + DAY_NAMES[g.to] : DAY_NAMES[g.from] + " t/m " + DAY_NAMES[g.to];
+      return days + " " + minutesToHm(g.start) + " tot " + minutesToHm(g.end);
+    }).join(", ");
+  }
+
+  // src/popup/work-hours.js
+  var ICON_EDIT = "M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.33-2.33a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.82-1.84z";
+  var ICON_SAVE = "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z";
+  var ICON_CANCEL = "M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z";
+  var ICON_CLEAR = "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z";
+  function button(cls, pathD, text, onClick) {
+    const b = el("button", { type: "button", class: cls });
+    b.appendChild(icon(pathD));
+    b.appendChild(document.createTextNode(text));
+    b.addEventListener("click", onClick);
+    return b;
+  }
+  function teamWindow(profile) {
+    const zones = (popupConfig.zoneProfiles || {})[profile];
+    const starts = (Array.isArray(zones) ? zones : []).map((z) => hmToMinutes(z.start)).filter((m) => m != null);
+    const ends = (Array.isArray(zones) ? zones : []).map((z) => hmToMinutes(z.end)).filter((m) => m != null);
+    return starts.length && ends.length ? { start: Math.min(...starts), end: Math.max(...ends) } : { start: 8 * 60, end: 17 * 60 };
+  }
+  function workHoursSection(colorProfile, setStatus2) {
+    const wrap = el("div", { class: "section", "data-werktijden": "" });
+    let hours = null;
+    function render(editing) {
+      wrap.textContent = "";
+      const head = el("div", { class: "section-head" });
+      head.appendChild(el("h2", null, "Werktijden"));
+      if (!editing) head.appendChild(button("small", ICON_EDIT, hours ? "Aanpassen" : "Instellen", () => render(true)));
+      wrap.appendChild(head);
+      if (!editing) {
+        wrap.appendChild(el(
+          "div",
+          { class: "hint", "data-werktijden-samenvatting": "" },
+          hours ? describeWorkHours(hours) : "Niet ingesteld: de dagindeling van je team geldt."
+        ));
+        return;
+      }
+      const team = teamWindow(colorProfile);
+      const rows = WORKDAYS.map((day) => {
+        const w = hours ? hours[day] : team;
+        const row = el("div", { class: "day-row", "data-dag": String(day) });
+        const label = el("label", { class: "day-check" });
+        const works = el("input", { type: "checkbox" });
+        works.checked = !!w;
+        label.appendChild(works);
+        label.appendChild(document.createTextNode(DAY_NAMES[day]));
+        const start = el("input", { type: "time", step: "300", "aria-label": "Begin " + DAY_NAMES[day] });
+        const end = el("input", { type: "time", step: "300", "aria-label": "Einde " + DAY_NAMES[day] });
+        start.value = minutesToHm((w || team).start);
+        end.value = minutesToHm((w || team).end);
+        const sync = () => {
+          start.disabled = end.disabled = !works.checked;
+        };
+        works.addEventListener("change", sync);
+        sync();
+        row.appendChild(label);
+        row.appendChild(start);
+        row.appendChild(el("span", { class: "hint" }, "tot"));
+        row.appendChild(end);
+        wrap.appendChild(row);
+        return { day, works, start, end };
+      });
+      wrap.appendChild(el("div", { class: "hint" }, "De agenda kleurt alleen binnen je werktijden, en de planhulp zoekt daar vrije tijd. Zonder vinkje: geen werkdag."));
+      const actions = el("div", { class: "section-actions" });
+      actions.appendChild(button("primary", ICON_SAVE, "Opslaan", () => {
+        const raw = {};
+        for (const r of rows) {
+          if (!r.works.checked) continue;
+          if (!(hmToMinutes(r.end.value) > hmToMinutes(r.start.value))) {
+            setStatus2("Op " + DAY_NAMES[r.day] + " moet het begin voor het einde liggen.");
+            return;
+          }
+          raw[r.day] = { start: r.start.value, end: r.end.value };
+        }
+        if (!Object.keys(raw).length) {
+          setStatus2("Vink minstens één werkdag aan, of wis je werktijden.");
+          return;
+        }
+        syncArea().set({ [SYNC.WORK_HOURS]: raw }, () => {
+          hours = normalizeWorkHours(raw);
+          setStatus2("Werktijden opgeslagen. Open of ververs de agenda.");
+          render(false);
+        });
+      }));
+      actions.appendChild(button("small", ICON_CANCEL, "Annuleren", () => {
+        setStatus2("");
+        render(false);
+      }));
+      if (hours) {
+        actions.appendChild(button("danger", ICON_CLEAR, "Wissen", () => {
+          if (!window.confirm("Weet je het zeker?")) return;
+          syncArea().remove(SYNC.WORK_HOURS, () => {
+            hours = null;
+            setStatus2("Werktijden gewist: de dagindeling van je team geldt.");
+            render(false);
+          });
+        }));
+      }
+      wrap.appendChild(actions);
+    }
+    syncArea().get([SYNC.WORK_HOURS], (res) => {
+      hours = normalizeWorkHours(res && res[SYNC.WORK_HOURS]);
+      render(false);
     });
     return wrap;
   }
@@ -326,6 +484,7 @@
     appendFooter();
   }
   function appendFooter() {
+    view.appendChild(workHoursSection(state.colorProfile, setStatus));
     view.appendChild(reminderToggle(setStatus));
     const wrap = el("div", { class: "support-link" });
     wrap.style.cssText = "margin-top:14px;padding-top:12px;border-top:1px solid #e5e5e5";

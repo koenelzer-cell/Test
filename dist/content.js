@@ -2307,8 +2307,10 @@
   var SYNC = {
     SECTOR: "sector",
     // gekozen bedrijfsonderdeel (popup)
-    COLOR_PROFILE: "colorProfile"
+    COLOR_PROFILE: "colorProfile",
     // gekozen team / dagindeling (popup)
+    WORK_HOURS: "workHours"
+    // eigen werktijden per weekdag (popup; zie shared/work-hours.js)
   };
   var LOCAL = {
     TEST_CONFIG: "onsHelperConfig",

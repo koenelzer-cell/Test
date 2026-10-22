@@ -41,6 +41,23 @@
     }
     .back:hover { background: var(--roze-zacht); }
     .status { font-size: 12px; color: var(--tekst-zacht); margin-top: 8px; }
+    .section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rand); }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .section-head h2 { margin: 0; }
+    .hint { font-size: 11px; color: var(--tekst-zacht); }
+    input[type=checkbox] { accent-color: var(--roze); }
+    .day-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+    .day-check { display: inline-flex; align-items: center; gap: 6px; width: 46px; font-weight: 600; cursor: pointer; }
+    .day-row input[type=time] { font: inherit; padding: 4px 6px; border: 1px solid var(--rand); border-radius: 6px; }
+    .day-row input[type=time]:disabled { color: #aaa; background: #f6f6f6; }
+    .section-actions { display: flex; gap: 8px; margin-top: 10px; }
+    button.small, button.primary, button.danger {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius);
+      font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--roze); background: #fff; color: var(--roze);
+    }
+    button.small:hover { background: var(--roze-zacht); }
+    button.primary { background: var(--roze); color: #fff; }
+    button.danger { border-color: #b3261e; color: #b3261e; }
     :focus-visible { outline: 2px solid var(--roze); outline-offset: 2px; }
     .brand-footer {
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
