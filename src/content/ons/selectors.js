@@ -27,7 +27,9 @@ export const ONS = {
     + ' [data-qa^="occurrence-popover-action-"], [data-qa="declare_button"], #declare-option-link',
   omnisearchTrigger: 'button[data-testid="omnisearch-trigger"]',
   freeDayTextRe: /vaste vrije dag/i,
-  weekendClassRe: /\b(saturday|sunday)\b/,
+  // Weekdag uit de klasse van de dagcel (index = Date.getDay).
+  dayClassRe: /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+  dayClassNames: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
   declaredRe: /\sdeclared\s/,
   notDeclaredRe: /\snot-declared\s/,
 };

@@ -140,7 +140,8 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   - `chrome.storage.local`: voorkeuren, de lijst registratievormen voor het
     menu, en een *momentopname* van de week voor de herinnering — uitsluitend
     getallen en datums (afgedwongen in `src/background/snapshot.js`, getest).
-  - `chrome.storage.sync`: het gekozen bedrijfsonderdeel en team.
+  - `chrome.storage.sync`: het gekozen bedrijfsonderdeel en team, en de eigen
+    werktijden van de medewerker (per werkdag een begin- en eindtijd).
 - **Berichten binnen de extensie:** het zijpaneel krijgt van de agendapagina de
   lijst nog te registreren afspraken, met de afspraaktitel zoals ONS die toont
   (die kan een voornaam bevatten). Dit bericht blijft binnen de extensie en

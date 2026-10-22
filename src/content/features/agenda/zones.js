@@ -69,8 +69,10 @@ export function configProfileLegend(key) {
 export function profileExists(key) { return !!(key && APP_CONFIG.zoneProfiles && APP_CONFIG.zoneProfiles[key]); }
 export function activeZones() { return (agendaPage.currentProfile && configProfileZones(agendaPage.currentProfile)) || configProfileZones('JGGZ') || ZONES_JGGZ; }
 export function activeLegend() { return (agendaPage.currentProfile && configProfileLegend(agendaPage.currentProfile)) || configProfileLegend('JGGZ') || LEGEND_JGGZ; }
-// Werkdag-venster voor de legenda: vroegste start t/m laatste eind uit de actieve zones.
+// Werkdag-venster voor de legenda: vroegste start t/m laatste eind uit de
+// actieve zones, of 'eigen werktijden' als die in de popup zijn ingesteld.
 export function workdayWindowLabel() {
+  if (agendaPage.workHours) return 'eigen werktijden';
   const z = activeZones(); if (!z || !z.length) return '08:00 tot 17:00';
   const hm = (d) => { const h = Math.floor(d), m = Math.round((d - h) * 60); return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m; };
   return hm(Math.min.apply(null, z.map((x) => x.from))) + ' tot ' + hm(Math.max.apply(null, z.map((x) => x.to)));

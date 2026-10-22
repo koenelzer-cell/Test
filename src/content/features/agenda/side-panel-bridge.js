@@ -42,6 +42,7 @@ import { agendaYmd } from '../../core/datetime.js';
 import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { extensionVersion } from '../../../shared/version.js';
 import { MSG } from '../../../shared/messages.js';
+import { describeWorkHours } from '../../../shared/work-hours.js';
 
 /* ===== De Agendahulp in het zijpaneel =====
    Het zijpaneel tekent hetzelfde paneel (agendapanel.js), maar kan de
@@ -89,6 +90,7 @@ function agPanelState() {
     }) : [],
     legend: (activeLegend() || []).map(function (l) { return { color: l.color, text: l.text }; }),
     windowLabel: workdayWindowLabel(),
+    workHours: describeWorkHours(agendaPage.workHours),
     version: extensionVersion(),
     week: agendaPage._agLastWeek,
     weekError: agendaPage._agWeekError || '',

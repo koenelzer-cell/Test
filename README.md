@@ -106,7 +106,7 @@ beheerscherm). Gaat er iets mis, dan verandert er niets. Eerdere ZIP's in
 | `src/content/` | de hulp op de ONS-pagina's (afspraken, registraties, agenda) |
 | `src/survey/` | de vragenlijst-checklist op ONS Dossier |
 | `src/background/` | de service worker (badge, herinnering, rechtermuismenu) |
-| `src/popup/`, `pages/popup.html` | de extensiepopup (bedrijfsonderdeel en team) |
+| `src/popup/`, `pages/popup.html` | de extensiepopup (bedrijfsonderdeel en team, werktijden, herinnering) |
 | `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel |
 | `src/main-world/`, `src/edge-tab/`, `src/io-planning-block/` | kleine content-scripts |
 | `src/react/` | React-schermen → `dist/react-bundle.js` |
@@ -140,6 +140,26 @@ hulp vindt (groen) en mist (rood), en laat een gemiste plek opnieuw aanwijzen;
 die herstelling werkt meteen, zonder nieuwe versie. Hij blijft open na het
 herladen van de pagina tot je hem sluit. Hij is een aparte bundel die alleen
 laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
+
+### Werktijden
+
+In de popup staat het blok **Werktijden**. Met **Instellen** vul je per
+werkdag (ma t/m vr) in of je werkt en van hoe laat tot hoe laat; de velden
+staan eerst op de dagindeling van je team. Opslaan kijkt na dat het begin voor
+het einde ligt. Dicht toont het blok een samenvatting, bijvoorbeeld 'ma t/m do
+08:30 tot 17:00, vr 08:30 tot 12:30'. **Wissen** (na bevestigen) zet terug naar
+de dagindeling van het team. De tijden staan in `chrome.storage.sync` en
+reizen mee naar je andere apparaten.
+
+Wat ze doen:
+- De gekleurde dagindeling toont de zones van je team alleen binnen je
+  werktijden van die dag; op een dag zonder vinkje kleurt de agenda niet.
+- De planhulp zoekt vrije tijd alleen binnen je werktijden van die dag, en
+  niet op een dag zonder vinkje (naast het filter Dagen in de planhulp).
+- In het zijpaneel staat bij Info onder de legenda 'Je werktijden: …'.
+
+Niet ingesteld: alles werkt zoals het team is ingedeeld (van de vroegste
+zone tot de laatste).
 
 ### Wekelijkse herinnering
 

@@ -42,7 +42,7 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `content/` | elke ONS-pagina (geïsoleerde wereld) | de afspraak- en registratiehulp, de gekleurde dagindeling en ongeregistreerde tijd op de agenda, het declarabiliteitspaneel, het meldingenkanaal; laadt de UI-inspector op verzoek |
 | `survey/` | ONS Dossier, **alle frames**, als eerste geladen | vragenlijst-checklist: verplichte (leeftijdsafhankelijke) vragen over alle categorieën, "Volgende status" tegenhouden |
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
-| `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, herinnering aan/uit, meldlink |
+| `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, eigen werktijden, herinnering aan/uit, meldlink |
 | `sidepanel/` | zijpaneel | toont de Agendahulp of de vragenlijst-checklist van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda of vragenlijst |
 | `main-world/` | pagina-context van ONS | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, en het medewerker-id uit `onsContext()` lezen |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
@@ -172,7 +172,7 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 
 | Waar | Wat |
 |---|---|
-| `chrome.storage.sync` | gekozen bedrijfsonderdeel en team (reist mee naar andere apparaten) |
+| `chrome.storage.sync` | gekozen bedrijfsonderdeel en team, eigen werktijden (`shared/work-hours.js`; reist mee naar andere apparaten) |
 | `chrome.storage.local` | lokale testconfig, UI-inspector-herstel, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen |
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
 | localStorage van de ONS-pagina | aan/uit-schakelaars, breedte vragenlijstpaneel, geleerde vorm van ONS-verzoeken |

@@ -1776,6 +1776,15 @@ test('zijpaneel: planhulp - ook na Geen vrij blok gevonden kun je een week verde
   assert.ok(document.querySelector('[data-dag="2026-10-27"]'), 'de gevonden tijd van die week staat er');
 });
 
+test('zijpaneel: Info noemt de eigen werktijden als die zijn ingesteld', async () => {
+  const { document } = zijpaneelMetTools(null, { ...AGENDA_STATE_TOOLS, windowLabel: 'eigen werktijden', workHours: 'ma t/m do 08:30 tot 17:00, vr 08:30 tot 12:30' });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.match(document.querySelector('[data-info-werktijden]').textContent, /Je werktijden: ma t\/m do 08:30 tot 17:00, vr 08:30 tot 12:30\./);
+  assert.match(document.body.textContent, /Legendaeigen werktijden/);
+});
+
 test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () => {
   const { document } = zijpaneelMetTools(null);
   await tick();

@@ -11,6 +11,8 @@
 
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { activeZones } from './zones.js';
+import { agendaPage } from './state.js';
+import { weekRange, workWindowFor } from '../../../shared/work-hours.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
@@ -25,10 +27,14 @@ import { createLimiter } from '../../services/ons-api/calendar.js';
 import { haalWeek } from '../../services/ons-api/week-cache.js';
 import { fetchEventOverlap, overlapCheckStatus } from '../../services/ons-api/event-overlap.js';
 
-// Werkvenster (minuten): vroegste begin en laatste eind van de gekozen
-// dagindeling. Alleen als grens; wat er BINNEN dat venster bezet is, komt uit
-// de agenda zelf (afspraken en onbeschikbaarheid), niet uit de kleurzones.
+// Werkvenster (minuten): de eigen werktijden uit de popup (vroegste begin en
+// laatste einde van de week), anders het vroegste begin en het laatste eind
+// van de gekozen dagindeling. Alleen als grens; wat er BINNEN dat venster
+// bezet is, komt uit de agenda zelf (afspraken en onbeschikbaarheid), niet uit
+// de kleurzones.
 export function workWindow() {
+  const eigen = weekRange(agendaPage.workHours);
+  if (eigen) return eigen;
   const z = activeZones() || [];
   if (!z.length) return { start: 8 * 60, end: 17 * 60 };
   const start = Math.round(Math.min.apply(null, z.map(function (x) { return x.from; })) * 60);
@@ -240,7 +246,9 @@ export function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen
     const gaps = findFreeGaps(bezet, {
       now: startMs, days: dagenTot, minMinutes: minutes, stepMin: 15,
       windowStart: win.start, windowEnd: win.end, maxResults: maxRes,
-      skipDates: isFeest, weekdays: weekdagen(dagen)
+      skipDates: isFeest, weekdays: weekdagen(dagen),
+      // Eigen werktijden per dag (een vrije dag: geen vrije tijd).
+      dayWindow: agendaPage.workHours ? function (weekday) { return workWindowFor(agendaPage.workHours, weekday); } : null
     });
     // Per blok de reserveringen erin (voor elke begintijd in het zijpaneel) en
     // die het begin van het blok raken.

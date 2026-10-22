@@ -21,7 +21,8 @@ export function fixture(name) {
   return fs.readFileSync(path.join(ROOT, 'test', 'fixtures', name), 'utf8');
 }
 
-export function bootHelper({ html = '<!doctype html><html><body></body></html>', url } = {}) {
+// sync (optioneel): wat er al in chrome.storage.sync staat (teamkeuze, werktijden).
+export function bootHelper({ html = '<!doctype html><html><body></body></html>', url, sync } = {}) {
   const dom = new JSDOM(html, {
     url: url || 'https://impegno.ons-dossier.nl/calendar/invitee/123/day?date=2026-08-30',
     runScripts: 'outside-only',
@@ -51,6 +52,16 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
       onChanged: { addListener: (fn) => storageListeners.push(fn) },
     },
   };
+  if (sync) {
+    w.chrome.storage.sync = {
+      get: (keys, cb) => {
+        const uit = {};
+        (Array.isArray(keys) ? keys : [keys]).forEach((k) => { if (k in sync) uit[k] = sync[k]; });
+        cb(uit);
+      },
+      set: (v, cb) => { Object.assign(sync, v); if (cb) cb(); },
+    };
+  }
   // Geen echte netwerkcalls in tests.
   w.fetch = () => Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null), text: () => Promise.resolve('') });
 

@@ -21,7 +21,9 @@ function minutenVanDag(ms, dagStartMs) { return Math.round((ms - dagStartMs) / 6
 //   now (ms), days (aantal kalenderdagen vooruit), minMinutes, stepMin (15),
 //   windowStart/windowEnd (minuten sinds middernacht), blocked [{from,to}] (minuten, optioneel),
 //   maxResults, skipDates { 'YYYY-MM-DD': true } (bijv. feestdagen: geen vrije tijd),
-//   weekdays [1..5] (optioneel: alleen deze dagen, 1 = maandag; zoals Date.getDay)
+//   weekdays [1..5] (optioneel: alleen deze dagen, 1 = maandag; zoals Date.getDay),
+//   dayWindow(weekday) (optioneel: het werkvenster van die dag, { start, end } in
+//   minuten, of null als het geen werkdag is; zonder: windowStart/windowEnd)
 // -> [{ date, startMin, endMin, minutes }]
 export function findFreeGaps(entries, opts) {
   opts = opts || {};
@@ -71,15 +73,18 @@ export function findFreeGaps(entries, opts) {
     const key = ymd(dag);
     if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
     if (alleenDagen && alleenDagen.indexOf(dag.getDay()) < 0) continue;
+    const venster = opts.dayWindow ? opts.dayWindow(dag.getDay()) : { start: wS, end: wE };
+    if (!venster) continue;
+    const dS = venster.start, dE = venster.end;
     const dStart = dag.getTime();
-    let vanaf = wS;
+    let vanaf = dS;
     if (i === 0) {
       // Vandaag: pas vanaf nu, afgerond op de volgende stap.
       const nu = minutenVanDag(now, dStart);
-      vanaf = Math.max(wS, Math.ceil(nu / stap) * stap);
+      vanaf = Math.max(dS, Math.ceil(nu / stap) * stap);
     }
     const bezig = (bezet[key] || []).concat(blocked.map(function (b) { return [b.from, b.to]; }))
-      .filter(function (b) { return b[1] > vanaf && b[0] < wE; })
+      .filter(function (b) { return b[1] > vanaf && b[0] < dE; })
       .sort(function (a, b) { return a[0] - b[0]; });
     let cur = vanaf;
     const leeg = function (tot) {
@@ -88,11 +93,11 @@ export function findFreeGaps(entries, opts) {
       if (tot - b >= min && uit.length < max) uit.push({ date: key, startMin: b, endMin: tot, minutes: tot - b });
     };
     for (let j = 0; j < bezig.length; j++) {
-      if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], wE));
+      if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], dE));
       cur = Math.max(cur, bezig[j][1]);
-      if (cur >= wE) break;
+      if (cur >= dE) break;
     }
-    if (cur < wE) leeg(wE);
+    if (cur < dE) leeg(dE);
   }
   return uit;
 }

@@ -15,6 +15,9 @@ export const agendaPage = {
   // Het gekozen profiel komt uit de extensie-popup (chrome.storage.sync, zodat
   // de keuze meereist naar andere apparaten). Async geladen, live bijgewerkt.
   currentProfile: null,
+  // Eigen werktijden uit de popup (shared/work-hours.js, genormaliseerd), of
+  // null: dan geldt de dagindeling van het team.
+  workHours: null,
   // Weekoverzicht (API) voor het zijpaneel
   _agLastWeek: null,          // laatst opgehaalde weekoverzicht
   _agWeekError: '',           // laatste ophaalfout, zodat het zijpaneel hem kan tonen

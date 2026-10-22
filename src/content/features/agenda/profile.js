@@ -1,10 +1,13 @@
-// Het gekozen team (dagindeling) uit chrome.storage.sync, live gevolgd.
+// Het gekozen team (dagindeling) en de eigen werktijden uit
+// chrome.storage.sync, live gevolgd.
 
 import { schedulePaint } from './painting.js';
 import { pushPanelState } from './side-panel-bridge.js';
 import { profileExists, PROFILES } from './zones.js';
 import { agendaPage } from './state.js';
+import { forgetFreeSlots } from './preload.js';
 import { SYNC } from '../../../shared/storage-keys.js';
+import { normalizeWorkHours } from '../../../shared/work-hours.js';
 
 // Het gekozen profiel komt uit de extensie-popup (chrome.storage.sync, zodat
 // de keuze meereist naar andere apparaten). Async geladen, live bijgewerkt.
@@ -16,6 +19,19 @@ function applyProfileValue(p) {
   // juist tijdens het kiezen in de popup of het zijpaneel is dat zo. Anders
   // blijft er 'Kies eerst een indeling' staan terwijl je die net koos.
   try { pushPanelState(true); } catch (e) {}
+}
+// Andere werktijden: opnieuw kleuren, en vrije tijd die de planhulp al vond
+// klopt niet meer.
+function applyWorkHours(raw) {
+  agendaPage.workHours = normalizeWorkHours(raw);
+  forgetFreeSlots();
+  if (agendaPage.active) schedulePaint();
+  try { pushPanelState(true); } catch (e) {}
+}
+export function loadWorkHoursFromStorage() {
+  (chrome.storage.sync || chrome.storage.local).get([SYNC.WORK_HOURS], function (res) {
+    applyWorkHours(res && res[SYNC.WORK_HOURS]);
+  });
 }
 export function loadProfileFromStorage() {
   try {
@@ -39,6 +55,7 @@ export function watchProfileChanges() {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener(function (changes, area) {
         if ((area === 'sync' || area === 'local') && changes[SYNC.COLOR_PROFILE]) applyProfileValue(changes[SYNC.COLOR_PROFILE].newValue);
+        if ((area === 'sync' || area === 'local') && changes[SYNC.WORK_HOURS]) applyWorkHours(changes[SYNC.WORK_HOURS].newValue);
       });
     }
   } catch (e) {}

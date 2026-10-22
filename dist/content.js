@@ -4307,7 +4307,9 @@
     declareTrigger: '[data-qa="occurrence-popover-primary"], [data-qa="occurrence-popover-primary-menu"], [data-qa^="occurrence-popover-action-"], [data-qa="declare_button"], #declare-option-link',
     omnisearchTrigger: 'button[data-testid="omnisearch-trigger"]',
     freeDayTextRe: /vaste vrije dag/i,
-    weekendClassRe: /\b(saturday|sunday)\b/,
+    // Weekdag uit de klasse van de dagcel (index = Date.getDay).
+    dayClassRe: /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+    dayClassNames: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
     declaredRe: /\sdeclared\s/,
     notDeclaredRe: /\snot-declared\s/
   };
@@ -8012,6 +8014,9 @@
     // Het gekozen profiel komt uit de extensie-popup (chrome.storage.sync, zodat
     // de keuze meereist naar andere apparaten). Async geladen, live bijgewerkt.
     currentProfile: null,
+    // Eigen werktijden uit de popup (shared/work-hours.js, genormaliseerd), of
+    // null: dan geldt de dagindeling van het team.
+    workHours: null,
     // Weekoverzicht (API) voor het zijpaneel
     _agLastWeek: null,
     // laatst opgehaalde weekoverzicht
@@ -8110,6 +8115,7 @@
     return agendaPage.currentProfile && configProfileLegend(agendaPage.currentProfile) || configProfileLegend("JGGZ") || LEGEND_JGGZ;
   }
   function workdayWindowLabel() {
+    if (agendaPage.workHours) return "eigen werktijden";
     const z = activeZones();
     if (!z || !z.length) return "08:00 tot 17:00";
     const hm2 = (d) => {
@@ -8117,6 +8123,53 @@
       return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
     };
     return hm2(Math.min.apply(null, z.map((x) => x.from))) + " tot " + hm2(Math.max.apply(null, z.map((x) => x.to)));
+  }
+
+  // src/shared/work-hours.js
+  var WORKDAYS = [1, 2, 3, 4, 5];
+  var DAY_NAMES = { 1: "ma", 2: "di", 3: "wo", 4: "do", 5: "vr" };
+  function hmToMinutes(hm2) {
+    const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hm2 || ""));
+    return m ? +m[1] * 60 + +m[2] : null;
+  }
+  function minutesToHm(minutes) {
+    return String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0");
+  }
+  function normalizeWorkHours(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const hours = {};
+    let any = false;
+    for (const day of WORKDAYS) {
+      const start = raw[day] ? hmToMinutes(raw[day].start) : null;
+      const end = raw[day] ? hmToMinutes(raw[day].end) : null;
+      hours[day] = start != null && end != null && end > start ? { start, end } : null;
+      if (hours[day]) any = true;
+    }
+    return any ? hours : null;
+  }
+  function workWindowFor(hours, weekday) {
+    if (!hours) return void 0;
+    return hours[weekday] || null;
+  }
+  function weekRange(hours) {
+    const days = hours ? WORKDAYS.map((day) => hours[day]).filter(Boolean) : [];
+    if (!days.length) return null;
+    return { start: Math.min(...days.map((d) => d.start)), end: Math.max(...days.map((d) => d.end)) };
+  }
+  function describeWorkHours(hours) {
+    if (!hours) return "";
+    const groups = [];
+    for (const day of WORKDAYS) {
+      const w = hours[day];
+      if (!w) continue;
+      const last = groups[groups.length - 1];
+      if (last && last.to === day - 1 && last.start === w.start && last.end === w.end) last.to = day;
+      else groups.push({ from: day, to: day, start: w.start, end: w.end });
+    }
+    return groups.map((g) => {
+      const days = g.from === g.to ? DAY_NAMES[g.from] : g.to === g.from + 1 ? DAY_NAMES[g.from] + " en " + DAY_NAMES[g.to] : DAY_NAMES[g.from] + " t/m " + DAY_NAMES[g.to];
+      return days + " " + minutesToHm(g.start) + " tot " + minutesToHm(g.end);
+    }).join(", ");
   }
 
   // src/content/domain/free-slots.js
@@ -8170,16 +8223,19 @@
       const key = ymd2(dag);
       if (_excludeWeekendYmd(key) || heleDag[key] || overslaan[key] === true) continue;
       if (alleenDagen && alleenDagen.indexOf(dag.getDay()) < 0) continue;
+      const venster = opts.dayWindow ? opts.dayWindow(dag.getDay()) : { start: wS, end: wE };
+      if (!venster) continue;
+      const dS = venster.start, dE = venster.end;
       const dStart = dag.getTime();
-      let vanaf = wS;
+      let vanaf = dS;
       if (i === 0) {
         const nu = minutenVanDag(now, dStart);
-        vanaf = Math.max(wS, Math.ceil(nu / stap) * stap);
+        vanaf = Math.max(dS, Math.ceil(nu / stap) * stap);
       }
       const bezig = (bezet[key] || []).concat(blocked.map(function(b) {
         return [b.from, b.to];
       })).filter(function(b) {
-        return b[1] > vanaf && b[0] < wE;
+        return b[1] > vanaf && b[0] < dE;
       }).sort(function(a, b) {
         return a[0] - b[0];
       });
@@ -8189,11 +8245,11 @@
         if (tot - b >= min && uit.length < max) uit.push({ date: key, startMin: b, endMin: tot, minutes: tot - b });
       };
       for (let j = 0; j < bezig.length; j++) {
-        if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], wE));
+        if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], dE));
         cur = Math.max(cur, bezig[j][1]);
-        if (cur >= wE) break;
+        if (cur >= dE) break;
       }
-      if (cur < wE) leeg(wE);
+      if (cur < dE) leeg(dE);
     }
     return uit;
   }
@@ -8398,6 +8454,8 @@
 
   // src/content/features/agenda/free-slots.js
   function workWindow() {
+    const eigen = weekRange(agendaPage.workHours);
+    if (eigen) return eigen;
     const z = activeZones() || [];
     if (!z.length) return { start: 8 * 60, end: 17 * 60 };
     const start = Math.round(Math.min.apply(null, z.map(function(x) {
@@ -8603,7 +8661,11 @@
         windowEnd: win.end,
         maxResults: maxRes,
         skipDates: isFeest,
-        weekdays: weekdagen(dagen)
+        weekdays: weekdagen(dagen),
+        // Eigen werktijden per dag (een vrije dag: geen vrije tijd).
+        dayWindow: agendaPage.workHours ? function(weekday) {
+          return workWindowFor(agendaPage.workHours, weekday);
+        } : null
       });
       gaps.forEach(function(g) {
         g.reservations = reservationsOverlapping(reserveringen, g.date, g.startMin, g.endMin);
@@ -17593,18 +17655,28 @@
     } catch (e) {
     }
   }
-  function isWeekendColumn(col) {
-    const td = col.closest && col.closest(ONS.dayColumnCell);
-    if (td && ONS.weekendClassRe.test(td.className)) return true;
+  function weekdayOfColumn(col) {
     const date = col.getAttribute("data-date");
     if (date) {
       const d = /* @__PURE__ */ new Date(date + "T00:00:00");
-      if (!isNaN(d)) {
-        const wd = d.getDay();
-        if (wd === 0 || wd === 6) return true;
-      }
+      if (!isNaN(d)) return d.getDay();
     }
-    return false;
+    const td = col.closest && col.closest(ONS.dayColumnCell);
+    const m = td && ONS.dayClassRe.exec(td.className);
+    return m ? ONS.dayClassNames.indexOf(m[1]) : null;
+  }
+  function isWeekendColumn(col) {
+    const weekday = weekdayOfColumn(col);
+    return weekday === 0 || weekday === 6;
+  }
+  function zonesForColumn(col) {
+    const zones = activeZones();
+    const weekday = weekdayOfColumn(col);
+    const w = weekday == null ? void 0 : workWindowFor(agendaPage.workHours, weekday);
+    if (w === void 0) return zones;
+    if (w === null) return [];
+    const from = w.start / 60, to = w.end / 60;
+    return zones.map((z) => ({ ...z, from: Math.max(z.from, from), to: Math.min(z.to, to) })).filter((z) => z.to > z.from);
   }
   function paintColumn(col) {
     if (dayColumnLooksFree(col) || isWeekendColumn(col)) {
@@ -17617,7 +17689,7 @@
     const pos = getComputedStyle(col).position;
     if (pos === "static") col.style.position = "relative";
     col.querySelectorAll(":scope > ." + CLASS + '[data-seg="top"], :scope > .' + CLASS + '[data-seg="bottom"]').forEach((el) => el.remove());
-    const zones = activeZones();
+    const zones = zonesForColumn(col);
     zones.forEach(function(z, i) {
       const el = ensureSeg(col, "zone" + i);
       el.style.background = z.color;
@@ -18489,6 +18561,7 @@
         return { color: l.color, text: l.text };
       }),
       windowLabel: workdayWindowLabel(),
+      workHours: describeWorkHours(agendaPage.workHours),
       version: extensionVersion(),
       week: agendaPage._agLastWeek,
       weekError: agendaPage._agWeekError || "",
@@ -18807,6 +18880,20 @@
     } catch (e) {
     }
   }
+  function applyWorkHours(raw) {
+    agendaPage.workHours = normalizeWorkHours(raw);
+    forgetFreeSlots();
+    if (agendaPage.active) schedulePaint();
+    try {
+      pushPanelState(true);
+    } catch (e) {
+    }
+  }
+  function loadWorkHoursFromStorage() {
+    (chrome.storage.sync || chrome.storage.local).get([SYNC.WORK_HOURS], function(res) {
+      applyWorkHours(res && res[SYNC.WORK_HOURS]);
+    });
+  }
   function loadProfileFromStorage() {
     try {
       if (typeof chrome === "undefined" || !chrome.storage) return;
@@ -18833,6 +18920,7 @@
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
         chrome.storage.onChanged.addListener(function(changes, area2) {
           if ((area2 === "sync" || area2 === "local") && changes[SYNC.COLOR_PROFILE]) applyProfileValue(changes[SYNC.COLOR_PROFILE].newValue);
+          if ((area2 === "sync" || area2 === "local") && changes[SYNC.WORK_HOURS]) applyWorkHours(changes[SYNC.WORK_HOURS].newValue);
         });
       }
     } catch (e) {
@@ -19075,6 +19163,7 @@
   // src/content/features/agenda/index.js
   function startDayColoring() {
     watchProfileChanges();
+    loadWorkHoursFromStorage();
     setOnHelperConfigChanged(function() {
       try {
         syncAgendaPage();

@@ -35,3 +35,36 @@ test('omschrijving: opeenvolgende dagen met dezelfde tijden samen', () => {
   [1, 2, 3, 4, 5].forEach((d) => { voltijd[d] = { start: '08:00', end: '16:30' }; });
   assert.equal(describeWorkHours(normalizeWorkHours(voltijd)), 'ma t/m vr 08:00 tot 16:30');
 });
+
+test('planhulp: vrije tijd alleen binnen de werktijden van die dag', async () => {
+  process.env.TZ = 'Europe/Amsterdam';
+  const { findFreeGaps } = await import('../src/content/domain/free-slots.js');
+  const uren = normalizeWorkHours({ 1: { start: '08:30', end: '17:00' }, 5: { start: '09:00', end: '12:30' } });
+  const gaps = findFreeGaps([], {
+    now: new Date(2026, 9, 19, 7, 0).getTime(), days: 5, minMinutes: 60, stepMin: 15, maxResults: 20,
+    windowStart: 480, windowEnd: 1020, dayWindow: (weekday) => workWindowFor(uren, weekday),
+  });
+  assert.deepEqual(gaps.map((g) => [g.date, g.startMin, g.endMin]), [
+    ['2026-10-19', 510, 1020],   // maandag 08:30 tot 17:00
+    ['2026-10-23', 540, 750],    // vrijdag 09:00 tot 12:30; di, wo en do geen werkdag
+  ]);
+});
+
+test('kleuring: de zones van het team, alleen binnen de eigen werktijden', async () => {
+  const { bootHelper } = await import('./helpers/harness.mjs');
+  const kolom = (dag, datum) => `<td class="calendar_day ${dag}"><div class="day js_day" data-date="${datum}" data-test-rect="0,0,100,960"></div></td>`;
+  const html = '<!doctype html><html><body><table><tr>' + kolom('monday', '2026-10-19') + kolom('wednesday', '2026-10-21') + kolom('friday', '2026-10-23') + '</tr></table></body></html>';
+  const { document } = bootHelper({
+    html, url: 'https://impegno.onsagenda.nl/invitees/123/calendar/workweek?date=2026-10-19',
+    sync: { colorProfile: 'JGGZ', workHours: { 1: { start: '08:30', end: '17:00' }, 5: { start: '09:00', end: '12:30' } } },
+  });
+  await new Promise((r) => setTimeout(r, 200));
+  // 960 px voor 24 uur: 40 px per uur.
+  const zones = (datum) => [...document.querySelectorAll(`[data-date="${datum}"] > [data-seg^="zone"]`)]
+    .map((z) => [parseInt(z.style.top, 10) / 40, (parseInt(z.style.top, 10) + parseInt(z.style.height, 10)) / 40]);
+  const ma = zones('2026-10-19');
+  assert.equal(ma[0][0], 8.5, 'maandag begint om 08:30');
+  assert.equal(ma[ma.length - 1][1], 17);
+  assert.deepEqual(zones('2026-10-21'), [], 'woensdag is geen werkdag');
+  assert.deepEqual(zones('2026-10-23'), [[9, 11.5], [11.5, 12], [12, 12.5]], 'vrijdag 09:00 tot 12:30');
+});

@@ -24,6 +24,11 @@ export function maakInfo(ctx) {
       });
       box.appendChild(lk);
     }
+    if (ctx.state && ctx.state.workHours) {
+      const wt = txt('help', 'Je werktijden: ' + ctx.state.workHours + '. Aanpassen kan in de popup van de extensie (het icoon in de werkbalk).', { margin: '8px 2px 0' });
+      wt.setAttribute('data-info-werktijden', '');
+      box.appendChild(wt);
+    }
     box.appendChild(sectionHead('Rondleiding'));
     const rl = lijstKaart();
     const r1 = hulpRij('info', ICON_HELP, 'Rondleiding zijpaneel', function () { ctx.startHoofdRondleiding(); }, null, true);

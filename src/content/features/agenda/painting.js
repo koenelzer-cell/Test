@@ -5,6 +5,7 @@ import { activeZones } from './zones.js';
 import { agendaPage } from './state.js';
 import { ONS } from '../../ons/selectors.js';
 import { dayColumnLooksFree } from '../appointment/free-day.js';
+import { workWindowFor } from '../../../shared/work-hours.js';
 
 export const CLASS = 'ons-helper-offhours';
 let rafPending = false;
@@ -33,16 +34,34 @@ function ensureSeg(col, seg) {
 function clearColumn(col) {
   try { col.querySelectorAll(':scope > .' + CLASS).forEach((el) => el.remove()); } catch (e) {}
 }
-function isWeekendColumn(col) {
-  // za/zo: nooit inkleuren. Herken via de td-klasse of de datum.
-  const td = col.closest && col.closest(ONS.dayColumnCell);
-  if (td && ONS.weekendClassRe.test(td.className)) return true;
+// Weekdag van een dagkolom (Date.getDay), uit de datum of de klasse van de cel.
+function weekdayOfColumn(col) {
   const date = col.getAttribute('data-date');
   if (date) {
     const d = new Date(date + 'T00:00:00');
-    if (!isNaN(d)) { const wd = d.getDay(); if (wd === 0 || wd === 6) return true; }
+    if (!isNaN(d)) return d.getDay();
   }
-  return false;
+  const td = col.closest && col.closest(ONS.dayColumnCell);
+  const m = td && ONS.dayClassRe.exec(td.className);
+  return m ? ONS.dayClassNames.indexOf(m[1]) : null;
+}
+// za/zo: nooit inkleuren.
+function isWeekendColumn(col) {
+  const weekday = weekdayOfColumn(col);
+  return weekday === 0 || weekday === 6;
+}
+// De zones van het team, afgeknipt op de eigen werktijden van die dag (als
+// die zijn ingesteld). [] = op die dag niets kleuren.
+function zonesForColumn(col) {
+  const zones = activeZones();
+  const weekday = weekdayOfColumn(col);
+  const w = weekday == null ? undefined : workWindowFor(agendaPage.workHours, weekday);
+  if (w === undefined) return zones;
+  if (w === null) return [];
+  const from = w.start / 60, to = w.end / 60;
+  return zones
+    .map((z) => ({ ...z, from: Math.max(z.from, from), to: Math.min(z.to, to) }))
+    .filter((z) => z.to > z.from);
 }
 function paintColumn(col) {
   // Vrije/grijze dag of weekend (za/zo): geen kleuren tonen.
@@ -58,7 +77,7 @@ function paintColumn(col) {
   col.querySelectorAll(':scope > .' + CLASS + '[data-seg="top"], :scope > .' + CLASS + '[data-seg="bottom"]').forEach((el) => el.remove());
 
   // Gekleurde zones binnen werktijd
-  const zones = activeZones();
+  const zones = zonesForColumn(col);
   zones.forEach(function (z, i) {
     const el = ensureSeg(col, 'zone' + i);
     el.style.background = z.color;
