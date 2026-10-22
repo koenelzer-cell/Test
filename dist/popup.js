@@ -522,6 +522,7 @@
     wrap.appendChild(a);
     view.appendChild(wrap);
   }
+  document.getElementById("copyright").textContent = "© impegno " + (/* @__PURE__ */ new Date()).getFullYear();
   function init() {
     loadPopupConfig().catch(function() {
     }).then(function() {

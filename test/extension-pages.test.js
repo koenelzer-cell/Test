@@ -200,6 +200,11 @@ test('popup: toont de bedrijfsonderdelen uit config.json', async () => {
   assert.ok(document.body.textContent.includes('Probleem melden via TOPdesk'));
 });
 
+test('popup: het jaartal bij het copyright is het huidige jaar', async () => {
+  const { document } = loadPage('pages/popup.html', 'dist/popup.js');
+  assert.equal(document.getElementById('copyright').textContent, '© impegno ' + new Date().getFullYear());
+});
+
 test('popup: een team kiezen bewaart sector en team in sync', async () => {
   const { document, env } = loadPage('pages/popup.html', 'dist/popup.js');
   await tick(); await tick();

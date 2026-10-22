@@ -87,6 +87,9 @@ function appendFooter() {
   view.appendChild(wrap);
 }
 
+// Het jaartal volgt de klok, zodat het niet elk jaar met de hand hoeft.
+document.getElementById('copyright').textContent = '© impegno ' + new Date().getFullYear();
+
 function init() {
   loadPopupConfig().catch(function () {}).then(function () {
     try {
