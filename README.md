@@ -48,8 +48,8 @@ Daarnaast laadt `e2e/extensie.spec.mjs` de uitgepakte extensie zelf, met vaste
 ONS-pagina's in plaats van ONS: geen fouten op de agenda, het
 afspraakformulier en ONS Dossier; de content-scripts antwoorden het
 zijpaneel; na het stoppen van de service worker en na een herstart van de
-browser staan menu, wekker, badge en zijpaneel er nog; en de UI-inspector
-laadt pas op verzoek.
+browser staan menu, wekker en zijpaneel er nog; de UI-inspector laadt pas op
+verzoek; en de werktijden in de popup worden opgeslagen en gewist.
 
 Bibliotheken die in de extensie worden meegebundeld: React (schermen),
 `valibot` (controleert of ONS-antwoorden de verwachte vorm hebben, zie

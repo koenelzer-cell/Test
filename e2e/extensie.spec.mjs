@@ -214,3 +214,24 @@ test('na herladen van de extensie vraagt een open ONS-pagina om herladen', async
     await sluit();
   }
 });
+
+test('popup: werktijden opslaan en wissen in chrome.storage.sync', async () => {
+  const { context, id, sluit } = await startBrowser();
+  try {
+    const ext = await extensiePagina(context, id);
+    const blok = ext.page.locator('[data-werktijden]');
+    await blok.getByRole('button', { name: 'Instellen' }).click();
+    await blok.locator('[data-dag="3"] input[type=checkbox]').uncheck();
+    await blok.getByRole('button', { name: 'Opslaan' }).click();
+    await expect(blok.locator('[data-werktijden-samenvatting]')).toHaveText(/^ma en di .* tot .*, do en vr .* tot .*$/);
+    const opgeslagen = await ext.page.evaluate(() => chrome.storage.sync.get('workHours'));
+    expect(Object.keys(opgeslagen.workHours)).toEqual(['1', '2', '4', '5']);
+    ext.page.once('dialog', (d) => d.accept());
+    await blok.getByRole('button', { name: 'Aanpassen' }).click();
+    await blok.getByRole('button', { name: 'Wissen' }).click();
+    await expect(blok).toContainText('Niet ingesteld');
+    expect(await ext.page.evaluate(() => chrome.storage.sync.get('workHours'))).toEqual({});
+  } finally {
+    await sluit();
+  }
+});
