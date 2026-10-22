@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.290
+
+- Tijden staan overal in 24 uur (09:00, 17:00), ook als de browser in het
+  Engels staat: bij de werktijden in de popup en bij begin- en eindtijd van
+  een verlofaanvraag. Kort typen mag: '9' wordt 09:00, '1230' wordt 12:30.
+- Het werktijdenblok heeft geen uitlegregel meer onder de dagen.
+- Het jaartal onderaan de popup gaat vanzelf mee met het jaar.
+
 ## 1.6.289
 
 - Nieuw in de popup (het icoon van de extensie): **Werktijden**. Vul per
