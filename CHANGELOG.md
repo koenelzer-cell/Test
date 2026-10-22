@@ -2,6 +2,15 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.289
+
+- Nieuw in de popup (het icoon van de extensie): **Werktijden**. Vul per
+  werkdag in of je werkt en van hoe laat tot hoe laat. De gekleurde
+  dagindeling kleurt dan alleen binnen je werktijden, en de planhulp zoekt
+  alleen daar vrije tijd. Op een dag waarop je niet werkt, kleurt de agenda
+  niet en zoekt de planhulp niets. Zonder eigen werktijden blijft alles zoals
+  je team is ingedeeld.
+
 ## 1.6.288
 
 - Een afspraakformulier uit de planhulp dat nog op een cliënt wacht, raakt
