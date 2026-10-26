@@ -1,16 +1,13 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AgendaWeekPanel } from './components/AgendaWeekPanel.jsx';
-import { BreakdownModalBody } from './components/BreakdownModalBody.jsx';
-import { CalcModalBody } from './components/CalcModalBody.jsx';
 import { WizardScreen } from './components/WizardScreen.jsx';
 
-// Brug tussen het content-script / het zijpaneel (vanilla, eigenaar van alle
-// domeinlogica) en deze React-bundel (puur presentatie). Aan de andere kant:
-// src/content/ui/react-bridge.js en src/sidepanel/agenda-panel.js. De bundel
-// draait in dezelfde wereld als zijn aanroeper (isolated world resp. het
-// zijpaneel), dus objecten/functies gaan by-reference over — geen
-// serialisatie nodig.
+// Brug tussen het content-script (vanilla, eigenaar van alle domeinlogica) en
+// deze React-bundel (de wizardschermen, puur presentatie). Aan de andere kant:
+// src/content/ui/react-bridge.js. De bundel draait in dezelfde wereld als het
+// content-script (isolated world), dus objecten en functies gaan
+// by-reference over, zonder serialisatie. Het zijpaneel heeft zijn eigen
+// React-bundel (src/sidepanel/, dist/sidepanel.js).
 //
 // Eén root per container: een tweede aanroep met dezelfde container doet
 // root.render(...) opnieuw (React reconciliation) i.p.v. de container leeg te
@@ -32,21 +29,6 @@ function getRoot(container) {
 }
 
 window.__onsahReact = {
-  renderWeekPanel(container, summary, opts, tokens, clientRows, overigRows, fmtMin, callbacks) {
-    getRoot(container).render(
-      createElement(AgendaWeekPanel, {
-        summary, opts, tokens, fmtMin,
-        onOpenClientTime: callbacks && callbacks.onOpenClientTime,
-      })
-    );
-  },
-  // Pagina's in het zijpaneel (Cliënttijd en Verhouding).
-  renderBreakdownBody(container, summary, opts, fmtMin, tokens) {
-    getRoot(container).render(createElement(BreakdownModalBody, { summary, opts, fmtMin, tokens }));
-  },
-  renderCalcBody(container, rows, nonClientMarker, fmtMin, tokens, mode) {
-    getRoot(container).render(createElement(CalcModalBody, { rows, nonClientMarker, fmtMin, tokens, mode }));
-  },
   // Wizardscherm op naam tekenen (namen komen overeen met markScreen in
   // content.js). Eén root per container, dus opeenvolgende schermen zijn een
   // gewone re-render i.p.v. de body slopen en opnieuw opbouwen.

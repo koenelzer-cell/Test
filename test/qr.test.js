@@ -1,8 +1,7 @@
 // QR-code van de route (in de extensie gemaakt, geen QR-dienst).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
-import { qrMatrix, qrSvg } from '../src/sidepanel/qr.js';
+import { qrMatrix, qrTekening } from '../src/sidepanel/qr.js';
 
 const LINK = 'https://www.google.com/maps/dir/?api=1&destination=Laan%205%2C%202613RR%2C%20Delft&waypoints=Teststraat%201%2C%202611EB%2C%20Delft&travelmode=driving';
 
@@ -22,12 +21,11 @@ test('QR: lange route (10 stops) past, veel te lang geeft null', () => {
   assert.equal(qrMatrix('x'.repeat(5000)), null);
 });
 
-test('QR: SVG met witte rand en één pad', () => {
-  const { document } = new JSDOM('').window;
-  const svg = qrSvg(document, LINK, 240);
+test('QR: tekening met witte rand en één pad', () => {
+  const q = qrTekening(LINK, 240);
   const n = qrMatrix(LINK).n;
-  assert.equal(svg.getAttribute('viewBox'), '0 0 ' + (n + 8) + ' ' + (n + 8));
-  assert.equal(svg.getAttribute('width'), String(Math.max(240, (n + 8) * 3)), 'minstens 3 px per module');
-  assert.equal(svg.querySelectorAll('path').length, 1);
-  assert.match(svg.querySelector('path').getAttribute('d'), /^M4 4h1v1h-1z/, 'eerste module linksboven (zoekpatroon) na de rand');
+  assert.equal(q.totaal, n + 8, 'rand van 4 modules');
+  assert.equal(q.maat, Math.max(240, (n + 8) * 3), 'minstens 3 px per module');
+  assert.match(q.pad, /^M4 4h1v1h-1z/, 'eerste module linksboven (zoekpatroon) na de rand');
+  assert.equal(qrTekening('x'.repeat(5000), 240), null, 'te lang');
 });

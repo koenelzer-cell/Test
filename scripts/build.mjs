@@ -7,7 +7,9 @@
 // Waarom een bundelstap: content-scripts kunnen in Chrome/Edge geen ES-modules
 // zijn. De bron is wel in modules opgedeeld (import/export); esbuild voegt ze
 // per ingang samen tot één klassiek script (IIFE). De uitvoer is bewust NIET
-// geminificeerd, zodat een fout in de console nog leesbaar is. Sourcemaps
+// geminificeerd, zodat een fout in de console nog leesbaar is; alleen de twee
+// bundels met React erin (zijpaneel en wizardschermen) wel, anders is React
+// zelf onnodig groot. Sourcemaps
 // alleen bij --watch: ze wijzen in DevTools terug naar src/, maar horen niet in
 // versiebeheer of in het pakket.
 //
@@ -42,7 +44,6 @@ const SCRIPT_ENTRIES = [
   ['src/io-planning-block/index.js', 'dist/io-planning-block.js'], // content-script, ioservice.net
   ['src/background/index.js', 'dist/background.js'],      // service worker
   ['src/popup/index.js', 'dist/popup.js'],                // pages/popup.html
-  ['src/sidepanel/index.js', 'dist/sidepanel.js'],        // pages/sidepanel.html
 ];
 
 const builds = [
@@ -53,9 +54,22 @@ const builds = [
     sourcemap: watch ? 'linked' : false,
     charset: 'utf8',
   })),
-  // De React-schermen (src/react/): geminificeerd, productiebuild van React.
-  // Laadt als apart script vóór dist/content.js en dist/sidepanel.js en biedt
-  // window.__onsahReact aan (zie src/content/ui/react-bridge.js).
+  // Het zijpaneel (pages/sidepanel.html): helemaal React, met React zelf in
+  // de bundel. Geminificeerd en de productiebuild van React, net als de
+  // React-bundel hieronder.
+  {
+    ...common,
+    entryPoints: ['src/sidepanel/index.jsx'],
+    outfile: 'dist/sidepanel.js',
+    minify: !watch,
+    sourcemap: watch ? 'linked' : false,
+    charset: 'utf8',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  },
+  // De wizardschermen op de ONS-pagina's (src/react/): geminificeerd,
+  // productiebuild van React. Laadt als apart script vóór dist/content.js en
+  // biedt window.__onsahReact aan (zie src/content/ui/react-bridge.js).
   {
     ...common,
     entryPoints: ['src/react/index.jsx'],

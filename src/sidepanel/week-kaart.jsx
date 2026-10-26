@@ -1,5 +1,5 @@
-import { RATIO_COLORS } from './CalcModalBody.jsx';
-import { werkweekTekst as werkweekNl } from '../../shared/datum.js';
+import { RATIO_COLORS } from './verhouding-kaarten.jsx';
+import { T, fmtMin, werkweekTekst } from './ui.jsx';
 
 // Het weekoverzicht op het startscherm van het zijpaneel, uit een
 // summarizeAgendaWeek-resultaat.
@@ -12,10 +12,6 @@ import { werkweekTekst as werkweekNl } from '../../shared/datum.js';
 // Bij meerdere agenda's naast elkaar: per collega een kaart met de naam erboven.
 const DELEN = [['directMinutes', 'Direct', RATIO_COLORS.direct], ['indirectMinutes', 'Indirect', RATIO_COLORS.indirect], ['travelMinutes', 'Reistijd', RATIO_COLORS.travel]];
 
-// 'YYYY-MM-DD' -> '5 tot en met 9 oktober' (maandag tot en met vrijdag van
-// die week; date-fns, zie src/shared/datum.js).
-export function werkweekTekst(ymd) { return werkweekNl(ymd); }
-
 function Chevron({ color }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: '0 0 auto' }}>
@@ -24,7 +20,7 @@ function Chevron({ color }) {
   );
 }
 
-function WeekKaart({ s, T, fmtMin, onOpen, naam }) {
+function WeekKaart({ s, onOpen, naam }) {
   const som = DELEN.reduce((t, d) => t + (s[d[0]] || 0), 0);
   const label = { fontSize: 12, fontWeight: 600, color: T.inkSoft };
   return (
@@ -73,13 +69,12 @@ function WeekKaart({ s, T, fmtMin, onOpen, naam }) {
   );
 }
 
-export function AgendaWeekPanel({ summary, opts, tokens, fmtMin, onOpenClientTime }) {
+export function AgendaWeekPanel({ summary, opts, onOpenClientTime }) {
   const s = summary || {
     count: 0, totalMinutes: 0, clientMinutes: 0, nonClientMinutes: 0,
     directMinutes: 0, indirectMinutes: 0, unknownMinutes: 0, travelMinutes: 0, byType: [],
   };
   const o = opts || {};
-  const T = tokens;
   const dag = o.scope === 'dag';
   const titel = dag ? 'Vandaag' : (o.week ? 'Week ' + o.week : 'Deze week');
   const datums = dag ? '' : werkweekTekst(o.date);
@@ -95,7 +90,7 @@ export function AgendaWeekPanel({ summary, opts, tokens, fmtMin, onOpenClientTim
       {personen.map((p, i) => (
         <div key={p.id || i} data-persoon={p.id || undefined} style={{ marginTop: i ? 12 : 0 }}>
           {p.name ? <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, margin: '0 2px 6px' }}>{p.name}</div> : null}
-          <WeekKaart s={p.summary || {}} T={T} fmtMin={fmtMin} onOpen={onOpenClientTime} naam={p.name} />
+          <WeekKaart s={p.summary || {}} onOpen={onOpenClientTime} naam={p.name} />
         </div>
       ))}
     </div>

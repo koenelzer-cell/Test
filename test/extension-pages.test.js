@@ -430,6 +430,21 @@ function zijpaneelMetTools(antwoord, state = AGENDA_STATE_TOOLS) {
   return { ...r, verzonden };
 }
 
+// Invoer zoals een gebruiker die geeft. Het zijpaneel is React: dat luistert
+// naar echte, opborrelende events, en een waarde die een test met .value = …
+// zet, ziet het niet als wijziging. Dus de waarde zetten zoals de browser dat
+// doet bij typen, en het input-event laten opborrelen; een vinkje aanklikken;
+// een keuzelijst met een opborrelend change-event.
+function typ(el, waarde) {
+  const win = el.ownerDocument.defaultView;
+  Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value').set.call(el, waarde);
+  el.dispatchEvent(new win.Event('input', { bubbles: true }));
+}
+function kiesUit(el, waarde) {
+  const win = el.ownerDocument.defaultView;
+  el.value = waarde;
+  el.dispatchEvent(new win.Event('change', { bubbles: true }));
+}
 const zichtbaar = (node) => { for (let n = node; n; n = n.parentElement) if (n.style && n.style.display === 'none') return false; return true; };
 const RESULT = (items) => ({ from: '2026-08-10', to: '2026-10-07', totalMinutes: 0, totalCount: items.length, lateCount: 0,
   days: items.length ? [{ date: '2026-10-05', client: 0, overig: 0, count: items.length, lateCount: 0, items }] : [] });
@@ -788,7 +803,7 @@ test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de
   // Zonder direct maken: in de balk 'Apart formulier' (niet bij het eerste moment).
   assert.equal(document.querySelector('[data-eigen="2026-10-08 10:30"]'), null, 'eerste moment: geen vinkje');
   const vink = document.querySelector('[data-eigen="2026-10-13 09:00"]');
-  vink.checked = true; vink.dispatchEvent(new document.defaultView.Event('change'));
+  vink.click();
   knop(document, 'Afspraak maken op 2 momenten').click();
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '10:30', minutes: 60, extra: [], eigen: [{ date: '2026-10-13', time: '09:00' }] });
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));
@@ -1097,11 +1112,11 @@ async function tweeMomenten(document) {
 }
 async function kiesClient(document, dom, sleutel, naam) {
   const z = document.querySelector('[data-maak-zoek="' + sleutel + '"]');
-  z.value = naam; z.dispatchEvent(new dom.window.Event('input'));
+  typ(z, naam);
   await new Promise((r) => setTimeout(r, 420));
   document.querySelector('[data-client-id="' + CLIENTEN[naam].id + '"]').click();
 }
-const kies = (document, dom, sel, v) => { const s = document.querySelector(sel); s.value = v; s.dispatchEvent(new dom.window.Event('change')); };
+const kies = (document, dom, sel, v) => kiesUit(document.querySelector(sel), v);
 
 test('zijpaneel: planhulp toont de lijst meteen en kijkt daarna de eerste blokken na bij ONS', async () => {
   const dagen = ['2026-10-08', '2026-10-09', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16'];
@@ -1263,7 +1278,7 @@ test('zijpaneel: afspraak maken - reistijd invullen bij een type met reistijd (b
   assert.equal(document.querySelector('[data-maak-reis-alle]'), null, 'Face to face: geen reistijd');
   kies(document, dom, '[data-maak-type-alle]', '46');
   assert.ok(document.querySelector('[data-maak-reis-alle]'), 'Huisbezoek: reistijd zonder Geavanceerd');
-  const vul = async (sel, v) => { const i = document.querySelector(sel); i.value = v; i.dispatchEvent(new dom.window.Event('input')); i.dispatchEvent(new dom.window.Event('change')); await tick(); };
+  const vul = async (sel, v) => { const i = document.querySelector(sel); typ(i, v); i.dispatchEvent(new dom.window.Event('change')); await tick(); };
   await vul('[data-maak-reis-alle-heen]', '20');
   await vul('[data-maak-reis-alle-terug]', '15');
   assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /Reistijd 20 min heen en 15 min terug/);
@@ -1286,7 +1301,7 @@ test('zijpaneel: afspraak maken - van reistijd heen naar terug: de focus blijft 
   await kiesClient(document, dom, 'dup0', 'Tamara');
   kies(document, dom, '[data-maak-type-alle]', '46');
   const heen = document.querySelector('[data-maak-reis-alle-heen]');
-  heen.focus(); heen.value = '20'; heen.dispatchEvent(new dom.window.Event('input'));
+  heen.focus(); typ(heen, '20');
   // Zoals de browser het doet: eerst change op het oude veld, dan focus naar het nieuwe.
   heen.dispatchEvent(new dom.window.Event('change'));
   document.querySelector('[data-maak-reis-alle-terug]').focus();
@@ -1308,7 +1323,7 @@ test('zijpaneel: afspraak maken - titel onder type: bij Zelfde cliënt(en) voor 
   const typeLabel = labels.indexOf('Type');
   const lab = [...alle.querySelectorAll(':scope > div > span:first-child')];
   assert.deepEqual([lab[typeLabel + 2].style.fontSize, lab[typeLabel + 2].style.fontWeight, lab[typeLabel + 2].style.color], [lab[typeLabel].style.fontSize, lab[typeLabel].style.fontWeight, lab[typeLabel].style.color], 'Cliënten zijn aanwezig in dezelfde letters als Type');
-  tl.value = 'Intake'; tl.dispatchEvent(new dom.window.Event('input')); tl.dispatchEvent(new dom.window.Event('change'));
+  typ(tl, 'Intake'); tl.dispatchEvent(new dom.window.Event('change'));
   await tick();
   assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /^Intake/);
   assert.match(document.querySelector('[data-maak-samenvatting="1"]').textContent, /^Intake/, 'geldt voor elke afspraak');
@@ -1339,7 +1354,7 @@ test('zijpaneel: afspraak maken - reistijd telt niet bij een type zonder reistij
   await kiesClient(document, dom, 'dup0', 'Tamara');
   kies(document, dom, '[data-maak-uursoort="11142"]', '5');
   kies(document, dom, '[data-maak-type-alle]', '46');
-  const i = document.querySelector('[data-maak-reis-alle-heen]'); i.value = '20'; i.dispatchEvent(new dom.window.Event('input')); i.dispatchEvent(new dom.window.Event('change'));
+  const i = document.querySelector('[data-maak-reis-alle-heen]'); typ(i, '20'); i.dispatchEvent(new dom.window.Event('change'));
   kies(document, dom, '[data-maak-type-alle]', '48');
   document.querySelector('[data-maak-knop]').click();
   await tick();
@@ -1401,7 +1416,7 @@ test('zijpaneel: afspraak maken A - per afspraak anders + geavanceerd: efficiën
   assert.ok(document.querySelector('[data-maak-aanwezig-afspraak="1"]'), 'per afspraak anders: aanwezig in de kaart');
   const adv = document.querySelector('[data-maak-geavanceerd]');
   assert.match(adv.parentElement.textContent, /^Geavanceerd/);
-  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  adv.click();
   kies(document, dom, '[data-maak-type-alle]', '46');
   const knopEff = document.querySelector('[data-maak-efficient]');
   assert.match(knopEff.textContent, /Efficiënter indelen/);
@@ -1461,7 +1476,7 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   const { document, dom, google } = maakPaneel({}, AGENDA_STATE_TOOLS);
   await tweeMomenten(document);
   const adv = document.querySelector('[data-maak-geavanceerd]');
-  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  adv.click();
   assert.equal(document.querySelector('[data-maak-efficient]'), null);
   assert.match(document.body.textContent, /vul in het beheerscherm \(Functies → Google Maps\) een Routes-sleutel in/);
   document.querySelector('[data-maak-aanpassen="0"]').click();
@@ -1501,14 +1516,14 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   assert.match(document.body.textContent, /ONS meldt overlap: de cliënt\(en\) hebben op dit tijdstip al een afspraak/);
   // Reistijd: het vrije blok begint om 9:00, de afspraak om 10:00.
   const adv = document.querySelector('[data-maak-geavanceerd]');
-  adv.checked = true; adv.dispatchEvent(new dom.window.Event('change'));
+  adv.click();
   document.querySelector('[data-maak-aanpassen="0"]').click();
   const heen = document.querySelector('[data-maak-heen="0"]');
-  heen.value = '90'; heen.dispatchEvent(new dom.window.Event('input')); heen.dispatchEvent(new dom.window.Event('change'));
+  typ(heen, '90'); heen.dispatchEvent(new dom.window.Event('change'));
   await tick();
   assert.match(document.querySelector('[data-maak-reis-conflict="0"]').textContent, /Reistijd heen \(90 min\) past niet: er is 60 min vrij voor 10:00\./);
   const heen2 = document.querySelector('[data-maak-heen="0"]');
-  heen2.value = '45'; heen2.dispatchEvent(new dom.window.Event('input')); heen2.dispatchEvent(new dom.window.Event('change'));
+  typ(heen2, '45'); heen2.dispatchEvent(new dom.window.Event('change'));
   await tick();
   assert.equal(document.querySelector('[data-maak-reis-conflict="0"]'), null, '45 min past wel');
   // Maken; daarna zoekt de planhulp de vrije tijd opnieuw.
@@ -1638,12 +1653,12 @@ test('zijpaneel: cliënt zoeken met vinkje Inclusief cliënten uit zorg', async 
   assert.equal(vink.checked, false, 'standaard uit');
   assert.match(vink.parentNode.textContent, /^Inclusief cliënten uit zorg$/);
   const z = document.querySelector('[data-maak-zoek]');
-  z.value = 'T'; z.value = 'Ti'; z.dispatchEvent(new dom.window.Event('input'));
+  typ(z, 'T'); typ(z, 'Ti');
   await new Promise((r) => setTimeout(r, 420));
   const zoek = () => verzonden.filter((m) => m.type === 'ag-client-search');
   assert.deepEqual([zoek().at(-1).term, zoek().at(-1).outOfCare], ['Ti', false]);
   assert.equal(document.querySelector('[data-client-id="999"]'), null);
-  vink.checked = true; vink.dispatchEvent(new dom.window.Event('change'));
+  vink.click();
   await new Promise((r) => setTimeout(r, 30));
   assert.deepEqual([zoek().at(-1).term, zoek().at(-1).outOfCare], ['Ti', true], 'aanvinken zoekt meteen opnieuw, met uit zorg');
   const tim = document.querySelector('[data-client-id="999"]');
@@ -1868,7 +1883,7 @@ test('zijpaneel: elke feestdag een eigen kleine animatie, één keer per week en
   document.querySelector('[data-plan-weergave="raster"]').click(); await tick();
   const naHertekenen = gespeeld.length;
   // Muis erover: nog een keer.
-  document.querySelector('[data-raster-feestdag="Koningsdag"]').dispatchEvent(new dom.window.Event('mouseenter'));
+  document.querySelector('[data-raster-feestdag="Koningsdag"]').dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true }));
   assert.equal(gespeeld.length, naHertekenen + 1, 'muis erover speelt hem nog eens');
   assert.ok(aantal >= namen.length);
 });
@@ -1949,4 +1964,23 @@ test('zijpaneel: route van de dag - nette melding met knop als ONS niet antwoord
   navKnop(document, 'Route van de dag').click();
   await new Promise((r2) => setTimeout(r2, 4100));
   assert.match(document.body.textContent, /Geen huisbezoeken/);
+});
+
+test('zijpaneel: een fout op een pagina laat de rest van het paneel staan, met een weg terug', async () => {
+  // Een feestdag met een datum die niet te lezen is: de lijst van de planhulp
+  // kan niet getekend worden.
+  const { document, dom } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [], holidays: [{ date: 'onzin', name: 'Kapot' }] } }),
+  });
+  const fouten = [];
+  dom.window.console.error = (...a) => fouten.push(a);
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'de kop blijft staan');
+  assert.match(document.querySelector('[data-staat]').textContent, /Er ging iets mis/);
+  assert.ok(fouten.length, 'de fout staat in de console');
+  knop(document, 'Terug naar start').click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agendahulp');
+  assert.equal(zichtbaar(navKnop(document, 'Planhulp')), true, 'startscherm werkt');
 });

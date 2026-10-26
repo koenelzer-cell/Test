@@ -88,30 +88,22 @@ export function feestdagStijl(naam) {
   return { sleutel: feestdagSleutel(naam), achtergrond: s.patroon() + ',' + s.bg, ink: s.ink, kop: s.kop || s.ink, stip: s.stip, slinger: !!s.slinger };
 }
 
-function svgUit(doc, viewBox, inner) {
-  // Vaste tekst uit dit bestand, nooit gegevens van ONS.
-  const p = new DOMParser().parseFromString('<svg xmlns="' + SVG_NS + '" viewBox="' + viewBox + '">' + inner + '</svg>', 'image/svg+xml');
-  return doc.importNode(p.documentElement, true);
+// De tekening (48 x 48) als binnenwerk van een <svg viewBox="0 0 48 48">. Vaste
+// tekst uit dit bestand, nooit gegevens van ONS (de naam kiest alleen de stijl).
+export function feestdagIcoonSvg(naam) {
+  return STIJLEN[feestdagSleutel(naam)].icoon();
 }
 
-// De tekening (48 x 48) als <svg>.
-export function feestdagIcoon(doc, naam) {
-  const svg = svgUit(doc, '0 0 48 48', STIJLEN[feestdagSleutel(naam)].icoon());
-  svg.setAttribute('aria-hidden', 'true');
-  return svg;
-}
-
-// Vlaggetjes (Koningsdag) bovenin een kolom.
-export function feestdagSlinger(doc) {
-  let kleuren = ['#c8102e', '#fff', '#21468b'], d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
+// Vlaggetjes (Koningsdag) bovenin een kolom: binnenwerk van een
+// <svg viewBox="0 0 60 10">.
+export function feestdagSlingerSvg() {
+  let d = '<path d="M0 1Q30 6 60 1" stroke="#fff" stroke-width=".8" fill="none"/>';
+  const kleuren = ['#c8102e', '#fff', '#21468b'];
   [4, 14, 24, 34, 44, 54].forEach(function (x, i) {
     const y = (2 + Math.sin(x / 19) * 1.5).toFixed(2);
     d += '<path d="M' + (x - 3) + ' ' + y + 'L' + (x + 3) + ' ' + y + 'L' + x + ' 9Z" fill="' + kleuren[i % 3] + '"/>';
   });
-  const svg = svgUit(doc, '0 0 60 10', d);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-  return svg;
+  return d;
 }
 
 // Korte animatie per feestdag (Web Animations API): frames, duur en het

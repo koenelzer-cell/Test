@@ -1,36 +1,34 @@
-// Het zijpaneel: de Agendahulp (agenda-panel.js) op de agendaschermen.
+// Het zijpaneel: de Agendahulp (agenda-panel.jsx) op de agendaschermen.
 //
 // Het content-script van de ONS-pagina zendt zijn toestand uit; dit bestand
-// geeft die door aan het paneel. Het paneel tekent zelf; dit bestand doet
-// alleen de koppeling. Klikken gaan terug naar het content-script, want alleen
+// geeft die door aan het paneel. Het paneel tekent zelf (React, één root op
+// #paneel); dit bestand doet alleen de koppeling en de korte meldingen als er
+// niets te tonen is. Klikken gaan terug naar het content-script, want alleen
 // dat kan de ONS-pagina lezen en aansturen.
 
+import { Fragment } from 'react';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { ONS_URL_PATTERNS, isOnsUrl } from '../shared/ons-hosts.js';
-import { create as createAgendaPanel } from './agenda-panel.js';
+import { create as createAgendaPanel } from './agenda-panel.jsx';
 import { formulierTitel } from './bewaard.js';
 
 const NIETS_KOP = 'Niets om te tonen';
 const NIETS_TEKST = 'Ga in ONS naar de agenda; het paneel vult zich dan vanzelf.';
 
-const host = document.getElementById('paneel');
+const root = createRoot(document.getElementById('paneel'));
 let huidig = null;        // { soort: 'agenda', paneel }
+let paneelNr = 0;         // eigen sleutel per paneel: een nieuw paneel begint schoon
 let onsTabId = null;
 
 function leeg() {
   if (huidig) { huidig.paneel.destroy(); huidig = null; }
-  host.innerHTML = '';
 }
 
 function toonMelding(kop, tekst) {
   leeg();
-  const d = document.createElement('div');
-  d.className = 'melding';
-  const b = document.createElement('b');
-  b.textContent = kop;
-  d.appendChild(b);
-  d.appendChild(document.createTextNode(tekst));
-  host.appendChild(d);
+  flushSync(function () { root.render(<div className="melding"><b>{kop}</b>{tekst}</div>); });
 }
 
 function naarTab(msg) {
@@ -91,7 +89,9 @@ const agendaActies = {
 function toon(soort, state) {
   if (!huidig || huidig.soort !== soort) {
     leeg();
-    huidig = { soort: soort, paneel: createAgendaPanel(host, agendaActies) };
+    const nr = ++paneelNr;
+    const tekenen = function (inhoud) { root.render(<Fragment key={nr}>{inhoud}</Fragment>); };
+    huidig = { soort: soort, paneel: createAgendaPanel(tekenen, agendaActies) };
   }
   huidig.paneel.update(state);
 }

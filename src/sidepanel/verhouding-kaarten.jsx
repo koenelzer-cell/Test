@@ -1,3 +1,5 @@
+import { T, fmtMin } from './ui.jsx';
+
 // Pagina 'Verhouding per uursoort' in het zijpaneel.
 //
 // Per cliëntgebonden uursoort een kaart: naam en totaal, één balk en daaronder
@@ -12,7 +14,7 @@
 export const RATIO_COLORS = { direct: '#2f5d7c', indirect: '#b4507a', travel: '#d6a24c', other: '#b9b0b4' };
 const PARTS = [['direct', 'Direct'], ['indirect', 'Indirect'], ['travel', 'Reistijd'], ['other', 'Overig']];
 
-function Regel({ label, minutes, total, color, fmtMin, T, eerste }) {
+function Regel({ label, minutes, total, color, eerste }) {
   const pct = total > 0 ? Math.round((minutes / total) * 100) : 0;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 44px', alignItems: 'center', columnGap: 8, padding: '7px 0', borderTop: eerste ? 0 : '1px solid ' + T.lineSoft, fontSize: 13 }}>
@@ -26,7 +28,7 @@ function Regel({ label, minutes, total, color, fmtMin, T, eerste }) {
 }
 
 // Per uursoort één kaart: naam en totaal, één balk, en de verdeling als regels.
-function TypeCard({ row, fmtMin, T }) {
+function TypeCard({ row }) {
   const d = row.direct || 0, i = row.indirect || 0, t = row.travel || 0, o = row.other || 0;
   const sum = d + i + t + o;
   const delen = PARTS.filter(([key]) => key !== 'other' || o > 0);
@@ -42,7 +44,7 @@ function TypeCard({ row, fmtMin, T }) {
             {delen.filter(([key]) => (row[key] || 0) > 0).map(([key]) => <i key={key} style={{ display: 'block', flex: row[key], background: RATIO_COLORS[key] }} />)}
           </div>
           {delen.map(([key, label], k) => (
-            <Regel key={key} label={label} minutes={row[key] || 0} total={sum} color={RATIO_COLORS[key]} fmtMin={fmtMin} T={T} eerste={k === 0} />
+            <Regel key={key} label={label} minutes={row[key] || 0} total={sum} color={RATIO_COLORS[key]} eerste={k === 0} />
           ))}
         </>
       ) : <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>Geen verdeling direct of indirect bekend.</div>}
@@ -50,8 +52,7 @@ function TypeCard({ row, fmtMin, T }) {
   );
 }
 
-export function CalcModalBody({ rows, nonClientMarker, fmtMin, tokens, mode }) {
-  const T = tokens;
+export function VerhoudingKaarten({ rows, nonClientMarker, mode }) {
   const gepland = mode === 'gepland';
   return (
     <div>
@@ -63,7 +64,7 @@ export function CalcModalBody({ rows, nonClientMarker, fmtMin, tokens, mode }) {
       </div>
       {!rows.length
         ? <div style={{ color: T.inkSoft, fontSize: 13 }}>Geen cliëntgebonden uursoorten in deze week.</div>
-        : rows.map((r, i) => <TypeCard key={r.type + '|' + i} row={r} fmtMin={fmtMin} T={T} />)}
+        : rows.map((r, i) => <TypeCard key={r.type + '|' + i} row={r} />)}
     </div>
   );
 }

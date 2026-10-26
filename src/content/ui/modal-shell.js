@@ -3,12 +3,6 @@
 import { onsahFocusRing } from './theme.js';
 import { svgCloseIcon } from './icons.js';
 
-// Klein statvak (voor de directe/indirecte/reistijd/onbekend-verdeling).
-// Bouwt het weekoverzicht-paneel (React). _agSubTitle/_agBigStat/
-// agendaWeekPanelEl/_agCollapsibleOverig zijn vervangen door
-// src/components/AgendaWeekPanel.jsx (zie dist/react-bundle.js);
-// de cliënt/overig-split blijft hier (renderPanel, refreshAgendaWeekApi)
-// staan als domeinlogica.
 // Eén gedeelde modal-schil (spine + kop + sluitknop + Esc/klik-buiten) voor
 // alle onderbrekende dialogen. Voorheen bouwden de twee modals hieronder
 // deze schil allebei apart, bijna letterlijk gelijk.

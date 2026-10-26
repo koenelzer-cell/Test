@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as acorn from 'acorn';
 import * as walk from 'acorn-walk';
+import * as esbuild from 'esbuild';
 import { JSDOM } from 'jsdom';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -30,7 +31,7 @@ const files = [];
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
     if (e.isDirectory()) scan(p);
-    else if (e.name.endsWith('.js')) files.push(p);
+    else if (/\.jsx?$/.test(e.name)) files.push(p);
   }
 })(SRC);
 
@@ -51,8 +52,14 @@ function patternNames(node, out) {
 
 const info = new Map();
 for (const f of files) {
-  const src = fs.readFileSync(f, 'utf8');
+  let src = fs.readFileSync(f, 'utf8');
   let ast;
+  // JSX eerst naar gewone JavaScript (zoals de bundel het doet); een component
+  // in JSX telt dan als gebruikte naam.
+  if (f.endsWith('.jsx')) {
+    try { src = esbuild.transformSync(src, { loader: 'jsx', jsx: 'automatic', format: 'esm' }).code; }
+    catch (e) { fouten.push(`${rel(f)}: syntaxfout: ${e.message}`); continue; }
+  }
   try { ast = acorn.parse(src, { ecmaVersion: 'latest', sourceType: 'module' }); }
   catch (e) { fouten.push(`${rel(f)}: syntaxfout: ${e.message}`); continue; }
   const exports = new Set(), imports = [], declared = new Set(), used = new Set();
@@ -62,6 +69,8 @@ for (const f of files) {
       if (d.id) exports.add(d.id.name);
       if (d.declarations) d.declarations.forEach((x) => patternNames(x.id, exports));
     }
+    // export { a, b } (zo schrijft esbuild de exports van een .jsx-bestand).
+    if (st.type === 'ExportNamedDeclaration' && !st.declaration && !st.source) st.specifiers.forEach((x) => exports.add(x.exported.name));
     if (st.type === 'ImportDeclaration') {
       imports.push({ from: st.source.value, names: st.specifiers.map((s) => (s.imported ? s.imported.name : 'default')) });
       st.specifiers.forEach((s) => declared.add(s.local.name));
