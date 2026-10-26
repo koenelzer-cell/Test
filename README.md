@@ -311,33 +311,67 @@ en oker).
   elkaar ook in een smal paneel passen.
 - **Rondleidingen**: bij de eerste keer openen een korte rondleiding door het
   zijpaneel (aan/uit, weekoverzicht, open registraties, planhulp, route,
-  verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (lijst
-  en weekplanning, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
-  weekplanning, afspraak maken). Een onderdeel dat uit staat, wordt
+  verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (de
+  zoekpil, lijst en weekplanning, begintijd kiezen, gekozen momenten,
+  weekplanning, afspraak maken); die start pas als het zoekblad dicht is. Een onderdeel dat uit staat, wordt
   overgeslagen; na afloop staat alles terug zoals het was. Opnieuw starten via
   de i-knop of de knop 'Rondleiding' in de Planhulp. Of hij gedaan is, staat
   alleen in het zijpaneel zelf (localStorage).
-- **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
-  week zelf de vrije tijd op en bladert zonder grens vooruit, los van
-  'Vooruit' in de lijst), daaronder een compacte tabel met drie regels: Duur
-  (30m, 45m, 1u, 1,5u, 2u), Vooruit (1, 2 of 4 wk, of het kalendertje voor een
-  eigen datum) en Dagen. Per regel staat het label links en de keuzes even
-  breed op één regel; gekozen is roze, ook bij de dagen. Voluit staat in
-  aria-label en title. Het kalendertje klapt onder de tabel een maandkalender
-  open ('Zoek tot en met'); een dag kiezen zoekt meteen en klapt hem dicht, de
-  datum staat dan kort naast het kalendertje ('8 nov'). Nog een tik of Escape
-  klapt hem dicht; terug naar weken is een tik op 1, 2 of 4 wk (er is geen
-  aparte Wissen-knop). Dagen staat alleen bij de lijst (ma di wo do vr,
-  standaard alle aan; uitvinken = op die dag geen vrije momenten, meteen
-  zichtbaar, ook tijdens het laden; minstens één dag blijft aan). De
-  weekplanning toont altijd de hele week. Onderaan
+- **Planhulp**: zoeken gaat met een **zoekblad** over het hele zijpaneel, één
+  stap per keer. Vanaf het startscherm opent het vanzelf (niet als er al
+  momenten gekozen zijn); de lijst laadt er alvast achter. Bovenin 'Sluiten'
+  (ook met Escape), de titel en 'Stap 1 van 4' met een voortgangsbalk. De open
+  stap is een kaart met een vraag, de andere stappen staan ingeklapt als
+  regel met hun keuze ('Wanneer, 2 weken'); een tik opent ze weer.
+  1. **Duur** ('Hoe lang duurt de afspraak?'): 30 min, 45 min, 1 uur, 1,5 uur,
+     2 uur. Kiezen gaat na een tel door naar de volgende stap.
+  2. **Wanneer** ('Hoe ver vooruit zoeken?'): 1 week, 2 weken, 4 weken of
+     'Tot datum' (kalendericoon; klapt een maandkalender open, 'Zoek tot en
+     met'; een dag kiezen klapt hem dicht en gaat door, de knop toont dan
+     'Tot 20 nov'). Een tik op een aantal weken wist de datum.
+  3. **Dagen** ('Op welke dagen?'): ma di wo do vr, standaard alle aan;
+     minstens één dag blijft aan. Eronder je werktijden (uit de popup) of,
+     zonder eigen werktijden, die van de dagindeling. 'Volgende' gaat door.
+  4. **Cliënten, optioneel** ('Voor wie is de afspraak?'): zoek op naam zoals
+     in ONS (na twee letters, als je even stopt met typen) en tik 'Koppelen'.
+     Gekoppelde cliënten staan bovenaan met een kruisje om te ontkoppelen
+     (hooguit tien). Ze staan straks al ingevuld in Afspraak maken (met hun
+     uursoorten), en met hun postcode op de kaart. Namen blijven alleen in het
+     geheugen van het zijpaneel.
+  Bovenaan de eerste stap de **recente filters**: de laatste drie
+  combinaties van duur, periode en dagen ('45 min, 4 weken, di en do'); een
+  tik zet ze terug (gekozen = roze rand). Ze staan op dit apparaat
+  (localStorage van het zijpaneel) en bewaren nooit cliënten; een datum die
+  voorbij is valt weg. Onderin 'Alles wissen' (terug naar 1 uur, 2 weken, alle
+  dagen, zonder cliënten) en de roze knop met de **telling**: 'Toon 86
+  tijden', het aantal begintijden (elk kwartier) waarop de afspraak past.
+  Hij telt meteen mee als je iets wijzigt: de hulp haalt de vrije blokken van
+  de periode één keer op met de kortste duur en telt duur en dagen zelf na;
+  alleen een andere periode vraagt het opnieuw (dan even 'Tellen'). Meer dan
+  150 vrije blokken: '150+'. Niets gevonden: 'Geen tijden gevonden' (grijs).
+  'Toon' sluit het blad, onthoudt de filters bij de recente en zoekt de lijst
+  (alleen andere dagen: de lijst filtert meteen en blijft staan tot het nieuwe
+  antwoord er is). 'Sluiten' gooit wijzigingen weg. Zijn er cliënten
+  gekoppeld, dan zweeft er een zwarte pil **Kaart** met het aantal (in het
+  blad en op de planhulp). Die opent de kaart: met een sleutel voor de Maps
+  Embed API (beheerscherm, Functies, Google Maps) de postcodes op een Google
+  Maps-kaart (bij meer dan één met letters A, B, C, zoals in de lijst
+  eronder), anders uitleg; altijd 'Openen in Google Maps' (nieuw tabblad).
+  Naar Google gaan alleen postcodes, pas na de tik op Kaart. 'Terug' (of
+  Escape) gaat terug naar waar je was. Op de planhulp zelf staat bovenaan de
+  **zoekpil** ('1 uur, 2 weken, alle dagen' met daaronder '86 tijden op 9
+  dagen, 2 cliënten' en rechts 'Wijzig'): een tik opent het blad. Daaronder
+  **Lijst** of **Weekplanning** (het raster haalt per week zelf de vrije tijd
+  op en bladert zonder grens vooruit, los van de periode, en toont altijd de
+  hele week; alleen de duur telt). Onderaan
   de lijst altijd 'Meer laden': elke klik zoekt één week verder, zonder grens,
-  en haalt alleen dat stuk op (de lijst groeit, de periode bij het kalendertje
-  schuift mee). Toonde de lijst nog niet alles van de periode, dan vult hij
-  eerst vanaf de dag van het laatste blok aan (geen gaten, niets dubbel).
+  en haalt alleen dat stuk op (de lijst groeit, de periode in de zoekpil
+  schuift mee, 'tot 1 nov'). Toonde de lijst nog niet alles van de periode,
+  dan vult hij eerst vanaf de dag van het laatste blok aan (geen gaten,
+  niets dubbel).
   Tijdens het laden draait een cirkel in de knop. Ook na 'Geen vrij blok
   gevonden' staat de knop er. Opnieuw zoeken vanaf vandaag (na een wijziging)
-  gaat hooguit een jaar vooruit; een wijziging
+  gaat hooguit een jaar vooruit; Toon met andere filters
   zoekt meteen opnieuw. *Snelheid*: wat ONS per week teruggeeft, onthoudt de
   hulp vijf minuten in het geheugen van de ONS-pagina (niet op schijf, weg na
   herladen, en vergeten zodra je via het zijpaneel afspraken maakt of zelf in
@@ -396,7 +430,9 @@ en oker).
   ONS-formulier de datum, begintijd en eindtijd (begintijd + gekozen duur) van
   het eerste moment in, en de afspraakhulp vraagt de duur dan niet nog eens
   (bij een apart afspraakformulier wel).
-- **Afspraak maken** (na de planhulp, meteen in ONS): helemaal bovenaan de
+- **Afspraak maken** (na de planhulp, meteen in ONS): cliënten die je in het
+  zoekblad koppelde, staan er al (bij *Zelfde cliënt(en)*), met hun
+  uursoorten. Helemaal bovenaan de
   knop **Niet cliëntgebonden afspraak**. Staat die aan, dan vraagt de pagina
   alleen de uursoort (uit `/product_selection/product_list?employee_ids[]=…`,
   zonder cliënt); de afspraak krijgt die uursoort zelf (`hour_type_id`, geen

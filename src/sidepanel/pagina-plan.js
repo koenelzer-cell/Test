@@ -3,9 +3,8 @@
 // overlapcontrole nakijken nadat de lijst er staat.
 
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { FONT, ICON_KALENDER, SVG_NS, T, chipKnop, dagLang, datumUitYmd, dayLabel, el, fmtMin, hm, isoWeek, laadBalk, noteBox, primaryBtn, secondaryBtn, svgPath, txt, vanTot, ymdVan, zorgVoorStijl } from './ui.js';
+import { FONT, SVG_NS, T, chipKnop, dagLang, datumUitYmd, dayLabel, el, fmtMin, hm, isoWeek, laadBalk, noteBox, primaryBtn, secondaryBtn, txt, vanTot, ymdVan, zorgVoorStijl } from './ui.js';
 import { feestdagAnimatie, feestdagIcoon, feestdagSlinger, feestdagStijl } from './feestdagen.js';
-import { maandKalender } from './kiezers.js';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
 
 const PLAN_STAP = 24;
@@ -82,14 +81,6 @@ export function maakPlanhulp(ctx) {
       else { ctx.plan.result = res.result; nakijkenBijOns(res.result.gaps, res.result.minutes, res.result.onsCheck); }
       if (ctx.pagina === 'plan') setTimeout(function () { if (ctx.pagina === 'plan' && mijn === planNr) { renderPagina(); ctx.misschienRondleiding(); } }, 0);
     }, ctx.plan.tot, false, false, '', gekozenDagen(), ctx.plan.limit || PLAN_STAP);
-  }
-  // Dagen aan- of uitvinken: meteen zichtbaar (filter in het paneel), het
-  // nieuwe zoeken pas als je even niets meer aanklikt.
-  let dagenTimer = null;
-  function dagenGewijzigd() {
-    renderPagina();
-    clearTimeout(dagenTimer);
-    dagenTimer = setTimeout(function () { ctx.plan.limit = PLAN_STAP; startPlan(true); }, 300);
   }
   function meerLaden(res) {
     if (!actions.onFreeSlots || !res) return;
@@ -237,8 +228,9 @@ export function maakPlanhulp(ctx) {
     return balk;
   }
 
-  // Planhulp: bovenaan Lijst of Weekraster en de instellingen (duur en
-  // vooruit). Lijst: per dag de begintijden, meteen te kiezen.
+  // Planhulp: bovenaan de zoekpil (wat je zoekt, hoeveel tijden; een tik
+  // opent het zoekblad), dan Lijst of Weekraster. Lijst: per dag de
+  // begintijden, meteen te kiezen.
   // Weekraster: mini-agenda per week; tik in de vrije tijd. Gekozen momenten
   // staan in de balk onderin.
   // Agenda's erbij of eraf: zonder gekozen momenten meteen opnieuw zoeken;
@@ -255,6 +247,7 @@ export function maakPlanhulp(ctx) {
   }
   function planVernieuwen() {
     ctx.plan.result = null; ctx.plan.error = ''; ctx.plan.raster = null;
+    ctx.vergeetTelling();
     BEWAARD.agendaMelding = null;
     if (ctx.pagina === 'plan') { startPlan(); renderPagina(); }
   }
@@ -287,6 +280,10 @@ export function maakPlanhulp(ctx) {
     if (melding) planBox.appendChild(melding);
     const meer = (ctx.state && ctx.state.inviteeCount > 1) ? ctx.state.inviteeCount : 0;
     if (meer) { planBox.appendChild(noteBox('Er staan ' + meer + ' agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.', 'ok')); planBox.lastChild.style.margin = '0 0 10px'; }
+    // Wat je zoekt en hoeveel tijden er zijn; een tik opent het zoekblad
+    // (pagina-zoekblad.js) met de stappen Duur, Wanneer, Dagen en Cliënten.
+    planBox.appendChild(ctx.zoekPil());
+    ctx.herstelZoekblad();
     // Lijst of weekraster.
     const seg = el('div', { display: 'flex', background: T.lineSoft, borderRadius: '10px', padding: '3px', marginBottom: '10px' });
     [['lijst', 'Lijst'], ['raster', 'Weekplanning']].forEach(function (o) {
@@ -298,82 +295,13 @@ export function maakPlanhulp(ctx) {
       seg.appendChild(b);
     });
     planBox.appendChild(seg);
-    // Instellingen als compacte tabel: per regel een label links en de keuzes
-    // even breed op één regel, met korte teksten (30m, 1u, 2 wk) en Tot datum
-    // als kalendertje. Voluit staat in aria-label en title. Gekozen is roze,
-    // ook bij de dagen. Een wijziging zoekt meteen opnieuw.
-    const opnieuw = function () { ctx.plan.result = null; ctx.plan.limit = PLAN_STAP; startPlan(); };
-    const inst = el('div', { border: '1px solid ' + T.line, borderRadius: '12px', padding: '0 12px' });
-    inst.setAttribute('data-plan-instellingen', '');
-    const instRij = function (label, keuzes) {
-      const r = el('div', { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '46px', borderTop: inst.firstChild ? '1px solid ' + T.line : '0' });
-      r.appendChild(el('span', { flex: '0 0 52px', fontSize: '12px', fontWeight: '600', color: T.inkSoft }, label));
-      const k = el('div', { display: 'flex', gap: '5px', flex: '1 1 auto', minWidth: '0' });
-      keuzes.forEach(function (c) { k.appendChild(c); });
-      r.appendChild(k);
-      inst.appendChild(r);
-    };
-    const keuze = function (tekst, voluit, aan, fn, attr) {
-      const c = chipKnop(tekst, aan, fn, { flex: '1 1 0', minWidth: '0', height: '30px', fontSize: '12.5px', border: '1px solid ' + (aan ? T.brand : T.line) });
-      c.setAttribute(attr[0], attr[1]);
-      c.setAttribute('aria-pressed', aan ? 'true' : 'false');
-      c.setAttribute('aria-label', voluit);
-      c.title = voluit;
-      return c;
-    };
-    instRij('Duur', [[30, '30m', '30 minuten'], [45, '45m', '45 minuten'], [60, '1u', '1 uur'], [90, '1,5u', '1,5 uur'], [120, '2u', '2 uur']].map(function (d) {
-      return keuze(d[1], d[2], ctx.plan.minutes === d[0], function () { ctx.plan.minutes = d[0]; opnieuw(); }, ['data-plan-duur', String(d[0])]);
-    }));
-    if ((ctx.plan.weergave || 'lijst') === 'lijst') {
-      const per = [[1, '1 wk', '1 week'], [2, '2 wk', '2 weken'], [4, '4 wk', '4 weken']].map(function (w) {
-        return keuze(w[1], w[2], !ctx.plan.tot && !ctx.plan.totOpen && ctx.plan.weeks === w[0], function () { ctx.plan.weeks = w[0]; ctx.plan.tot = ''; ctx.plan.totOpen = false; opnieuw(); }, ['data-plan-weken', String(w[0])]);
-      });
-      // Tot datum: een kalendertje; met een gekozen datum staat die er kort
-      // naast. Een tik klapt de maandkalender onder de tabel open of dicht;
-      // terug naar weken = een tik op 1, 2 of 4 wk (geen aparte Wissen-knop).
-      const totDag = ctx.plan.tot ? dagLang(ctx.plan.tot, true).replace(/^\S+ /, '') : '';
-      const tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, '$1'), ctx.plan.tot ? 'Tot en met ' + totDag : 'Tot een datum', !!(ctx.plan.tot || ctx.plan.totOpen), function () { ctx.plan.totOpen = !ctx.plan.totOpen; renderPagina(); }, ['data-plan-tot', '']);
-      Object.assign(tot.style, { flex: '0 0 auto', minWidth: '34px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' });
-      tot.insertBefore(svgPath(ICON_KALENDER, 15), tot.firstChild);
-      tot.setAttribute('aria-haspopup', 'dialog');
-      tot.setAttribute('aria-expanded', ctx.plan.totOpen ? 'true' : 'false');
-      if (ctx.plan.totOpen) tot.style.boxShadow = '0 0 0 3px ' + T.brandWash;
-      per.push(tot);
-      instRij('Vooruit', per);
-    }
-    // Optioneel, alleen in de lijst: vrije tijd op bepaalde dagen (standaard
-    // alle dagen aan). De weekplanning toont altijd de hele week.
-    const gek = gekozenDagen() || [1, 2, 3, 4, 5];
-    if ((ctx.plan.weergave || 'lijst') === 'lijst') instRij('Dagen', ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag'].map(function (naam, i) {
-      const wd = i + 1, aan = gek.indexOf(wd) >= 0;
-      const c = keuze(naam.slice(0, 2), naam, aan, function () {
-        const nieuw = aan ? gek.filter(function (x) { return x !== wd; }) : gek.concat([wd]).sort();
-        if (!nieuw.length) return;   // minstens één dag
-        ctx.plan.dagen = nieuw.length === 5 ? null : nieuw;
-        dagenGewijzigd();
-      }, ['data-plan-dag', String(wd)]);
-      c.title = aan ? (gek.length === 1 ? 'Minstens één dag' : naam + ' niet tonen') : naam + ' ook tonen';
-      return c;
-    }));
-    planBox.appendChild(inst);
-    // Maandkalender voor Tot datum: een dag kiezen zoekt meteen en klapt hem dicht.
-    if ((ctx.plan.weergave || 'lijst') === 'lijst' && ctx.plan.totOpen) {
-      const kal = el('div', { margin: '8px 0 2px', padding: '10px', borderRadius: '12px', border: '1px solid ' + T.line, background: '#fff', boxShadow: '0 10px 28px -14px rgba(32,20,15,.35)' });
-      kal.setAttribute('data-plan-kalender', '');
-      kal.setAttribute('role', 'dialog');
-      kal.setAttribute('aria-label', 'Zoek tot en met');
-      kal.appendChild(el('div', { fontSize: '12px', fontWeight: '600', color: T.inkSoft, margin: '0 2px 6px' }, 'Zoek tot en met'));
-      const maand = el('div');
-      maandKalender(maand, ctx.plan.tot, function (ymd) { ctx.plan.tot = ymd; ctx.plan.totOpen = false; opnieuw(); });
-      kal.appendChild(maand);
-      kal.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); ctx.plan.totOpen = false; renderPagina(); } });
-      planBox.appendChild(kal);
-    }
     const uitslag = kopieUitslag();
     // Weekraster: eigen gegevens per week, los van 'Vooruit' in de lijst.
+    const pil = ctx.planKaartPil();
     if (ctx.plan.weergave === 'raster') {
       if (uitslag) planBox.appendChild(uitslag);
       planBox.appendChild(planRaster());
+      if (pil) planBox.appendChild(pil);
       return planBox;
     }
     if (ctx.plan.busy && !ctx.plan.meerBezig) { zorgVoorStijl(); const lb = laadBalk(); lb.style.marginTop = '10px'; planBox.appendChild(lb); }
@@ -393,6 +321,7 @@ export function maakPlanhulp(ctx) {
         if (res.onsCheck === 'unknown') planBox.appendChild(txt('help', 'Open één keer een afspraak in ONS; daarna kijkt de planhulp gekozen tijden ook na met de overlapcontrole van ONS.', { margin: '10px 0 0', fontSize: '11.5px' }));
       }
     }
+    if (pil) planBox.appendChild(pil);
     return planBox;
   }
   // Meer laden onderaan de lijst: altijd verder (een week per klik); tijdens

@@ -50,5 +50,6 @@ export const PAGE_SESSION = {
 // localStorage van het zijpaneel (origin van de extensie) — alleen dit apparaat.
 export const PANEL_LOCAL = {
   ROUTE_START: 'onsah.routeVertrekpunt',   // vertrekpunt voor Route van de dag
+  PLAN_RECENT: 'onsah.planRecent',         // planhulp: laatste drie zoekfilters (duur, periode, dagen; nooit cliënten)
   TOUR_DONE: 'onsHelper.rondleiding.',     // + naam van de rondleiding: '1' als hij gezien is
 };

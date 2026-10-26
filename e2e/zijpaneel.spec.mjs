@@ -94,21 +94,39 @@ for (const breedte of [340, 420]) {
       await controleer(page, testInfo, 'info');
     });
 
-    test('planhulp: lijst, weekplanning en instellingen', async ({ page }, testInfo) => {
+    test('planhulp: zoekblad stap voor stap, kaart, lijst en weekplanning', async ({ page }, testInfo) => {
       await page.locator('[data-hulp="plan"]').click();
+      // Het zoekblad opent vanzelf, over het hele paneel, met de telling op de knop.
+      await expect(page.locator('[data-zoekblad]')).toBeVisible();
+      await expect(page.locator('[data-zoek-toon]')).toHaveText(/^Toon \d+ tijden$/);
+      await controleer(page, testInfo, 'zoekblad-duur');
+      await page.locator('[data-zoek-stap="wanneer"]').click();
+      await page.locator('[data-plan-tot]').click();
+      await expect(page.locator('[data-plan-kalender]')).toBeVisible();
+      await controleer(page, testInfo, 'zoekblad-kalender');
+      await page.locator('[data-zoek-stap="dagen"]').click();
+      await expect(page.locator('[data-plan-dag="1"]')).toBeVisible();
+      await page.locator('[data-plan-dag="1"]').click();
+      await controleer(page, testInfo, 'zoekblad-dagen');
+      await page.locator('[data-zoek-volgende]').click();
+      await page.locator('[data-zoek-client]').fill('Tam');
+      await page.locator('[data-zoek-koppel="11142"]').click();
+      await expect(page.locator('[data-kaart-pil="blad"]')).toBeVisible();
+      await controleer(page, testInfo, 'zoekblad-clienten');
+      await page.locator('[data-kaart-pil="blad"]').click();
+      await expect(page.locator('[data-zoekblad][data-scherm="kaart"]')).toBeVisible();
+      await controleer(page, testInfo, 'zoekblad-kaart');
+      await page.locator('[data-kaart-terug]').click();
+      await page.locator('[data-zoek-toon]').click();
+      await expect(page.locator('[data-zoekblad]')).toHaveCount(0);
       await expect(page.locator('[data-dag][data-start]').first()).toBeVisible();
+      await expect(page.locator('[data-kaart-pil="plan"]')).toBeVisible();
       // ONS kijkt na nadat de lijst er staat; de waarschuwing komt er later bij.
       await expect(page.locator('[data-ons-overlap][data-start="09:30"]')).toHaveCount(1);
       await controleer(page, testInfo, 'plan-lijst');
       await page.locator('[data-plan-meer]').click();
       await expect(page.locator('[data-plan-meer]')).toBeVisible();
       await controleer(page, testInfo, 'plan-meer-geladen');
-      // Tot datum: de maandkalender klapt onder de instellingen open.
-      await page.locator('[data-plan-tot]').click();
-      await expect(page.locator('[data-plan-kalender]')).toBeVisible();
-      await controleer(page, testInfo, 'plan-kalender');
-      await page.locator('[data-plan-tot]').click();
-      await expect(page.locator('[data-plan-kalender]')).toHaveCount(0);
       await page.locator('[data-plan-weergave="raster"]').click();
       await expect(page.locator('[data-raster]').first()).toBeVisible();
       await controleer(page, testInfo, 'plan-weekplanning');
@@ -116,6 +134,7 @@ for (const breedte of [340, 420]) {
 
     test('afspraak maken: zelfde, per afspraak anders en niet cliëntgebonden', async ({ page }, testInfo) => {
       await page.locator('[data-hulp="plan"]').click();
+      await page.locator('[data-zoek-sluit]').click();
       const tijden = page.locator('[data-dag][data-start]');
       await expect(tijden.first()).toBeVisible();
       // Twee momenten op verschillende dagen.

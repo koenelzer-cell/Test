@@ -40,7 +40,14 @@ export const BEWAARD = {
   // Planhulp: vrije tijd zoeken.
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-  plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '' },
+  // clients: gekoppelde cliënten [{ clientId, name, number, pc }] (voor de
+  // kaart en Afspraak maken), alleen hier in het geheugen.
+  plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '', clients: [] },
+  // Het zoekblad van de planhulp (pagina-zoekblad.js): open, welk scherm
+  // ('blad' of 'kaart'), welke stap, en de keuzes die pas met Toon gelden.
+  zoekblad: { open: false, scherm: 'blad', stap: 'duur', concept: null, kalender: false, zoek: { term: '', treffers: null }, scroll: 0, kaartVan: '' },
+  // Tellingen van het zoekblad per periode: vrije blokken met de kortste duur.
+  telling: {},
   // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
   // het opslaan wordt gekopieerd; kopie: uitslag van de laatste kopieerronde.
   momenten: [],
@@ -54,7 +61,9 @@ export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: '' };
+  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: '', clients: [] };
+  BEWAARD.zoekblad = { open: false, scherm: 'blad', stap: 'duur', concept: null, kalender: false, zoek: { term: '', treffers: null }, scroll: 0, kaartVan: '' };
+  BEWAARD.telling = {};
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;

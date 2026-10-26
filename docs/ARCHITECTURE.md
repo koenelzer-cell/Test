@@ -59,6 +59,7 @@ en kiest welk paneel er staat (Agendahulp of vragenlijst). De Agendahulp:
 |---|---|
 | `agenda-panel.js` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, `renderPagina`, `update` |
 | `pagina-plan.js`, `pagina-maken.js`, `pagina-open.js`, `pagina-snel.js`, `pagina-route.js`, `pagina-clienttijd.js`, `pagina-verhouding.js`, `pagina-info.js`, `rondleidingen.js` | één pagina per bestand, elk een functie `maakX(ctx)` die zijn eigen functies teruggeeft |
+| `pagina-zoekblad.js` | het zoekblad van de planhulp: een blad over het hele paneel met één stap per keer (Duur, Wanneer, Dagen, Cliënten), de telling op de knop (vrije blokken van de periode één keer opgehaald met 30 minuten, duur en dagen daarna zelf nageteld), recente filters, gekoppelde cliënten en de kaart (Maps Embed, alleen postcodes); ook de zoekpil en kaartpil op de planhulp |
 | `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen) |
 | `ui.js`, `kiezers.js`, `productie-grafiek.js` | bouwstenen: kleuren, typografie, knoppen, iconen; datum- en tijdkiezer; de grafiek |
 | `rondleiding.js`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | rondleidingen tonen, efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
@@ -126,7 +127,7 @@ boven de veldfuncties in `fields.js`; bij de registratie staan ze in
 | weten welke hulp op welke URL draait | `helper/routing.js` (`syncWithUrl`) |
 | het afspraaktype-scherm | `features/appointment/choices.js` (+ `src/react/components/`) |
 | welk scherm een ander opent | `screen/schermen.js` (register), aangemeld in `index.js` |
-| een pagina van het zijpaneel | `src/sidepanel/pagina-*.js` (Planhulp, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.js` |
+| een pagina van het zijpaneel | `src/sidepanel/pagina-*.js` (Planhulp met zoekblad, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.js` |
 | de uursoorten per cliënt | `features/appointment/uursoort-source.js` (API eerst, dan dropdown) en `uursoort-queue.js` (meerdere cliënten) |
 | de registratievorm uit een afspraaklabel | `features/registration/pending.js` + `services/ons-api/event-details.js` + `src/main-world/` |
 | de gekleurde dagindeling | `features/agenda/` (`zones.js`, `painting.js`) |
@@ -177,7 +178,7 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
 | localStorage van de ONS-pagina | aan/uit-schakelaars, breedte vragenlijstpaneel, geleerde vorm van ONS-verzoeken |
 | sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, vragenlijst-checklist en -cache, het lipje (weg bij sluiten tabblad) |
-| localStorage van het zijpaneel | vertrekpunt van Route van de dag, geziene rondleidingen |
+| localStorage van het zijpaneel | vertrekpunt van Route van de dag, geziene rondleidingen, de laatste drie zoekfilters van de planhulp (duur, periode, dagen; nooit cliënten) |
 
 Een nieuwe sleutel komt eerst in dat bestand. Bestaande namen en plekken
 veranderen niet zonder migratie: dan raakt een medewerker een voorkeur kwijt.

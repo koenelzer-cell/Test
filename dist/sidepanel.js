@@ -142,7 +142,14 @@
     // Planhulp: vrije tijd zoeken.
     // tot: zoek tot en met die datum (gaat voor op weeks).
     // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
-    plan: { minutes: 60, weeks: 2, tot: "", busy: false, result: null, error: "" },
+    // clients: gekoppelde cliënten [{ clientId, name, number, pc }] (voor de
+    // kaart en Afspraak maken), alleen hier in het geheugen.
+    plan: { minutes: 60, weeks: 2, tot: "", busy: false, result: null, error: "", clients: [] },
+    // Het zoekblad van de planhulp (pagina-zoekblad.js): open, welk scherm
+    // ('blad' of 'kaart'), welke stap, en de keuzes die pas met Toon gelden.
+    zoekblad: { open: false, scherm: "blad", stap: "duur", concept: null, kalender: false, zoek: { term: "", treffers: null }, scroll: 0, kaartVan: "" },
+    // Tellingen van het zoekblad per periode: vrije blokken met de kortste duur.
+    telling: {},
     // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
     // het opslaan wordt gekopieerd; kopie: uitslag van de laatste kopieerronde.
     momenten: [],
@@ -156,7 +163,9 @@
     BEWAARD.range = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "", afgewerkt: {}, bijwerken: false, laatst: 0 };
     BEWAARD.prod = { from: "", to: "", busy: false, done: 0, total: 0, result: null, error: "" };
     BEWAARD.ratio = { offset: 0, busy: false, result: null, error: "", voor: "" };
-    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: "" };
+    BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : "", dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: "", clients: [] };
+    BEWAARD.zoekblad = { open: false, scherm: "blad", stap: "duur", concept: null, kalender: false, zoek: { term: "", treffers: null }, scroll: 0, kaartVan: "" };
+    BEWAARD.telling = {};
     BEWAARD.momenten = [];
     BEWAARD.kopie = null;
     BEWAARD.balkOpen = false;
@@ -2934,6 +2943,8 @@
   var PANEL_LOCAL = {
     ROUTE_START: "onsah.routeVertrekpunt",
     // vertrekpunt voor Route van de dag
+    PLAN_RECENT: "onsah.planRecent",
+    // planhulp: laatste drie zoekfilters (duur, periode, dagen; nooit cliënten)
     TOUR_DONE: "onsHelper.rondleiding."
     // + naam van de rondleiding: '1' als hij gezien is
   };
@@ -3502,267 +3513,6 @@
     return { origin: a.origin, duur: a.duur, frames: a.frames };
   }
 
-  // src/sidepanel/kiezers.js
-  function maandKalender(p, huidig2, kies) {
-    const start = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
-    let toon2 = new Date(start.getFullYear(), start.getMonth(), 1);
-    function teken() {
-      p.innerHTML = "";
-      const kop = el("div", { display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" });
-      const vorige = chipKnop("", false, function() {
-        toon2 = new Date(toon2.getFullYear(), toon2.getMonth() - 1, 1);
-        teken();
-      }, { width: "32px", color: T.brand });
-      vorige.appendChild(svgPath("M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z", 18));
-      vorige.setAttribute("aria-label", "Vorige maand");
-      const volgende = chipKnop("", false, function() {
-        toon2 = new Date(toon2.getFullYear(), toon2.getMonth() + 1, 1);
-        teken();
-      }, { width: "32px", color: T.brand });
-      volgende.appendChild(svgPath(CHEV_RECHTS, 18));
-      volgende.setAttribute("aria-label", "Volgende maand");
-      kop.appendChild(vorige);
-      kop.appendChild(el("div", Object.assign({}, TYPE.section, { margin: "0", flex: "1 1 auto", textAlign: "center" }), maandJaar(toon2)));
-      kop.appendChild(volgende);
-      p.appendChild(kop);
-      const rooster = el("div", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" });
-      ["ma", "di", "wo", "do", "vr", "za", "zo"].forEach(function(w) {
-        rooster.appendChild(el("div", Object.assign({}, TYPE.small, { color: T.inkSoft, textAlign: "center", padding: "4px 0", fontWeight: "600" }), w));
-      });
-      const eerste = new Date(toon2.getFullYear(), toon2.getMonth(), 1);
-      const begin = new Date(eerste);
-      begin.setDate(1 - (eerste.getDay() + 6) % 7);
-      const vandaag = ymdVan(/* @__PURE__ */ new Date());
-      for (let i = 0; i < 42; i++) {
-        const d = new Date(begin);
-        d.setDate(begin.getDate() + i);
-        if (i >= 35 && d.getMonth() !== toon2.getMonth()) break;
-        (function(d2) {
-          const ymd2 = ymdVan(d2);
-          const buiten = d2.getMonth() !== toon2.getMonth();
-          const gekozen = ymd2 === huidig2;
-          const extra = { width: "100%" };
-          if (buiten) extra.color = "#b9b1b5";
-          if (!gekozen && ymd2 === vandaag) {
-            extra.border = "1px solid " + T.brand;
-            extra.fontWeight = "600";
-          }
-          const dag = chipKnop(String(d2.getDate()), gekozen, function() {
-            kies(ymd2);
-          }, extra);
-          dag.setAttribute("aria-label", datumTekst(ymd2) + (ymd2 === vandaag ? " (vandaag)" : ""));
-          if (gekozen) dag.setAttribute("aria-pressed", "true");
-          dag.setAttribute("data-ymd", ymd2);
-          rooster.appendChild(dag);
-        })(d);
-      }
-      p.appendChild(rooster);
-      const voet = el("div", { display: "flex", justifyContent: "flex-end", marginTop: "6px" });
-      const nu = chipKnop("Vandaag", false, function() {
-        kies(vandaag);
-      }, { padding: "0 10px", color: T.brand, fontWeight: "600" });
-      voet.appendChild(nu);
-      p.appendChild(voet);
-    }
-    teken();
-  }
-  function maakKiezers() {
-    const host2 = el("div");
-    let open = null;
-    function sluit() {
-      if (!open) return;
-      open.knop.setAttribute("aria-expanded", "false");
-      open.knop.style.borderColor = T.line;
-      open.knop.style.boxShadow = "none";
-      host2.innerHTML = "";
-      open = null;
-    }
-    function paneel() {
-      const p = el("div", {
-        margin: "8px 0 2px",
-        padding: "10px",
-        borderRadius: "12px",
-        border: "1px solid " + T.line,
-        background: "#fff",
-        boxShadow: "0 10px 28px -14px rgba(32,20,15,.35)"
-      });
-      p.addEventListener("keydown", function(e) {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          const k = open && open.knop;
-          sluit();
-          if (k) k.focus();
-        }
-      });
-      return p;
-    }
-    function openVoor(knop, bouw) {
-      const was = open && open.knop === knop;
-      sluit();
-      if (was) return;
-      open = { knop };
-      knop.setAttribute("aria-expanded", "true");
-      knop.style.borderColor = T.brand;
-      knop.style.boxShadow = "0 0 0 3px " + T.brandWash;
-      const p = paneel();
-      bouw(p);
-      host2.appendChild(p);
-    }
-    function datum(waarde, onChange) {
-      let huidig2 = waarde;
-      const knop = veldKnop(datumTekst(huidig2) || "Kies een datum", !huidig2, ICON_KALENDER);
-      knop.setAttribute("aria-haspopup", "dialog");
-      knop.setAttribute("aria-expanded", "false");
-      knop.setAttribute("data-datum", huidig2 || "");
-      function kies(ymd2) {
-        huidig2 = ymd2;
-        knop._tekst.textContent = datumTekst(ymd2);
-        knop.style.color = T.ink;
-        knop.setAttribute("data-datum", ymd2);
-        onChange(ymd2);
-        sluit();
-        knop.focus();
-      }
-      knop.addEventListener("click", function(e) {
-        e.preventDefault();
-        openVoor(knop, function(p) {
-          p.setAttribute("role", "dialog");
-          p.setAttribute("aria-label", "Kies een datum");
-          maandKalender(p, huidig2, kies);
-        });
-      });
-      return knop;
-    }
-    function tijd(waarde, onChange, opties) {
-      opties = opties || {};
-      const stap = opties.minutenStap || 5;
-      let huidig2 = waarde;
-      const knop = veldKnop(huidig2 || "Kies een tijd", !huidig2, ICON_QUICK);
-      knop.setAttribute("aria-haspopup", "dialog");
-      knop.setAttribute("aria-expanded", "false");
-      function delen() {
-        const m = /^(\d{1,2}):(\d{2})$/.exec(huidig2 || "");
-        return m ? { u: +m[1], m: +m[2] } : { u: null, m: null };
-      }
-      function zet(u, m) {
-        huidig2 = ("0" + u).slice(-2) + ":" + ("0" + m).slice(-2);
-        knop._tekst.textContent = huidig2;
-        knop.style.color = T.ink;
-        onChange(huidig2);
-      }
-      function itemKnop(tekst, gekozen, onClick) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = tekst;
-        b.setAttribute("data-gekozen", gekozen ? "1" : "0");
-        Object.assign(b.style, {
-          width: "100%",
-          flex: "0 0 auto",
-          padding: "7px 6px",
-          borderRadius: "9px",
-          boxSizing: "border-box",
-          border: "1px solid " + (gekozen ? T.brand : T.line),
-          background: gekozen ? T.brand : "#fff",
-          color: gekozen ? "#fff" : T.ink,
-          font: "600 13px/1 " + FONT,
-          fontVariantNumeric: "tabular-nums",
-          textAlign: "center",
-          cursor: "pointer",
-          transition: "background .12s ease, border-color .12s ease"
-        });
-        if (!gekozen) {
-          b.addEventListener("mouseenter", function() {
-            b.style.background = T.brandWash;
-            b.style.borderColor = "transparent";
-          });
-          b.addEventListener("mouseleave", function() {
-            b.style.background = "#fff";
-            b.style.borderColor = T.line;
-          });
-        }
-        focusRing(b);
-        b.addEventListener("click", function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          onClick();
-        });
-        return b;
-      }
-      function kolom(titel) {
-        const col = el("div", { flex: "1 1 0", minWidth: "0", display: "flex", flexDirection: "column" });
-        col.appendChild(txt("label", titel, { textAlign: "center", margin: "0 0 6px" }));
-        const lijst2 = el("div", {
-          height: "196px",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "5px",
-          padding: "2px 4px",
-          boxSizing: "border-box",
-          overscrollBehavior: "contain",
-          scrollbarWidth: "thin"
-        });
-        lijst2.setAttribute("role", "listbox");
-        lijst2.setAttribute("aria-label", titel);
-        col.appendChild(lijst2);
-        col._lijst = lijst2;
-        return col;
-      }
-      knop.addEventListener("click", function(e) {
-        e.preventDefault();
-        openVoor(knop, function(p) {
-          p.setAttribute("role", "dialog");
-          p.setAttribute("aria-label", "Kies een tijd");
-          let urenKol, minKol;
-          function scrollNaarKeuze(lijst2, terug) {
-            const doel = lijst2.querySelector('[data-gekozen="1"]') || lijst2.children[terug] || null;
-            if (doel) lijst2.scrollTop = Math.max(0, doel.offsetTop - lijst2.offsetTop - 70);
-          }
-          function teken(behoudScroll) {
-            const su = urenKol ? urenKol._lijst.scrollTop : 0, sm = minKol ? minKol._lijst.scrollTop : 0;
-            p.innerHTML = "";
-            const dl = delen();
-            const rij = el("div", { display: "flex", gap: "10px" });
-            urenKol = kolom("Uur");
-            for (let u = 0; u < 24; u++) {
-              (function(u2) {
-                urenKol._lijst.appendChild(itemKnop(("0" + u2).slice(-2), dl.u === u2, function() {
-                  zet(u2, dl.m == null ? 0 : dl.m);
-                  teken(true);
-                }));
-              })(u);
-            }
-            minKol = kolom("Minuten");
-            for (let m = 0; m < 60; m += stap) {
-              (function(m2) {
-                minKol._lijst.appendChild(itemKnop(("0" + m2).slice(-2), dl.m === m2 && dl.u != null, function() {
-                  zet(dl.u == null ? 9 : dl.u, m2);
-                  sluit();
-                  knop.focus();
-                }));
-              })(m);
-            }
-            rij.appendChild(urenKol);
-            rij.appendChild(minKol);
-            p.appendChild(rij);
-            setTimeout(function() {
-              if (behoudScroll) {
-                urenKol._lijst.scrollTop = su;
-                minKol._lijst.scrollTop = sm;
-              } else {
-                scrollNaarKeuze(urenKol._lijst, 9);
-                scrollNaarKeuze(minKol._lijst, 0);
-              }
-            }, 0);
-          }
-          teken(false);
-        });
-      });
-      return knop;
-    }
-    return { host: host2, datum, tijd, sluit };
-  }
-
   // src/sidepanel/pagina-plan.js
   var PLAN_STAP = 24;
   var MEER_MAX = 100;
@@ -3851,15 +3601,6 @@
           }
         }, 0);
       }, ctx.plan.tot, false, false, "", gekozenDagen(), ctx.plan.limit || PLAN_STAP);
-    }
-    let dagenTimer = null;
-    function dagenGewijzigd() {
-      renderPagina();
-      clearTimeout(dagenTimer);
-      dagenTimer = setTimeout(function() {
-        ctx.plan.limit = PLAN_STAP;
-        startPlan(true);
-      }, 300);
     }
     function meerLaden(res) {
       if (!actions.onFreeSlots || !res) return;
@@ -4082,6 +3823,7 @@
       ctx.plan.result = null;
       ctx.plan.error = "";
       ctx.plan.raster = null;
+      ctx.vergeetTelling();
       BEWAARD.agendaMelding = null;
       if (ctx.pagina === "plan") {
         startPlan();
@@ -4129,6 +3871,8 @@
         planBox.appendChild(noteBox("Er staan " + meer + " agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.", "ok"));
         planBox.lastChild.style.margin = "0 0 10px";
       }
+      planBox.appendChild(ctx.zoekPil());
+      ctx.herstelZoekblad();
       const seg = el("div", { display: "flex", background: T.lineSoft, borderRadius: "10px", padding: "3px", marginBottom: "10px" });
       [["lijst", "Lijst"], ["raster", "Weekplanning"]].forEach(function(o) {
         const aan = (ctx.plan.weergave || "lijst") === o[0];
@@ -4153,100 +3897,12 @@
         seg.appendChild(b);
       });
       planBox.appendChild(seg);
-      const opnieuw = function() {
-        ctx.plan.result = null;
-        ctx.plan.limit = PLAN_STAP;
-        startPlan();
-      };
-      const inst = el("div", { border: "1px solid " + T.line, borderRadius: "12px", padding: "0 12px" });
-      inst.setAttribute("data-plan-instellingen", "");
-      const instRij = function(label, keuzes) {
-        const r = el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "46px", borderTop: inst.firstChild ? "1px solid " + T.line : "0" });
-        r.appendChild(el("span", { flex: "0 0 52px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, label));
-        const k = el("div", { display: "flex", gap: "5px", flex: "1 1 auto", minWidth: "0" });
-        keuzes.forEach(function(c) {
-          k.appendChild(c);
-        });
-        r.appendChild(k);
-        inst.appendChild(r);
-      };
-      const keuze = function(tekst, voluit, aan, fn, attr) {
-        const c = chipKnop(tekst, aan, fn, { flex: "1 1 0", minWidth: "0", height: "30px", fontSize: "12.5px", border: "1px solid " + (aan ? T.brand : T.line) });
-        c.setAttribute(attr[0], attr[1]);
-        c.setAttribute("aria-pressed", aan ? "true" : "false");
-        c.setAttribute("aria-label", voluit);
-        c.title = voluit;
-        return c;
-      };
-      instRij("Duur", [[30, "30m", "30 minuten"], [45, "45m", "45 minuten"], [60, "1u", "1 uur"], [90, "1,5u", "1,5 uur"], [120, "2u", "2 uur"]].map(function(d) {
-        return keuze(d[1], d[2], ctx.plan.minutes === d[0], function() {
-          ctx.plan.minutes = d[0];
-          opnieuw();
-        }, ["data-plan-duur", String(d[0])]);
-      }));
-      if ((ctx.plan.weergave || "lijst") === "lijst") {
-        const per = [[1, "1 wk", "1 week"], [2, "2 wk", "2 weken"], [4, "4 wk", "4 weken"]].map(function(w) {
-          return keuze(w[1], w[2], !ctx.plan.tot && !ctx.plan.totOpen && ctx.plan.weeks === w[0], function() {
-            ctx.plan.weeks = w[0];
-            ctx.plan.tot = "";
-            ctx.plan.totOpen = false;
-            opnieuw();
-          }, ["data-plan-weken", String(w[0])]);
-        });
-        const totDag = ctx.plan.tot ? dagLang2(ctx.plan.tot, true).replace(/^\S+ /, "") : "";
-        const tot = keuze(totDag.replace(/^(\d+ \S{3})\S*$/, "$1"), ctx.plan.tot ? "Tot en met " + totDag : "Tot een datum", !!(ctx.plan.tot || ctx.plan.totOpen), function() {
-          ctx.plan.totOpen = !ctx.plan.totOpen;
-          renderPagina();
-        }, ["data-plan-tot", ""]);
-        Object.assign(tot.style, { flex: "0 0 auto", minWidth: "34px", padding: "0 8px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "5px" });
-        tot.insertBefore(svgPath(ICON_KALENDER, 15), tot.firstChild);
-        tot.setAttribute("aria-haspopup", "dialog");
-        tot.setAttribute("aria-expanded", ctx.plan.totOpen ? "true" : "false");
-        if (ctx.plan.totOpen) tot.style.boxShadow = "0 0 0 3px " + T.brandWash;
-        per.push(tot);
-        instRij("Vooruit", per);
-      }
-      const gek = gekozenDagen() || [1, 2, 3, 4, 5];
-      if ((ctx.plan.weergave || "lijst") === "lijst") instRij("Dagen", ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"].map(function(naam, i) {
-        const wd = i + 1, aan = gek.indexOf(wd) >= 0;
-        const c = keuze(naam.slice(0, 2), naam, aan, function() {
-          const nieuw = aan ? gek.filter(function(x) {
-            return x !== wd;
-          }) : gek.concat([wd]).sort();
-          if (!nieuw.length) return;
-          ctx.plan.dagen = nieuw.length === 5 ? null : nieuw;
-          dagenGewijzigd();
-        }, ["data-plan-dag", String(wd)]);
-        c.title = aan ? gek.length === 1 ? "Minstens één dag" : naam + " niet tonen" : naam + " ook tonen";
-        return c;
-      }));
-      planBox.appendChild(inst);
-      if ((ctx.plan.weergave || "lijst") === "lijst" && ctx.plan.totOpen) {
-        const kal = el("div", { margin: "8px 0 2px", padding: "10px", borderRadius: "12px", border: "1px solid " + T.line, background: "#fff", boxShadow: "0 10px 28px -14px rgba(32,20,15,.35)" });
-        kal.setAttribute("data-plan-kalender", "");
-        kal.setAttribute("role", "dialog");
-        kal.setAttribute("aria-label", "Zoek tot en met");
-        kal.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, margin: "0 2px 6px" }, "Zoek tot en met"));
-        const maand = el("div");
-        maandKalender(maand, ctx.plan.tot, function(ymd2) {
-          ctx.plan.tot = ymd2;
-          ctx.plan.totOpen = false;
-          opnieuw();
-        });
-        kal.appendChild(maand);
-        kal.addEventListener("keydown", function(e) {
-          if (e.key === "Escape") {
-            e.preventDefault();
-            ctx.plan.totOpen = false;
-            renderPagina();
-          }
-        });
-        planBox.appendChild(kal);
-      }
       const uitslag = kopieUitslag();
+      const pil = ctx.planKaartPil();
       if (ctx.plan.weergave === "raster") {
         if (uitslag) planBox.appendChild(uitslag);
         planBox.appendChild(planRaster());
+        if (pil) planBox.appendChild(pil);
         return planBox;
       }
       if (ctx.plan.busy && !ctx.plan.meerBezig) {
@@ -4277,6 +3933,7 @@
           if (res.onsCheck === "unknown") planBox.appendChild(txt("help", "Open één keer een afspraak in ONS; daarna kijkt de planhulp gekozen tijden ook na met de overlapcontrole van ONS.", { margin: "10px 0 0", fontSize: "11.5px" }));
         }
       }
+      if (pil) planBox.appendChild(pil);
       return planBox;
     }
     function meerKnop() {
@@ -4792,6 +4449,1432 @@
     return { agendaMeldingBlok, agendasGewijzigd, momentenBalk, pagePlan, startPlan, wisselMoment };
   }
 
+  // src/sidepanel/kiezers.js
+  function maandKalender(p, huidig2, kies) {
+    const start = datumUitYmd(huidig2) || /* @__PURE__ */ new Date();
+    let toon2 = new Date(start.getFullYear(), start.getMonth(), 1);
+    function teken() {
+      p.innerHTML = "";
+      const kop = el("div", { display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" });
+      const vorige = chipKnop("", false, function() {
+        toon2 = new Date(toon2.getFullYear(), toon2.getMonth() - 1, 1);
+        teken();
+      }, { width: "32px", color: T.brand });
+      vorige.appendChild(svgPath("M15 5.4 8.4 12 15 18.6 16.4 17.2 11.2 12 16.4 6.8z", 18));
+      vorige.setAttribute("aria-label", "Vorige maand");
+      const volgende = chipKnop("", false, function() {
+        toon2 = new Date(toon2.getFullYear(), toon2.getMonth() + 1, 1);
+        teken();
+      }, { width: "32px", color: T.brand });
+      volgende.appendChild(svgPath(CHEV_RECHTS, 18));
+      volgende.setAttribute("aria-label", "Volgende maand");
+      kop.appendChild(vorige);
+      kop.appendChild(el("div", Object.assign({}, TYPE.section, { margin: "0", flex: "1 1 auto", textAlign: "center" }), maandJaar(toon2)));
+      kop.appendChild(volgende);
+      p.appendChild(kop);
+      const rooster = el("div", { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" });
+      ["ma", "di", "wo", "do", "vr", "za", "zo"].forEach(function(w) {
+        rooster.appendChild(el("div", Object.assign({}, TYPE.small, { color: T.inkSoft, textAlign: "center", padding: "4px 0", fontWeight: "600" }), w));
+      });
+      const eerste = new Date(toon2.getFullYear(), toon2.getMonth(), 1);
+      const begin = new Date(eerste);
+      begin.setDate(1 - (eerste.getDay() + 6) % 7);
+      const vandaag = ymdVan(/* @__PURE__ */ new Date());
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(begin);
+        d.setDate(begin.getDate() + i);
+        if (i >= 35 && d.getMonth() !== toon2.getMonth()) break;
+        (function(d2) {
+          const ymd2 = ymdVan(d2);
+          const buiten = d2.getMonth() !== toon2.getMonth();
+          const gekozen = ymd2 === huidig2;
+          const extra = { width: "100%" };
+          if (buiten) extra.color = "#b9b1b5";
+          if (!gekozen && ymd2 === vandaag) {
+            extra.border = "1px solid " + T.brand;
+            extra.fontWeight = "600";
+          }
+          const dag = chipKnop(String(d2.getDate()), gekozen, function() {
+            kies(ymd2);
+          }, extra);
+          dag.setAttribute("aria-label", datumTekst(ymd2) + (ymd2 === vandaag ? " (vandaag)" : ""));
+          if (gekozen) dag.setAttribute("aria-pressed", "true");
+          dag.setAttribute("data-ymd", ymd2);
+          rooster.appendChild(dag);
+        })(d);
+      }
+      p.appendChild(rooster);
+      const voet = el("div", { display: "flex", justifyContent: "flex-end", marginTop: "6px" });
+      const nu = chipKnop("Vandaag", false, function() {
+        kies(vandaag);
+      }, { padding: "0 10px", color: T.brand, fontWeight: "600" });
+      voet.appendChild(nu);
+      p.appendChild(voet);
+    }
+    teken();
+  }
+  function maakKiezers() {
+    const host2 = el("div");
+    let open = null;
+    function sluit() {
+      if (!open) return;
+      open.knop.setAttribute("aria-expanded", "false");
+      open.knop.style.borderColor = T.line;
+      open.knop.style.boxShadow = "none";
+      host2.innerHTML = "";
+      open = null;
+    }
+    function paneel() {
+      const p = el("div", {
+        margin: "8px 0 2px",
+        padding: "10px",
+        borderRadius: "12px",
+        border: "1px solid " + T.line,
+        background: "#fff",
+        boxShadow: "0 10px 28px -14px rgba(32,20,15,.35)"
+      });
+      p.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          const k = open && open.knop;
+          sluit();
+          if (k) k.focus();
+        }
+      });
+      return p;
+    }
+    function openVoor(knop, bouw) {
+      const was = open && open.knop === knop;
+      sluit();
+      if (was) return;
+      open = { knop };
+      knop.setAttribute("aria-expanded", "true");
+      knop.style.borderColor = T.brand;
+      knop.style.boxShadow = "0 0 0 3px " + T.brandWash;
+      const p = paneel();
+      bouw(p);
+      host2.appendChild(p);
+    }
+    function datum(waarde, onChange) {
+      let huidig2 = waarde;
+      const knop = veldKnop(datumTekst(huidig2) || "Kies een datum", !huidig2, ICON_KALENDER);
+      knop.setAttribute("aria-haspopup", "dialog");
+      knop.setAttribute("aria-expanded", "false");
+      knop.setAttribute("data-datum", huidig2 || "");
+      function kies(ymd2) {
+        huidig2 = ymd2;
+        knop._tekst.textContent = datumTekst(ymd2);
+        knop.style.color = T.ink;
+        knop.setAttribute("data-datum", ymd2);
+        onChange(ymd2);
+        sluit();
+        knop.focus();
+      }
+      knop.addEventListener("click", function(e) {
+        e.preventDefault();
+        openVoor(knop, function(p) {
+          p.setAttribute("role", "dialog");
+          p.setAttribute("aria-label", "Kies een datum");
+          maandKalender(p, huidig2, kies);
+        });
+      });
+      return knop;
+    }
+    function tijd(waarde, onChange, opties) {
+      opties = opties || {};
+      const stap = opties.minutenStap || 5;
+      let huidig2 = waarde;
+      const knop = veldKnop(huidig2 || "Kies een tijd", !huidig2, ICON_QUICK);
+      knop.setAttribute("aria-haspopup", "dialog");
+      knop.setAttribute("aria-expanded", "false");
+      function delen() {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(huidig2 || "");
+        return m ? { u: +m[1], m: +m[2] } : { u: null, m: null };
+      }
+      function zet(u, m) {
+        huidig2 = ("0" + u).slice(-2) + ":" + ("0" + m).slice(-2);
+        knop._tekst.textContent = huidig2;
+        knop.style.color = T.ink;
+        onChange(huidig2);
+      }
+      function itemKnop(tekst, gekozen, onClick) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = tekst;
+        b.setAttribute("data-gekozen", gekozen ? "1" : "0");
+        Object.assign(b.style, {
+          width: "100%",
+          flex: "0 0 auto",
+          padding: "7px 6px",
+          borderRadius: "9px",
+          boxSizing: "border-box",
+          border: "1px solid " + (gekozen ? T.brand : T.line),
+          background: gekozen ? T.brand : "#fff",
+          color: gekozen ? "#fff" : T.ink,
+          font: "600 13px/1 " + FONT,
+          fontVariantNumeric: "tabular-nums",
+          textAlign: "center",
+          cursor: "pointer",
+          transition: "background .12s ease, border-color .12s ease"
+        });
+        if (!gekozen) {
+          b.addEventListener("mouseenter", function() {
+            b.style.background = T.brandWash;
+            b.style.borderColor = "transparent";
+          });
+          b.addEventListener("mouseleave", function() {
+            b.style.background = "#fff";
+            b.style.borderColor = T.line;
+          });
+        }
+        focusRing(b);
+        b.addEventListener("click", function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        });
+        return b;
+      }
+      function kolom(titel) {
+        const col = el("div", { flex: "1 1 0", minWidth: "0", display: "flex", flexDirection: "column" });
+        col.appendChild(txt("label", titel, { textAlign: "center", margin: "0 0 6px" }));
+        const lijst2 = el("div", {
+          height: "196px",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: "5px",
+          padding: "2px 4px",
+          boxSizing: "border-box",
+          overscrollBehavior: "contain",
+          scrollbarWidth: "thin"
+        });
+        lijst2.setAttribute("role", "listbox");
+        lijst2.setAttribute("aria-label", titel);
+        col.appendChild(lijst2);
+        col._lijst = lijst2;
+        return col;
+      }
+      knop.addEventListener("click", function(e) {
+        e.preventDefault();
+        openVoor(knop, function(p) {
+          p.setAttribute("role", "dialog");
+          p.setAttribute("aria-label", "Kies een tijd");
+          let urenKol, minKol;
+          function scrollNaarKeuze(lijst2, terug) {
+            const doel = lijst2.querySelector('[data-gekozen="1"]') || lijst2.children[terug] || null;
+            if (doel) lijst2.scrollTop = Math.max(0, doel.offsetTop - lijst2.offsetTop - 70);
+          }
+          function teken(behoudScroll) {
+            const su = urenKol ? urenKol._lijst.scrollTop : 0, sm = minKol ? minKol._lijst.scrollTop : 0;
+            p.innerHTML = "";
+            const dl = delen();
+            const rij = el("div", { display: "flex", gap: "10px" });
+            urenKol = kolom("Uur");
+            for (let u = 0; u < 24; u++) {
+              (function(u2) {
+                urenKol._lijst.appendChild(itemKnop(("0" + u2).slice(-2), dl.u === u2, function() {
+                  zet(u2, dl.m == null ? 0 : dl.m);
+                  teken(true);
+                }));
+              })(u);
+            }
+            minKol = kolom("Minuten");
+            for (let m = 0; m < 60; m += stap) {
+              (function(m2) {
+                minKol._lijst.appendChild(itemKnop(("0" + m2).slice(-2), dl.m === m2 && dl.u != null, function() {
+                  zet(dl.u == null ? 9 : dl.u, m2);
+                  sluit();
+                  knop.focus();
+                }));
+              })(m);
+            }
+            rij.appendChild(urenKol);
+            rij.appendChild(minKol);
+            p.appendChild(rij);
+            setTimeout(function() {
+              if (behoudScroll) {
+                urenKol._lijst.scrollTop = su;
+                minKol._lijst.scrollTop = sm;
+              } else {
+                scrollNaarKeuze(urenKol._lijst, 9);
+                scrollNaarKeuze(minKol._lijst, 0);
+              }
+            }, 0);
+          }
+          teken(false);
+        });
+      });
+      return knop;
+    }
+    return { host: host2, datum, tijd, sluit };
+  }
+
+  // src/sidepanel/geo.js
+  function normPostcode(v) {
+    const m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ""));
+    return m ? m[1] + m[2].toUpperCase() : "";
+  }
+  function postProxy(proxy, pad, body, fetchFn) {
+    return (fetchFn || fetch)(proxy.url + pad, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json", "X-Agendahulp-Token": proxy.token },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    });
+  }
+  var ROUTES_ORIGIN = "https://routes.googleapis.com/*";
+  var PC6 = /^[1-9]\d{3}[A-Z]{2}$/;
+  function postGoogle(key, url, mask, body, fetchFn) {
+    return (fetchFn || fetch)(url, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": mask },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
+    });
+  }
+  function sec(d) {
+    return parseInt(String(d || "0").replace(/s$/, ""), 10) || 0;
+  }
+  function plek(pc) {
+    return { waypoint: { address: pc + ", Nederland" } };
+  }
+  var paarCache = /* @__PURE__ */ Object.create(null);
+  function roadMatrix(proxy, pcs, fetchFn) {
+    const lijst2 = pcs.filter(function(p, i) {
+      return p && pcs.indexOf(p) === i && PC6.test(p);
+    }).slice(0, 25);
+    const lees = function(a, b) {
+      return a === b ? { m: 0, s: 0 } : paarCache[a + "|" + b] || null;
+    };
+    const bekend = lijst2.every(function(a) {
+      return lijst2.every(function(b) {
+        return a === b || paarCache[a + "|" + b];
+      });
+    });
+    if (!proxy || lijst2.length < 2 || bekend) return Promise.resolve(lees);
+    const vraag = proxy.key ? postGoogle(
+      proxy.key,
+      "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
+      "originIndex,destinationIndex,distanceMeters,duration,condition",
+      { origins: lijst2.map(plek), destinations: lijst2.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
+      fetchFn
+    ).then(function(rijen) {
+      const pairs = {};
+      (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
+        if (e.condition !== "ROUTE_EXISTS" || e.originIndex == null || e.destinationIndex == null) return;
+        const a = lijst2[e.originIndex], b = lijst2[e.destinationIndex];
+        if (a && b && a !== b) pairs[a + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
+      });
+      return { pairs };
+    }) : postProxy(proxy, "/matrix", { pcs: lijst2 }, fetchFn);
+    return vraag.then(function(j) {
+      const pairs = j && j.pairs || {};
+      Object.keys(pairs).forEach(function(k) {
+        paarCache[k] = pairs[k];
+      });
+      return lees;
+    });
+  }
+  function optimizeRoute(proxy, origin, stops, fetchFn) {
+    if (!proxy.key) return postProxy(proxy, "/optimize", { origin, stops }, fetchFn);
+    if (!PC6.test(origin) || !stops.every(function(s) {
+      return PC6.test(s);
+    })) return Promise.reject(new Error("Alleen postcodes"));
+    const adres = function(pc) {
+      return { address: pc + ", Nederland" };
+    };
+    return postGoogle(
+      proxy.key,
+      "https://routes.googleapis.com/directions/v2:computeRoutes",
+      "routes.optimizedIntermediateWaypointIndex,routes.distanceMeters,routes.duration",
+      { origin: adres(origin), destination: adres(origin), intermediates: stops.map(adres), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE", optimizeWaypointOrder: true },
+      fetchFn
+    ).then(function(j) {
+      const route = j && j.routes && j.routes[0];
+      if (!route) throw new Error("Geen route");
+      return { order: Array.isArray(route.optimizedIntermediateWaypointIndex) ? route.optimizedIntermediateWaypointIndex : stops.map(function(_, i) {
+        return i;
+      }), m: route.distanceMeters || 0, s: sec(route.duration) };
+    });
+  }
+  function vraagRoutes(cb) {
+    try {
+      if (!chrome.permissions || !chrome.permissions.request) {
+        cb(true);
+        return;
+      }
+      chrome.permissions.request({ origins: [ROUTES_ORIGIN] }, function(ok) {
+        void chrome.runtime.lastError;
+        cb(!!ok);
+      });
+    } catch (e) {
+      cb(false);
+    }
+  }
+  function mapsUrls(adressen, origin, terug) {
+    let stops = (adressen || []).filter(Boolean);
+    if (terug && origin) stops = stops.concat([origin]);
+    let uit = [], start = origin || "";
+    for (let i = 0; i < stops.length; i += 10) {
+      const deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
+      const q = ["api=1"];
+      if (start) q.push("origin=" + encodeURIComponent(start));
+      q.push("destination=" + encodeURIComponent(dest));
+      if (tussen.length) q.push("waypoints=" + tussen.map(encodeURIComponent).join("%7C"));
+      q.push("travelmode=driving");
+      uit.push("https://www.google.com/maps/dir/?" + q.join("&"));
+      start = dest;
+    }
+    return uit;
+  }
+  function embedUrl(key, adressen, origin) {
+    const stops = (adressen || []).filter(Boolean);
+    if (!key || !stops.length) return "";
+    const start = origin || stops[0];
+    const rest = origin ? stops : stops.slice(1);
+    if (!rest.length) return "https://www.google.com/maps/embed/v1/place?key=" + encodeURIComponent(key) + "&q=" + encodeURIComponent(start);
+    const dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
+    return "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(key) + "&origin=" + encodeURIComponent(start) + "&destination=" + encodeURIComponent(dest) + (tussen.length ? "&waypoints=" + tussen.map(encodeURIComponent).join("%7C") : "") + "&mode=driving";
+  }
+
+  // src/sidepanel/pagina-zoekblad.js
+  var DUREN = [[30, "30 min", "30 minuten"], [45, "45 min", "45 minuten"], [60, "1 uur", "1 uur"], [90, "1,5 uur", "1,5 uur"], [120, "2 uur", "2 uur"]];
+  var WEKEN = [[1, "1 week"], [2, "2 weken"], [4, "4 weken"]];
+  var DAGEN = [[1, "ma", "maandag"], [2, "di", "dinsdag"], [3, "wo", "woensdag"], [4, "do", "donderdag"], [5, "vr", "vrijdag"]];
+  var STAPPEN = [["duur", "Duur", "Hoe lang duurt de afspraak?"], ["wanneer", "Wanneer", "Hoe ver vooruit zoeken?"], ["dagen", "Dagen", "Op welke dagen?"], ["clienten", "Cliënten", "Voor wie is de afspraak?"]];
+  var STANDAARD = { minutes: 60, weeks: 2, tot: "", dagen: null };
+  var TEL_DUUR = 30;
+  var TEL_LIMIET = 150;
+  var TEL_TTL = 6e4;
+  var RECENT_MAX = 3;
+  var CLIENTEN_MAX = 10;
+  var ICON_KRUIS = "M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z";
+  var ICON_ZOEK = "M15.5 14h-.8l-.3-.3A6.5 6.5 0 1 0 14 15.5l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z";
+  var ICON_KAART = "M20.5 3l-.2.1L15 5.1 9 3 3.4 4.9c-.2.1-.4.3-.4.5v15.1c0 .3.2.5.5.5l.2-.1L9 18.9l6 2.1 5.6-1.9c.2-.1.4-.3.4-.5V3.5c0-.3-.2-.5-.5-.5zM15 19l-6-2.1V5l6 2.1V19z";
+  var ICON_VINK = "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z";
+  var ICON_PLUS = "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z";
+  var ICON_VERDER = "M12 4l-1.4 1.4 5.6 5.6H4v2h12.2l-5.6 5.6L12 20l8-8z";
+  var ICON_TERUG = "M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z";
+  function duurTekst(m) {
+    const d = DUREN.filter(function(x) {
+      return x[0] === m;
+    })[0];
+    return d ? d[1] : m + " min";
+  }
+  function kortDatum(ymd2) {
+    return dayLabel(ymd2).replace(/^\S+ /, "");
+  }
+  function periodeTekst(f) {
+    return f.tot ? "tot " + kortDatum(f.tot) : f.weeks === 1 ? "1 week" : f.weeks + " weken";
+  }
+  function dagenTekst(dagen) {
+    if (!dagen || dagen.length >= 5) return "alle dagen";
+    const n = dagen.slice().sort().map(function(d) {
+      return DAGEN[d - 1][1];
+    });
+    return n.length === 1 ? "alleen " + n[0] : n.slice(0, -1).join(", ") + " en " + n[n.length - 1];
+  }
+  function groot(t) {
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  }
+  function filterTekst(f) {
+    return [duurTekst(f.minutes), periodeTekst(f), dagenTekst(f.dagen)].join(", ");
+  }
+  function tijdenTekst(n, plus) {
+    return n === 1 && !plus ? "1 tijd" : n + (plus ? "+" : "") + " tijden";
+  }
+  function clientenTekst(n) {
+    return n === 1 ? "1 cliënt" : n + " cliënten";
+  }
+  function pcTekst(pc) {
+    pc = normPostcode(pc);
+    return pc ? pc.slice(0, 4) + " " + pc.slice(4) : "";
+  }
+  function initialen(naam) {
+    return String(naam || "?").split(/\s+/).filter(Boolean).map(function(w) {
+      return w[0];
+    }).slice(0, 2).join("").toUpperCase();
+  }
+  function dagSleutel(d) {
+    return d && d.length < 5 ? d.slice().sort().join("") : "";
+  }
+  function zelfdeFilter(a, b) {
+    return a.minutes === b.minutes && (a.tot || "") === (b.tot || "") && (a.tot || a.weeks === b.weeks) && dagSleutel(a.dagen) === dagSleutel(b.dagen);
+  }
+  function telBegintijden(gaps, minutes, dagen) {
+    let tijden = 0;
+    const per = {};
+    (gaps || []).forEach(function(g) {
+      if (dagen && dagen.length < 5) {
+        const d = datumUitYmd(g.date);
+        if (!d || dagen.indexOf(d.getDay()) < 0) return;
+      }
+      const vrij = g.endMin - g.startMin;
+      if (!(vrij >= minutes)) return;
+      tijden += Math.floor((vrij - minutes) / 15) + 1;
+      per[g.date] = true;
+    });
+    return { tijden, dagen: Object.keys(per).length };
+  }
+  function geldigFilter(r) {
+    if (!r || typeof r !== "object") return null;
+    const m = parseInt(r.minutes, 10);
+    if (!DUREN.some(function(d2) {
+      return d2[0] === m;
+    })) return null;
+    const tot = /^\d{4}-\d{2}-\d{2}$/.test(String(r.tot || "")) ? String(r.tot) : "";
+    if (tot && tot < ymdVan(/* @__PURE__ */ new Date())) return null;
+    const w = parseInt(r.weeks, 10);
+    const d = Array.isArray(r.dagen) ? r.dagen.map(Number).filter(function(x, i, a) {
+      return x >= 1 && x <= 5 && a.indexOf(x) === i;
+    }).sort() : null;
+    return { minutes: m, weeks: [1, 2, 4].indexOf(w) >= 0 ? w : 2, tot, dagen: d && d.length && d.length < 5 ? d : null };
+  }
+  function leesRecent() {
+    try {
+      const r = JSON.parse(window.localStorage.getItem(PANEL_LOCAL.PLAN_RECENT) || "[]");
+      return Array.isArray(r) ? r.map(geldigFilter).filter(Boolean).slice(0, RECENT_MAX) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function bewaarRecent(f) {
+    const nieuw = geldigFilter(f);
+    if (!nieuw) return;
+    const lijst2 = [nieuw].concat(leesRecent().filter(function(x) {
+      return !zelfdeFilter(x, nieuw);
+    })).slice(0, RECENT_MAX);
+    try {
+      window.localStorage.setItem(PANEL_LOCAL.PLAN_RECENT, JSON.stringify(lijst2));
+    } catch (e) {
+    }
+  }
+  function maakZoekblad(ctx) {
+    const { actions, renderPagina } = ctx;
+    let laag = null;
+    let stapTimer = null, zoekTimer = null, zoekNr = 0;
+    const zb = function() {
+      return BEWAARD.zoekblad;
+    };
+    function telSleutel(f) {
+      return f.tot ? "tot|" + f.tot : "w|" + f.weeks;
+    }
+    function zorgTelling(f) {
+      if (!actions.onFreeSlots) return;
+      const k = telSleutel(f), oud = BEWAARD.telling[k];
+      if (oud && (oud.busy || Date.now() - oud.ts < TEL_TTL)) return;
+      const t = BEWAARD.telling[k] = { busy: true, gaps: null, afgekapt: false, fout: "", ts: Date.now() };
+      actions.onFreeSlots(TEL_DUUR, f.tot ? 2 : f.weeks, function(res) {
+        if (BEWAARD.telling[k] !== t) return;
+        t.busy = false;
+        t.ts = Date.now();
+        if (res && res.ok && res.result) {
+          t.gaps = res.result.gaps || [];
+          t.afgekapt = t.gaps.length >= TEL_LIMIET;
+        } else t.fout = res && res.error || "Tellen mislukt.";
+        setTimeout(function() {
+          if (zb().open) teken();
+          else if (ctx.pagina === "plan") renderPagina();
+        }, 0);
+      }, f.tot || "", false, false, "", null, TEL_LIMIET);
+    }
+    function telStand(f) {
+      const t = BEWAARD.telling[telSleutel(f)];
+      if (!t || t.busy) return { status: "bezig" };
+      if (t.fout) return { status: "fout", fout: t.fout };
+      const u = telBegintijden(t.gaps, f.minutes, f.dagen);
+      return { status: "klaar", tijden: u.tijden, dagen: u.dagen, plus: t.afgekapt };
+    }
+    function vergeetTelling() {
+      BEWAARD.telling = {};
+    }
+    function planFilters() {
+      const p = ctx.plan;
+      return { minutes: p.minutes, weeks: p.weeks, tot: p.tot || "", dagen: p.dagen && p.dagen.length < 5 ? p.dagen.slice() : null, clients: (p.clients || []).slice() };
+    }
+    function openZoekblad(stap) {
+      const z = zb();
+      clearTimeout(stapTimer);
+      z.open = true;
+      z.scherm = "blad";
+      z.stap = stap || "duur";
+      z.kalender = false;
+      z.concept = planFilters();
+      z.zoek = { term: "", treffers: null };
+      z.scroll = 0;
+      zorgTelling(z.concept);
+      teken();
+      const s = laag && laag.querySelector("[data-zoek-sluit]");
+      if (s) try {
+        s.focus();
+      } catch (e) {
+      }
+    }
+    function sluitZoekblad(stil) {
+      const z = zb();
+      clearTimeout(stapTimer);
+      clearTimeout(zoekTimer);
+      z.open = false;
+      z.concept = null;
+      z.kalender = false;
+      if (laag && laag.parentNode) laag.parentNode.removeChild(laag);
+      laag = null;
+      if (!stil && ctx.pagina === "plan") {
+        renderPagina();
+        setTimeout(ctx.misschienRondleiding, 0);
+      }
+    }
+    function toon2() {
+      const c = zb().concept, p = ctx.plan;
+      if (!c) return;
+      const andersZoeken = p.minutes !== c.minutes || (p.tot || "") !== c.tot || !c.tot && p.weeks !== c.weeks;
+      const andereDagen = dagSleutel(p.dagen) !== dagSleutel(c.dagen);
+      p.minutes = c.minutes;
+      p.weeks = c.weeks;
+      p.tot = c.tot;
+      p.dagen = c.dagen ? c.dagen.slice() : null;
+      p.clients = c.clients.slice();
+      bewaarRecent(c);
+      sluitZoekblad(true);
+      if (andersZoeken || !p.result && !p.busy) {
+        p.result = null;
+        p.error = "";
+        p.limit = 0;
+        p.open = {};
+        ctx.startPlan();
+      } else if (andereDagen) {
+        p.limit = 0;
+        ctx.startPlan(true);
+      }
+      if (ctx.pagina === "plan") renderPagina();
+      setTimeout(ctx.misschienRondleiding, 0);
+    }
+    function herstelZoekblad() {
+      if (zb().open && !(laag && laag.isConnected)) teken();
+    }
+    function zoekbladOpen() {
+      return !!zb().open;
+    }
+    function naarStap(s, wacht) {
+      clearTimeout(stapTimer);
+      if (!wacht) {
+        zb().stap = s;
+        zb().scroll = 0;
+        teken();
+        return;
+      }
+      stapTimer = setTimeout(function() {
+        if (zb().open && zb().scherm === "blad") {
+          zb().stap = s;
+          zb().scroll = 0;
+          teken();
+        }
+      }, wacht);
+    }
+    function wijzig(fn, volgende) {
+      const c = zb().concept;
+      fn(c);
+      zorgTelling(c);
+      teken();
+      if (volgende) naarStap(volgende, 300);
+    }
+    function openKaart(vanaf) {
+      const z = zb();
+      clearTimeout(stapTimer);
+      if (vanaf === "plan") {
+        z.open = true;
+        z.concept = null;
+      }
+      z.scherm = "kaart";
+      z.kaartVan = vanaf;
+      teken();
+      const t = laag && laag.querySelector("[data-kaart-terug]");
+      if (t) try {
+        t.focus();
+      } catch (e) {
+      }
+    }
+    function kaartTerug() {
+      const z = zb();
+      if (z.kaartVan === "plan") {
+        sluitZoekblad();
+        return;
+      }
+      z.scherm = "blad";
+      teken();
+    }
+    function kaartClients() {
+      const z = zb();
+      return z.kaartVan === "plan" || !z.concept ? ctx.plan.clients || [] : z.concept.clients;
+    }
+    function icoonKnop(icoon, tekst, onClick, attr) {
+      const b = el("button", {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        height: "40px",
+        padding: "0 14px 0 10px",
+        flex: "0 0 auto",
+        border: "1px solid " + T.line,
+        borderRadius: "999px",
+        background: "#fff",
+        color: T.ink,
+        font: "600 13px " + FONT,
+        cursor: "pointer",
+        whiteSpace: "nowrap"
+      });
+      b.type = "button";
+      b.setAttribute(attr, "");
+      b.appendChild(svgPath(icoon, 16));
+      b.appendChild(document.createTextNode(tekst));
+      focusRing(b);
+      b.addEventListener("click", onClick);
+      return b;
+    }
+    function keuze(tekst, aan, onClick, extra) {
+      const b = el("button", Object.assign({
+        height: "46px",
+        minWidth: "0",
+        padding: "0 6px",
+        boxSizing: "border-box",
+        borderRadius: "12px",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "6px",
+        whiteSpace: "nowrap",
+        border: "1px solid " + (aan ? T.brand : T.line),
+        background: aan ? T.brand : "#fff",
+        color: aan ? "#fff" : T.ink,
+        font: "600 14px " + FONT
+      }, extra || {}), tekst);
+      b.type = "button";
+      b.setAttribute("aria-pressed", aan ? "true" : "false");
+      if (!aan) {
+        b.addEventListener("mouseenter", function() {
+          b.style.background = T.brandWash;
+        });
+        b.addEventListener("mouseleave", function() {
+          b.style.background = "#fff";
+        });
+      }
+      focusRing(b);
+      b.addEventListener("click", onClick);
+      return b;
+    }
+    function rooster(kolommen) {
+      return el("div", { display: "grid", gridTemplateColumns: "repeat(" + kolommen + ", minmax(0, 1fr))", gap: "8px" });
+    }
+    function uitleg(tekst, extra) {
+      return el("div", Object.assign({ fontSize: "12px", color: T.inkSoft, marginTop: "10px", lineHeight: "1.4" }, extra || {}), tekst);
+    }
+    function spinner(kleur) {
+      zorgVoorStijl();
+      return el("span", {
+        width: "14px",
+        height: "14px",
+        flex: "0 0 auto",
+        borderRadius: "50%",
+        boxSizing: "border-box",
+        border: "2px solid " + (kleur ? "rgba(255,255,255,.45)" : "#f0b6d6"),
+        borderTopColor: kleur || T.brand,
+        animation: "onsAhDraai .8s linear infinite"
+      });
+    }
+    function kaartPil(vanaf) {
+      const n = vanaf === "plan" ? (ctx.plan.clients || []).length : zb().concept.clients.length;
+      const b = el("button", {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        height: "44px",
+        padding: "0 12px 0 14px",
+        border: "0",
+        borderRadius: "999px",
+        background: T.ink,
+        color: "#fff",
+        font: "600 13.5px " + FONT,
+        cursor: "pointer",
+        boxShadow: "0 6px 18px rgba(32,29,31,.28)",
+        pointerEvents: "auto"
+      });
+      b.type = "button";
+      b.setAttribute("data-kaart-pil", vanaf);
+      b.setAttribute("aria-label", "Kaart met " + (n === 1 ? "1 gekoppelde cliënt" : n + " gekoppelde cliënten"));
+      b.appendChild(svgPath(ICON_KAART, 16));
+      b.appendChild(document.createTextNode("Kaart"));
+      b.appendChild(el("span", {
+        minWidth: "20px",
+        height: "20px",
+        padding: "0 6px",
+        boxSizing: "border-box",
+        borderRadius: "999px",
+        background: T.brand,
+        color: "#fff",
+        fontSize: "11.5px",
+        fontWeight: "700",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }, String(n)));
+      focusRing(b, "#fff");
+      b.addEventListener("click", function() {
+        openKaart(vanaf);
+      });
+      return b;
+    }
+    function teken() {
+      const z = zb();
+      if (!z.open) return;
+      if (!laag || !laag.isConnected) {
+        laag = el("div", {
+          position: "fixed",
+          inset: "0",
+          zIndex: "2147482000",
+          background: "#fff",
+          color: T.ink,
+          font: "400 13px/1.45 " + FONT,
+          display: "flex",
+          flexDirection: "column"
+        });
+        laag.setAttribute("role", "dialog");
+        laag.setAttribute("aria-modal", "true");
+        laag.setAttribute("data-zoekblad", "");
+        laag.addEventListener("keydown", function(e) {
+          if (e.key !== "Escape") return;
+          e.preventDefault();
+          if (zb().scherm === "kaart") kaartTerug();
+          else sluitZoekblad();
+        });
+        (ctx.root || document.body).appendChild(laag);
+      }
+      const oudBody = laag.querySelector("[data-zoek-body]");
+      if (oudBody) z.scroll = oudBody.scrollTop;
+      const actief2 = document.activeElement && laag.contains(document.activeElement) && document.activeElement.hasAttribute("data-zoek-client") ? document.activeElement : null;
+      const sel = actief2 ? [actief2.selectionStart, actief2.selectionEnd] : null;
+      laag.innerHTML = "";
+      laag.setAttribute("data-scherm", z.scherm);
+      laag.setAttribute("aria-label", z.scherm === "kaart" ? "Kaart" : "Vrije tijd zoeken");
+      if (z.scherm === "kaart") tekenKaart();
+      else tekenBlad();
+      const body = laag.querySelector("[data-zoek-body]");
+      if (body && z.scroll) body.scrollTop = z.scroll;
+      if (sel) {
+        const inp = laag.querySelector("[data-zoek-client]");
+        if (inp) try {
+          inp.focus();
+          inp.setSelectionRange(sel[0], sel[1]);
+        } catch (e) {
+        }
+      }
+    }
+    function tekenBlad() {
+      const z = zb(), c = z.concept;
+      const idx = STAPPEN.map(function(s) {
+        return s[0];
+      }).indexOf(z.stap);
+      const kop = el("div", { display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px 8px", flex: "0 0 auto" });
+      kop.appendChild(icoonKnop(ICON_KRUIS, "Sluiten", function() {
+        sluitZoekblad();
+      }, "data-zoek-sluit"));
+      kop.appendChild(el("div", { flex: "1 1 auto", minWidth: "0", textAlign: "center", fontSize: "15px", fontWeight: "700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, "Vrije tijd zoeken"));
+      const nr = el("div", { flex: "0 0 auto", fontSize: "12px", fontWeight: "600", color: T.inkSoft, whiteSpace: "nowrap" }, "Stap " + (idx + 1) + " van " + STAPPEN.length);
+      nr.setAttribute("data-zoek-stapnr", String(idx + 1));
+      kop.appendChild(nr);
+      laag.appendChild(kop);
+      const balken = el("div", { display: "flex", gap: "4px", padding: "0 14px 10px", flex: "0 0 auto" });
+      balken.setAttribute("aria-hidden", "true");
+      STAPPEN.forEach(function(s, i) {
+        balken.appendChild(el("span", { flex: "1 1 0", height: "4px", borderRadius: "2px", background: i <= idx ? T.ink : T.line }));
+      });
+      laag.appendChild(balken);
+      const midden = el("div", { position: "relative", flex: "1 1 auto", minHeight: "0" });
+      const body = el("div", { position: "absolute", inset: "0", overflowY: "auto", padding: "4px 14px " + (c.clients.length ? "76px" : "16px"), display: "flex", flexDirection: "column", gap: "8px" });
+      body.setAttribute("data-zoek-body", "");
+      if (z.stap === "duur") {
+        const recent = leesRecent();
+        if (recent.length) body.appendChild(recentBlok(recent, c));
+      }
+      STAPPEN.forEach(function(s) {
+        body.appendChild(s[0] === z.stap ? stapOpen(s) : stapDicht(s));
+      });
+      midden.appendChild(body);
+      if (c.clients.length) {
+        const pilRij = el("div", { position: "absolute", left: "0", right: "0", bottom: "14px", display: "flex", justifyContent: "center", pointerEvents: "none" });
+        pilRij.appendChild(kaartPil("blad"));
+        midden.appendChild(pilRij);
+      }
+      laag.appendChild(midden);
+      const voet = el("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 14px", borderTop: "1px solid " + T.line, background: "#fff", flex: "0 0 auto" });
+      const wis = el("button", { height: "44px", padding: "0 2px", border: "0", background: "transparent", color: T.ink, font: "600 13.5px " + FONT, textDecoration: "underline", textUnderlineOffset: "3px", cursor: "pointer", whiteSpace: "nowrap" }, "Alles wissen");
+      wis.type = "button";
+      wis.setAttribute("data-zoek-wissen", "");
+      focusRing(wis);
+      wis.addEventListener("click", function() {
+        z.concept = Object.assign({}, STANDAARD, { clients: [] });
+        z.kalender = false;
+        z.zoek = { term: "", treffers: null };
+        zorgTelling(z.concept);
+        naarStap("duur");
+      });
+      voet.appendChild(wis);
+      voet.appendChild(toonKnop(c));
+      laag.appendChild(voet);
+    }
+    function toonKnop(c) {
+      const t = telStand(c);
+      const leeg2 = t.status === "klaar" && !t.tijden;
+      const b = el("button", {
+        flex: "0 1 auto",
+        minWidth: "0",
+        height: "48px",
+        padding: "0 18px",
+        border: "0",
+        borderRadius: "12px",
+        cursor: leeg2 ? "default" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        whiteSpace: "nowrap",
+        background: leeg2 ? T.line : T.brand,
+        color: leeg2 ? T.inkSoft : "#fff",
+        font: "700 14.5px " + FONT
+      });
+      b.type = "button";
+      b.setAttribute("data-zoek-toon", "");
+      b.setAttribute("aria-live", "polite");
+      if (t.status === "bezig") {
+        b.appendChild(spinner("#fff"));
+        b.appendChild(document.createTextNode("Tellen"));
+        b.setAttribute("data-telling", "");
+      } else {
+        b.appendChild(svgPath(ICON_ZOEK, 16));
+        const tekst = t.status === "fout" ? "Toon tijden" : leeg2 ? "Geen tijden gevonden" : "Toon " + tijdenTekst(t.tijden, t.plus);
+        b.appendChild(document.createTextNode(tekst));
+        b.setAttribute("data-telling", t.status === "klaar" ? String(t.tijden) + (t.plus ? "+" : "") : "");
+        if (t.status === "fout") b.title = t.fout;
+      }
+      b.disabled = leeg2;
+      focusRing(b);
+      b.addEventListener("click", function() {
+        if (!leeg2) toon2();
+      });
+      return b;
+    }
+    function recentBlok(recent, c) {
+      const box = el("div", { margin: "0 -14px 4px" });
+      box.appendChild(el("div", { padding: "0 14px 8px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Recente filters"));
+      const rij = el("div", { display: "flex", gap: "8px", overflowX: "auto", padding: "0 14px 2px" });
+      rij.setAttribute("data-zoek-recent", "");
+      recent.forEach(function(f, i) {
+        const aan = zelfdeFilter(f, c);
+        const b = el("button", {
+          flex: "0 0 auto",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          height: "40px",
+          padding: "0 14px 0 12px",
+          borderRadius: "999px",
+          cursor: "pointer",
+          border: "1px solid " + (aan ? T.brand : T.line),
+          background: aan ? T.brandWash : "#fff",
+          color: T.ink,
+          font: "600 12.5px " + FONT,
+          whiteSpace: "nowrap"
+        });
+        b.type = "button";
+        b.setAttribute("data-zoek-recent-filter", String(i));
+        b.setAttribute("aria-pressed", aan ? "true" : "false");
+        const ic = svgPath(ICON_QUICK, 14);
+        ic.style.color = T.inkSoft;
+        b.appendChild(ic);
+        b.appendChild(document.createTextNode(groot(filterTekst(f))));
+        focusRing(b);
+        b.addEventListener("click", function() {
+          wijzig(function(x) {
+            x.minutes = f.minutes;
+            x.weeks = f.weeks;
+            x.tot = f.tot;
+            x.dagen = f.dagen ? f.dagen.slice() : null;
+            zb().kalender = false;
+          });
+        });
+        rij.appendChild(b);
+      });
+      box.appendChild(rij);
+      return box;
+    }
+    function stapDicht(s) {
+      const c = zb().concept;
+      const waarde = s[0] === "duur" ? duurTekst(c.minutes) : s[0] === "wanneer" ? groot(periodeTekst(c)) : s[0] === "dagen" ? groot(dagenTekst(c.dagen)) : c.clients.length ? c.clients.length === 1 ? c.clients[0].name : clientenTekst(c.clients.length) : "Geen";
+      const b = el("button", {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        width: "100%",
+        minHeight: "50px",
+        padding: "0 16px",
+        flex: "0 0 auto",
+        border: "1px solid " + T.line,
+        borderRadius: "12px",
+        background: "#fff",
+        color: T.ink,
+        font: "400 13px " + FONT,
+        textAlign: "left",
+        cursor: "pointer",
+        boxSizing: "border-box"
+      });
+      b.type = "button";
+      b.setAttribute("data-zoek-stap", s[0]);
+      b.setAttribute("aria-label", s[1] + ": " + waarde + ". Wijzigen");
+      b.appendChild(el("span", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, flex: "0 0 auto" }, s[1]));
+      b.appendChild(el("span", { fontSize: "13.5px", fontWeight: "600", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, waarde));
+      focusRing(b);
+      b.addEventListener("click", function() {
+        naarStap(s[0]);
+      });
+      return b;
+    }
+    function stapOpen(s) {
+      const kaart2 = el("section", { border: "1px solid " + T.line, borderRadius: "12px", padding: "14px", background: "#fff", boxShadow: "0 6px 20px rgba(32,29,31,.08)", flex: "0 0 auto" });
+      kaart2.setAttribute("data-zoek-open", s[0]);
+      kaart2.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft }, s[0] === "clienten" ? "Cliënten, optioneel" : s[1]));
+      kaart2.appendChild(el("h2", { margin: "2px 0 12px", fontSize: "18px", fontWeight: "700", lineHeight: "1.25", color: T.ink }, s[2]));
+      if (s[0] === "duur") stapDuur(kaart2);
+      else if (s[0] === "wanneer") stapWanneer(kaart2);
+      else if (s[0] === "dagen") stapDagen(kaart2);
+      else stapClienten(kaart2);
+      return kaart2;
+    }
+    function stapDuur(kaart2) {
+      const c = zb().concept;
+      const r = rooster(3);
+      DUREN.forEach(function(d) {
+        const b = keuze(d[1], c.minutes === d[0], function() {
+          wijzig(function(x) {
+            x.minutes = d[0];
+          }, "wanneer");
+        });
+        b.setAttribute("data-plan-duur", String(d[0]));
+        b.setAttribute("aria-label", d[2]);
+        r.appendChild(b);
+      });
+      kaart2.appendChild(r);
+      kaart2.appendChild(uitleg("Je ziet alleen begintijden waarop de afspraak helemaal past, elk kwartier."));
+    }
+    function stapWanneer(kaart2) {
+      const z = zb(), c = z.concept;
+      const r = rooster(2);
+      WEKEN.forEach(function(w) {
+        const b = keuze(w[1], !c.tot && !z.kalender && c.weeks === w[0], function() {
+          wijzig(function(x) {
+            x.weeks = w[0];
+            x.tot = "";
+            z.kalender = false;
+          }, "dagen");
+        });
+        b.setAttribute("data-plan-weken", String(w[0]));
+        r.appendChild(b);
+      });
+      const tot = keuze(c.tot ? "Tot " + kortDatum(c.tot) : "Tot datum", !!(c.tot || z.kalender), function() {
+        clearTimeout(stapTimer);
+        z.kalender = !z.kalender;
+        teken();
+      });
+      tot.insertBefore(svgPath(ICON_KALENDER, 16), tot.firstChild);
+      tot.setAttribute("data-plan-tot", "");
+      tot.setAttribute("aria-label", c.tot ? "Tot en met " + dagLang2(c.tot).toLowerCase() : "Tot een datum");
+      tot.setAttribute("aria-haspopup", "dialog");
+      tot.setAttribute("aria-expanded", z.kalender ? "true" : "false");
+      r.appendChild(tot);
+      kaart2.appendChild(r);
+      if (z.kalender) {
+        const kal = el("div", { marginTop: "10px", padding: "10px", borderRadius: "12px", border: "1px solid " + T.line, background: "#fff" });
+        kal.setAttribute("data-plan-kalender", "");
+        kal.setAttribute("role", "dialog");
+        kal.setAttribute("aria-label", "Zoek tot en met");
+        kal.appendChild(el("div", { fontSize: "12px", fontWeight: "600", color: T.inkSoft, margin: "0 2px 6px" }, "Zoek tot en met"));
+        const maand = el("div");
+        maandKalender(maand, c.tot, function(ymd2) {
+          wijzig(function(x) {
+            x.tot = ymd2;
+            z.kalender = false;
+          }, "dagen");
+        });
+        kal.appendChild(maand);
+        kaart2.appendChild(kal);
+      } else kaart2.appendChild(uitleg("Vanaf vandaag, " + dagLang2(ymdVan(/* @__PURE__ */ new Date())).toLowerCase() + "."));
+    }
+    function stapDagen(kaart2) {
+      const c = zb().concept;
+      const gek = c.dagen || [1, 2, 3, 4, 5];
+      const r = rooster(5);
+      DAGEN.forEach(function(d) {
+        const aan = gek.indexOf(d[0]) >= 0;
+        const b = keuze(d[1], aan, function() {
+          const nieuw = aan ? gek.filter(function(x) {
+            return x !== d[0];
+          }) : gek.concat([d[0]]).sort();
+          if (!nieuw.length) return;
+          wijzig(function(x) {
+            x.dagen = nieuw.length === 5 ? null : nieuw;
+          });
+        }, { height: "50px", fontSize: "15px" });
+        b.setAttribute("data-plan-dag", String(d[0]));
+        b.setAttribute("aria-label", d[2]);
+        b.title = aan ? gek.length === 1 ? "Minstens één dag" : d[2] + " niet zoeken" : d[2] + " ook zoeken";
+        r.appendChild(b);
+      });
+      kaart2.appendChild(r);
+      kaart2.appendChild(uitleg("Minstens één dag blijft aan."));
+      const wt = ctx.state && ctx.state.workHours;
+      const noot = el("div", { display: "flex", gap: "8px", alignItems: "flex-start", marginTop: "10px", padding: "10px 12px", borderRadius: "10px", background: T.lineSoft, fontSize: "12.5px", lineHeight: "1.4" });
+      const ic = svgPath(ICON_QUICK, 16);
+      ic.style.flex = "0 0 auto";
+      ic.style.color = T.inkSoft;
+      ic.style.marginTop = "1px";
+      noot.appendChild(ic);
+      noot.appendChild(el("span", null, wt ? "Alleen binnen je werktijden: " + wt + ". Aanpassen kan in de popup van de extensie." : "Alleen binnen de werktijden van je dagindeling. Eigen werktijden stel je in in de popup van de extensie."));
+      kaart2.appendChild(noot);
+      const rij = el("div", { display: "flex", justifyContent: "flex-end", marginTop: "12px" });
+      const verder = el("button", {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        height: "44px",
+        padding: "0 14px 0 16px",
+        border: "1px solid " + T.line,
+        borderRadius: "10px",
+        background: "#fff",
+        color: T.ink,
+        font: "600 13.5px " + FONT,
+        cursor: "pointer"
+      });
+      verder.type = "button";
+      verder.setAttribute("data-zoek-volgende", "");
+      verder.appendChild(document.createTextNode("Volgende"));
+      verder.appendChild(svgPath(ICON_VERDER, 16));
+      focusRing(verder);
+      verder.addEventListener("click", function() {
+        naarStap("clienten");
+      });
+      rij.appendChild(verder);
+      kaart2.appendChild(rij);
+    }
+    function stapClienten(kaart2) {
+      const z = zb(), c = z.concept;
+      kaart2.appendChild(uitleg("Gekoppelde cliënten zie je op de kaart en staan straks al in Afspraak maken.", { margin: "-6px 0 12px" }));
+      if (c.clients.length) {
+        const chips = el("div", { display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" });
+        c.clients.forEach(function(cl) {
+          const chip = el("span", { display: "inline-flex", alignItems: "center", gap: "6px", height: "40px", maxWidth: "100%", padding: "0 2px 0 4px", borderRadius: "999px", background: T.brandWash, boxSizing: "border-box" });
+          chip.setAttribute("data-zoek-gekoppeld", String(cl.clientId));
+          chip.appendChild(el("span", {
+            flex: "0 0 auto",
+            width: "30px",
+            height: "30px",
+            borderRadius: "50%",
+            background: T.brand,
+            color: "#fff",
+            fontSize: "11px",
+            fontWeight: "700",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }, initialen(cl.name)));
+          chip.appendChild(el("span", { fontSize: "13px", fontWeight: "600", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, cl.name));
+          const weg = el("button", {
+            flex: "0 0 auto",
+            width: "36px",
+            height: "36px",
+            padding: "0",
+            border: "0",
+            borderRadius: "50%",
+            background: "transparent",
+            color: T.brandDeep,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center"
+          });
+          weg.type = "button";
+          weg.setAttribute("data-zoek-ontkoppel", String(cl.clientId));
+          weg.setAttribute("aria-label", cl.name + " ontkoppelen");
+          weg.appendChild(svgPath(ICON_KRUIS, 16));
+          focusRing(weg);
+          weg.addEventListener("click", function() {
+            c.clients = c.clients.filter(function(x) {
+              return x !== cl;
+            });
+            teken();
+          });
+          chip.appendChild(weg);
+          chips.appendChild(chip);
+        });
+        kaart2.appendChild(chips);
+      }
+      const lab = el("label", { display: "block", marginBottom: "6px", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, "Zoek cliënt");
+      const veld = el("div", { position: "relative" });
+      const ic = svgPath(ICON_ZOEK, 18);
+      Object.assign(ic.style, { position: "absolute", left: "11px", top: "13px", color: T.inkSoft, pointerEvents: "none" });
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.inputMode = "search";
+      inp.enterKeyHint = "search";
+      inp.value = z.zoek.term;
+      inp.placeholder = "Naam cliënt";
+      inp.autocomplete = "off";
+      inp.setAttribute("data-zoek-client", "");
+      Object.assign(inp.style, {
+        width: "100%",
+        boxSizing: "border-box",
+        height: "44px",
+        padding: "0 12px 0 36px",
+        border: "1px solid " + T.line,
+        borderRadius: "10px",
+        background: "#fff",
+        color: T.ink,
+        font: "400 14px " + FONT
+      });
+      focusRing(inp, T.brand, true);
+      const id = "zoek-client-" + Math.random().toString(36).slice(2, 8);
+      inp.id = id;
+      lab.htmlFor = id;
+      veld.appendChild(ic);
+      veld.appendChild(inp);
+      kaart2.appendChild(lab);
+      kaart2.appendChild(veld);
+      const treffers = el("div");
+      treffers.setAttribute("data-zoek-treffers", "");
+      kaart2.appendChild(treffers);
+      vulTreffers(treffers);
+      inp.addEventListener("input", function() {
+        z.zoek.term = inp.value;
+        clearTimeout(zoekTimer);
+        const term = inp.value.trim();
+        if (term.length < 2 || !actions.onClientSearch) {
+          z.zoek.treffers = null;
+          vulTreffers(treffers);
+          return;
+        }
+        zoekTimer = setTimeout(function() {
+          const mijn = ++zoekNr;
+          z.zoek.treffers = { zoekt: true, lijst: [] };
+          vulTreffers(laag && laag.querySelector("[data-zoek-treffers]"));
+          actions.onClientSearch(term, function(res) {
+            if (mijn !== zoekNr || !zb().open) return;
+            z.zoek.treffers = res && res.ok ? { lijst: res.clients || [] } : { fout: res && res.error || "Zoeken mislukt.", lijst: [] };
+            vulTreffers(laag && laag.querySelector("[data-zoek-treffers]"));
+          }, false);
+        }, 350);
+      });
+      kaart2.appendChild(uitleg("Namen komen uit ONS en worden nergens bewaard. De recente filters onthouden geen cliënten."));
+    }
+    function vulTreffers(host2) {
+      if (!host2) return;
+      const z = zb(), c = z.concept, t = z.zoek.treffers;
+      host2.innerHTML = "";
+      if (!t) return;
+      const lijst2 = el("div", { marginTop: "8px", border: "1px solid " + T.line, borderRadius: "12px", overflow: "hidden" });
+      const regel = function(tekst, kleur) {
+        return el("div", { padding: "10px 12px", fontSize: "12.5px", color: kleur || T.inkSoft }, tekst);
+      };
+      if (t.zoekt) lijst2.appendChild(regel("Zoeken in ONS…"));
+      else if (t.fout) lijst2.appendChild(regel(t.fout, T.bad));
+      else if (!t.lijst.length) lijst2.appendChild(regel("Geen cliënt gevonden."));
+      else t.lijst.forEach(function(cl, i) {
+        const aan = c.clients.some(function(x) {
+          return String(x.clientId) === String(cl.id);
+        });
+        const rij = el("div", { display: "flex", alignItems: "center", gap: "10px", padding: "6px 8px 6px 10px", borderTop: i ? "1px solid " + T.lineSoft : "0" });
+        rij.appendChild(el("span", {
+          flex: "0 0 auto",
+          width: "32px",
+          height: "32px",
+          borderRadius: "50%",
+          background: T.lineSoft,
+          fontSize: "11.5px",
+          fontWeight: "700",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }, initialen(cl.name)));
+        const nm = el("span", { flex: "1 1 auto", minWidth: "0" });
+        nm.appendChild(el("span", { display: "block", fontSize: "13.5px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, cl.name || "Cliënt " + cl.id));
+        const extra = [cl.number ? "Cl " + cl.number : "", pcTekst(cl.pc)].filter(Boolean).join(", ");
+        if (extra) nm.appendChild(el("span", { display: "block", fontSize: "12px", color: T.inkSoft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, extra));
+        rij.appendChild(nm);
+        const vol = !aan && c.clients.length >= CLIENTEN_MAX;
+        const b = el("button", {
+          flex: "0 0 auto",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "5px",
+          height: "40px",
+          padding: "0 12px 0 10px",
+          borderRadius: "999px",
+          cursor: vol ? "default" : "pointer",
+          border: "1px solid " + (aan ? T.brandWash : T.brand),
+          background: aan ? T.brandWash : "#fff",
+          color: aan ? T.brandDeep : T.brand,
+          font: "600 12.5px " + FONT,
+          opacity: vol ? ".5" : "1"
+        });
+        b.type = "button";
+        b.disabled = vol;
+        b.setAttribute("data-zoek-koppel", String(cl.id));
+        b.setAttribute("aria-pressed", aan ? "true" : "false");
+        b.setAttribute("aria-label", (aan ? "Ontkoppel " : "Koppel ") + (cl.name || "cliënt"));
+        b.appendChild(svgPath(aan ? ICON_VINK : ICON_PLUS, 14));
+        b.appendChild(document.createTextNode(aan ? "Gekoppeld" : "Koppelen"));
+        focusRing(b);
+        b.addEventListener("click", function() {
+          if (aan) c.clients = c.clients.filter(function(x) {
+            return String(x.clientId) !== String(cl.id);
+          });
+          else if (!vol) c.clients = c.clients.concat([{ clientId: String(cl.id), name: cl.name || "Cliënt " + cl.id, number: cl.number || "", pc: normPostcode(cl.pc) }]);
+          teken();
+        });
+        rij.appendChild(b);
+        lijst2.appendChild(rij);
+      });
+      host2.appendChild(lijst2);
+    }
+    function tekenKaart() {
+      const clients = kaartClients();
+      const kop = el("div", { display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", flex: "0 0 auto" });
+      kop.appendChild(icoonKnop(ICON_TERUG, "Terug", kaartTerug, "data-kaart-terug"));
+      kop.appendChild(el("div", { flex: "1 1 auto", fontSize: "15px", fontWeight: "700" }, "Kaart"));
+      kop.appendChild(el("div", { flex: "0 0 auto", fontSize: "12px", fontWeight: "600", color: T.inkSoft }, clientenTekst(clients.length)));
+      laag.appendChild(kop);
+      const body = el("div", { flex: "1 1 auto", minHeight: "0", overflowY: "auto", padding: "0 14px 16px" });
+      body.setAttribute("data-zoek-body", "");
+      const met = clients.filter(function(cl) {
+        return normPostcode(cl.pc);
+      });
+      const adressen = met.map(function(cl) {
+        return pcTekst(cl.pc) + ", Nederland";
+      });
+      const sleutel = ctx.state && ctx.state.mapsEmbedKey;
+      const letter = function(cl) {
+        const i = met.indexOf(cl);
+        return met.length > 1 && i >= 0 ? String.fromCharCode(65 + i) : "";
+      };
+      if (sleutel && met.length) {
+        const ifr = document.createElement("iframe");
+        ifr.src = embedUrl(sleutel, adressen, "");
+        ifr.title = "Kaart met de postcodes van de gekoppelde cliënten";
+        ifr.setAttribute("loading", "lazy");
+        ifr.setAttribute("referrerpolicy", "no-referrer-when-downgrade");
+        ifr.setAttribute("data-kaart-frame", "");
+        Object.assign(ifr.style, { width: "100%", height: "360px", border: "1px solid " + T.line, borderRadius: "12px", display: "block" });
+        body.appendChild(ifr);
+      } else if (!met.length) {
+        body.appendChild(el("div", { padding: "12px", borderRadius: "12px", background: T.lineSoft, fontSize: "12.5px" }, "Van de gekoppelde cliënten is geen postcode bekend, dus er is niets op de kaart te zetten."));
+      } else {
+        body.appendChild(el("div", { padding: "12px", borderRadius: "12px", background: T.lineSoft, fontSize: "12.5px", lineHeight: "1.4" }, "Voor de kaart in het zijpaneel: vul in het beheerscherm (Functies → Google Maps) een sleutel voor de Maps Embed API in. Openen in Google Maps kan wel."));
+      }
+      const lijst2 = el("div", { display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" });
+      lijst2.setAttribute("data-kaart-lijst", "");
+      clients.forEach(function(cl) {
+        const rij = el("div", { display: "flex", alignItems: "center", gap: "10px", minHeight: "28px" });
+        const l = letter(cl);
+        rij.appendChild(el("span", {
+          flex: "0 0 auto",
+          width: "24px",
+          height: "24px",
+          borderRadius: "50%",
+          background: normPostcode(cl.pc) ? T.brand : T.line,
+          color: normPostcode(cl.pc) ? "#fff" : T.inkSoft,
+          fontSize: "11.5px",
+          fontWeight: "700",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }, l || initialen(cl.name).slice(0, 1)));
+        rij.appendChild(el("span", { fontSize: "13.5px", fontWeight: "600", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, cl.name));
+        rij.appendChild(el("span", { fontSize: "12px", color: T.inkSoft, whiteSpace: "nowrap", marginLeft: "auto" }, pcTekst(cl.pc) || "geen postcode bekend"));
+        lijst2.appendChild(rij);
+      });
+      body.appendChild(lijst2);
+      if (met.length) {
+        const a = document.createElement("a");
+        a.href = mapsUrls(adressen, "", false)[0];
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.setAttribute("data-kaart-link", "");
+        Object.assign(a.style, { display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "14px", color: T.brand, font: "600 13px " + FONT, textDecoration: "none" });
+        a.appendChild(svgPath(ICON_KAART, 16));
+        a.appendChild(document.createTextNode("Openen in Google Maps"));
+        focusRing(a);
+        body.appendChild(a);
+      }
+      body.appendChild(uitleg("Naar Google Maps gaan alleen de postcodes. Namen blijven in het zijpaneel.", { marginTop: "12px" }));
+      laag.appendChild(body);
+    }
+    function zoekPil() {
+      const f = planFilters();
+      zorgTelling(f);
+      const t = telStand(f);
+      const b = el("button", {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        width: "100%",
+        minHeight: "56px",
+        padding: "8px 16px 8px 14px",
+        margin: "0 0 10px",
+        boxSizing: "border-box",
+        border: "1px solid " + T.line,
+        borderRadius: "999px",
+        background: "#fff",
+        color: T.ink,
+        font: "400 13px " + FONT,
+        textAlign: "left",
+        cursor: "pointer",
+        boxShadow: "0 2px 10px rgba(32,29,31,.08)"
+      });
+      b.type = "button";
+      b.setAttribute("data-plan-zoekpil", "");
+      const ic = svgPath(ICON_ZOEK, 18);
+      ic.style.flex = "0 0 auto";
+      b.appendChild(ic);
+      const tekst = el("span", { flex: "1 1 auto", minWidth: "0" });
+      tekst.appendChild(el("span", { display: "block", fontSize: "13.5px", fontWeight: "600", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, groot(filterTekst(f))));
+      const delen = [];
+      if (t.status === "bezig") delen.push("Tijden tellen…");
+      else if (t.status === "klaar") delen.push(t.tijden ? tijdenTekst(t.tijden, t.plus) + " op " + t.dagen + (t.dagen === 1 ? " dag" : " dagen") : "Geen tijden");
+      if (f.clients.length) delen.push(clientenTekst(f.clients.length));
+      const sub = el("span", { display: "block", fontSize: "12px", color: T.inkSoft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, delen.join(", "));
+      sub.setAttribute("data-plan-telling", t.status === "klaar" ? String(t.tijden) : "");
+      tekst.appendChild(sub);
+      b.appendChild(tekst);
+      b.appendChild(el("span", { flex: "0 0 auto", fontSize: "12.5px", fontWeight: "600", color: T.brand }, "Wijzig"));
+      b.setAttribute("aria-label", "Zoekopdracht: " + filterTekst(f) + (delen.length ? ". " + delen.join(", ") : "") + ". Wijzigen");
+      focusRing(b);
+      b.addEventListener("click", function() {
+        openZoekblad("duur");
+      });
+      return b;
+    }
+    function planKaartPil() {
+      if (!(ctx.plan.clients || []).length) return null;
+      const rij = el("div", { position: "sticky", bottom: "12px", display: "flex", justifyContent: "center", marginTop: "12px", pointerEvents: "none", zIndex: "1" });
+      rij.appendChild(kaartPil("plan"));
+      return rij;
+    }
+    return { herstelZoekblad, openZoekblad, planKaartPil, sluitZoekblad, vergeetTelling, zoekPil, zoekbladOpen };
+  }
+
   // src/sidepanel/multi-plan.js
   var NIEUWE_DAG_KM = 15;
   var KM_PER_UUR = 45;
@@ -5031,138 +6114,6 @@
     return Math.max(0, som);
   }
 
-  // src/sidepanel/geo.js
-  function normPostcode(v) {
-    const m = /^\s*([1-9]\d{3})\s?([A-Za-z]{2})\s*$/.exec(String(v || ""));
-    return m ? m[1] + m[2].toUpperCase() : "";
-  }
-  function postProxy(proxy, pad, body, fetchFn) {
-    return (fetchFn || fetch)(proxy.url + pad, {
-      method: "POST",
-      credentials: "omit",
-      headers: { "Content-Type": "application/json", "X-Agendahulp-Token": proxy.token },
-      body: JSON.stringify(body)
-    }).then(function(r) {
-      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
-    });
-  }
-  var ROUTES_ORIGIN = "https://routes.googleapis.com/*";
-  var PC6 = /^[1-9]\d{3}[A-Z]{2}$/;
-  function postGoogle(key, url, mask, body, fetchFn) {
-    return (fetchFn || fetch)(url, {
-      method: "POST",
-      credentials: "omit",
-      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": mask },
-      body: JSON.stringify(body)
-    }).then(function(r) {
-      return r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status));
-    });
-  }
-  function sec(d) {
-    return parseInt(String(d || "0").replace(/s$/, ""), 10) || 0;
-  }
-  function plek(pc) {
-    return { waypoint: { address: pc + ", Nederland" } };
-  }
-  var paarCache = /* @__PURE__ */ Object.create(null);
-  function roadMatrix(proxy, pcs, fetchFn) {
-    const lijst2 = pcs.filter(function(p, i) {
-      return p && pcs.indexOf(p) === i && PC6.test(p);
-    }).slice(0, 25);
-    const lees = function(a, b) {
-      return a === b ? { m: 0, s: 0 } : paarCache[a + "|" + b] || null;
-    };
-    const bekend = lijst2.every(function(a) {
-      return lijst2.every(function(b) {
-        return a === b || paarCache[a + "|" + b];
-      });
-    });
-    if (!proxy || lijst2.length < 2 || bekend) return Promise.resolve(lees);
-    const vraag = proxy.key ? postGoogle(
-      proxy.key,
-      "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
-      "originIndex,destinationIndex,distanceMeters,duration,condition",
-      { origins: lijst2.map(plek), destinations: lijst2.map(plek), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE" },
-      fetchFn
-    ).then(function(rijen) {
-      const pairs = {};
-      (Array.isArray(rijen) ? rijen : []).forEach(function(e) {
-        if (e.condition !== "ROUTE_EXISTS" || e.originIndex == null || e.destinationIndex == null) return;
-        const a = lijst2[e.originIndex], b = lijst2[e.destinationIndex];
-        if (a && b && a !== b) pairs[a + "|" + b] = { m: e.distanceMeters || 0, s: sec(e.duration) };
-      });
-      return { pairs };
-    }) : postProxy(proxy, "/matrix", { pcs: lijst2 }, fetchFn);
-    return vraag.then(function(j) {
-      const pairs = j && j.pairs || {};
-      Object.keys(pairs).forEach(function(k) {
-        paarCache[k] = pairs[k];
-      });
-      return lees;
-    });
-  }
-  function optimizeRoute(proxy, origin, stops, fetchFn) {
-    if (!proxy.key) return postProxy(proxy, "/optimize", { origin, stops }, fetchFn);
-    if (!PC6.test(origin) || !stops.every(function(s) {
-      return PC6.test(s);
-    })) return Promise.reject(new Error("Alleen postcodes"));
-    const adres = function(pc) {
-      return { address: pc + ", Nederland" };
-    };
-    return postGoogle(
-      proxy.key,
-      "https://routes.googleapis.com/directions/v2:computeRoutes",
-      "routes.optimizedIntermediateWaypointIndex,routes.distanceMeters,routes.duration",
-      { origin: adres(origin), destination: adres(origin), intermediates: stops.map(adres), travelMode: "DRIVE", routingPreference: "TRAFFIC_UNAWARE", optimizeWaypointOrder: true },
-      fetchFn
-    ).then(function(j) {
-      const route = j && j.routes && j.routes[0];
-      if (!route) throw new Error("Geen route");
-      return { order: Array.isArray(route.optimizedIntermediateWaypointIndex) ? route.optimizedIntermediateWaypointIndex : stops.map(function(_, i) {
-        return i;
-      }), m: route.distanceMeters || 0, s: sec(route.duration) };
-    });
-  }
-  function vraagRoutes(cb) {
-    try {
-      if (!chrome.permissions || !chrome.permissions.request) {
-        cb(true);
-        return;
-      }
-      chrome.permissions.request({ origins: [ROUTES_ORIGIN] }, function(ok) {
-        void chrome.runtime.lastError;
-        cb(!!ok);
-      });
-    } catch (e) {
-      cb(false);
-    }
-  }
-  function mapsUrls(adressen, origin, terug) {
-    let stops = (adressen || []).filter(Boolean);
-    if (terug && origin) stops = stops.concat([origin]);
-    let uit = [], start = origin || "";
-    for (let i = 0; i < stops.length; i += 10) {
-      const deel = stops.slice(i, i + 10), dest = deel[deel.length - 1], tussen = deel.slice(0, -1);
-      const q = ["api=1"];
-      if (start) q.push("origin=" + encodeURIComponent(start));
-      q.push("destination=" + encodeURIComponent(dest));
-      if (tussen.length) q.push("waypoints=" + tussen.map(encodeURIComponent).join("%7C"));
-      q.push("travelmode=driving");
-      uit.push("https://www.google.com/maps/dir/?" + q.join("&"));
-      start = dest;
-    }
-    return uit;
-  }
-  function embedUrl(key, adressen, origin) {
-    const stops = (adressen || []).filter(Boolean);
-    if (!key || !stops.length) return "";
-    const start = origin || stops[0];
-    const rest = origin ? stops : stops.slice(1);
-    if (!rest.length) return "https://www.google.com/maps/embed/v1/place?key=" + encodeURIComponent(key) + "&q=" + encodeURIComponent(start);
-    const dest = rest[rest.length - 1], tussen = rest.slice(0, -1).slice(0, 20);
-    return "https://www.google.com/maps/embed/v1/directions?key=" + encodeURIComponent(key) + "&origin=" + encodeURIComponent(start) + "&destination=" + encodeURIComponent(dest) + (tussen.length ? "&waypoints=" + tussen.map(encodeURIComponent).join("%7C") : "") + "&mode=driving";
-  }
-
   // src/sidepanel/pagina-maken.js
   var ICON_PAD = "M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.3-.84-2.4-2-2.82z";
   function leegClient() {
@@ -5304,7 +6255,7 @@
     });
     return rij;
   }
-  function pcTekst(pc) {
+  function pcTekst2(pc) {
     pc = normPostcode(pc);
     return pc ? pc.slice(0, 4) + " " + pc.slice(4) : "";
   }
@@ -5375,7 +6326,7 @@
           b.setAttribute("role", "option");
           b.setAttribute("data-client-id", c.id);
           b.appendChild(el("span", { fontWeight: "600" }, c.name || "Cliënt " + c.id));
-          if (c.number || c.birth || c.pc || c.outOfCare) b.appendChild(labels([c.number ? "Cl " + c.number : "", c.birth ? "Geb " + c.birth : "", pcTekst(c.pc), c.outOfCare ? "Uit zorg" : ""], "data-client-extra"));
+          if (c.number || c.birth || c.pc || c.outOfCare) b.appendChild(labels([c.number ? "Cl " + c.number : "", c.birth ? "Geb " + c.birth : "", pcTekst2(c.pc), c.outOfCare ? "Uit zorg" : ""], "data-client-extra"));
           b.addEventListener("mouseenter", function() {
             b.style.background = T.brandWash;
           });
@@ -5467,9 +6418,15 @@
       const items = momenten.map(function(m) {
         return { date: m.date, startMin: m.startMin, minutes, labelId: "", typeAangepast: false, titel: "", titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
       });
-      BEWAARD.maak = { items, modus: "dup", clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: "", uitslag: null, eff: null };
+      const gekoppeld = (ctx.plan && ctx.plan.clients || []).map(function(c) {
+        return Object.assign(leegClient(), { clientId: String(c.clientId), name: c.name, number: c.number || "", pc: pcTekst2(c.pc), pcUitOns: !!normPostcode(c.pc) });
+      });
+      BEWAARD.maak = { items, modus: "dup", clients: gekoppeld.length ? gekoppeld : [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: "", uitslag: null, eff: null };
       naarPagina("maken");
       const mk = BEWAARD.maak;
+      gekoppeld.forEach(function(c) {
+        haalUursoorten(mk, c.clientId);
+      });
       actions.onEventOptions([], function(res) {
         if (BEWAARD.maak !== mk) return;
         mk.laden = false;
@@ -5667,7 +6624,7 @@
       rij.appendChild(el("span", { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "13px", background: T.brandWash, color: T.brand, fontWeight: "800", fontSize: "11px", display: "inline-flex", alignItems: "center", justifyContent: "center" }, ini));
       const nm = el("span", { flex: "1 1 auto", minWidth: "0" });
       nm.appendChild(el("span", { display: "block", fontWeight: "700", fontSize: "13px", color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, c.name));
-      if (c.number || c.pc) nm.appendChild(labels([c.number ? "Cl " + c.number : "", pcTekst(c.pc)]));
+      if (c.number || c.pc) nm.appendChild(labels([c.number ? "Cl " + c.number : "", pcTekst2(c.pc)]));
       rij.appendChild(nm);
       const types = mk.hourTypes[c.clientId];
       if (types === "laden" || types == null) rij.appendChild(el("span", { fontSize: "11.5px", color: T.inkSoft }, "uursoorten…"));
@@ -9339,9 +10296,6 @@
         if (!BEWAARD.momenten.length) eenMoment();
         if (BEWAARD.momenten.length && ctx.kanDirect()) ctx.naarMaken(BEWAARD.momenten, ctx.plan.minutes);
       }
-      const inst = function() {
-        return paginaBox.querySelector("[data-plan-instellingen]");
-      };
       const alle = function(sel) {
         return function() {
           return paginaBox.querySelectorAll(sel);
@@ -9354,10 +10308,8 @@
         icoon: welkomIcoon(ICON_PLAN),
         stappen: [
           { titel: "Welkom in de Planhulp", tekst: "Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.", knop: "Rondleiding starten", voor: lijstKlaar },
+          { titel: "Je zoekopdracht", tekst: "Hier staat waar je op zoekt en hoeveel tijden er zijn. Tik erop en kies stap voor stap de duur, hoe ver vooruit, de dagen en eventueel cliënten. De knop onderaan telt meteen mee.", voor: lijstKlaar, vind: alle("[data-plan-zoekpil]") },
           { titel: "Lijst of weekplanning", tekst: "In de lijst zie je per dag de begintijden. De weekplanning toont je week als mini agenda.", voor: lijstKlaar, vind: alle("[data-plan-weergave]") },
-          { titel: "Hoe lang duurt de afspraak?", tekst: "Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.", voor: lijstKlaar, vind: alle("[data-plan-duur]"), breedte: inst },
-          { titel: "Hoe ver vooruit", tekst: "Zoek 1, 2 of 4 weken vooruit. Met het kalendertje zoek je tot een datum die je zelf kiest.", voor: lijstKlaar, vind: alle("[data-plan-weken],[data-plan-tot]"), breedte: inst },
-          { titel: "Alleen bepaalde dagen", tekst: "Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.", voor: lijstKlaar, vind: alle("[data-plan-dag]"), breedte: inst },
           {
             titel: "Tik op een begintijd",
             tekst: "Een tik kiest de tijd, nog een tik laat hem los. Je kunt meerdere momenten kiezen, ook op verschillende dagen. ONS kijkt meteen na of er overlap is.",
@@ -9424,11 +10376,11 @@
           tourGepland = false;
           if (ctx.pagina === "hoofd" && !rondleidingActief() && !rondleidingGedaan("zijpaneel") && root.isConnected) startHoofdRondleiding();
         }, 600);
-      } else if (ctx.pagina === "plan" && ctx.plan.result && !ctx.plan.busy && (planTourWacht || !rondleidingGedaan("planhulp"))) {
+      } else if (ctx.pagina === "plan" && ctx.plan.result && !ctx.plan.busy && !ctx.zoekbladOpen() && (planTourWacht || !rondleidingGedaan("planhulp"))) {
         tourGepland = true;
         setTimeout(function() {
           tourGepland = false;
-          if (ctx.pagina === "plan" && !rondleidingActief() && (planTourWacht || !rondleidingGedaan("planhulp")) && root.isConnected) startPlanRondleiding();
+          if (ctx.pagina === "plan" && !rondleidingActief() && !ctx.zoekbladOpen() && (planTourWacht || !rondleidingGedaan("planhulp")) && root.isConnected) startPlanRondleiding();
         }, 400);
       }
     }
@@ -9824,6 +10776,7 @@
       }, openTeller()]);
       if (fAan("planner")) rijen.push(["plan", ICON_PLAN, "Planhulp", function() {
         naarPagina("plan");
+        if (!BEWAARD.momenten.length) ctx.openZoekblad();
       }]);
       if (fAan("quickRegister")) rijen.push(["snel", ICON_QUICK, "Snel registreren", function() {
         naarPagina("snel");
@@ -9845,6 +10798,7 @@
     }
     function naarPagina(p) {
       ctx.losKoppelen();
+      if (p !== "plan" && ctx.zoekbladOpen()) ctx.sluitZoekblad(true);
       ctx.pagina = p;
       BEWAARD.pagina = p;
       const opHoofd = ctx.pagina === "hoofd";
@@ -9962,6 +10916,7 @@
     }
     Object.assign(ctx, { balkHost, bridge, fAan, info, leaveBar, leaveBtn, naarPagina, navBox, onoff, paginaBox, quick, renderPagina, root, straksTekenen, weekBox });
     Object.assign(ctx, maakPlanhulp(ctx));
+    Object.assign(ctx, maakZoekblad(ctx));
     Object.assign(ctx, maakAfspraakMaken(ctx));
     Object.assign(ctx, maakClienttijd(ctx));
     Object.assign(ctx, maakVerhouding(ctx));

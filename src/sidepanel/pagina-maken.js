@@ -214,9 +214,14 @@ export function maakAfspraakMaken(ctx) {
     const items = momenten.map(function (m) {
       return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
     });
-    BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
+    // In het zoekblad van de planhulp gekoppelde cliënten staan er al.
+    const gekoppeld = ((ctx.plan && ctx.plan.clients) || []).map(function (c) {
+      return Object.assign(leegClient(), { clientId: String(c.clientId), name: c.name, number: c.number || '', pc: pcTekst(c.pc), pcUitOns: !!normPostcode(c.pc) });
+    });
+    BEWAARD.maak = { items: items, modus: 'dup', clients: gekoppeld.length ? gekoppeld : [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
     naarPagina('maken');
     const mk = BEWAARD.maak;
+    gekoppeld.forEach(function (c) { haalUursoorten(mk, c.clientId); });
     actions.onEventOptions([], function (res) {
       if (BEWAARD.maak !== mk) return;
       mk.laden = false;
