@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.292
+
+- De Planhulp is weer zoals in 1.6.290: bovenaan de tabel met Duur, Vooruit
+  en Dagen, en een wijziging zoekt meteen. Het zoekblad uit 1.6.291 (stappen,
+  telling, recente filters, cliënten koppelen en de kaartknop) is weg.
+
 ## 1.6.291
 
 - **Planhulp: zoeken stap voor stap.** Als je de Planhulp opent, verschijnt
