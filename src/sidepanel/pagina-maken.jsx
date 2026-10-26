@@ -573,7 +573,7 @@ export function maakAfspraakMaken(ctx) {
         </div>
         <div style={{ padding: '4px 12px 6px' }}>
           {body}
-          {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="ONS ziet op dit tijdstip al een afspraak bij de cliënt(en)." /> : null}
+          {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="Op dit tijdstip staat al een afspraak bij de cliënt(en)" /> : null}
           {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
         </div>
         {!klaar ? (

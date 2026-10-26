@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.296
+
+- Kortere teksten: bij overlap staat nu "Om 09:30 staat al een afspraak", en
+  op het startscherm "Dagindeling uit, zet hem aan in het extensie-icoon in de
+  browser" als de hulp uit staat.
+
 ## 1.6.295
 
 - **Meldingen** in het zijpaneel zijn rustiger en compacter: geen gekleurde

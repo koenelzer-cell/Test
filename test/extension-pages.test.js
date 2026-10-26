@@ -735,7 +735,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.equal(document.querySelector('[data-start="10:45"]').getAttribute('aria-pressed'), 'true');
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
   await tick();
-  assert.match(document.body.textContent, /ONS ziet om 10:45 al een afspraak\./);
+  assert.equal(document.querySelector('[data-ons-melding]').textContent, 'Om 10:45 staat al een afspraak');
   assert.ok(document.querySelector('[data-start="10:45"][data-ons-overlap]'));
   assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
   document.querySelector('[data-start="10:45"]').click();
@@ -843,9 +843,10 @@ test('zijpaneel: geen melding "Gekleurde dagindeling staat aan", wel als hij uit
   const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, enabled: true, profileLabel: 'JGGZ' });
   await tick();
   assert.doesNotMatch(document.body.textContent, /Gekleurde dagindeling staat aan/);
+  assert.equal(document.querySelector('[data-status]'), null, 'staat hij aan, dan geen regel');
   const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, enabled: false, profileLabel: 'JGGZ' });
   await tick();
-  assert.match(uit.document.body.textContent, /Gekleurde dagindeling staat uit/);
+  assert.equal(uit.document.querySelector('[data-status]').textContent, 'Dagindeling uit zet hem aan in het extensie-icoon in de browser');
 });
 
 test('zijpaneel: functies die beheer uitzet verdwijnen uit het zijpaneel', async () => {
@@ -1513,7 +1514,7 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   const check = verzonden.filter((m) => m.type === 'ag-slot-check' && m.clientIds).at(-1);
   assert.deepEqual(JSON.parse(JSON.stringify(check)), { type: 'ag-slot-check', date: '2026-10-13', startMin: 600, minutes: 60, clientIds: ['222'] }, 'controle met de cliënt');
   assert.ok(document.querySelector('[data-maak-ons-overlap="0"]'), 'label ONS: overlap in de regel');
-  assert.match(document.body.textContent, /ONS ziet op dit tijdstip al een afspraak bij de cliënt\(en\)\./);
+  assert.match(document.body.textContent, /Op dit tijdstip staat al een afspraak bij de cliënt\(en\)/);
   // Reistijd: het vrije blok begint om 9:00, de afspraak om 10:00.
   const adv = document.querySelector('[data-maak-geavanceerd]');
   adv.click();

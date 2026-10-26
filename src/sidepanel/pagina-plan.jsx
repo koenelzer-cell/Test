@@ -553,7 +553,7 @@ export function maakPlanhulp(ctx) {
                   {'Nog ' + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? ' tijd' : ' tijden')}
                 </button>
               ) : null}
-              {meldingen.length ? <Regel toon="let" data-ons-melding="" tekst={'ONS ziet om ' + opsomming(meldingen) + ' al een afspraak.'} /> : null}
+              {meldingen.length ? <Regel toon="let" data-ons-melding="" tekst={meldingen.length > 1 ? 'Om ' + opsomming(meldingen) + ' staan al afspraken' : 'Om ' + meldingen[0] + ' staat al een afspraak'} /> : null}
             </div>
           );
         })}

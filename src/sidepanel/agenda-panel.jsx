@@ -142,8 +142,8 @@ function Kop({ ctx }) {
 // alles goed aan, dan niets.
 function Status({ state }) {
   let kop, uitleg, stip;
-  if (!state || !state.enabled) { kop = 'Gekleurde dagindeling staat uit.'; uitleg = 'Zet hem aan rechtsboven.'; stip = '#9a9296'; }
-  else if (!state.profileLabel) { kop = 'Nog geen indeling gekozen.'; uitleg = 'Kies er een via het extensie-icoon in de browser.'; stip = '#d6a24c'; }
+  if (!state || !state.enabled) { kop = 'Dagindeling uit'; uitleg = 'zet hem aan in het extensie-icoon in de browser'; stip = '#9a9296'; }
+  else if (!state.profileLabel) { kop = 'Geen indeling gekozen'; uitleg = 'kies er een in het extensie-icoon in de browser'; stip = '#d6a24c'; }
   else return <div style={{ padding: '12px 12px 0', display: 'none' }} />;
   return (
     <div data-status="" style={{ padding: '12px 12px 0' }}>
