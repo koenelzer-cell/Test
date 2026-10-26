@@ -2,6 +2,25 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.291
+
+- **Planhulp: zoeken stap voor stap.** Als je de Planhulp opent, verschijnt
+  een zoekblad over het hele zijpaneel met één vraag per keer: hoe lang de
+  afspraak duurt, hoe ver vooruit, op welke dagen en, als je wilt, voor welke
+  cliënten. Een stap die klaar is, klapt in tot één regel; tik erop om hem te
+  wijzigen.
+- De roze knop onderaan telt meteen hoeveel begintijden er zijn ('Toon 86
+  tijden') en telt mee als je iets verandert. Een tik toont de lijst.
+- Bovenaan staan je **recente filters**: een tik zet duur, periode en dagen
+  van een eerdere zoekopdracht terug. Cliënten worden daarbij nooit onthouden.
+- **Cliënten koppelen**: zoek een cliënt op naam en tik op Koppelen. Hij staat
+  dan al ingevuld in Afspraak maken, met zijn uursoorten.
+- Met gekoppelde cliënten verschijnt een zwarte knop **Kaart**: hun postcodes
+  op Google Maps (alleen postcodes, pas na je tik), of een link om Google Maps
+  te openen.
+- Op de Planhulp zelf staat bovenaan wat je zoekt en hoeveel tijden er zijn;
+  tik op Wijzig om het zoekblad weer te openen.
+
 ## 1.6.290
 
 - Tijden staan overal in 24 uur (09:00, 17:00), ook als de browser in het
