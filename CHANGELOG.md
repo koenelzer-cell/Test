@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.293
+
+- De **vragenlijsthulp** op ONS Dossier is uit de extensie gehaald: geen
+  checklist en geen controle op verplichte vragen meer.
+- De **UI-inspector** voor beheerders is ook weg. Herstelde velden die al in
+  de centrale configuratie staan, blijven werken.
+- Het pakket is daardoor kleiner: 426 kB in plaats van 500 kB.
+
 ## 1.6.292
 
 - De Planhulp is weer zoals in 1.6.290: bovenaan de tabel met Duur, Vooruit
