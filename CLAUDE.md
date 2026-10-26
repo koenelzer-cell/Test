@@ -56,6 +56,7 @@ Single test file or test: build first (tests load `dist/`), then
 - Brand pink `#cc087d` (`T.brand`) only for the primary button, chosen options, counters and a few links ("Naar dag", "Nog x tijden", "+ Cliënt"); other text in ink. Direct, indirect and travel time use the "Rustig" palette: `#2f5d7c`, `#b4507a`, `#d6a24c`.
 - Cards: 1px `#ece7e5` border, radius 12. Row labels (Type, Titel, Reistijd, Cliënten zijn aanwezig) share one style: 12px, weight 600, `T.inkSoft`.
 - Buttons with icon and text instead of bare symbols; destructive actions in red and confirmed with `window.confirm('Weet je het zeker?')`.
+- Notifications are compact (design "C", chosen by the user): use the components in `ui.jsx`, never tinted boxes with bold coloured text. `Regel` (one line with icon: `let` warning, `ok`, `info`), `FoutStrook` (error, optional `knop` such as Opnieuw), `GeluktBalk` (dark bar for something that succeeded), `LegeStaat` (centred empty or error state), `AgendaPil` (several agendas open), `MeldKaart` with `KleineKnop` (a question to answer).
 - Holidays are recognised by name, never by id (ids change every year); Goede Vrijdag is not a day off.
 - When the user asks for a design or mockup, deliver rendered mockups to choose from before building.
 

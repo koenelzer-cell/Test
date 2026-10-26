@@ -1,7 +1,7 @@
 // Snel registreren: het registratieformulier van ONS openen met datum,
 // begintijd en duur ingevuld, na een overlapcontrole.
 
-import { ChipKnop, FieldLabel, Invoer, Kaart, NoteBox, PrimaryBtn, T, Txt, dagLang, fmtMin, vanTot } from './ui.jsx';
+import { ChipKnop, FieldLabel, FoutStrook, Invoer, Kaart, PrimaryBtn, Regel, T, Txt, dagLang, fmtMin, vanTot } from './ui.jsx';
 import { KiezerGroep } from './kiezers.jsx';
 
 const VAST = ['15', '30', '45', '60', '90', '120'];
@@ -50,8 +50,8 @@ export function maakSnelRegistreren(ctx) {
             </div>
           ) : null}
         </Kaart>
-        {quick.overlap ? <NoteBox tekst={quick.overlap} toon="warn" /> : null}
-        {quick.error ? <NoteBox tekst={quick.error} toon="bad" /> : null}
+        {quick.overlap ? <Regel toon="let" tekst={quick.overlap} /> : null}
+        {quick.error ? <FoutStrook tekst={quick.error} /> : null}
       </div>
     );
   }

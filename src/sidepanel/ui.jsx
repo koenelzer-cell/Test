@@ -104,30 +104,6 @@ export function SectionHead({ tekst, eerste, sub, label }) {
     </div>
   );
 }
-// Rustige melding midden op de pagina (fout of leeg): icoon in een zacht vlak,
-// wat er aan de hand is in gewone taal, en zo mogelijk één knop die helpt.
-// kleur: [voorgrond, vlak]
-export function FoutStaat({ icoon, kleur, titel, tekst, knop, knopIcoon, onKnop }) {
-  const kl = kleur || [T.brand, T.brandWash];
-  const ring = useFocusRing();
-  return (
-    <div data-staat="" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '28px 18px 20px' }}>
-      <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: kl[1], color: kl[0], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Icoon d={icoon} size={30} />
-      </div>
-      <div style={{ fontSize: '15px', fontWeight: '700', color: T.ink, marginTop: '12px' }}>{titel}</div>
-      {tekst ? <div style={{ fontSize: '12.5px', color: T.inkSoft, marginTop: '4px', maxWidth: '280px', lineHeight: '1.45' }}>{tekst}</div> : null}
-      {knop && onKnop ? (
-        <button type="button" data-staat-knop="" {...ring.props}
-          onClick={function (e) { e.preventDefault(); onKnop(); }}
-          style={Object.assign({ display: 'inline-flex', alignItems: 'center', gap: '7px', height: '38px', padding: '0 18px', marginTop: '14px', border: '0', borderRadius: '10px',
-            background: T.brand, color: '#fff', font: '700 13px ' + FONT, cursor: 'pointer' }, ring.stijl)}>
-          {knopIcoon ? <Icoon d={knopIcoon} size={16} /> : null}{knop}
-        </button>
-      ) : null}
-    </div>
-  );
-}
 // Witte kaart met dunne rand, zoals op het startscherm.
 export function Kaart({ style, children, ...rest }) {
   return <div style={Object.assign({ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '12px 14px', boxSizing: 'border-box' }, style)} {...rest}>{children}</div>;
@@ -184,10 +160,128 @@ export function Tag({ tekst, toon, ...rest }) {
     <span style={Object.assign({}, TYPE.small, { display: 'inline-block', color: c[0], background: c[1], borderRadius: '8px', padding: '1px 7px', marginLeft: '6px', verticalAlign: '1px', whiteSpace: 'nowrap' })} {...rest}>{tekst}</span>
   );
 }
-export function NoteBox({ tekst, toon, style, ...rest }) {
-  const c = toon === 'bad' ? [T.badWash, T.bad] : toon === 'ok' ? [T.okWash, T.ok] : [T.warnWash, T.warn];
+/* ── Meldingen (compact) ───────────────────────────────────────────────────
+   Weinig vlakken: een waarschuwing of bevestiging is één regel met een icoon,
+   alleen een fout krijgt een zachtrode strook (zo nodig met een knop), iets
+   dat gelukt is een donkere balk. Een lege of foute pagina is een kleine
+   middenstaat met een icoon in een vlakje. */
+
+// Lijnicoon (24 x 24, in de gegeven kleur).
+function LijnIcoon({ size, kleur, dikte, style, children }) {
   return (
-    <div style={Object.assign({ marginTop: '10px', padding: '9px 11px', borderRadius: '10px', background: c[0], color: c[1], fontSize: '13px', fontWeight: '600', lineHeight: '1.4' }, style)} {...rest}>{tekst}</div>
+    <svg width={size || 16} height={size || 16} viewBox="0 0 24 24" fill="none" stroke={kleur || 'currentColor'} strokeWidth={dikte || 2}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={Object.assign({ flex: '0 0 auto' }, style)}>{children}</svg>
+  );
+}
+const LET_OP = <><path d="M12 3.8 2.8 19.8h18.4z" /><path d="M12 10v4.2" /></>;
+const VINK_RONDJE = <><circle cx="12" cy="12" r="8.5" /><path d="M8.2 12.3l2.6 2.6 5-5.2" /></>;
+const INFO_RONDJE = <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5" /><path d="M12 8h.01" /></>;
+const FOUT_RONDJE = <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.8v5" /><path d="M12 16h.01" /></>;
+const ROOD = '#b42318';
+
+// Eén regel met een icoon. toon: 'let' (oker: let op), 'ok' (groen vinkje,
+// tekst in inkt) of 'info' (grijs).
+export function Regel({ toon, tekst, children, style, ...rest }) {
+  const kleur = toon === 'let' ? T.warn : toon === 'ok' ? T.ok : T.inkSoft;
+  return (
+    <div style={Object.assign({ display: 'flex', gap: '6px', alignItems: 'flex-start', marginTop: '8px', fontSize: '12.5px', lineHeight: '1.45',
+      color: toon === 'let' ? T.warn : toon === 'ok' ? T.ink : T.inkSoft }, style)} {...rest}>
+      <LijnIcoon size={14} kleur={kleur} dikte={2.2} style={{ marginTop: '2px' }}>{toon === 'let' ? LET_OP : toon === 'ok' ? VINK_RONDJE : INFO_RONDJE}</LijnIcoon>
+      <span style={{ minWidth: '0' }}>{children != null ? children : tekst}</span>
+    </div>
+  );
+}
+// Fout: zachtrode strook met de uitleg en eventueel een knop (Opnieuw).
+export function FoutStrook({ tekst, knop, onKnop, style, ...rest }) {
+  const ring = useFocusRing();
+  return (
+    <div role="alert" style={Object.assign({ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', padding: knop ? '8px 8px 8px 12px' : '9px 12px', borderRadius: '10px', background: '#fdf0ef' }, style)} {...rest}>
+      <LijnIcoon size={16} kleur={ROOD}>{FOUT_RONDJE}</LijnIcoon>
+      <span style={{ flex: '1 1 auto', minWidth: '0', fontSize: '12.5px', lineHeight: '1.4', color: T.ink }}>{tekst}</span>
+      {knop && onKnop ? (
+        <button type="button" data-fout-knop="" {...ring.props} onClick={function (e) { e.preventDefault(); e.stopPropagation(); onKnop(); }}
+          style={Object.assign({ flex: '0 0 auto', height: '28px', padding: '0 10px', border: '1px solid #f0c4bf', borderRadius: '8px', background: '#fff', color: T.ink,
+            fontFamily: FONT, fontSize: '12px', fontWeight: '600', cursor: 'pointer' }, ring.stijl)}>{knop}</button>
+      ) : null}
+    </div>
+  );
+}
+// Gelukt: donkere balk met een groen vinkje.
+export function GeluktBalk({ tekst, style, ...rest }) {
+  return (
+    <div role="status" style={Object.assign({ display: 'flex', gap: '8px', alignItems: 'flex-start', marginTop: '10px', padding: '9px 12px', borderRadius: '10px', background: T.ink, color: '#fff' }, style)} {...rest}>
+      <LijnIcoon size={16} kleur="#7fd09a" dikte={2.2} style={{ marginTop: '1px' }}>{VINK_RONDJE}</LijnIcoon>
+      <span style={{ flex: '1 1 auto', minWidth: '0', fontSize: '12.5px', lineHeight: '1.4' }}>{tekst}</span>
+    </div>
+  );
+}
+// Lege of foute pagina, midden: icoon in een vlakje, wat er aan de hand is in
+// gewone taal, en zo mogelijk één knop die helpt. kleur: [voorgrond, vlak].
+export function LegeStaat({ icoon, kleur, titel, tekst, knop, knopIcoon, onKnop, children, style, ...rest }) {
+  const kl = kleur || [T.inkSoft, T.lineSoft];
+  const ring = useFocusRing();
+  return (
+    <div data-staat="" style={Object.assign({ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '18px 12px 8px' }, style)} {...rest}>
+      <span style={{ width: '40px', height: '40px', borderRadius: '12px', background: kl[1], color: kl[0], display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        {children || <Icoon d={icoon} size={20} />}
+      </span>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: T.ink, marginTop: '8px' }}>{titel}</div>
+      {tekst ? <div style={{ fontSize: '12.5px', color: T.inkSoft, marginTop: '2px', maxWidth: '280px', lineHeight: '1.45' }}>{tekst}</div> : null}
+      {knop && onKnop ? (
+        <button type="button" data-staat-knop="" {...ring.props} onClick={function (e) { e.preventDefault(); onKnop(); }}
+          style={Object.assign({ display: 'inline-flex', alignItems: 'center', gap: '6px', height: '32px', padding: '0 14px', marginTop: '12px', border: '0', borderRadius: '8px',
+            background: T.brand, color: '#fff', fontFamily: FONT, fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }, ring.stijl)}>
+          {knopIcoon ? <Icoon d={knopIcoon} size={15} /> : null}{knop}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+// Vinkje in een groen vlak, voor LegeStaat (alles geregistreerd).
+export function VinkVlak() { return <LijnIcoon size={20} kleur={T.ok} dikte={2}>{VINK_RONDJE}</LijnIcoon>; }
+// Meerdere agenda's: een pil met een rondje per agenda (hooguit drie).
+export function AgendaPil({ aantal, tekst, ...rest }) {
+  const kleuren = [['#e6eef4', '#2f5d7c'], ['#f1edec', T.inkSoft], ['#fdf0e1', T.warn]];
+  return (
+    <div style={{ margin: '0 0 10px' }} {...rest}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', maxWidth: '100%', boxSizing: 'border-box', padding: '5px 12px 5px 5px', border: '1px solid ' + T.line, borderRadius: '999px', background: '#fff' }}>
+        <span style={{ display: 'inline-flex', flex: '0 0 auto' }}>
+          {kleuren.slice(0, Math.min(3, aantal)).map(function (k, i) {
+            return (
+              <span key={i} style={{ width: '24px', height: '24px', borderRadius: '12px', background: k[0], color: k[1], border: '2px solid #fff', boxSizing: 'border-box', marginLeft: i ? '-8px' : '0',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <LijnIcoon size={12} dikte={2.4}><circle cx="12" cy="8.5" r="4" /><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" /></LijnIcoon>
+              </span>
+            );
+          })}
+        </span>
+        <span style={{ fontSize: '12.5px', lineHeight: '1.3', minWidth: '0' }}>
+          <b style={{ fontWeight: '600', color: T.ink }}>{aantal + ' agenda’s'}</b> <span style={{ color: T.inkSoft }}>{tekst}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+// Iets waarop je moet reageren: kaartje met schaduw, titel, uitleg en knoppen.
+export function MeldKaart({ titel, tekst, children, style, ...rest }) {
+  return (
+    <div style={Object.assign({ padding: '12px', borderRadius: '12px', background: '#fff', boxShadow: '0 0 0 1px ' + T.line + ', 0 8px 20px -12px rgba(32,20,15,.35)', margin: '0 0 12px' }, style)} {...rest}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <LijnIcoon size={16} kleur="#a86b00">{LET_OP}</LijnIcoon>
+        <span style={{ fontSize: '13px', fontWeight: '600', color: T.ink }}>{titel}</span>
+      </div>
+      {tekst ? <div style={{ fontSize: '12.5px', color: T.inkSoft, lineHeight: '1.45', margin: '4px 0 0 24px' }}>{tekst}</div> : null}
+      {children ? <div style={{ display: 'flex', gap: '14px', alignItems: 'center', margin: '10px 0 0 24px' }}>{children}</div> : null}
+    </div>
+  );
+}
+// Kleine knoppen in een MeldKaart: de hoofdknop (roze) en een tekstknop.
+export function KleineKnop({ tekst, hoofd, onClick, ...rest }) {
+  const ring = useFocusRing(hoofd ? T.brandDeep : T.brand);
+  return (
+    <button type="button" {...ring.props} onClick={function (e) { e.preventDefault(); e.stopPropagation(); onClick(); }} {...rest}
+      style={Object.assign({ height: '30px', padding: hoofd ? '0 12px' : '0', border: '0', borderRadius: '8px', background: hoofd ? T.brand : 'transparent',
+        color: hoofd ? '#fff' : T.ink, fontFamily: FONT, fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }, ring.stijl)}>{tekst}</button>
   );
 }
 // Knop over de volle breedte: hoofdknop (roze vlak) of tweede knop (roze rand).
@@ -394,6 +488,8 @@ export function plusWeken(ymd, n) {
   d.setDate(d.getDate() + 7 * n);
   return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
 }
+// 'a', 'a en b', 'a, b en c'.
+export function opsomming(lijst) { return lijst.length > 1 ? lijst.slice(0, -1).join(', ') + ' en ' + lijst[lijst.length - 1] : (lijst[0] || ''); }
 export function hm(min) { return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2); }
 
 /* ── Knoppen voor kiezers en keuzes ────────────────────────────────────── */

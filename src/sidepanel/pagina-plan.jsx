@@ -4,7 +4,7 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { ChipKnop, FONT, ICON_KALENDER, Icoon, KaleKnop, LaadBalk, NoteBox, PrimaryBtn, SecondaryBtn, T, Txt, Wissel, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, useHover, vanTot, ymdVan } from './ui.jsx';
+import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, T, Txt, Wissel, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, useHover, vanTot, ymdVan } from './ui.jsx';
 import { feestdagAnimatie, feestdagIcoonSvg, feestdagSlingerSvg, feestdagStijl } from './feestdagen.js';
 import { MaandKalender } from './kiezers.jsx';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
@@ -27,11 +27,11 @@ function KopieUitslag() {
   const k = BEWAARD.kopie;
   if (!k) return null;
   const lbl = function (m) { return dayLabel(m.date) + ' ' + hm(m.startMin); };
-  if (k.reason) return <NoteBox tekst={'Geen kopieën gemaakt: ' + (k.reason === 'herhalende afspraak' ? 'het is een herhalende afspraak.' : 'de afspraak was niet te lezen.')} toon="warn" />;
-  if (k.failed && k.failed.length) return <NoteBox tekst={(k.made || []).length + ' kopieën gemaakt. Niet gelukt: ' + k.failed.map(lbl).join(', ') + '. Maak die zelf aan in ONS.'} toon="warn" />;
+  if (k.reason) return <Regel toon="let" tekst={'Geen kopieën gemaakt: ' + (k.reason === 'herhalende afspraak' ? 'het is een herhalende afspraak.' : 'de afspraak was niet te lezen.')} />;
+  if (k.failed && k.failed.length) return <FoutStrook tekst={(k.made || []).length + ' kopieën gemaakt. Niet gelukt: ' + opsomming(k.failed.map(lbl)) + '. Maak die zelf aan in ONS.'} />;
   const verder = k.next ? ' Nu het formulier voor ' + lbl(k.next) + (k.left > 1 ? ' (nog ' + k.left + ' met eigen instellingen).' : ' (eigen instellingen).') : '';
-  if (k.made && k.made.length) return <NoteBox tekst={'Afspraak ook gemaakt op ' + k.made.map(lbl).join(', ') + '.' + verder} toon="ok" />;
-  if (verder) return <NoteBox tekst={'Afspraak opgeslagen.' + verder} toon="ok" />;
+  if (k.made && k.made.length) return <GeluktBalk tekst={'Afspraak ook gemaakt op ' + opsomming(k.made.map(lbl)) + '.' + verder} />;
+  if (verder) return <GeluktBalk tekst={'Afspraak opgeslagen.' + verder} />;
   return null;
 }
 // ONS' eigen overlapcontrole voor één begintijd. Een antwoord blijft even
@@ -304,7 +304,7 @@ export function maakPlanhulp(ctx) {
               maakOpMomenten(function (f) { balkFout = f; renderPagina(); });
             }} />
         </div>
-        <div>{balkFout ? <NoteBox tekst={balkFout} toon="bad" /> : null}</div>
+        <div>{balkFout ? <FoutStrook tekst={balkFout} /> : null}</div>
       </div>
     );
   }
@@ -329,21 +329,18 @@ export function maakPlanhulp(ctx) {
   function agendaMeldingBlok() {
     const m = BEWAARD.agendaMelding;
     if (!m) return null;
-    const wat = m.meer ? 'Er is een agenda geopend' : m.minder ? 'Er is een agenda gesloten' : 'Er staan andere agenda’s open';
+    const wat = m.meer ? 'Er is een agenda bijgekomen' : m.minder ? 'Er is een agenda gesloten' : 'Er staan andere agenda’s open';
+    const nu = m.aantal === 1 ? 'Nu staat er 1 open.' : 'Nu staan er ' + m.aantal + ' open.';
     return (
-      <div data-agenda-melding="" style={{ border: '1px solid #f0d6a8', background: '#fdf3e2', borderRadius: '12px', padding: '10px 12px', margin: '0 0 10px' }}>
-        <div style={{ fontWeight: '700', fontSize: '13px', color: T.warn }}>{wat + (m.aantal > 1 ? ' (nu ' + m.aantal + ' agenda’s).' : '.')}</div>
-        <div style={{ fontSize: '12px', color: T.ink, margin: '2px 0 8px' }}>Je gekozen momenten zijn gezocht met de vorige agenda’s. Opnieuw beginnen zoekt tijd die nu voor iedereen vrij is.</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <PrimaryBtn tekst="Opnieuw beginnen" data-agenda-opnieuw="" style={{ marginTop: '0', flex: '1 1 0' }}
-            onClick={function () {
-              BEWAARD.momenten = []; BEWAARD.balkOpen = false; BEWAARD.maak = null; BEWAARD.agendaMelding = null;
-              ctx.plan.result = null; ctx.plan.error = ''; ctx.plan.raster = null;
-              naarPagina('plan');
-            }} />
-          <SecondaryBtn tekst="Negeren" data-agenda-negeren="" style={{ flex: '1 1 0' }} onClick={function () { BEWAARD.agendaMelding = null; renderPagina(); }} />
-        </div>
-      </div>
+      <MeldKaart data-agenda-melding="" titel={wat} tekst={'Je momenten zijn gezocht met de vorige agenda’s. ' + nu}>
+        <KleineKnop hoofd tekst="Opnieuw beginnen" data-agenda-opnieuw=""
+          onClick={function () {
+            BEWAARD.momenten = []; BEWAARD.balkOpen = false; BEWAARD.maak = null; BEWAARD.agendaMelding = null;
+            ctx.plan.result = null; ctx.plan.error = ''; ctx.plan.raster = null;
+            naarPagina('plan');
+          }} />
+        <KleineKnop tekst="Negeren" data-agenda-negeren="" onClick={function () { BEWAARD.agendaMelding = null; renderPagina(); }} />
+      </MeldKaart>
     );
   }
 
@@ -407,7 +404,7 @@ export function maakPlanhulp(ctx) {
     return (
       <div>
         {agendaMeldingBlok()}
-        {meer ? <NoteBox tekst={'Er staan ' + meer + ' agenda’s open: de planhulp zoekt tijd waarop iedereen vrij is.'} toon="ok" style={{ margin: '0 0 10px' }} /> : null}
+        {meer ? <AgendaPil data-agendas={String(meer)} aantal={meer} tekst="tijd waarop iedereen vrij is" /> : null}
         <Wissel opties={[['lijst', 'Lijst'], ['raster', 'Weekplanning']]} gekozen={ctx.plan.weergave || 'lijst'} attr="data-plan-weergave"
           onKies={function (w) { ctx.plan.weergave = w; renderPagina(); }} />
         <div data-plan-instellingen="" style={{ border: '1px solid ' + T.line, borderRadius: '12px', padding: '0 12px' }}>{rijen}</div>
@@ -424,15 +421,15 @@ export function maakPlanhulp(ctx) {
         {!lijst ? <KopieUitslag /> : null}
         {!lijst ? planRaster() : null}
         {lijst && ctx.plan.busy && !ctx.plan.meerBezig ? <LaadBalk style={{ marginTop: '10px' }} /> : null}
-        {lijst && ctx.plan.error ? <NoteBox tekst={ctx.plan.error} toon="bad" /> : null}
-        {lijst && ctx.plan.error ? <PrimaryBtn tekst="Opnieuw zoeken" onClick={function () { startPlan(); }} /> : null}
+        {lijst && ctx.plan.error ? <FoutStrook tekst={ctx.plan.error} knop="Opnieuw" onKnop={function () { startPlan(); }} /> : null}
         {lijst ? <KopieUitslag /> : null}
         {lijst && !res && !ctx.plan.busy && !ctx.plan.error ? <PrimaryBtn tekst="Vrije tijd zoeken" onClick={function () { startPlan(); }} /> : null}
         {lijst && res && !(ctx.plan.busy && !res.gaps.length) ? (
           !res.gaps.length ? (
             <>
               {feestdagenOpWerkdag(res).length ? planLijst(res) : null}
-              <NoteBox toon="warn" tekst={'Geen vrij blok van ' + fmtMin(res.minutes) + ' gevonden ' + (res.to ? 't/m ' + dayLabel(res.to) : 'in de komende ' + (res.weeks === 1 ? 'week' : res.weeks + ' weken')) + '.'} />
+              <LegeStaat icoon={ICON_KALENDER} data-geen-vrij="" titel={'Geen vrije tijd ' + (res.to ? 'tot en met ' + dayLabel(res.to) : 'in de komende ' + (res.weeks === 1 ? 'week' : res.weeks + ' weken'))}
+                tekst={'Er is geen blok van ' + fmtMin(res.minutes) + ' vrij. Laad een week meer of kies een kortere duur.'} />
               {meerKnop()}
             </>
           ) : (
@@ -556,7 +553,7 @@ export function maakPlanhulp(ctx) {
                   {'Nog ' + (tijden.length - zicht.length) + (tijden.length - zicht.length === 1 ? ' tijd' : ' tijden')}
                 </button>
               ) : null}
-              {meldingen.length ? <NoteBox tekst={'ONS meldt overlap op ' + meldingen.join(', ') + '.'} toon="warn" style={{ margin: '6px 0 0' }} /> : null}
+              {meldingen.length ? <Regel toon="let" data-ons-melding="" tekst={'ONS ziet om ' + opsomming(meldingen) + ' al een afspraak.'} /> : null}
             </div>
           );
         })}
@@ -693,7 +690,7 @@ export function maakPlanhulp(ctx) {
           </KaleKnop>
         </div>
         {rs && rs.busy ? <LaadBalk style={{ margin: '0 0 8px' }} /> : null}
-        {rs && rs.error ? <NoteBox tekst={rs.error} toon="bad" style={{ margin: '0 0 8px' }} /> : null}
+        {rs && rs.error ? <FoutStrook tekst={rs.error} style={{ margin: '0 0 8px' }} knop="Opnieuw" onKnop={function () { ctx.plan.raster = null; renderPagina(); }} /> : null}
         <div data-raster="" style={{ display: 'grid', gridTemplateColumns: '26px repeat(5, 1fr)', gap: '3px', fontSize: '11px' }}>
           <div />
           {['ma', 'di', 'wo', 'do', 'vr'].map(function (n, i) {

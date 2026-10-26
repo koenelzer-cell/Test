@@ -264,6 +264,15 @@ de scrollpositie staan. Gaat er bij het tonen van een pagina iets mis, dan
 blijven de kop en de rest van het paneel staan, met 'Er ging iets mis' en een
 knop terug naar het startscherm.
 
+Meldingen in het zijpaneel zijn compact. Een waarschuwing (zoals overlap
+volgens ONS of reistijd die niet past) of een bevestiging is één regel met een
+icoon. Een fout is een zachtrode strook, met een knop Opnieuw waar dat kan.
+Wat gelukt is (kopieën, afspraken gemaakt in ONS) staat in een donkere balk.
+Staan er meerdere agenda's open, dan staat bovenaan de Planhulp een pil met een
+rondje per agenda. Komt er een agenda bij terwijl je al momenten koos, dan
+vraagt een kaartje of je opnieuw begint. Is er niets gevonden of alles
+geregistreerd, dan staat dat midden op de pagina met een klein icoon.
+
 De hoofdpagina toont het weekoverzicht en de hulpmiddelen. Het weekoverzicht is
 één kaart: 'Week 41' met de datums en het label geregistreerd of gepland, de
 cliënttijd groot, niet-cliënttijd en totaal klein rechts, een balk met direct,

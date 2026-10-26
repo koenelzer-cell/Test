@@ -2,6 +2,18 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.295
+
+- **Meldingen** in het zijpaneel zijn rustiger en compacter: geen gekleurde
+  vlakken meer met vette tekst. Een waarschuwing is één regel met een icoon,
+  een fout een zachtrode strook (met **Opnieuw** waar dat kan), en wat gelukt
+  is een donkere balk.
+- Staan er meerdere agenda's open, dan staat bovenaan de Planhulp een pil
+  "3 agenda's, tijd waarop iedereen vrij is". Komt er een agenda bij terwijl je
+  al momenten koos, dan vraagt een kaartje of je opnieuw begint.
+- Teksten zijn korter: bijvoorbeeld "ONS ziet om 09:30 al een afspraak" en
+  "Geen vrije tijd tot en met vr 13 nov".
+
 ## 1.6.294
 
 - Het **zijpaneel** is opnieuw gebouwd met React. Het ziet er hetzelfde uit en

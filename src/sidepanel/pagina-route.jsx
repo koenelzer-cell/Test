@@ -2,7 +2,7 @@
 // (Google Routes, alleen postcodes) en een kaart.
 
 import { BEWAARD } from './bewaard.js';
-import { FieldLabel, FoutStaat, HULP_KLEUR, ICON_ROUTE, ICON_VERVERS, Invoer, Kaart, LaadBalk, NoteBox, PrimaryBtn, SecondaryBtn, SectionHead, T, Txt, dagLang, dayLabel } from './ui.jsx';
+import { FieldLabel, HULP_KLEUR, ICON_ROUTE, ICON_VERVERS, Invoer, Kaart, LaadBalk, LegeStaat, PrimaryBtn, Regel, SecondaryBtn, SectionHead, T, Txt, dagLang, dayLabel } from './ui.jsx';
 import { embedUrl, mapsUrls, normPostcode, optimizeRoute, vraagRoutes } from './geo.js';
 import { KiezerGroep } from './kiezers.jsx';
 import { qrTekening } from './qr.js';
@@ -15,7 +15,7 @@ const POSTCODE = /\b[1-9]\d{3}\s?[A-Za-z]{2}\b/;
 // QR-code van een link (qr.js): gemaakt in de extensie, niet bij een QR-dienst.
 function QrCode({ url, label }) {
   const q = qrTekening(url, 220);
-  if (!q) return <NoteBox tekst="Deze route is te lang voor een QR-code." toon="warn" />;
+  if (!q) return <Regel toon="let" tekst="Deze route is te lang voor een QR-code." />;
   return (
     <svg viewBox={'0 0 ' + q.totaal + ' ' + q.totaal} width={String(q.maat)} height={String(q.maat)} shapeRendering="crispEdges" role="img"
       aria-label={label} data-qr-url={url} style={{ maxWidth: '100%', height: 'auto' }}>
@@ -73,7 +73,7 @@ export function maakRoute(ctx) {
     if (!aantal && !veel) {
       return (
         <div key={p.id || ('p' + i)} data-route-persoon={p.id || ''}>
-          <FoutStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="Geen huisbezoeken" tekst={'Geen afspraken bij cliënten op ' + dagLang(r.date).toLowerCase() + '. Kies hierboven een andere dag.'} />
+          <LegeStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="Geen huisbezoeken" tekst={'Geen afspraken bij cliënten op ' + dagLang(r.date).toLowerCase() + '. Kies hierboven een andere dag.'} />
         </div>
       );
     }
@@ -109,8 +109,8 @@ export function maakRoute(ctx) {
         const regel = volg.map(function (st) { return st.start; }).join(' → ');
         kortste = (
           <>
-            {kort.fout ? <NoteBox tekst={kort.fout} toon="warn" /> : null}
-            <NoteBox data-kortste={regel} toon="ok" tekst={'Kortste rondrit: ≈ ' + Math.round(kort.m / 1000) + ' km en ' + Math.round(kort.s / 60) + ' min (' + regel + '). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.'} />
+            {kort.fout ? <Regel toon="let" tekst={kort.fout} /> : null}
+            <Regel data-kortste={regel} toon="ok" tekst={'Kortste rondrit: ≈ ' + Math.round(kort.m / 1000) + ' km en ' + Math.round(kort.s / 60) + ' min (' + regel + '). Let op: je afspraken hebben vaste tijden; dit helpt bij het plannen.'} />
             {mapsUrls(volg.map(function (st) { return st.address; }), vertrekAdres, true).map(function (u, n, all) {
               return <SecondaryBtn key={u} tekst={all.length > 1 ? 'Kortste volgorde ' + (n + 1) + ' van ' + all.length + ' openen' : 'Kortste volgorde openen in Google Maps'} style={{ marginTop: '6px' }} onClick={function () { window.open(u, '_blank', 'noopener'); }} />;
             })}
@@ -119,7 +119,7 @@ export function maakRoute(ctx) {
       } else {
         kortste = (
           <>
-            {kort && kort.fout ? <NoteBox tekst={kort.fout} toon="warn" /> : null}
+            {kort && kort.fout ? <Regel toon="let" tekst={kort.fout} /> : null}
             <SecondaryBtn tekst={kort && kort.busy ? 'Kortste volgorde berekenen…' : 'Kortste volgorde berekenen'} style={{ marginTop: '8px' }} onClick={function () { kortsteVolgorde(p, metPc, vertrekPc); }} />
           </>
         );
@@ -174,7 +174,7 @@ export function maakRoute(ctx) {
     if (rt.error && !rt.busy) {
       // Geen technische rode balk, maar uitleg met een knop die helpt.
       fout = rt.geenAntwoord ? (
-        <FoutStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="De agenda is even niet bereikbaar"
+        <LegeStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="De agenda is even niet bereikbaar"
           tekst="ONS reageert niet op de extensie. Meestal helpt het om de ONS-pagina te herladen."
           knop="ONS-pagina herladen" knopIcoon={ICON_VERVERS}
           onKnop={function () {
@@ -183,7 +183,7 @@ export function maakRoute(ctx) {
             setTimeout(function () { rt.busy = false; if (ctx.pagina === 'route' && !rt.result) startRoute(); }, 4000);
           }} />
       ) : (
-        <FoutStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="De route ophalen lukt niet" tekst={rt.error}
+        <LegeStaat icoon={ICON_ROUTE} kleur={HULP_KLEUR.route} titel="De route ophalen lukt niet" tekst={rt.error}
           knop="Opnieuw proberen" knopIcoon={ICON_VERVERS} onKnop={function () { rt.error = ''; startRoute(); }} />
       );
     }

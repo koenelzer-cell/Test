@@ -2,7 +2,7 @@
 // geregistreerd zijn, als afwerklijst. Werkt zichzelf bij als je terugkomt in
 // het zijpaneel of de agenda verandert.
 
-import { ClickCard, FONT, FieldLabel, ICON_VERVERS, Kaart, KaleKnop, NoteBox, PrimaryBtn, SpineCheck, T, Tag, TekstKnop, Txt, Voortgang, dayLabel, fmtMin } from './ui.jsx';
+import { ClickCard, FONT, FieldLabel, FoutStrook, ICON_VERVERS, Kaart, KaleKnop, LegeStaat, PrimaryBtn, SpineCheck, T, Tag, TekstKnop, Txt, VinkVlak, Voortgang, dayLabel, fmtMin } from './ui.jsx';
 import { KiezerGroep } from './kiezers.jsx';
 
 // Een nieuwe controle samenvoegen met de getoonde lijst: wat er niet meer in
@@ -84,7 +84,7 @@ export function maakOpenRegistraties(ctx) {
   function rangeResult(r) {
     const t = telOpen(r, ctx.range.afgewerkt);
     if (!t.count) {
-      return <div style={{ marginTop: '12px' }}><NoteBox tekst={'Alles geregistreerd van ' + dayLabel(r.from) + ' t/m ' + dayLabel(r.to) + '.'} toon="ok" /></div>;
+      return <LegeStaat kleur={[T.ok, T.okWash]} titel="Alles geregistreerd" tekst={'Van ' + dayLabel(r.from) + ' tot en met ' + dayLabel(r.to) + '.'}><VinkVlak /></LegeStaat>;
     }
     const open = t.count - t.done;
     return (
@@ -134,7 +134,7 @@ export function maakOpenRegistraties(ctx) {
                         </>
                       )}
                     </div>,
-                    ctx.range.regFout && ctx.range.regFout.key === it.key ? <NoteBox key={it.key + '-fout'} tekst={ctx.range.regFout.error} toon="warn" style={{ margin: '2px 0 6px' }} /> : null
+                    ctx.range.regFout && ctx.range.regFout.key === it.key ? <FoutStrook key={it.key + '-fout'} tekst={ctx.range.regFout.error} style={{ margin: '2px 0 6px' }} /> : null
                   ];
                 })}
               </ClickCard>
@@ -165,7 +165,7 @@ export function maakOpenRegistraties(ctx) {
           <PrimaryBtn tekst={ctx.range.busy ? 'Bezig met controleren…' : 'Controleren'} onClick={startRangeCheck} disabled={ctx.range.busy} />
           {ctx.range.busy ? <Voortgang done={ctx.range.done} total={ctx.range.total} /> : null}
         </Kaart>
-        {ctx.range.error ? <NoteBox tekst={ctx.range.error} toon="bad" /> : null}
+        {ctx.range.error ? <FoutStrook tekst={ctx.range.error} /> : null}
         {ctx.range.result && !ctx.range.busy ? (
           <>
             {rangeResult(ctx.range.result)}

@@ -1,7 +1,7 @@
 // Verhouding per uursoort (direct, indirect, reistijd), week voor week te
 // bladeren.
 
-import { CHEV_LINKS, CHEV_RECHTS, Icoon, Kaart, KaleKnop, LaadBalk, NoteBox, PerPersoon, T, Txt, isoWeek, maandagVan, plusWeken, werkweekTekst } from './ui.jsx';
+import { CHEV_LINKS, CHEV_RECHTS, FoutStrook, Icoon, Kaart, KaleKnop, LaadBalk, PerPersoon, T, Txt, isoWeek, maandagVan, plusWeken, werkweekTekst } from './ui.jsx';
 import { VerhoudingKaarten } from './verhouding-kaarten.jsx';
 
 function BladerKnop({ icoon, label, onClick }) {
@@ -57,7 +57,7 @@ export function maakVerhouding(ctx) {
     const sub = ctx.ratio.busy ? 'ophalen…' : (r0 ? (r0.mode === 'gepland' ? 'gepland' : 'geregistreerd') : '');
     let inhoud = null;
     if (ctx.ratio.busy) inhoud = <><LaadBalk /><RatioSkelet /></>;
-    else if (ctx.ratio.error) inhoud = <NoteBox tekst={ctx.ratio.error} toon="bad" />;
+    else if (ctx.ratio.error) inhoud = <FoutStrook tekst={ctx.ratio.error} style={{ marginTop: '0' }} knop="Opnieuw" onKnop={laadRatio} />;
     else if (r0) {
       const rp = (r0.persons && r0.persons.length > 1) ? r0.persons : [{ id: '', name: '', rows: r0.rows || [] }];
       inhoud = <PerPersoon personen={rp} maak={function (p) { return <VerhoudingKaarten rows={p.rows || []} nonClientMarker={(ctx.state && ctx.state.nonClientMarker) || '*'} mode={r0.mode} />; }} />;

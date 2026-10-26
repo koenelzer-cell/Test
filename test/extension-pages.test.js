@@ -644,7 +644,7 @@ test('zijpaneel: controle zonder open afspraken meldt dat alles geregistreerd is
   await tick();
   navKnop(document, 'Open registraties').click();
   knop(document, 'Controleren').click();
-  assert.match(document.body.textContent, /Alles geregistreerd van/);
+  assert.match(document.querySelector('[data-staat]').textContent, /Alles geregistreerdVan .* tot en met .*\./);
 });
 
 test('zijpaneel: datumkiezer in de stijl van de hulp', async () => {
@@ -735,7 +735,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.equal(document.querySelector('[data-start="10:45"]').getAttribute('aria-pressed'), 'true');
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1');
   await tick();
-  assert.match(document.body.textContent, /ONS meldt overlap op 10:45/);
+  assert.match(document.body.textContent, /ONS ziet om 10:45 al een afspraak\./);
   assert.ok(document.querySelector('[data-start="10:45"][data-ons-overlap]'));
   assert.deepEqual({ ...verzonden.find((m) => m.type === 'ag-slot-check' && m.startMin === 645) }, { type: 'ag-slot-check', date: '2026-10-08', startMin: 645, minutes: 60 });
   document.querySelector('[data-start="10:45"]').click();
@@ -1513,7 +1513,7 @@ test('zijpaneel: afspraak maken - ONS-controle met de cliënt erbij, reistijd di
   const check = verzonden.filter((m) => m.type === 'ag-slot-check' && m.clientIds).at(-1);
   assert.deepEqual(JSON.parse(JSON.stringify(check)), { type: 'ag-slot-check', date: '2026-10-13', startMin: 600, minutes: 60, clientIds: ['222'] }, 'controle met de cliënt');
   assert.ok(document.querySelector('[data-maak-ons-overlap="0"]'), 'label ONS: overlap in de regel');
-  assert.match(document.body.textContent, /ONS meldt overlap: de cliënt\(en\) hebben op dit tijdstip al een afspraak/);
+  assert.match(document.body.textContent, /ONS ziet op dit tijdstip al een afspraak bij de cliënt\(en\)\./);
   // Reistijd: het vrije blok begint om 9:00, de afspraak om 10:00.
   const adv = document.querySelector('[data-maak-geavanceerd]');
   adv.click();
@@ -1558,7 +1558,7 @@ test('zijpaneel: planhulp - agenda erbij of eraf: zonder keuzes meteen opnieuw z
   env_update(document, een);
   await tick();
   assert.equal(zoekvragen(), start + 1, 'niet vanzelf opnieuw');
-  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda gesloten\..*Opnieuw beginnen.*Negeren/s);
+  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda geslotenJe momenten zijn gezocht met de vorige agenda’s\. Nu staat er 1 open\.Opnieuw beginnenNegeren/);
   document.querySelector('[data-agenda-negeren]').click();
   assert.equal(document.querySelector('[data-agenda-melding]'), null);
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'keuze blijft staan');
@@ -1566,7 +1566,7 @@ test('zijpaneel: planhulp - agenda erbij of eraf: zonder keuzes meteen opnieuw z
   // Weer een agenda erbij: opnieuw beginnen wist de keuze en zoekt opnieuw.
   env_update(document, twee);
   await tick();
-  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda geopend \(nu 2 agenda’s\)\./);
+  assert.match(document.querySelector('[data-agenda-melding]').textContent, /Er is een agenda bijgekomen.*Nu staan er 2 open\./);
   document.querySelector('[data-agenda-opnieuw]').click();
   await tick();
   assert.equal(document.querySelector('[data-selectie]'), null, 'keuzes gewist');
@@ -1781,7 +1781,7 @@ test('zijpaneel: planhulp - ook na Geen vrij blok gevonden kun je een week verde
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
-  assert.match(document.body.textContent, /Geen vrij blok van 1 u gevonden/);
+  assert.match(document.querySelector('[data-geen-vrij]').textContent, /^Geen vrije tijd .*Er is geen blok van 1 u vrij\./);
   document.querySelector('[data-plan-meer]').click(); await tick(); await tick();
   const vraag = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
   assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-10-26', to: '2026-11-01' });
@@ -1983,4 +1983,28 @@ test('zijpaneel: een fout op een pagina laat de rest van het paneel staan, met e
   knop(document, 'Terug naar start').click();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agendahulp');
   assert.equal(zichtbaar(navKnop(document, 'Planhulp')), true, 'startscherm werkt');
+});
+
+test('zijpaneel: meldingen compact - pil bij meerdere agenda\'s, foutstrook met Opnieuw, gelukt als donkere balk', async () => {
+  let keer = 0;
+  const { document } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => { keer++; cb(keer === 1 ? { ok: false, error: 'De ONS-pagina reageert niet.' } : { ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-12', startMin: 540, endMin: 660, minutes: 120 }] } }); },
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  }, { ...AGENDA_STATE_TOOLS, inviteeCount: 3, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const pil = document.querySelector('[data-agendas]');
+  assert.equal(pil.textContent, '3 agenda’s tijd waarop iedereen vrij is');
+  assert.equal(pil.querySelectorAll('svg').length, 3, 'een rondje per agenda');
+  const strook = document.querySelector('[role="alert"]');
+  assert.match(strook.textContent, /^De ONS-pagina reageert niet\.Opnieuw$/);
+  strook.querySelector('[data-fout-knop]').click();
+  await tick();
+  assert.equal(document.querySelector('[role="alert"]'), null, 'na Opnieuw is de fout weg');
+  assert.ok(document.querySelector('[data-dag="2026-10-12"][data-start="09:00"]'), 'en staat de lijst er');
+  _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-duplicates-done', made: [{ date: '2026-10-13', startMin: 540 }], failed: [], reason: '' }, { tab: { id: 5 } }));
+  const balk = document.querySelector('[role="status"]');
+  assert.equal(balk.textContent, 'Afspraak ook gemaakt op di 13 okt 09:00.');
+  assert.equal(balk.style.background, 'rgb(32, 29, 31)', 'donkere balk');
 });

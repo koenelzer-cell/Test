@@ -4,7 +4,7 @@
 // volgorde op afstand (efficiëntie).
 
 import { BEWAARD, onthoudFormulierTitels } from './bewaard.js';
-import { FONT, Icoon, Invoer, KaleKnop, Keuzelijst, Knop, LaadBalk, NoteBox, PrimaryBtn, SecondaryBtn, T, Txt, Wissel, dagLang, dayLabel, hm, useHover } from './ui.jsx';
+import { FONT, FoutStrook, GeluktBalk, Icoon, Invoer, KaleKnop, Keuzelijst, Knop, LaadBalk, PrimaryBtn, Regel, SecondaryBtn, T, Txt, Wissel, dagLang, dayLabel, hm, opsomming, useHover } from './ui.jsx';
 import { buren, extraKmVan, planMany } from './multi-plan.js';
 import { normPostcode, roadMatrix, vraagRoutes } from './geo.js';
 
@@ -388,12 +388,15 @@ export function maakAfspraakMaken(ctx) {
     const melding = ctx.agendaMeldingBlok();
     const n = mk.items.length, klaar = !!mk.uitslag;
     if (mk.laden) return <div>{melding}<LaadBalk /></div>;
-    if (mk.error && !mk.labels.length && !klaar) return <div>{melding}<NoteBox tekst={mk.error} toon="bad" /></div>;
+    if (mk.error && !mk.labels.length && !klaar) return <div>{melding}<FoutStrook tekst={mk.error} style={{ marginTop: '0' }} /></div>;
     let uitslag = null;
     if (klaar) {
       const goed = mk.uitslag.filter(function (r) { return r && r.ok; }).length;
       const misN = n - goed;
-      uitslag = <NoteBox toon={misN ? 'warn' : 'ok'} tekst={misN ? goed + ' van ' + n + ' gemaakt. Niet gelukt: ' + mk.items.filter(function (_, k) { return !(mk.uitslag[k] && mk.uitslag[k].ok); }).map(function (it) { return dayLabel(it.date) + ' ' + hm(it.startMin); }).join(', ') + '.' : (n === 1 ? 'Afspraak gemaakt in ONS.' : n + ' afspraken gemaakt in ONS.')} />;
+      const mislukt = mk.items.filter(function (_, k) { return !(mk.uitslag[k] && mk.uitslag[k].ok); }).map(function (it) { return dayLabel(it.date) + ' ' + hm(it.startMin); });
+      uitslag = misN
+        ? <FoutStrook tekst={goed + ' van ' + n + ' gemaakt. Niet gelukt: ' + opsomming(mislukt) + '.'} style={{ marginTop: '0' }} />
+        : <GeluktBalk tekst={n === 1 ? 'Afspraak gemaakt in ONS.' : n + ' afspraken gemaakt in ONS.'} style={{ marginTop: '0' }} />;
     }
     let ncKaart = null;
     // Niet cliëntgebonden: alleen de uursoort voor alle afspraken.
@@ -473,7 +476,7 @@ export function maakAfspraakMaken(ctx) {
         {/* Afspraken: elk een eigen kaart. */}
         <SectieKop tekst={n > 1 ? n + ' afspraken' : 'Moment'} />
         <div>{mk.items.map(function (it, k) { return afspraakKaart(mk, it, k, n, klaar); })}</div>
-        {!klaar && mk.nietClient && mk.error ? <NoteBox tekst={mk.error} toon="bad" /> : null}
+        {!klaar && mk.nietClient && mk.error ? <FoutStrook tekst={mk.error} /> : null}
         {!klaar && !mk.nietClient ? (
           <>
             {/* Geavanceerd: reistijd per afspraak en Efficiënter indelen (Google Routes). */}
@@ -487,7 +490,7 @@ export function maakAfspraakMaken(ctx) {
             </label>
             {mk.geavanceerd && fAan('plannerDistance') ? effBlok(mk) : null}
             {!mk.metaKnown ? <Txt kind="help" style={{ margin: '10px 0 0', fontSize: '11.5px' }}>Tip: sla één keer zelf een afspraak op via het formulier van ONS; de hulp neemt dan de instellingen van dat formulier over.</Txt> : null}
-            {mk.error ? <NoteBox tekst={mk.error} toon="bad" /> : null}
+            {mk.error ? <FoutStrook tekst={mk.error} /> : null}
           </>
         ) : null}
       </div>
@@ -570,8 +573,8 @@ export function maakAfspraakMaken(ctx) {
         </div>
         <div style={{ padding: '4px 12px 6px' }}>
           {body}
-          {!klaar && it.onsCl && it.onsCl.overlap === true ? <NoteBox tekst="ONS meldt overlap: de cliënt(en) hebben op dit tijdstip al een afspraak." toon="warn" style={{ margin: '4px 0 6px' }} /> : null}
-          {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <NoteBox key={i} tekst={t} toon="warn" style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
+          {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="ONS ziet op dit tijdstip al een afspraak bij de cliënt(en)." /> : null}
+          {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
         </div>
         {!klaar ? (
           <div style={{ display: 'flex', gap: '8px', padding: '8px 12px 10px', borderTop: '1px solid ' + T.lineSoft }}>
@@ -733,7 +736,7 @@ export function maakAfspraakMaken(ctx) {
     const ontbreekt = mk.items.filter(function (it) { return !pcVan(mk, it); }).length;
     const e = mk.eff;
     let uitkomst = null;
-    if (e && e.error) uitkomst = <NoteBox tekst={e.error} toon="warn" />;
+    if (e && e.error) uitkomst = <Regel toon="let" tekst={e.error} />;
     else if (e && e.voorstel) {
       const v = e.voorstel;
       const anders = v.placed.some(function (p) { const it = mk.items[p.i]; return it.date !== p.date || it.startMin !== p.startMin; });
@@ -741,7 +744,7 @@ export function maakAfspraakMaken(ctx) {
       if (anders && v.nieuwMin < v.nuMin - 1) {
         uitkomst = (
           <>
-            <NoteBox data-eff-voorstel="" toon="ok" tekst={'Efficiënter: ≈ ' + Math.round(v.nuMin - v.nieuwMin) + ' min minder rijden (' + kmTekst(Math.max(0, v.nuM - v.nieuwM)) + '). Nu ≈ ' + Math.round(v.nuMin) + ' min extra, voorstel ≈ ' + Math.round(v.nieuwMin) + ' min.'} />
+            <Regel data-eff-voorstel="" toon="ok" tekst={'Efficiënter: ≈ ' + Math.round(v.nuMin - v.nieuwMin) + ' min minder rijden (' + kmTekst(Math.max(0, v.nuM - v.nieuwM)) + '). Nu ≈ ' + Math.round(v.nuMin) + ' min extra, voorstel ≈ ' + Math.round(v.nieuwMin) + ' min.'} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', margin: '6px 0' }}>
               {v.placed.slice().sort(function (a, b) { return a.i - b.i; }).map(function (p) {
                 const it = mk.items[p.i];
@@ -761,7 +764,7 @@ export function maakAfspraakMaken(ctx) {
           </>
         );
       } else {
-        uitkomst = <NoteBox data-eff-al-goed="" toon="ok" tekst={'Je indeling is al efficiënt (≈ ' + Math.round(v.nuMin) + ' min extra rijden). De reistijd is ingevuld.'} />;
+        uitkomst = <Regel data-eff-al-goed="" toon="ok" tekst={'Je indeling is al efficiënt (≈ ' + Math.round(v.nuMin) + ' min extra rijden). De reistijd is ingevuld.'} />;
       }
     }
     return (

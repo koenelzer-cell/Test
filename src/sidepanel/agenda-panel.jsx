@@ -42,7 +42,7 @@
 import { Component, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import { BEWAARD, legeResultaten } from './bewaard.js';
-import { CHEV_LINKS, ClickCard, FONT, FoutStaat, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, NoteBox, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, TekstKnop, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
+import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, TekstKnop, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
 import { AgendaWeekPanel } from './week-kaart.jsx';
 import { sluitRondleiding } from './rondleiding.jsx';
 import { maakPlanhulp } from './pagina-plan.jsx';
@@ -74,7 +74,7 @@ class Vangnet extends Component {
   render() {
     if (!this.state.fout) return this.props.children;
     return (
-      <FoutStaat icoon={ICON_LET_OP} kleur={[T.warn, T.warnWash]} titel="Er ging iets mis"
+      <LegeStaat icoon={ICON_LET_OP} kleur={[T.warn, T.warnWash]} titel="Er ging iets mis"
         tekst="Dit deel van het paneel kon niet getekend worden. Ga terug naar het startscherm en probeer het opnieuw."
         knop={this.props.knop} knopIcoon={CHEV_LINKS} onKnop={this.props.onHerstel} />
     );
@@ -141,17 +141,15 @@ function Kop({ ctx }) {
 // Melding als de hulp uit staat of er nog geen indeling is gekozen. Staat
 // alles goed aan, dan niets.
 function Status({ state }) {
-  let tekst, toon;
-  if (!state || !state.enabled) { tekst = 'Gekleurde dagindeling staat uit.'; toon = 'off'; }
-  else if (!state.profileLabel) { tekst = 'Kies eerst een indeling via het extensie-icoontje in de browser.'; toon = 'warn'; }
+  let kop, uitleg, stip;
+  if (!state || !state.enabled) { kop = 'Gekleurde dagindeling staat uit.'; uitleg = 'Zet hem aan rechtsboven.'; stip = '#9a9296'; }
+  else if (!state.profileLabel) { kop = 'Nog geen indeling gekozen.'; uitleg = 'Kies er een via het extensie-icoon in de browser.'; stip = '#d6a24c'; }
   else return <div style={{ padding: '12px 12px 0', display: 'none' }} />;
-  const bg = toon === 'warn' ? T.warnWash : T.lineSoft;
-  const fg = toon === 'warn' ? T.warn : T.inkSoft;
   return (
-    <div style={{ padding: '12px 12px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '9px 11px', borderRadius: '10px', background: bg, color: fg, fontSize: '13px', lineHeight: '1.4', fontWeight: '600' }}>
-        <InfoIcoon size={13} style={{ width: '13px', height: '13px', flex: '0 0 auto', marginTop: '2px' }} />
-        <span>{tekst}</span>
+    <div data-status="" style={{ padding: '12px 12px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', fontSize: '12.5px', lineHeight: '1.45', color: T.inkSoft }}>
+        <span style={{ width: '8px', height: '8px', borderRadius: '4px', background: stip, flex: '0 0 auto', transform: 'translateY(-1px)' }} />
+        <span><b style={{ fontWeight: '600', color: T.ink }}>{kop}</b> {uitleg}</span>
       </div>
     </div>
   );
@@ -170,7 +168,7 @@ function Totalen({ ctx }) {
         ? <SecondaryBtn tekst="Naar weekweergave" style={{ marginTop: '12px' }} onClick={function () { if (actions.onJumpToWeek) actions.onJumpToWeek(); }} />
         : null}
       {view === 'day' ? <SectionHead tekst={'Nog te registreren' + (items.length ? ' (' + items.length + ')' : '')} eerste={false} /> : null}
-      {view === 'day' && !items.length ? <NoteBox tekst="Alles geregistreerd." toon="ok" style={{ marginTop: '0' }} /> : null}
+      {view === 'day' && !items.length ? <Regel toon="ok" tekst="Alles geregistreerd." style={{ marginTop: '0' }} /> : null}
       {view === 'day' && items.length ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {items.map(function (it, i) {
@@ -197,7 +195,7 @@ function Week({ ctx }) {
   const fout = (ctx.state && ctx.state.weekError) || '';
   let strook = null, inhoud = null, vaag = false;
   if (fout && !bezig) {
-    inhoud = <NoteBox tekst={fout} toon="bad" style={{ marginTop: '0' }} />;
+    inhoud = <FoutStrook tekst={fout} style={{ marginTop: '0' }} />;
   } else if (!w || !w.summary) {
     // Zelfde vorm als de weekkaart, zodat het scherm niet verspringt.
     strook = (

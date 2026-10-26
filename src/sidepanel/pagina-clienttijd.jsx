@@ -1,7 +1,7 @@
 // Cliënttijd: de opbouw van de cliënttijd van de bekeken week en het
 // productieverloop per week (grafiek en tabel).
 
-import { CHEV_RECHTS, FieldLabel, Kaart, NoteBox, PerPersoon, PrimaryBtn, SectionHead, T, TekstKnop, Txt, Voortgang } from './ui.jsx';
+import { CHEV_RECHTS, FieldLabel, FoutStrook, Kaart, PerPersoon, PrimaryBtn, Regel, SectionHead, T, TekstKnop, Txt, Voortgang } from './ui.jsx';
 import { KiezerGroep } from './kiezers.jsx';
 import { OpbouwKaart } from './opbouw-kaart.jsx';
 import { ProductieGrafiek, ProductieTabel } from './productie-grafiek.jsx';
@@ -25,7 +25,7 @@ export function maakClienttijd(ctx) {
     let uitkomst = null;
     if (pr.result && !pr.busy) {
       const weken = pr.result.weeks || [];
-      if (!weken.length) uitkomst = <NoteBox tekst="Geen weken in deze periode." toon="warn" />;
+      if (!weken.length) uitkomst = <Regel toon="info" tekst="Geen weken in deze periode." />;
       else {
         const personen = (pr.result.persons && pr.result.persons.length > 1) ? pr.result.persons : [{ id: '', name: '', weeks: weken }];
         pr.tabelOpen = pr.tabelOpen || {};
@@ -64,7 +64,7 @@ export function maakClienttijd(ctx) {
           }}</KiezerGroep>
           <PrimaryBtn tekst={pr.busy ? 'Bezig met berekenen…' : 'Productieverloop berekenen'} disabled={pr.busy} onClick={startProduction} />
           {pr.busy ? <Voortgang done={pr.done} total={pr.total} /> : null}
-          {pr.error ? <NoteBox tekst={pr.error} toon="bad" /> : null}
+          {pr.error ? <FoutStrook tekst={pr.error} /> : null}
           {uitkomst}
         </Kaart>
       </>
