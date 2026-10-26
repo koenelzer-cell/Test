@@ -104,9 +104,9 @@ beheerscherm). Gaat er iets mis, dan verandert er niets. Eerdere ZIP's in
 | `src/content/` | de hulp op de ONS-pagina's (afspraken, registraties, agenda) |
 | `src/background/` | de service worker (badge, herinnering, rechtermuismenu) |
 | `src/popup/`, `pages/popup.html` | de extensiepopup (bedrijfsonderdeel en team, werktijden, herinnering) |
-| `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel |
+| `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel (React) |
 | `src/main-world/`, `src/edge-tab/`, `src/io-planning-block/` | kleine content-scripts |
-| `src/react/` | React-schermen → `dist/react-bundle.js` |
+| `src/react/` | de wizardschermen op de ONS-pagina's (React) → `dist/react-bundle.js` |
 | `src/shared/` | berichttypes, opslagsleutels, ONS-hosts, versie, datums (`datum.js`), veilige HTML (`veilige-html.js`) |
 | `tools/beheer/` | beheerscherm: stelt `config.json` en het beleid samen (open `beheer.html` lokaal in de browser); zit niet in de extensie |
 | `config.json` | afspraaktypes, registratievormen, teksten, kleuren, teams |
@@ -257,6 +257,12 @@ geldig (een 'dicht' van de service worker, die geregeld herstart, telt dan
 niet). Bij het laden van een pagina wacht het lipje even op dat antwoord, zodat
 het niet opflitst. De focusrand van knoppen in het zijpaneel verschijnt alleen
 bij toetsenbordgebruik, niet na een klik met de muis.
+
+Het zijpaneel is gebouwd met React. Komt er nieuwe informatie uit ONS binnen
+terwijl je iets invult, dan blijven je velden, een open datum- of tijdkiezer en
+de scrollpositie staan. Gaat er bij het tonen van een pagina iets mis, dan
+blijven de kop en de rest van het paneel staan, met 'Er ging iets mis' en een
+knop terug naar het startscherm.
 
 De hoofdpagina toont het weekoverzicht en de hulpmiddelen. Het weekoverzicht is
 één kaart: 'Week 41' met de datums en het label geregistreerd of gepland, de

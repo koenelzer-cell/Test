@@ -9,7 +9,7 @@ installeren, bouwen en uitbrengen: zie de [README](../README.md).
 ```text
 manifest.json ──┬─ service worker ........ dist/background.js     ← src/background/
                 ├─ popup ................. pages/popup.html        ← src/popup/
-                ├─ zijpaneel ............. pages/sidepanel.html    ← src/sidepanel/ (+ React-bundel)
+                ├─ zijpaneel ............. pages/sidepanel.html    ← src/sidepanel/ (React, in dist/sidepanel.js)
                 └─ content-scripts
                    ├─ ONS-pagina's              dist/react-bundle.js  ← src/react/
                    │                            dist/content.js       ← src/content/
@@ -45,26 +45,38 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `main-world/` | pagina-context van ONS | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, en het medewerker-id uit `onsContext()` lezen |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
-| `react/` | apart script vóór `content` en `sidepanel` | de schermen van de wizard en het weekoverzicht (React), via `window.__onsahReact` |
+| `react/` | apart script vóór `content` | de schermen van de wizard (React), via `window.__onsahReact` |
 
 ## Het zijpaneel (`src/sidepanel/`)
 
-`index.js` zoekt het actieve ONS-tabblad, stuurt verzoeken met `vraagAanTab`
-en geeft de toestand door aan de Agendahulp:
+Het hele zijpaneel is React (React zit in `dist/sidepanel.js` zelf).
+`index.jsx` zoekt het actieve ONS-tabblad, stuurt verzoeken met `vraagAanTab`,
+maakt de ene React-root op `#paneel` en geeft de toestand door aan de
+Agendahulp:
 
 | Bestand | Wat |
 |---|---|
-| `agenda-panel.js` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, `renderPagina`, `update` |
-| `pagina-plan.js`, `pagina-maken.js`, `pagina-open.js`, `pagina-snel.js`, `pagina-route.js`, `pagina-clienttijd.js`, `pagina-verhouding.js`, `pagina-info.js`, `rondleidingen.js` | één pagina per bestand, elk een functie `maakX(ctx)` die zijn eigen functies teruggeeft |
+| `agenda-panel.jsx` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, tekenen (`renderPagina`), `update`, het vangnet bij een fout |
+| `pagina-plan.jsx`, `pagina-maken.jsx`, `pagina-open.jsx`, `pagina-snel.jsx`, `pagina-route.jsx`, `pagina-clienttijd.jsx`, `pagina-verhouding.jsx`, `pagina-info.jsx`, `rondleidingen.jsx` | één pagina per bestand, elk een functie `maakX(ctx)` met de acties van de pagina en zijn weergave (`pageX()` geeft React-elementen terug) |
 | `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen) |
-| `ui.js`, `kiezers.js`, `productie-grafiek.js` | bouwstenen: kleuren, typografie, knoppen, iconen; datum- en tijdkiezer; de grafiek |
-| `rondleiding.js`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | rondleidingen tonen, efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
+| `ui.jsx`, `kiezers.jsx`, `productie-grafiek.jsx`, `week-kaart.jsx`, `opbouw-kaart.jsx`, `verhouding-kaarten.jsx` | bouwstenen (kleuren, typografie, knoppen, kaarten, iconen, invoerveld); datum- en tijdkiezer; de grafiek; weekkaart, opbouw en verhouding |
+| `rondleiding.jsx`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | de rondleiding (eigen kleine root over het paneel), efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
 
-De pagina's importeren elkaar niet. `create()` in `agenda-panel.js` maakt één
+Hoe het tekent: de toestand staat niet in React maar in `ctx` (de laatste
+toestand van het content-script, de open pagina) en `BEWAARD`. Na elke
+wijziging roept de code `ctx.renderPagina()` aan; dat tekent het hele paneel
+meteen opnieuw (`flushSync`), en React werkt alleen bij wat veranderde, dus
+velden, focus en scrollpositie blijven staan. Wat de open pagina vóór het
+tekenen nodig heeft (standaardwaarden, de week van het raster ophalen, ONS'
+overlapcontrole met cliënten) gebeurt in `voorbereiden()`, nooit tijdens het
+tekenen zelf. Een fout in één deel laat de rest staan (`Vangnet`).
+
+De pagina's importeren elkaar niet. `create()` in `agenda-panel.jsx` maakt één
 object `ctx` met de gedeelde toestand (`state`, `pagina`, `range`, `prod`,
-`ratio`, `plan`, `liveHost`, `onsGezien`), de elementen en functies van de
-schil, en wat elke pagina teruggeeft; een pagina roept een andere aan met
-bijvoorbeeld `ctx.naarMaken(...)` of `ctx.startPlan()`.
+`ratio`, `plan`, `onsGezien`), de DOM-knopen die de rondleiding aanwijst
+(`ctx.el`), de functies van de schil, en wat elke pagina teruggeeft; een
+pagina roept een andere aan met bijvoorbeeld `ctx.naarMaken(...)` of
+`ctx.startPlan()`.
 
 ## Het content-script (`src/content/`)
 
@@ -123,7 +135,7 @@ boven de veldfuncties in `fields.js`; bij de registratie staan ze in
 | weten welke hulp op welke URL draait | `helper/routing.js` (`syncWithUrl`) |
 | het afspraaktype-scherm | `features/appointment/choices.js` (+ `src/react/components/`) |
 | welk scherm een ander opent | `screen/schermen.js` (register), aangemeld in `index.js` |
-| een pagina van het zijpaneel | `src/sidepanel/pagina-*.js` (Planhulp, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.js` |
+| een pagina van het zijpaneel | `src/sidepanel/pagina-*.jsx` (Planhulp, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.jsx` |
 | de uursoorten per cliënt | `features/appointment/uursoort-source.js` (API eerst, dan dropdown) en `uursoort-queue.js` (meerdere cliënten) |
 | de registratievorm uit een afspraaklabel | `features/registration/pending.js` + `services/ons-api/event-details.js` + `src/main-world/` |
 | de gekleurde dagindeling | `features/agenda/` (`zones.js`, `painting.js`) |

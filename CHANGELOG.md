@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.294
+
+- Het **zijpaneel** is opnieuw gebouwd met React. Het ziet er hetzelfde uit en
+  werkt hetzelfde, maar is stabieler: komt er nieuwe informatie uit ONS binnen
+  terwijl je iets invult, dan blijven je velden, een open datum- of tijdkiezer
+  en de scrollpositie gewoon staan.
+- Gaat er op een pagina van het zijpaneel toch iets mis, dan blijft het paneel
+  staan met de melding 'Er ging iets mis' en een knop terug naar het
+  startscherm, in plaats van leeg te worden.
+
 ## 1.6.293
 
 - De **vragenlijsthulp** op ONS Dossier is uit de extensie gehaald: geen
