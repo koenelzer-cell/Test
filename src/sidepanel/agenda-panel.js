@@ -9,7 +9,6 @@
      hoofd        status, nog te registreren (dagweergave), het weekoverzicht
                   en de hulpmiddelen                       (deze schil)
      plan         Planhulp                                 pagina-plan.js
-                  met het zoekblad (stappen, telling, kaart) pagina-zoekblad.js
      maken        Afspraak maken                           pagina-maken.js
      open         Open registraties                        pagina-open.js
      snel         Snel registreren                         pagina-snel.js
@@ -38,7 +37,6 @@ import { BEWAARD, legeResultaten } from './bewaard.js';
 import { CHEV_LINKS, FONT, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, T, TYPE, baseButton, clickCard, el, fmtMin, focusRing, hulpRij, laadBalk, noteBox, plusWeken, secondaryBtn, sectionHead, svgInfoIcon, svgPath, svgSpineCheck, svgSpinePause, tag, tekstKnop, txt, zorgVoorStijl } from './ui.js';
 import { sluitRondleiding } from './rondleiding.js';
 import { maakPlanhulp } from './pagina-plan.js';
-import { maakZoekblad } from './pagina-zoekblad.js';
 import { maakAfspraakMaken } from './pagina-maken.js';
 import { maakClienttijd } from './pagina-clienttijd.js';
 import { maakVerhouding } from './pagina-verhouding.js';
@@ -349,9 +347,7 @@ export function create(host, actions) {
     navBox.innerHTML = '';
     const rijen = [];
     if (fAan('openRegistrations')) rijen.push(['open', ICON_RANGE, 'Open registraties', function () { naarPagina('open'); }, openTeller()]);
-    // Planhulp: meteen het zoekblad (de lijst laadt erachter alvast), behalve
-    // als er al momenten gekozen zijn.
-    if (fAan('planner')) rijen.push(['plan', ICON_PLAN, 'Planhulp', function () { naarPagina('plan'); if (!BEWAARD.momenten.length) ctx.openZoekblad(); }]);
+    if (fAan('planner')) rijen.push(['plan', ICON_PLAN, 'Planhulp', function () { naarPagina('plan'); }]);
     if (fAan('quickRegister')) rijen.push(['snel', ICON_QUICK, 'Snel registreren', function () { naarPagina('snel'); }]);
     if (!(ctx.state && ctx.state.routeEnabled === false) && fAan('routeLink')) rijen.push(['route', ICON_ROUTE, 'Route van de dag', function () { naarPagina('route'); }]);
     if (fAan('weekRatio')) rijen.push(['verhouding', ICON_RATIO, 'Verhouding per uursoort', function () { naarPagina('verhouding'); }]);
@@ -365,7 +361,6 @@ export function create(host, actions) {
 
   function naarPagina(p) {
     ctx.losKoppelen();
-    if (p !== 'plan' && ctx.zoekbladOpen()) ctx.sluitZoekblad(true);
     ctx.pagina = p;
     BEWAARD.pagina = p;
     const opHoofd = ctx.pagina === 'hoofd';
@@ -485,7 +480,6 @@ export function create(host, actions) {
   // volgorde maakt niet uit.
   Object.assign(ctx, { balkHost, bridge, fAan, info, leaveBar, leaveBtn, naarPagina, navBox, onoff, paginaBox, quick, renderPagina, root, straksTekenen, weekBox });
   Object.assign(ctx, maakPlanhulp(ctx));
-  Object.assign(ctx, maakZoekblad(ctx));
   Object.assign(ctx, maakAfspraakMaken(ctx));
   Object.assign(ctx, maakClienttijd(ctx));
   Object.assign(ctx, maakVerhouding(ctx));

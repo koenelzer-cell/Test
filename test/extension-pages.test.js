@@ -183,7 +183,7 @@ function loadPage(htmlFile, scriptFile, setup) {
   const html = read(htmlFile).replace(/<script[^>]*src="[^"]*"[^>]*><\/script>/g, '');
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'chrome-extension://test/' + htmlFile });
   const env = fakeChrome();
-  if (setup) setup(env, dom);
+  if (setup) setup(env);
   dom.window.chrome = env.chrome;
   dom.window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(JSON.parse(read('config.json'))) });
   dom.window.eval(read(scriptFile));
@@ -419,25 +419,6 @@ test('service worker: opent alleen https-adressen in een nieuw tabblad naast het
 const AGENDA_STATE_TOOLS = { ...AGENDA_STATE, rangeDefaultFrom: '2026-08-10', today: '2026-10-07' };
 const knop = (document, tekst) => [...document.querySelectorAll('button')].find((b) => b.textContent === tekst);
 const navKnop = (document, kop) => [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith(kop));
-// Planhulp: het zoekblad opent vanzelf; voor tests die alleen de lijst nodig
-// hebben meteen weer dicht.
-async function naarPlanhulp(document) {
-  navKnop(document, 'Planhulp').click();
-  await tick();
-  const sluit = document.querySelector('[data-zoek-sluit]');
-  if (sluit) sluit.click();
-  await tick();
-}
-// Het zoekblad (open of via de zoekpil openen), een stap openen.
-function zoekStap(document, stap) {
-  if (!document.querySelector('[data-zoekblad]')) document.querySelector('[data-plan-zoekpil]').click();
-  const dicht = document.querySelector('[data-zoek-stap="' + stap + '"]');
-  if (dicht) dicht.click();
-}
-async function zoekToon(document) { document.querySelector('[data-zoek-toon]').click(); await tick(); }
-// Vragen om vrije tijd voor de lijst (niet de telling van het zoekblad: die vraagt 150 blokken).
-const lijstVragen = (verzonden) => verzonden.filter((m) => m.type === 'ag-free-slots' && m.limit !== 150);
-const telVragen = (verzonden) => verzonden.filter((m) => m.type === 'ag-free-slots' && m.limit === 150);
 
 // Een nieuwe toestand aan het zijpaneel geven (zoals het content-script doet).
 let _laatsteEnv = null;
@@ -445,14 +426,9 @@ function env_update(document, state) {
   _laatsteEnv.listeners['runtime.onMessage'].forEach((fn) => fn({ type: 'ag-state', state }, { tab: { id: 5 } }));
 }
 
-// opslag: een object als localStorage van het zijpaneel (jsdom heeft er geen
-// voor een chrome-extension://-adres); zonder: geen localStorage, zoals voorheen.
-function zijpaneelMetTools(antwoord, state = AGENDA_STATE_TOOLS, opslag = null) {
+function zijpaneelMetTools(antwoord, state = AGENDA_STATE_TOOLS) {
   const verzonden = [];
-  const r = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env, dom) => {
-    if (opslag) Object.defineProperty(dom.window, 'localStorage', { configurable: true, value: {
-      getItem: (k) => (k in opslag ? opslag[k] : null), setItem: (k, v) => { opslag[k] = String(v); }, removeItem: (k) => { delete opslag[k]; },
-    } });
+  const r = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env) => {
     env.chrome.tabs.query = (q, cb) => cb([{ id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/invitees/1' }]);
     env.chrome.tabs.sendMessage = (id, msg, cb) => {
       verzonden.push(msg);
@@ -698,7 +674,7 @@ test('zijpaneel: verhouding toont een laadscherm met het juiste weeknummer', asy
   assert.match(document.body.textContent, /Week 42ophalen…/, 'weeknummer klopt meteen, ook tijdens het laden');
 });
 
-test('zijpaneel: planhulp - zoekblad stap voor stap met telling, per dag begintijden kiezen, ONS-controle, weekraster', async () => {
+test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden kiezen, ONS-controle, weekraster', async () => {
   const { document, verzonden } = zijpaneelMetTools({
     // Lijst: vast blok op do 8 okt. Weekraster (from/to): een blok op de eerste dag van die week.
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
@@ -711,79 +687,43 @@ test('zijpaneel: planhulp - zoekblad stap voor stap met telling, per dag beginti
   navKnop(document, 'Planhulp').click();
   await tick();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp');
-  // Het zoekblad opent vanzelf bij de eerste stap: Duur. De rest is ingeklapt.
-  const blad = () => document.querySelector('[data-zoekblad]');
-  const open = () => document.querySelector('[data-zoek-open]').getAttribute('data-zoek-open');
-  const toonKnop = () => document.querySelector('[data-zoek-toon]');
-  assert.ok(blad(), 'zoekblad open');
-  assert.equal(blad().getAttribute('aria-modal'), 'true');
-  assert.equal(document.querySelector('[data-zoek-stapnr]').textContent, 'Stap 1 van 4');
-  assert.equal(open(), 'duur');
-  assert.deepEqual([...document.querySelectorAll('[data-zoek-stap]')].map((b) => b.getAttribute('data-zoek-stap')), ['wanneer', 'dagen', 'clienten']);
+  assert.match(document.querySelector('[data-plan-instellingen]').textContent, /^Duur30m45m1u1,5u2uVooruit1 wk2 wk4 wkDagenmadiwodovr$/, 'compacte tabel: korte teksten, Tot datum als kalendertje');
   assert.equal(document.querySelector('[data-plan-duur="60"]').getAttribute('aria-pressed'), 'true');
   assert.equal(document.querySelector('[data-plan-duur="90"]').getAttribute('aria-label'), '1,5 uur', 'voluit voor schermlezers');
-  assert.equal(document.querySelector('[data-zoek-recent]'), null, 'nog geen recente filters');
-  // Telling: met de kortste duur opgehaald; 10:30 tot 12:00 geeft voor 1 uur drie begintijden.
-  assert.deepEqual({ minutes: telVragen(verzonden).at(-1).minutes, weeks: telVragen(verzonden).at(-1).weeks, to: telVragen(verzonden).at(-1).to }, { minutes: 30, weeks: 2, to: '' });
-  assert.equal(toonKnop().getAttribute('data-telling'), '3');
-  assert.match(toonKnop().textContent, /^Toon 3 tijden$/);
-  // Een andere duur telt meteen, zonder ONS opnieuw te vragen; daarna door naar Wanneer.
-  const aantal = verzonden.length;
-  document.querySelector('[data-plan-duur="90"]').click();
-  assert.equal(toonKnop().textContent, 'Toon 1 tijd');
-  assert.equal(verzonden.length, aantal, 'geen nieuwe vraag');
-  await new Promise((r) => setTimeout(r, 350));
-  assert.equal(open(), 'wanneer');
-  assert.equal(document.querySelector('[data-zoek-stapnr]').textContent, 'Stap 2 van 4');
-  // Een andere periode telt opnieuw.
+  assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot een datum');
+  assert.ok(document.querySelector('[data-plan-tot] svg'), 'kalendericoon');
+  assert.equal(document.querySelector('[data-plan-instellingen]').querySelectorAll(':scope > div').length, 3, 'drie regels');
+  const dag1 = document.querySelector('[data-plan-dag="1"]'), duur60 = document.querySelector('[data-plan-duur="60"]');
+  assert.equal(dag1.style.background, duur60.style.background, 'gekozen dagen in hetzelfde roze als de andere keuzes');
   document.querySelector('[data-plan-weken="4"]').click();
   await tick();
-  assert.equal(telVragen(verzonden).at(-1).weeks, 4);
+  assert.deepEqual({ minutes: verzonden.at(-1).minutes, weeks: verzonden.at(-1).weeks }, { minutes: 60, weeks: 4 }, 'wijzigen = meteen opnieuw zoeken');
   // Tot datum: het kalendertje klapt een maandkalender open, nog een tik klapt hem dicht.
   const totKnop = () => document.querySelector('[data-plan-tot]');
   const kalender = () => document.querySelector('[data-plan-kalender]');
-  if (open() !== 'wanneer') zoekStap(document, 'wanneer');
+  const zoekVraag = () => verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
   totKnop().click();
   assert.ok(kalender(), 'maandkalender open');
   assert.match(kalender().textContent, /^Zoek tot en met/);
   assert.equal(totKnop().getAttribute('aria-expanded'), 'true');
+  assert.equal(knop(document, 'Wissen'), undefined, 'geen aparte Wissen-knop meer');
   totKnop().click();
   assert.equal(kalender(), null, 'nog een tik: dicht');
-  assert.equal(document.querySelector('[data-plan-weken="4"]').getAttribute('aria-pressed'), 'true', 'zonder datum blijft 4 weken gekozen');
+  assert.equal(document.querySelector('[data-plan-weken="4"]').getAttribute('aria-pressed'), 'true', 'zonder datum blijft 4 wk gekozen');
   totKnop().click();
   const dagKnop = [...kalender().querySelectorAll('[data-ymd]')].at(-1);
   const gekozenYmd = dagKnop.getAttribute('data-ymd');
   dagKnop.click();
   await tick();
-  assert.equal(telVragen(verzonden).at(-1).to, gekozenYmd, 'een dag kiezen telt tot en met die dag');
+  assert.equal(zoekVraag().to, gekozenYmd, 'een dag kiezen zoekt meteen tot en met die dag');
   assert.equal(kalender(), null, 'en klapt de kalender dicht');
   assert.equal(totKnop().getAttribute('aria-pressed'), 'true');
-  assert.match(totKnop().textContent, /^Tot \d+ \S+$/, 'de datum staat kort op de knop');
-  // Terug naar weken: gewoon een tik op 2 weken.
+  assert.notEqual(totKnop().textContent, '', 'de datum staat kort naast het kalendertje');
+  // Terug naar weken: gewoon een tik op 2 wk.
   document.querySelector('[data-plan-weken="2"]').click();
-  assert.equal(totKnop().textContent, 'Tot datum');
-  await new Promise((r) => setTimeout(r, 350));
-  assert.equal(open(), 'dagen');
-  assert.match(document.querySelector('[data-zoek-stap="wanneer"]').textContent, /Wanneer2 weken/);
-  document.querySelector('[data-zoek-volgende]').click();
-  assert.equal(open(), 'clienten');
-  assert.equal(document.querySelector('[data-zoek-stapnr]').textContent, 'Stap 4 van 4');
-  // Sluiten gooit de keuzes weg; de lijst zoekt nog met 1 uur.
-  const lijstVoor = lijstVragen(verzonden).length;
-  document.querySelector('[data-zoek-sluit]').click();
-  assert.equal(blad(), null);
-  assert.equal(lijstVragen(verzonden).length, lijstVoor, 'niets opnieuw gezocht');
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /^1 uur, 2 weken, alle dagen3 tijden op 1 dagWijzig$/);
-  // Via de zoekpil: 1,5 uur en Toon zoekt opnieuw; nog eens met 1 uur.
-  zoekStap(document, 'duur');
-  document.querySelector('[data-plan-duur="90"]').click();
-  await zoekToon(document);
-  assert.equal(blad(), null, 'Toon sluit het blad');
-  assert.deepEqual({ minutes: lijstVragen(verzonden).at(-1).minutes, weeks: lijstVragen(verzonden).at(-1).weeks }, { minutes: 90, weeks: 2 });
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /^1,5 uur, 2 weken, alle dagen1 tijd op 1 dag/);
-  zoekStap(document, 'duur');
-  document.querySelector('[data-plan-duur="60"]').click();
-  await zoekToon(document);
+  await tick();
+  assert.deepEqual({ weeks: zoekVraag().weeks, to: zoekVraag().to || '' }, { weeks: 2, to: '' }, 'een tik op weken wist de datum');
+  assert.equal(totKnop().textContent, '');
   assert.match(document.body.textContent, /Donderdag 8 oktoberVrij van 10:30 tot 12:00Naar dag/);
   const starts = [...document.querySelectorAll('[data-dag="2026-10-08"][data-start]')].map((b) => b.getAttribute('data-start'));
   assert.deepEqual(starts, ['10:30', '10:45', '11:00'], 'alleen begintijden waarop 1 u nog past, zonder tussenpagina');
@@ -839,7 +779,8 @@ test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de
     'ag-new-event': (msg, cb) => cb({ ok: true }),
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
-  await naarPlanhulp(document);
+  navKnop(document, 'Planhulp').click();
+  await tick();
   const r = document.querySelector('[data-dag="2026-10-13"][data-start="08:00"]');
   assert.equal(r.getAttribute('data-reservering'), 'JG Verslaglegging', 'begintijd in een reservering krijgt R');
   assert.match(r.textContent, /08:00R/);
@@ -1059,7 +1000,7 @@ test('zijpaneel: snel registreren is een eigen pagina; waarschuwt bij overlap en
 function laadLipje(setup) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { runScripts: 'outside-only', url: 'https://impegno.onsagenda.nl/invitees/1/calendar/week', pretendToBeVisual: true });
   const env = fakeChrome();
-  if (setup) setup(env, dom);
+  if (setup) setup(env);
   dom.window.chrome = env.chrome;
   dom.window.eval(read('dist/edge-tab.js'));
   return { dom, document: dom.window.document, env };
@@ -1194,11 +1135,11 @@ test('zijpaneel: planhulp toont de lijst meteen en kijkt daarna de eerste blokke
   assert.equal(vragen(60).length, 12, 'alleen het begin van de eerste twaalf blokken');
   assert.ok(document.querySelector('[data-dag="2026-10-09"][data-start="13:00"][data-ons-overlap]'), 'de waarschuwing komt erbij');
   assert.equal(document.querySelector('[data-dag="2026-10-09"][data-start="09:00"][data-ons-overlap]'), null);
-  // Andere duur (via het zoekblad) en weer terug: wat ONS al zei, wordt niet opnieuw gevraagd.
-  zoekStap(document, 'duur'); document.querySelector('[data-plan-duur="90"]').click(); await zoekToon(document);
+  // Andere duur en weer terug: wat ONS al zei, wordt niet opnieuw gevraagd.
+  document.querySelector('[data-plan-duur="90"]').click();
   await tick(); await afhandelen();
   assert.equal(vragen(90).length, 12);
-  zoekStap(document, 'duur'); document.querySelector('[data-plan-duur="60"]').click(); await zoekToon(document);
+  document.querySelector('[data-plan-duur="60"]').click();
   await tick(); await afhandelen();
   assert.equal(vragen(60).length, 12, 'uit het geheugen');
   assert.ok(document.querySelector('[data-dag="2026-10-09"][data-start="13:00"][data-ons-overlap]'), 'en meteen weer de waarschuwing');
@@ -1598,9 +1539,10 @@ test('zijpaneel: planhulp - agenda erbij of eraf: zonder keuzes meteen opnieuw z
   const { document, verzonden } = zijpaneelMetTools({
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 }] } }),
   }, een);
-  const zoekvragen = () => lijstVragen(verzonden).length;
+  const zoekvragen = () => verzonden.filter((m) => m.type === 'ag-free-slots').length;
   await tick();
-  await naarPlanhulp(document);
+  navKnop(document, 'Planhulp').click();
+  await tick();
   const start = zoekvragen();
   // Agenda erbij, nog niets gekozen: meteen opnieuw zoeken.
   env_update(document, twee);
@@ -1724,204 +1666,61 @@ test('zijpaneel: cliënt zoeken met vinkje Inclusief cliënten uit zorg', async 
   assert.match(document.querySelector('[data-maak-client]').textContent, /Tim Oud/);
 });
 
-test('zijpaneel: planhulp - dagenfilter in het zoekblad: telt meteen, lijst filtert meteen, niet in de weekplanning', async () => {
+test('zijpaneel: planhulp - dagenfilter: meteen zichtbaar, vlot tijdens laden, niet in de weekplanning', async () => {
+  const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
   const open = [];   // antwoorden die nog niet gegeven zijn (traag ONS)
   const antwoord = (msg) => ({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
     { date: '2026-10-12', startMin: 540, endMin: 660, minutes: 120 }, { date: '2026-10-16', startMin: 540, endMin: 660, minutes: 120 },
   ].filter((g) => !msg.days || msg.days.includes(new Date(g.date + 'T00:00:00').getDay())) } });
   let traag = false;
   const { document, verzonden } = zijpaneelMetTools({
-    'ag-free-slots': (msg, cb) => { if (traag && !msg.from && msg.limit !== 150) open.push(() => cb(antwoord(msg))); else cb(antwoord(msg)); },
-  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false }, workHours: 'ma t/m vr 08:30 tot 17:00' });
-  await tick();
-  navKnop(document, 'Planhulp').click();
-  await tick();
-  const zoek = () => lijstVragen(verzonden).filter((m) => !m.from);
-  const telling = () => document.querySelector('[data-zoek-toon]').getAttribute('data-telling');
-  assert.equal(zoek().at(-1).days, undefined, 'standaard alle dagen: geen filter');
-  assert.equal(telVragen(verzonden).at(-1).days, undefined, 'de telling haalt altijd alle dagen op');
-  zoekStap(document, 'dagen');
-  assert.deepEqual([...document.querySelectorAll('[data-plan-dag]')].map((b) => b.getAttribute('aria-pressed')), ['true', 'true', 'true', 'true', 'true']);
-  assert.match(document.querySelector('[data-zoek-open="dagen"]').textContent, /Alleen binnen je werktijden: ma t\/m vr 08:30 tot 17:00\./);
-  // Twee dagen met 9:00 tot 11:00 vrij: voor 1 uur elk vijf begintijden.
-  assert.equal(telling(), '10');
-  const vragen = verzonden.length;
-  document.querySelector('[data-plan-dag="1"]').click();
-  assert.equal(telling(), '5', 'maandag uit: meteen nageteld');
-  document.querySelector('[data-plan-dag="2"]').click();
-  document.querySelector('[data-plan-dag="3"]').click();
-  assert.equal(document.querySelector('[data-plan-dag="3"]').getAttribute('aria-pressed'), 'false');
-  assert.equal(verzonden.length, vragen, 'dagen tellen zonder ONS te vragen');
-  document.querySelector('[data-plan-dag="5"]').click();
-  assert.equal(telling(), '0');
-  assert.equal(document.querySelector('[data-zoek-toon]').textContent, 'Geen tijden gevonden');
-  assert.equal(document.querySelector('[data-zoek-toon]').disabled, true);
-  document.querySelector('[data-plan-dag="4"]').click();
-  assert.equal(document.querySelector('[data-plan-dag="4"]').getAttribute('aria-pressed'), 'true', 'de laatste dag kan niet uit');
-  document.querySelector('[data-plan-dag="5"]').click();
-  assert.match(document.querySelector('[data-zoek-stap="duur"]').textContent, /Duur1 uur/);
-  // Toon met alleen andere dagen: de lijst filtert meteen en blijft staan tot het nieuwe antwoord er is.
-  traag = true;
-  await zoekToon(document);
-  assert.equal(document.querySelector('[data-dag="2026-10-12"]'), null, 'maandag meteen weg');
-  assert.ok(document.querySelector('[data-dag="2026-10-16"]'), 'vrijdag blijft staan tijdens het laden');
-  assert.deepEqual([...zoek().at(-1).days], [4, 5]);
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /^1 uur, 2 weken, do en vr5 tijden op 1 dag/);
-  open.shift()(); await tick();
-  assert.equal(document.querySelector('[data-dag="2026-10-12"]'), null);
-  assert.ok(document.querySelector('[data-dag="2026-10-16"]'));
-  traag = false;
-  // Weekplanning: altijd de hele week.
-  document.querySelector('[data-plan-weergave="raster"]').click();
-  await tick();
-  assert.equal(document.querySelectorAll('[data-raster-dag]').length, 5, 'vijf gewone dagkolommen');
-  // Terug naar de lijst: het filter staat er nog.
-  document.querySelector('[data-plan-weergave="lijst"]').click();
-  await tick();
-  assert.equal(document.querySelector('[data-dag="2026-10-12"]'), null, 'dagenfilter blijft voor de lijst');
-});
-
-test('zijpaneel: planhulp - zoekblad: cliënten koppelen, kaartpil, kaart met alleen postcodes, ingevuld in Afspraak maken', async () => {
-  const { document, verzonden, dom } = maakPaneel({}, { ...AGENDA_STATE_TOOLS, mapsEmbedKey: 'EMBEDSLEUTEL' });
-  await tick();
-  navKnop(document, 'Planhulp').click();
-  await tick();
-  assert.equal(document.querySelector('[data-kaart-pil]'), null, 'zonder cliënten geen kaartpil');
-  zoekStap(document, 'clienten');
-  const zoekNaar = async (term) => {
-    const veld = document.querySelector('[data-zoek-client]');
-    veld.value = term; veld.dispatchEvent(new dom.window.Event('input'));
-    await new Promise((r) => setTimeout(r, 420));
-  };
-  await zoekNaar('Ta');
-  assert.deepEqual({ ...verzonden.filter((m) => m.type === 'ag-client-search').at(-1) }, { type: 'ag-client-search', term: 'Ta', outOfCare: false });
-  const koppel = (id) => document.querySelector('[data-zoek-koppel="' + id + '"]');
-  assert.match(koppel('11142').parentNode.textContent, /^TTTamara TestCl 106839, 2611 EBKoppelen$/);
-  koppel('11142').click();
-  assert.ok(document.querySelector('[data-zoek-gekoppeld="11142"]'), 'gekoppeld staat bovenaan');
-  assert.equal(koppel('11142').getAttribute('aria-pressed'), 'true');
-  assert.equal(koppel('11142').textContent, 'Gekoppeld');
-  assert.equal(document.querySelector('[data-zoek-client]').value, 'Ta', 'de zoekterm blijft staan');
-  assert.equal(document.querySelector('[data-kaart-pil="blad"]').textContent, 'Kaart1');
-  await zoekNaar('Br');
-  koppel('222').click();
-  // De kaart: alleen postcodes naar Google, met letters zoals op de kaart.
-  document.querySelector('[data-kaart-pil="blad"]').click();
-  assert.equal(document.querySelector('[data-zoekblad]').getAttribute('data-scherm'), 'kaart');
-  const frame = document.querySelector('[data-kaart-frame]');
-  assert.equal(frame.src, 'https://www.google.com/maps/embed/v1/directions?key=EMBEDSLEUTEL&origin=2611%20EB%2C%20Nederland&destination=5015%20TA%2C%20Nederland&mode=driving');
-  assert.match(document.querySelector('[data-kaart-lijst]').textContent, /^ATamara Test2611 EBBBram Proef5015 TA$/);
-  assert.equal(document.querySelector('[data-kaart-link]').href, 'https://www.google.com/maps/dir/?api=1&destination=5015%20TA%2C%20Nederland&waypoints=2611%20EB%2C%20Nederland&travelmode=driving');
-  assert.equal(document.querySelector('[data-kaart-link]').target, '_blank');
-  document.querySelector('[data-kaart-terug]').click();
-  assert.equal(document.querySelector('[data-zoekblad]').getAttribute('data-scherm'), 'blad', 'terug in het zoekblad');
-  document.querySelector('[data-zoek-ontkoppel="222"]').click();
-  assert.equal(document.querySelector('[data-zoek-gekoppeld="222"]'), null);
-  assert.equal(document.querySelector('[data-kaart-pil="blad"]').textContent, 'Kaart1');
-  // Toon: de zoekpil noemt de cliënt, de kaartpil staat ook op de planhulp.
-  await zoekToon(document);
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /, 1 cliëntWijzig$/);
-  document.querySelector('[data-kaart-pil="plan"]').click();
-  assert.equal(document.querySelector('[data-kaart-frame]').src, 'https://www.google.com/maps/embed/v1/place?key=EMBEDSLEUTEL&q=2611%20EB%2C%20Nederland');
-  document.querySelector('[data-kaart-terug]').click();
-  assert.equal(document.querySelector('[data-zoekblad]'), null, 'terug op de planhulp');
-  // Afspraak maken: de cliënt staat er al en zijn uursoorten worden opgehaald.
-  document.querySelector('[data-dag="2026-10-12"][data-start="10:00"]').click();
-  knop(document, 'Afspraak maken').click();
-  await tick();
-  assert.match(document.querySelector('[data-maak-client]').textContent, /Tamara Test/);
-  assert.equal(document.querySelector('[data-maak-zoek]'), null, 'geen leeg zoekveld meer');
-  assert.ok(verzonden.some((m) => m.type === 'ag-event-options' && (m.clientIds || [])[0] === '11142'), 'uursoorten van de cliënt');
-});
-
-test('zijpaneel: planhulp - kaart zonder Maps-sleutel: uitleg en link naar Google Maps; zonder postcode niets op de kaart', async () => {
-  const { document, dom } = maakPaneel({ 'ag-client-search': (msg, cb) => cb({ ok: true, clients: [{ id: '9', name: 'Zonder Postcode', pc: '' }, CLIENTEN.Tamara] }) });
-  await tick();
-  navKnop(document, 'Planhulp').click();
-  await tick();
-  zoekStap(document, 'clienten');
-  const veld = document.querySelector('[data-zoek-client]');
-  veld.value = 'Ze'; veld.dispatchEvent(new dom.window.Event('input'));
-  await new Promise((r) => setTimeout(r, 420));
-  document.querySelector('[data-zoek-koppel="9"]').click();
-  document.querySelector('[data-kaart-pil="blad"]').click();
-  assert.equal(document.querySelector('[data-kaart-frame]'), null);
-  assert.match(document.querySelector('[data-zoekblad]').textContent, /geen postcode bekend, dus er is niets op de kaart te zetten/);
-  assert.equal(document.querySelector('[data-kaart-link]'), null);
-  document.querySelector('[data-kaart-terug]').click();
-  document.querySelector('[data-zoek-koppel="11142"]').click();
-  document.querySelector('[data-kaart-pil="blad"]').click();
-  assert.equal(document.querySelector('[data-kaart-frame]'), null, 'geen sleutel: geen kaart in het paneel');
-  assert.match(document.querySelector('[data-zoekblad]').textContent, /sleutel voor de Maps Embed API/);
-  assert.match(document.querySelector('[data-kaart-lijst]').textContent, /Zonder Postcodegeen postcode bekend/);
-  assert.match(document.querySelector('[data-kaart-link]').href, /destination=2611%20EB%2C%20Nederland/);
-  // Escape: terug naar het blad, nog eens: dicht.
-  const esc = () => document.querySelector('[data-zoekblad]').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  esc();
-  assert.equal(document.querySelector('[data-zoekblad]').getAttribute('data-scherm'), 'blad');
-  esc();
-  assert.equal(document.querySelector('[data-zoekblad]'), null);
-});
-
-test('zijpaneel: planhulp - recente filters: na Toon onthouden zonder cliënten, één tik zet ze terug', async () => {
-  const opslag = { 'onsah.planRecent': JSON.stringify([
-    { minutes: 45, weeks: 4, tot: '', dagen: [2, 4], clients: [{ name: 'Iemand' }] },
-    { minutes: 90, weeks: 1, tot: '2020-01-01', dagen: null },
-  ]) };
-  const { document, dom } = zijpaneelMetTools({
-    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-13', startMin: 540, endMin: 660, minutes: 120 }] } }),
-    'ag-client-search': (msg, cb) => cb({ ok: true, clients: [CLIENTEN.Tamara] }),
-  }, AGENDA_STATE_TOOLS, opslag);
-  await tick();
-  navKnop(document, 'Planhulp').click();
-  await tick();
-  const recent = () => [...document.querySelectorAll('[data-zoek-recent-filter]')];
-  assert.deepEqual(recent().map((b) => b.textContent), ['45 min, 4 weken, di en do'], 'een datum die voorbij is valt weg');
-  assert.equal(recent()[0].getAttribute('aria-pressed'), 'false');
-  recent()[0].click();
-  assert.equal(recent()[0].getAttribute('aria-pressed'), 'true');
-  assert.equal(document.querySelector('[data-plan-duur="45"]').getAttribute('aria-pressed'), 'true');
-  assert.match(document.querySelector('[data-zoek-stap="wanneer"]').textContent, /Wanneer4 weken/);
-  assert.match(document.querySelector('[data-zoek-stap="dagen"]').textContent, /DagenDi en do/);
-  assert.equal(document.querySelector('[data-zoek-toon]').getAttribute('data-telling'), '6', 'di 9:00 tot 11:00: zes begintijden voor 45 minuten');
-  // Een cliënt koppelen en tonen: die gaat niet mee in de recente filters.
-  zoekStap(document, 'clienten');
-  const veld = document.querySelector('[data-zoek-client]');
-  veld.value = 'Ta'; veld.dispatchEvent(new dom.window.Event('input'));
-  await new Promise((r) => setTimeout(r, 420));
-  document.querySelector('[data-zoek-koppel="11142"]').click();
-  await zoekToon(document);
-  assert.deepEqual(JSON.parse(opslag['onsah.planRecent']), [{ minutes: 45, weeks: 4, tot: '', dagen: [2, 4] }]);
-  assert.doesNotMatch(opslag['onsah.planRecent'], /Tamara|11142|clients|Iemand/, 'nooit cliënten');
-  // Nieuwste eerst, hooguit drie.
-  for (const d of ['30', '60', '120']) { zoekStap(document, 'duur'); document.querySelector('[data-plan-duur="' + d + '"]').click(); await zoekToon(document); }
-  assert.deepEqual(JSON.parse(opslag['onsah.planRecent']).map((f) => f.minutes), [120, 60, 30]);
-  zoekStap(document, 'duur');
-  assert.deepEqual(recent().map((b) => b.textContent), ['2 uur, 4 weken, di en do', '1 uur, 4 weken, di en do', '30 min, 4 weken, di en do']);
-});
-
-test('zijpaneel: planhulp - zoekblad opent vanaf het startscherm, niet als er al momenten gekozen zijn', async () => {
-  const { document } = zijpaneelMetTools({
-    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, gaps: [{ date: '2026-10-13', startMin: 540, endMin: 660, minutes: 120 }] } }),
+    'ag-free-slots': (msg, cb) => { if (traag && !msg.from) open.push(() => cb(antwoord(msg))); else cb(antwoord(msg)); },
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
   navKnop(document, 'Planhulp').click();
   await tick();
-  const blad = () => document.querySelector('[data-zoekblad]');
-  assert.ok(blad());
-  assert.equal(blad().getAttribute('role'), 'dialog');
-  assert.ok(document.querySelector('[data-dag="2026-10-13"][data-start="09:00"]'), 'de lijst laadt erachter alvast');
-  document.querySelector('[data-zoek-sluit]').click();
-  document.querySelector('[data-dag="2026-10-13"][data-start="09:00"]').click();
-  document.querySelector('[data-terug]').click();
-  navKnop(document, 'Planhulp').click();
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-free-slots' && !m.from);
+  assert.equal(zoek().at(-1).days, undefined, 'standaard alle dagen: geen filter');
+  assert.deepEqual([...document.querySelectorAll('[data-plan-dag]')].map((b) => b.getAttribute('aria-pressed')), ['true', 'true', 'true', 'true', 'true']);
+  assert.ok(document.querySelector('[data-dag="2026-10-12"]'));
+  // Maandag uit: meteen weg uit de lijst, zoeken pas na een korte pauze.
+  traag = true;
+  const voor = zoek().length;
+  document.querySelector('[data-plan-dag="1"]').click();
+  assert.equal(document.querySelector('[data-dag="2026-10-12"]'), null, 'maandag meteen weg');
+  assert.ok(document.querySelector('[data-dag="2026-10-16"]'), 'vrijdag blijft staan');
+  // Tijdens het wachten en laden nog meer dagen uitvinken: blijft werken.
+  document.querySelector('[data-plan-dag="2"]').click();
+  await wacht(350);
+  assert.equal(zoek().length, voor + 1, 'één zoekactie voor beide klikken');
+  document.querySelector('[data-plan-dag="3"]').click();
+  assert.equal(document.querySelector('[data-plan-dag="3"]').getAttribute('aria-pressed'), 'false', 'klikken tijdens het laden werkt');
+  assert.ok(document.querySelector('[data-dag="2026-10-16"]'), 'lijst blijft zichtbaar tijdens het laden');
+  await wacht(350);
+  assert.deepEqual([...zoek().at(-1).days], [4, 5]);
+  // Het oude antwoord komt later: telt niet; het nieuwe wel.
+  open.shift()(); await tick();
+  open.shift()(); await tick();
+  assert.equal(document.querySelector('[data-dag="2026-10-12"]'), null);
+  assert.ok(document.querySelector('[data-dag="2026-10-16"]'));
+  traag = false;
+  // Laatste dag kan niet uit.
+  ['4'].forEach((d) => document.querySelector('[data-plan-dag="' + d + '"]').click());
+  await wacht(350);
+  const n = zoek().length;
+  document.querySelector('[data-plan-dag="5"]').click(); await wacht(350);
+  assert.equal(zoek().length, n, 'de laatste dag kan niet uit');
+  // Weekplanning: altijd de hele week, zonder Dagen.
+  document.querySelector('[data-plan-weergave="raster"]').click();
   await tick();
-  assert.equal(blad(), null, 'met een gekozen moment meteen de lijst');
-  // Naar een andere pagina terwijl het blad open is: het blad gaat dicht.
-  document.querySelector('[data-plan-zoekpil]').click();
-  assert.ok(blad());
-  document.querySelector('[data-terug]').click();
-  assert.equal(blad(), null);
+  assert.equal(document.querySelector('[data-plan-dag]'), null, 'geen Dagen bij de weekplanning');
+  assert.equal(document.querySelector('[data-plan-instellingen]').querySelectorAll(':scope > div').length, 1, 'alleen Duur');
+  assert.equal(document.querySelectorAll('[data-raster-uit]').length, 0, 'geen dagen uit');
+  assert.equal(document.querySelectorAll('[data-raster-dag]').length, 5, 'vijf gewone dagkolommen');
+  // Terug naar de lijst: het filter staat er nog.
+  document.querySelector('[data-plan-weergave="lijst"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-plan-dag="1"]').getAttribute('aria-pressed'), 'false', 'dagenfilter blijft voor de lijst');
 });
 
 test('zijpaneel: planhulp - Meer laden onderaan de lijst: elke klik een week verder, met laadcirkel', async () => {
@@ -1943,8 +1742,9 @@ test('zijpaneel: planhulp - Meer laden onderaan de lijst: elke klik een week ver
     },
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
-  await naarPlanhulp(document);
-  const zoek = () => lijstVragen(verzonden);
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-free-slots');
   assert.equal(zoek().at(-1).limit, 24, 'standaard 24 blokken');
   const meer = () => document.querySelector('[data-plan-meer]');
   assert.ok(meer(), 'knop Meer laden');
@@ -1962,14 +1762,12 @@ test('zijpaneel: planhulp - Meer laden onderaan de lijst: elke klik een week ver
   assert.equal(meer().querySelector('[data-laadcirkel]'), null, 'klaar: geen cirkel meer');
   assert.equal(document.querySelectorAll('[data-dag="2026-10-15"][data-start="08:00"]').length, 1, 'geen dubbele blokken');
   assert.ok(document.querySelector('[data-dag="2026-10-30"]'), 'nieuwe dagen onder de lijst');
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /^1 uur, tot 1 nov, alle dagen/, 'periode loopt nu tot en met 1 november');
+  assert.equal(document.querySelector('[data-plan-tot]').textContent, '1 nov', 'periode loopt nu tot en met 1 november');
   // Niet meer afgekapt: precies één week verder, alleen dat stuk ophalen.
   meer().click(); await tick(); await tick();
   assert.deepEqual({ from: zoek().at(-1).from, to: zoek().at(-1).to }, { from: '2026-11-02', to: '2026-11-08' }, 'één week verder');
-  assert.match(document.querySelector('[data-plan-zoekpil]').textContent, /^1 uur, tot 8 nov, alle dagen/);
-  zoekStap(document, 'wanneer');
-  assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot en met zondag 8 november', 'ook in het zoekblad');
-  document.querySelector('[data-zoek-sluit]').click();
+  assert.equal(document.querySelector('[data-plan-tot]').textContent, '8 nov');
+  assert.equal(document.querySelector('[data-plan-tot]').getAttribute('aria-label'), 'Tot en met 8 november');
   assert.ok(meer(), 'altijd verder te laden');
 });
 
@@ -1978,10 +1776,11 @@ test('zijpaneel: planhulp - ook na Geen vrij blok gevonden kun je een week verde
     'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to, lastDate: msg.to || '2026-10-25', gaps: msg.from ? [{ date: '2026-10-27', startMin: 600, endMin: 720, minutes: 120 }] : [] } }),
   }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
   await tick();
-  await naarPlanhulp(document);
+  navKnop(document, 'Planhulp').click();
+  await tick();
   assert.match(document.body.textContent, /Geen vrij blok van 1 u gevonden/);
   document.querySelector('[data-plan-meer]').click(); await tick(); await tick();
-  const vraag = lijstVragen(verzonden).at(-1);
+  const vraag = verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
   assert.deepEqual({ from: vraag.from, to: vraag.to }, { from: '2026-10-26', to: '2026-11-01' });
   assert.ok(document.querySelector('[data-dag="2026-10-27"]'), 'de gevonden tijd van die week staat er');
 });

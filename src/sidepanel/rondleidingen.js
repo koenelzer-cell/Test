@@ -60,13 +60,16 @@ export function maakRondleidingen(ctx) {
       if (!BEWAARD.momenten.length) eenMoment();
       if (BEWAARD.momenten.length && ctx.kanDirect()) ctx.naarMaken(BEWAARD.momenten, ctx.plan.minutes);
     }
+    const inst = function () { return paginaBox.querySelector('[data-plan-instellingen]'); };
     const alle = function (sel) { return function () { return paginaBox.querySelectorAll(sel); }; };
     startRondleiding({
       naam: 'planhulp', kop: 'Rondleiding Planhulp', stapLabel: 'Planhulp, stap', icoon: welkomIcoon(ICON_PLAN),
       stappen: [
         { titel: 'Welkom in de Planhulp', tekst: 'Zo vind je in een paar tikken vrije tijd en maak je de afspraak meteen in ONS. Deze rondleiding duurt een halve minuut.', knop: 'Rondleiding starten', voor: lijstKlaar },
-        { titel: 'Je zoekopdracht', tekst: 'Hier staat waar je op zoekt en hoeveel tijden er zijn. Tik erop en kies stap voor stap de duur, hoe ver vooruit, de dagen en eventueel cliënten. De knop onderaan telt meteen mee.', voor: lijstKlaar, vind: alle('[data-plan-zoekpil]') },
         { titel: 'Lijst of weekplanning', tekst: 'In de lijst zie je per dag de begintijden. De weekplanning toont je week als mini agenda.', voor: lijstKlaar, vind: alle('[data-plan-weergave]') },
+        { titel: 'Hoe lang duurt de afspraak?', tekst: 'Kies de duur. Je ziet dan alleen tijden waarop de afspraak helemaal past.', voor: lijstKlaar, vind: alle('[data-plan-duur]'), breedte: inst },
+        { titel: 'Hoe ver vooruit', tekst: 'Zoek 1, 2 of 4 weken vooruit. Met het kalendertje zoek je tot een datum die je zelf kiest.', voor: lijstKlaar, vind: alle('[data-plan-weken],[data-plan-tot]'), breedte: inst },
+        { titel: 'Alleen bepaalde dagen', tekst: 'Werk je bijvoorbeeld niet op woensdag? Vink de dag uit en hij verdwijnt meteen uit de lijst.', voor: lijstKlaar, vind: alle('[data-plan-dag]'), breedte: inst },
         { titel: 'Tik op een begintijd', tekst: 'Een tik kiest de tijd, nog een tik laat hem los. Je kunt meerdere momenten kiezen, ook op verschillende dagen. ONS kijkt meteen na of er overlap is.', voor: lijstKlaar,
           vind: function () {
             const c = paginaBox.querySelector('[data-dag][data-start]');
@@ -102,10 +105,9 @@ export function maakRondleidingen(ctx) {
     if (ctx.pagina === 'hoofd' && navBox.children.length && !rondleidingGedaan('zijpaneel')) {
       tourGepland = true;
       setTimeout(function () { tourGepland = false; if (ctx.pagina === 'hoofd' && !rondleidingActief() && !rondleidingGedaan('zijpaneel') && root.isConnected) startHoofdRondleiding(); }, 600);
-    } else if (ctx.pagina === 'plan' && ctx.plan.result && !ctx.plan.busy && !ctx.zoekbladOpen() && (planTourWacht || !rondleidingGedaan('planhulp'))) {
-      // Niet terwijl het zoekblad open is: dan na Toon of Sluiten.
+    } else if (ctx.pagina === 'plan' && ctx.plan.result && !ctx.plan.busy && (planTourWacht || !rondleidingGedaan('planhulp'))) {
       tourGepland = true;
-      setTimeout(function () { tourGepland = false; if (ctx.pagina === 'plan' && !rondleidingActief() && !ctx.zoekbladOpen() && (planTourWacht || !rondleidingGedaan('planhulp')) && root.isConnected) startPlanRondleiding(); }, 400);
+      setTimeout(function () { tourGepland = false; if (ctx.pagina === 'plan' && !rondleidingActief() && (planTourWacht || !rondleidingGedaan('planhulp')) && root.isConnected) startPlanRondleiding(); }, 400);
     }
   }
 
