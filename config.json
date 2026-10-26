@@ -765,8 +765,6 @@
     "registrationAssistant": true,
     "dayColoring": true,
     "managedTexts": true,
-    "surveyRequired": true,
-    "surveyAudit": true,
     "reportGuidelineLink": true,
     "doorplannenToggle": true,
     "leaveRequest": true,
@@ -780,56 +778,8 @@
     "plannerDirect": true,
     "routeLink": true,
     "preload": true,
-    "formViaModel": true,
-    "uiInspector": true
+    "formViaModel": true
   },
-  "surveys": [
-    {
-      "name": "JG Outcome",
-      "questions": [
-        {
-          "question": "Jeugdige vanaf 12 jaar - Ik heb voldoende aan de hulp gehad om na de hulp zelf verder te gaan?",
-          "rule": "vraag_verplicht",
-          "condition": "leeftijd",
-          "op": ">=",
-          "value": 12
-        },
-        {
-          "question": "Jeugdige vanaf 12 jaar - Cliënttevredenheid score",
-          "rule": "vraag_verplicht",
-          "condition": "leeftijd",
-          "op": ">=",
-          "value": 12
-        },
-        {
-          "question": "Ouder - Ik heb voldoende aan de hulp gehad om na de hulp zelf verder te gaan?",
-          "rule": "vraag_verplicht",
-          "condition": "leeftijd",
-          "op": "<",
-          "value": 12
-        },
-        {
-          "question": "Ouder - Cliënttevredenheid score",
-          "rule": "vraag_verplicht",
-          "condition": "leeftijd",
-          "op": "<",
-          "value": 12
-        }
-      ]
-    },
-    {
-      "name": "Kindcheck",
-      "questions": [
-        {
-          "question": "Zijn er kinderen in het gezin?",
-          "rule": "vraag_verplicht",
-          "condition": "leeftijd",
-          "op": "<",
-          "value": 18
-        }
-      ]
-    }
-  ],
   "generalSettings": {
     "durationLabelStyle": "urenMinuten",
     "travelLabelStyle": "minuten",

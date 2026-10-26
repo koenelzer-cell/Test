@@ -29,8 +29,6 @@ export const MSG = {
   // CS -> SP (uitgezonden; de service worker negeert ze)
   AGENDA_STATE: 'ag-state',             // { state }       toestand van de Agendahulp
   AGENDA_GONE: 'ag-gone',               //                 agenda verlaten
-  SURVEY_STATE: 'survey-state',         // { state }       toestand van de vragenlijst-checklist
-  SURVEY_GONE: 'survey-gone',           //                 vragenlijst verlaten
 
   // SP -> CS (naar het gevolgde tabblad)
   AGENDA_GET_STATE: 'ag-get-state',     //  -> { state }
@@ -57,8 +55,6 @@ export const MSG = {
 
   // CS -> SP (uitgezonden)
   AGENDA_RANGE_PROGRESS: 'ag-range-progress', // { kind: 'open'|'productie', done, total } voortgang
-  SURVEY_GET_STATE: 'survey-get-state', //  -> { state }
-  SURVEY_OPEN_ITEM: 'survey-open-item', // { index }
 };
 
 // Het zijpaneel houdt deze poort open zolang het zichtbaar is; zo weet de

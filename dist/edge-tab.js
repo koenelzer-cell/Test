@@ -31,10 +31,6 @@
     // { state }       toestand van de Agendahulp
     AGENDA_GONE: "ag-gone",
     //                 agenda verlaten
-    SURVEY_STATE: "survey-state",
-    // { state }       toestand van de vragenlijst-checklist
-    SURVEY_GONE: "survey-gone",
-    //                 vragenlijst verlaten
     // SP -> CS (naar het gevolgde tabblad)
     AGENDA_GET_STATE: "ag-get-state",
     //  -> { state }
@@ -78,12 +74,8 @@
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
-    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    AGENDA_RANGE_PROGRESS: "ag-range-progress"
     // { kind: 'open'|'productie', done, total } voortgang
-    SURVEY_GET_STATE: "survey-get-state",
-    //  -> { state }
-    SURVEY_OPEN_ITEM: "survey-open-item"
-    // { index }
   };
 
   // src/shared/storage-keys.js
@@ -94,13 +86,6 @@
     // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
-    PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
-    SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
-    SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
-    // + resultaat-id
-    SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
-    SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
-    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge",
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };

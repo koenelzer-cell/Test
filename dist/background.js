@@ -31,10 +31,6 @@
     // { state }       toestand van de Agendahulp
     AGENDA_GONE: "ag-gone",
     //                 agenda verlaten
-    SURVEY_STATE: "survey-state",
-    // { state }       toestand van de vragenlijst-checklist
-    SURVEY_GONE: "survey-gone",
-    //                 vragenlijst verlaten
     // SP -> CS (naar het gevolgde tabblad)
     AGENDA_GET_STATE: "ag-get-state",
     //  -> { state }
@@ -78,12 +74,8 @@
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
-    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    AGENDA_RANGE_PROGRESS: "ag-range-progress"
     // { kind: 'open'|'productie', done, total } voortgang
-    SURVEY_GET_STATE: "survey-get-state",
-    //  -> { state }
-    SURVEY_OPEN_ITEM: "survey-open-item"
-    // { index }
   };
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
 
@@ -122,10 +114,6 @@
   var LOCAL = {
     TEST_CONFIG: "onsHelperConfig",
     // lokale testconfiguratie (beheer); wint van config.json
-    UI_OVERRIDES: "onsHelper.uiOverrides",
-    // door de UI-inspector herstelde selectors
-    INSPECTOR_OPEN: "onsHelper.inspectorOpen",
-    // UI-inspector blijft open bij paginawissel
     SNAPSHOT: "onsHelper.snapshot",
     // laatste weekstand (service worker; alleen getallen)
     REMINDER_SETTINGS: "onsHelper.reminders",

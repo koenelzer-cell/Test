@@ -15,11 +15,11 @@
       "type": "boolean"
     },
     "surveyHelperEnabled": {
-      "title": "Vragenlijst-checklist ingeschakeld",
+      "title": "Vervallen (de vragenlijsthulp is uit de extensie gehaald); doet niets",
       "type": "boolean"
     },
     "surveyAuditEnabled": {
-      "title": "Vragenlijst achtergrond-audit en Volgende-status-controle ingeschakeld",
+      "title": "Vervallen (de vragenlijsthulp is uit de extensie gehaald); doet niets",
       "type": "boolean"
     },
     "helperConfig": {

@@ -1,9 +1,8 @@
 # ONS Agendahulp
 
 Browser-extensie (Manifest V3, Chrome/Edge) die helpt bij het maken van
-afspraken en registraties in ONS Agenda, de dagindeling inkleurt, de
-ongeregistreerde tijd bijhoudt en op ONS Dossier controleert of verplichte
-vragenlijstvragen zijn ingevuld.
+afspraken en registraties in ONS Agenda, de dagindeling inkleurt en de
+ongeregistreerde tijd bijhoudt.
 
 Hoe het in elkaar zit: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
@@ -48,8 +47,8 @@ Daarnaast laadt `e2e/extensie.spec.mjs` de uitgepakte extensie zelf, met vaste
 ONS-pagina's in plaats van ONS: geen fouten op de agenda, het
 afspraakformulier en ONS Dossier; de content-scripts antwoorden het
 zijpaneel; na het stoppen van de service worker en na een herstart van de
-browser staan menu, wekker en zijpaneel er nog; de UI-inspector laadt pas op
-verzoek; en de werktijden in de popup worden opgeslagen en gewist.
+browser staan menu, wekker en zijpaneel er nog; en de werktijden in de popup
+worden opgeslagen en gewist.
 
 Bibliotheken die in de extensie worden meegebundeld: React (schermen),
 `valibot` (controleert of ONS-antwoorden de verwachte vorm hebben, zie
@@ -76,8 +75,7 @@ laden** met deze map.
 
 Wordt de extensie bijgewerkt of opnieuw geladen terwijl ONS openstaat, dan
 stopt de hulp in die tabbladen en vraagt hij de pagina te herladen (een
-kaartje linksonder met **Pagina herladen**); het lipje verdwijnt dan ook. De
-vragenlijstcontrole in ONS Dossier blijft tot het herladen werken.
+kaartje linksonder met **Pagina herladen**); het lipje verdwijnt dan ook.
 
 ### Een versie uitbrengen
 
@@ -104,7 +102,6 @@ beheerscherm). Gaat er iets mis, dan verandert er niets. Eerdere ZIP's in
 | Map | Wat |
 |---|---|
 | `src/content/` | de hulp op de ONS-pagina's (afspraken, registraties, agenda) |
-| `src/survey/` | de vragenlijst-checklist op ONS Dossier |
 | `src/background/` | de service worker (badge, herinnering, rechtermuismenu) |
 | `src/popup/`, `pages/popup.html` | de extensiepopup (bedrijfsonderdeel en team, werktijden, herinnering) |
 | `src/sidepanel/`, `pages/sidepanel.html` | het zijpaneel |
@@ -132,14 +129,13 @@ Lagen, oplopend in voorrang:
 
 De sleutels van laag 5 staan in `managed_schema.json`.
 
-### UI-inspector
+### Herstelde selectors
 
-Voor de beheerder: de knop **Open live UI-inspector in ONS** in het beheerscherm opent
-ONS met `#ons-ui-inspector`. De inspector toont welke plekken in de pagina de
-hulp vindt (groen) en mist (rood), en laat een gemiste plek opnieuw aanwijzen;
-die herstelling werkt meteen, zonder nieuwe versie. Hij blijft open na het
-herladen van de pagina tot je hem sluit. Hij is een aparte bundel die alleen
-laadt als hij gevraagd wordt; `features.uiInspector: false` zet hem uit.
+Wijst ONS na een update een veld of knop anders aan dan de hulp verwacht, dan
+kan een herstelde selector in `config.json` (`uiSelectors`, in het beheerscherm
+onder Troubleshooting als `ui-selectors.json` te laden). Die geldt voor alle
+medewerkers, zonder nieuwe versie van de extensie. (De vragenlijsthulp op ONS
+Dossier en de live UI-inspector zijn sinds 1.6.293 uit de extensie gehaald.)
 
 ### Werktijden
 

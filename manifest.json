@@ -34,7 +34,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["config.json", "dist/ui-inspector.js"],
+      "resources": ["config.json"],
       "matches": [
         "https://*.onsagenda.nl/*",
         "https://impegno.ons-dossier.nl/*"
@@ -43,16 +43,6 @@
     }
   ],
   "content_scripts": [
-    {
-      "matches": [
-        "https://impegno.ons-dossier.nl/*"
-      ],
-      "js": ["dist/survey.js"],
-      "all_frames": true,
-      "match_about_blank": true,
-      "match_origin_as_fallback": true,
-      "run_at": "document_idle"
-    },
     {
       "matches": [
         "https://*.onsagenda.nl/*",

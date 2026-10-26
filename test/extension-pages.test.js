@@ -304,18 +304,6 @@ test('zijpaneel: zonder ONS-tabblad een duidelijke melding', async () => {
   assert.match(document.body.textContent, /Geen ONS-scherm open/);
 });
 
-test('zijpaneel: toont de vragenlijst als het tabblad die meldt', async () => {
-  const { document } = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env) => {
-    env.chrome.tabs.query = (q, cb) => cb([{ id: 5, active: true, url: 'https://impegno.ons-dossier.nl/x' }]);
-    env.chrome.tabs.sendMessage = (id, msg, cb) => {
-      if (msg.type === 'survey-get-state') cb({ state: { title: 'Vragenlijst', items: [], signalen: [] } });
-      else if (cb) cb(null);
-    };
-  });
-  await tick();
-  assert.doesNotMatch(document.body.textContent, /Geen ONS-scherm open/);
-});
-
 // Regressie: createAgendaPanel werd gebruikt zonder import, waardoor het
 // zijpaneel op de agenda leeg bleef.
 const AGENDA_STATE = { enabled: true, profileLabel: null, view: 'week', past: {}, future: { client: 0, overig: 0 }, windowStatus: {}, unfinished: [], legend: [], windowLabel: '', version: '1', week: null, weekError: '', weekLoading: false };
@@ -972,7 +960,7 @@ test('zijpaneel: meerdere collega\'s - weekoverzicht, opbouw en productieverloop
 });
 
 test('nergens hoofdletterstijl in de extensie', () => {
-  const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/survey.js', 'dist/edge-tab.js', 'tools/beheer/beheer.html'];
+  const bestanden = ['dist/content.js', 'dist/sidepanel.js', 'dist/react-bundle.js', 'dist/edge-tab.js', 'tools/beheer/beheer.html'];
   for (const b of bestanden) assert.doesNotMatch(read(b), /uppercase/, b);
 });
 

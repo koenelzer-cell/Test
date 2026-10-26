@@ -50,8 +50,8 @@ export function syncWithUrl() {
   updateRegistrationsOverviewPanel();
 }
 // Opstarten: elke URL-wijziging (ONS is een single-page app) wordt één
-// 'locationchange'-event op window, waar syncWithUrl, de dagkleuring en de
-// vragenlijst op reageren.
+// 'locationchange'-event op window, waar syncWithUrl en de dagkleuring op
+// reageren.
 let _lastHref = location.href;
 let _urlTimer = null;
 function meldUrlWijziging() {

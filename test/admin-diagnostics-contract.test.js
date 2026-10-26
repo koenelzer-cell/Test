@@ -42,7 +42,7 @@ test('alle beheerinstellingen zijn herkenbaar aangesloten', () => {
     Registratievormen: ['registrationForms', 'vorm', 'startVerdeling', 'uursoort', 'eindtijdBeginPlusMin', 'rapportagePrefix', 'vraagDirecteTijd', 'vraagIndirecteTijd', 'vraagReistijd', 'labels', 'relevantForTeams', 'volgorde'],
     Kleurzones: ['palette', 'profileSectors', 'zoneProfiles', 'start', 'end', 'zone', 'color', 'fill', 'legend'],
     'Beheerbare teksten': ['texts', 'text', 'html', 'bold', 'italic', 'sizePx'],
-    'Functies en compatibiliteit': ['features', 'appointmentAssistant', 'registrationAssistant', 'dayColoring', 'managedTexts', 'surveyRequired', 'surveyAudit', 'reportGuidelineLink', 'doorplannenToggle', 'compatibility', 'schemaVersion', 'minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features', 'appointmentAssistant', 'registrationAssistant', 'dayColoring', 'managedTexts', 'reportGuidelineLink', 'doorplannenToggle', 'compatibility', 'schemaVersion', 'minimumExtensionVersion'],
   };
   const code = contentJs + '\n' + popupJs;
   for (const [group, props] of Object.entries(groups)) {

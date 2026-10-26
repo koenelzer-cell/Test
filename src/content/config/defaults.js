@@ -89,7 +89,7 @@ export const DEFAULT_APP_CONFIG = {
     doorplannen_waarschuwing:     { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: '#b3261e', bold: true, italic: false, sizePx: 13 },
   },
   compatibility: { schemaVersion: 7, minimumExtensionVersion: '1.6.114' },
-  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true, uiInspector: true },
+  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true },
   nonClientCategories: [],
   // Eigen server voor rijtijden over de weg (Google Routes API; zie
   // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
@@ -156,9 +156,8 @@ export const DEFAULT_APP_CONFIG = {
   // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
   // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
   activation: { appointmentNeedle: '/events/new', registrationNeedle: '/registrations', domains: [] },
-  // Centraal (beheerscherm) herstelde UI-selectors — geëxporteerd door de
-  // UI-inspector en gepubliceerd in config.json, zodat correcties voor ALLE
-  // gebruikers gelden i.p.v. alleen op één testapparaat.
+  // Centraal (beheerscherm) herstelde UI-selectors, gepubliceerd in
+  // config.json, zodat een correctie voor alle gebruikers geldt.
   uiSelectors: {},
 };
 // Niet-cliëntgerelateerde afspraken: categorieën met opties.

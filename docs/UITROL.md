@@ -70,13 +70,10 @@ Beleid opnieuw laden.
 
 | Sleutel in het beleid | Zet uit |
 |---|---|
-| `enabled: false` | de hele hulp (afspraak, registratie, vragenlijst) |
+| `enabled: false` | de hele hulp (afspraak, registratie) |
 | `appointmentHelperEnabled: false` | de afspraakhulp |
 | `registrationHelperEnabled: false` | de registratiehulp |
-| `surveyHelperEnabled: false` | de vragenlijst-checklist |
-| `surveyAuditEnabled: false` | de achtergrondcontrole van vragenlijsten |
 | `helperConfig.features.formViaModel: false` | het invullen via het afspraakmodel van ONS; de hulp klikt en typt dan zoals voorheen |
-| `helperConfig.features.uiInspector: false` | de UI-inspector (het hulpmiddel van de beheerder om ONS-velden opnieuw aan te wijzen) |
 | `helperConfig.features.<naam>: false` | een functie uit het beheerscherm, bijv. `planner`, `plannerDirect`, `routeLink`, `preload` |
 
 `formViaModel` is de eerste om uit te zetten als labels, uursoort, titel,

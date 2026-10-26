@@ -93,13 +93,6 @@
     // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
-    PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
-    SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
-    SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
-    // + resultaat-id
-    SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
-    SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
-    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge",
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };

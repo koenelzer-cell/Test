@@ -16,7 +16,7 @@ import path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const AGENDA = 'https://impegno.onsagenda.nl/calendar/invitee/123/day?date=2026-10-21';
 const FORMULIER = 'https://impegno.onsagenda.nl/events/new?date=2026-10-21';
-const DOSSIER = 'https://impegno.ons-dossier.nl/clients/1/survey';
+const DOSSIER = 'https://impegno.ons-dossier.nl/clients/1';
 const LEGE_PAGINA = '<!doctype html><html lang="nl"><head><title>ONS</title></head><body><div id="app"></div></body></html>';
 const FORMULIER_HTML = fs.readFileSync(path.join(ROOT, 'test/fixtures/afspraak-twee-clienten.html'), 'utf8');
 
@@ -96,11 +96,11 @@ test('laadt zonder fouten op ONS Agenda en ONS Dossier', async () => {
       await page.goto(url);
       await page.waitForTimeout(1500);
     }
-    // Content-scripts draaien: de agendahulp antwoordt het zijpaneel; de
-    // vragenlijst (die alleen antwoordt met een checklist) merkt de pagina.
+    // Content-scripts draaien: de agendahulp antwoordt het zijpaneel; ook op
+    // ONS Dossier staat het randlipje.
     expect(await naarTab(ext, AGENDA.replace(/\?.*/, '*'), { type: 'ag-get-state' })).toHaveProperty('state');
     const dossier = context.pages().find((p) => p.url() === DOSSIER);
-    expect(await dossier.evaluate(() => document.documentElement.getAttribute('data-ons-agendahulp-survey-version'))).toMatch(/^\d+\.\d+\.\d+$/);
+    await expect(dossier.locator('#onsah-edge-tab')).toHaveCount(1);
     // Het randlipje (edge-tab) en de main-world staan op de pagina.
     const agenda = context.pages().find((p) => p.url().startsWith(AGENDA.replace(/\?.*/, '')));
     await expect(agenda.locator('#onsah-edge-tab')).toHaveCount(1);
@@ -160,40 +160,6 @@ test('menu en wekker staan er na een herstart van de browser', async () => {
     expect(opnieuw.status.fouten).toEqual([]);
   } finally {
     await (tweede || eerste).sluit();
-  }
-});
-
-test('UI-inspector: laadt pas op verzoek en is uit te zetten', async () => {
-  const { context, id, sluit } = await startBrowser();
-  try {
-    const ext = await extensiePagina(context, id);
-    const page = await context.newPage();
-    const fouten = await volgFouten(context, page);
-    const scripts = [];
-    page.on('request', (r) => { if (r.url().endsWith('/dist/ui-inspector.js')) scripts.push(r.url()); });
-
-    await page.goto(AGENDA);
-    await page.waitForTimeout(1000);
-    expect(scripts).toEqual([]);
-
-    // De knop in het beheerscherm opent ONS met #ons-ui-inspector.
-    await page.goto(AGENDA + '#ons-ui-inspector');
-    await expect(page.locator('#__ons-ins-root')).toHaveCount(1);
-    expect(page.url()).toBe(AGENDA);
-    expect(scripts.length).toBeGreaterThan(0);
-    // Hij blijft open na herladen, tot hij gesloten wordt.
-    await page.reload();
-    await expect(page.locator('#__ons-ins-root')).toHaveCount(1);
-
-    // features.uiInspector: false zet hem uit, ook als hij openstond.
-    await ext.page.evaluate(() => chrome.storage.local.set({ onsHelperConfig: { features: { uiInspector: false } } }));
-    await page.goto('about:blank');
-    await page.goto(AGENDA + '#ons-ui-inspector');
-    await page.waitForTimeout(1500);
-    await expect(page.locator('#__ons-ins-root')).toHaveCount(0);
-    expect(fouten).toEqual([]);
-  } finally {
-    await sluit();
   }
 });
 

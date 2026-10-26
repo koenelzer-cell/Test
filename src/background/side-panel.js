@@ -7,7 +7,7 @@
 //
 // Precies één tabblad mag voor het zijpaneel melden: het tabblad dat de
 // gebruiker op dit moment bekijkt. Anders blijft een agenda-tab op de
-// achtergrond zijn weekoverzicht sturen terwijl je op een vragenlijst zit.
+// achtergrond zijn weekoverzicht sturen terwijl je in een ander tabblad zit.
 //
 // Deze toestand staat bewust in variabelen en niet in opslag. Een open poort
 // houdt de worker niet wakker: na een tijd zonder werk sluit de browser hem en

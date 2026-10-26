@@ -45,8 +45,7 @@
      data-settings-page-groepen in de sidebar hierboven). */
   .kaart::before { content:''; position:absolute; left:0; top:12px; bottom:12px; width:4px; border-radius:0 3px 3px 0; background:var(--roze); opacity:.7; }
   #afspraaktypes.kaart::before, #afspraaktypes .kaart::before,
-  #registratievormen.kaart::before, #registratievormen .kaart::before,
-  #vragenlijsten.kaart::before, #vragenlijsten .kaart::before { background:#c94a3f; }
+  #registratievormen.kaart::before, #registratievormen .kaart::before { background:#c94a3f; }
   #zoneprofielen.kaart::before, #zoneprofielen .kaart::before,
   #palet.kaart::before, #palet .kaart::before { background:#3572b0; }
   #tekstbeheer.kaart::before, #tekstbeheer .kaart::before { background:#8b5fae; }
@@ -54,7 +53,6 @@
   #configcontrole.kaart::before, #configcontrole .kaart::before,
   #testmatrix.kaart::before, #testmatrix .kaart::before,
   #troubleshooting.kaart::before, #troubleshooting .kaart::before,
-  #inspectorinfo.kaart::before, #inspectorinfo .kaart::before,
   #zelftest.kaart::before, #zelftest .kaart::before { background:#2f8f57; }
   #publiceren.kaart::before, #publiceren .kaart::before,
   #historie.kaart::before, #historie .kaart::before,
@@ -167,16 +165,6 @@
   .rich-tagbar-label { color:#777; font-size:11px; font-weight:700; }
   .rich-tag { appearance:none; border:1px solid #d9a8c6; border-radius:999px; background:#fff7fc; color:#9d075f; padding:3px 8px; font:700 11px/1.3 ui-monospace,Consolas,monospace; cursor:pointer; }
   .rich-tag:hover { background:#fbe6f3; border-color:#cc087d; }
-  .survey-table-wrap { width:100%; overflow-x:auto; border:1px solid #ececec; border-radius:8px; }
-  .survey-table { table-layout:fixed; min-width:1020px; border:0; }
-  .survey-table th, .survey-table td { padding:7px 8px; }
-  .survey-table th:first-child, .survey-table td:first-child { border-left:0; }
-  .survey-table th:last-child, .survey-table td:last-child { border-right:0; }
-  .survey-table thead th { border-top:0; }
-  .survey-table tbody tr:last-child td { border-bottom:0; }
-  .survey-table input[type=text], .survey-table select { width:100%; min-width:0; }
-  .survey-table [data-valwrap] { white-space:nowrap; }
-  .survey-table .rij-acties { width:100%; justify-content:center; }
   .beheer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
   .beheer-veld { display:flex; flex-direction:column; gap:4px; font-size:12px; }
   .beheer-veld > span { color:#666; font-weight:700; }
@@ -296,7 +284,6 @@
   <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="10" height="9.5" rx="1.5"/><line x1="2" y1="6" x2="12" y2="6"/><line x1="5" y1="1.5" x2="5" y2="4"/><line x1="9" y1="1.5" x2="9" y2="4"/></svg><strong>Wat de hulp doet</strong></div><span class="menu-groep-uitleg">Afspraken en registraties</span>
     <button class="menu-item" data-menu-target="afspraaktypes" onclick="showSettingsPage('afspraaktypes')">Afspraaktypes</button>
     <button class="menu-item" data-menu-target="registratievormen" onclick="showSettingsPage('registratievormen')">Registratievormen</button>
-    <button class="menu-item" data-menu-target="vragenlijsten" onclick="showSettingsPage('vragenlijsten')">Vragenlijsten</button>
   </div>
   <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><line x1="7" y1="7" x2="7" y2="3.8"/><line x1="7" y1="7" x2="9.3" y2="8.6"/></svg><strong>Agendahulp</strong></div><span class="menu-groep-uitleg">Gekleurde dagindeling in de agenda</span>
     <button class="menu-item" data-menu-target="zoneprofielen" onclick="showSettingsPage('zoneprofielen')">Dagindeling per team</button>
@@ -310,7 +297,6 @@
     <button class="menu-item" data-menu-target="configcontrole" onclick="showSettingsPage('configcontrole')">Configuratiecontrole</button>
     <button class="menu-item" data-menu-target="testmatrix" onclick="showSettingsPage('testmatrix')">Testmatrix</button>
     <button class="menu-item" data-menu-target="troubleshooting" onclick="showSettingsPage('troubleshooting')">Troubleshooting</button>
-    <button class="menu-item" data-menu-target="inspectorinfo" onclick="showSettingsPage('inspectorinfo')">UI-inspector: uitleg</button>
     <button class="menu-item" data-menu-target="zelftest" onclick="showSettingsPage('zelftest')">DOM-zelftest</button>
   </div>
   <div class="menu-groep"><div class="menu-groep-kop"><svg class="menu-groep-icoon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="2" x2="7" y2="8.5"/><path d="M4.2 4.8L7 2l2.8 2.8"/><path d="M2.5 9v1.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V9"/></svg><strong>Beheer en uitrol</strong></div><span class="menu-groep-uitleg">Publiceren en beheren</span>
@@ -368,19 +354,6 @@
       <th class="center" title="Volgorde: laag = bovenaan, leeg = onderaan">Volg</th><th>Vorm</th><th>Startverdeling</th><th>Uursoort</th><th class="center">Vraag directe tijd</th><th class="center">Vraag indirecte tijd</th><th class="center">Vraag reistijd</th><th>Labels &amp; teams</th><th class="center">Overig</th><th></th>
     </tr></thead><tbody></tbody></table>
     <div class="rijknoppen"><button class="knop klein" onclick="addForm()">+ Regel</button></div>
-  </div>
-
-  <div class="kaart" id="vragenlijsten" data-settings-page>
-    <h2>Vragenlijsten <span class="badge actief">actief</span></h2>
-    <p class="uitleg">Groepeer per <b>vragenlijst</b> de vragen waarvoor een regel geldt. Kies als <b>regel</b> of de vraag verplicht wordt of dat er een signaal wordt getoond. De <b>voorwaarde</b> is <b>Leeftijd</b> of <b>Altijd</b>. Bij <b>binnen</b>/<b>buiten</b> geef je twee grenzen (van–tot) op; <b>binnen is inclusief</b> ("12 t/m 16" = 12 tot en met 16). Bij <b>Signaal tonen</b> staat in de tabel precies wanneer het signaal actief wordt.</p>
-    <div id="surveyList"></div>
-    <div class="rijknoppen">
-      <button class="knop klein" onclick="addSurveyList()">+ Vragenlijst</button>
-      <button class="knop klein" type="button" onclick="document.getElementById('surveyXmlImport').click()">Importeer uit ONS-XML…</button>
-      <input id="surveyXmlImport" type="file" accept=".xml,text/xml,application/xml" style="display:none" onchange="importSurveyXml(event)">
-      <small id="surveyXmlImportInfo" style="color:#567"></small>
-    </div>
-    <p class="uitleg" style="margin-top:6px">Exporteer de vragenlijst in ONS als <b>XML</b> en importeer het bestand hier. De vraagteksten worden overgenomen als rijen; actieve vragen worden opgenomen, dubbele teksten samengevoegd. Stel per vraag de gewenste regel in.</p>
   </div>
 
   <div class="kaart" id="algemeen" data-settings-page>
@@ -654,17 +627,9 @@
     <h2>Troubleshooting <span class="badge actief">lokale controle</span></h2>
 
     <div class="kaart" style="margin:0 0 18px;background:#faf3f8;border:1px solid #e7c9dd">
-      <h3 style="margin:0 0 6px">Live UI-inspector <span class="badge actief">op de ONS-pagina</span></h3>
-      <p class="uitleg" style="margin:0 0 10px">Opent ONS en toont een paneel dat <b>alle UI-elementen</b> markeert die de extensie nodig heeft: <span style="color:#1e8449;font-weight:700">groen ✓</span> = gevonden, <span style="color:#c0392b;font-weight:700">rood ✗</span> = ontbreekt. Zo zie je meteen wat er misgaat. Drie velden (modal, uursoort, labels) kun je met <b>Herstel</b> opnieuw aanwijzen en via <b>Exporteer selectors</b> centraal doorvoeren.</p>
-      <div class="rijknoppen">
-        <button class="knop primair" type="button" onclick="openLiveInspector()">Open live UI-inspector in ONS ↗</button>
-        <button class="knop" type="button" onclick="showSettingsPage('inspectorinfo')">Wat doet het &amp; wat kan er kapot?</button>
-      </div>
-      <small style="display:block;margin-top:8px;color:#777">Opent <code>https://impegno.onsagenda.nl/#ons-ui-inspector</code> in een nieuw tabblad. De extensie moet in die browser geïnstalleerd zijn.</small>
-
-      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e7c9dd">
-        <strong>Centraal herstel importeren</strong>
-        <p class="uitleg" style="margin:4px 0 8px">Heb je in de inspector velden opnieuw aangewezen en <b>ui-selectors.json</b> geëxporteerd? Laad dat hier in; de selectors worden meegepubliceerd in config.json en gelden dan voor iedereen.</p>
+      <div>
+        <strong>Herstelde selectors</strong>
+        <p class="uitleg" style="margin:4px 0 8px">Wijst ONS een veld of knop anders aan dan de extensie verwacht, dan kan een ontwikkelaar een herstelde selector leveren als <b>ui-selectors.json</b>. Laad dat hier in; de selectors worden meegepubliceerd in config.json en gelden dan voor alle medewerkers, zonder nieuwe versie van de extensie.</p>
         <div class="rijknoppen">
           <label class="knop klein" style="cursor:pointer">Importeer ui-selectors.json…<input id="uiSelImport" type="file" accept=".json,application/json" style="display:none" onchange="importUiSelectors(event)"></label>
           <button class="knop" type="button" onclick="clearUiSelectors()">Wis alle centrale herstellingen</button>
@@ -673,7 +638,7 @@
       </div>
     </div>
 
-    <p class="uitleg">Laad één of meer opgeslagen ONS-pagina’s. De controle herkent per opname of het een <b>agenda-, afspraak-, registratie- of vragenlijstscherm</b> is en test de bijbehorende DOM-hooks. De extensie-zip is <b>optioneel</b>: zonder zip draait alleen de DOM-controle; mét zip wordt ook de code en config.json vergeleken. Voeg voor volledige dekking een agenda, een geopend afspraakformulier en een registratieformulier toe. Alles blijft lokaal in deze browser.</p>
+    <p class="uitleg">Laad één of meer opgeslagen ONS-pagina’s. De controle herkent per opname of het een <b>agenda-, afspraak- of registratiescherm</b> is en test de bijbehorende DOM-hooks. De extensie-zip is <b>optioneel</b>: zonder zip draait alleen de DOM-controle; mét zip wordt ook de code en config.json vergeleken. Voeg voor volledige dekking een agenda, een geopend afspraakformulier en een registratieformulier toe. Alles blijft lokaal in deze browser.</p>
     <div class="trouble-invoer">
       <label class="trouble-bestand">
         <strong>ONS-pagina’s (.html of .txt)</strong>
@@ -700,29 +665,6 @@
     <div id="troubleResults"></div>
   </div>
 
-  <div class="kaart" id="inspectorinfo" data-settings-page>
-    <h2>UI-inspector: wat doet het &amp; wat kan er kapot?</h2>
-    <p class="uitleg">De extensie vult ONS-schermen automatisch in door <b>specifieke UI-elementen</b> (velden, knoppen, lijsten) te vinden en te bedienen. Als ONS zo’n element hernoemt, verplaatst of anders opbouwt, vindt de extensie het niet meer en <b>stopt dat deelproces</b>. De UI-inspector maakt per scherm zichtbaar welke elementen wél/niet gevonden worden, zodat je precies ziet wat er stuk is.</p>
-
-    <h3 style="margin:18px 0 6px">Zo gebruik je hem</h3>
-    <ol class="uitleg" style="margin:0 0 6px 18px">
-      <li>Klik op <b>Troubleshooting → Open live UI-inspector in ONS</b>. ONS opent met het paneel rechts.</li>
-      <li>Navigeer naar het scherm dat je wilt controleren (agenda, afspraakformulier, registratie of vragenlijst). Het paneel ververst zichzelf elke 0,5 s.</li>
-      <li>Lees de lijst: <span style="color:#1e8449;font-weight:700">✓ n</span> = n stuks gevonden, <span style="color:#c0392b;font-weight:700">✗</span> = ontbreekt op dit scherm, <b>–</b> = niet van toepassing (bv. agenda-hooks terwijl een modal open is).</li>
-      <li>Voor <b>Modal</b>, <b>Uursoort</b> en <b>Labels</b>: klopt de automatische match niet? Klik <b>Herstel</b> en wijs het juiste element aan. Klik daarna <b>Exporteer selectors</b> → <code>ui-selectors.json</code>, en laad dat hier in het beheerscherm om het voor iedereen door te voeren.</li>
-    </ol>
-
-    <h3 style="margin:18px 0 6px">Per element: proces en gevolg bij ontbreken</h3>
-    <div style="overflow-x:auto">
-    <table class="uitleg" style="border-collapse:collapse;width:100%;min-width:640px">
-      <thead><tr style="text-align:left;border-bottom:2px solid #ddd">
-        <th style="padding:6px 8px">Scherm</th><th style="padding:6px 8px">Element</th><th style="padding:6px 8px">Waarvoor gebruikt de extensie het</th><th style="padding:6px 8px">Kapot ⇒ symptoom</th><th style="padding:6px 8px">Herstelbaar</th>
-      </tr></thead>
-      <tbody id="inspectorInfoRows"></tbody>
-    </table>
-    </div>
-    <p class="uitleg" style="margin-top:12px;color:#777"><b>Let op:</b> alleen de drie herstelbare velden worden dynamisch opgezocht (en gaan het vaakst stuk bij ONS-updates). De overige elementen hebben vaste, stabiele kenmerken; als die veranderen is een code-update nodig — meld dat via het supportpakket.</p>
-  </div>
 
   <dialog id="previewDialog" class="link-dialoog" style="width:min(580px,calc(100vw - 30px))">
     <header><h1>Agenda-preview</h1></header>
@@ -775,7 +717,7 @@
     <h2>DOM-zelftest <span class="badge actief">live op ONS</span></h2>
     <p class="uitleg">Controleer op de échte ONS-pagina (inclusief shadow-DOM van webcomponenten) of alle elementen die de extensie nodig heeft aanwezig zijn — zonder eerst een pagina op te slaan. Kopieer het script, open ONS in Chrome/Edge, druk <b>F12 → Console</b>, plak en druk Enter. Het script leest alleen; het wijzigt niets.</p>
     <div class="rijknoppen"><button class="knop primair" type="button" onclick="copyDomCheck()">Kopieer script</button><button class="knop" type="button" onclick="downloadDomCheck()">Download als .js</button></div>
-    <p class="uitleg" style="margin-top:8px">Draai het op elk scherm: agenda-week, geopende afspraak, registratieformulier, vragenlijst. Groen = gevonden, geel = niet op dit scherm, rood = kritieke hook mist.</p>
+    <p class="uitleg" style="margin-top:8px">Draai het op elk scherm: agenda-week, geopende afspraak, registratieformulier. Groen = gevonden, geel = niet op dit scherm, rood = kritieke hook mist.</p>
     <textarea id="domCheckArea" readonly style="width:100%;min-height:200px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;border:1px solid #ddd;border-radius:8px;padding:10px"></textarea>
   </div>
 
@@ -808,17 +750,6 @@
     <div id="richLinkError" class="melding"></div>
   </div>
   <div class="acties"><button class="knop" type="button" onclick="closeRichLinkDialog()">Annuleren</button><button id="richLinkRemove" class="knop rood" type="button" onclick="removeRichLink()">Link verwijderen</button><button class="knop primair" type="button" onclick="saveRichLink()">Opslaan</button></div>
-</dialog>
-
-<dialog id="surveySignalDialog" class="link-dialoog signaal-dialoog">
-  <header><h2 style="margin:0">Signaal bouwen</h2></header>
-  <div class="inhoud">
-    <p id="surveySignalQuestion" class="uitleg" style="margin-top:0"></p>
-    <label class="beheer-veld"><span>Signaaltekst en opmaak — gebruik {clientNaam}, {clientLeeftijd} en {vraag}</span></label>
-    <div id="surveySignalEditor"></div>
-    <div id="surveySignalError" class="melding"></div>
-  </div>
-  <div class="acties"><button class="knop" type="button" onclick="closeSurveySignalDialog()">Annuleren</button><button class="knop primair" type="button" onclick="saveSurveySignalDialog()">Signaal opslaan</button></div>
 </dialog>
 
 <dialog id="richHtmlDialog" class="link-dialoog signaal-dialoog">
@@ -884,8 +815,8 @@
    3. Plak dit HELE bestand en druk Enter.
    4. Lees de tabel: groen = gevonden, geel = niet gevonden (kan kloppen
       als dat scherm nu niet open staat), rood = kritiek hook mist.
-   Herhaal op elk scherm (agenda / afspraak maken / registratie /
-   vragenlijst). Deze test WIJZIGT niets; hij leest alleen de DOM.
+   Herhaal op elk scherm (agenda / afspraak maken / registratie).
+   Deze test WIJZIGT niets; hij leest alleen de DOM.
    ===================================================================== */
 (function () {
   'use strict';
@@ -937,13 +868,6 @@
       ['select2 wisknop',         '.select2-selection__clear',               'info'],
       ['Rapportage textarea',     'textarea:not([disabled]):not([type="hidden"])', 'info'],
     ]],
-    ['VRAGENLIJST (survey-guard)', [
-      ['Survey-titel',            '[data-survey-title]',                     'info'],
-      ['Survey-header',           '[data-survey-header]',                    'info'],
-      ['Survey-melding',          '[data-survey-msg]',                       'info'],
-      ['React-component props',   '[data-react-component][data-props]',      'info'],
-      ['Verplicht veld',          '[required],[aria-required="true"]',       'info'],
-    ]],
   ];
 
   const sev = { kritiek: '#c0392b', belangrijk: '#b9770e', info: '#7f8c8d' };
@@ -988,7 +912,6 @@
 
 </script>
 
-<script src="survey-import.js"></script>
 <script>
 // ===== Standaard (identiek aan de extensie) =====
 const DEFAULTS = {
@@ -1067,7 +990,7 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, surveyRequired:true, surveyAudit:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true, uiInspector:true },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
   routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
@@ -1106,17 +1029,6 @@ const DEFAULTS = {
     {sector:"bv",name:"Waalwijk",postcode:"5141PA",match:["waalwijk"]},
     {sector:"bv",name:"Zoetermeer",postcode:"2713JA",match:["zoetermeer"]}
   ],
-  surveys: [
-    { name:'JG Outcome', questions:[
-      { question:'Jeugdige vanaf 12 jaar - Ik heb voldoende aan de hulp gehad om na de hulp zelf verder te gaan?', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:12 },
-      { question:'Jeugdige vanaf 12 jaar - Cliënttevredenheid score', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:12 },
-      { question:'Ouder - Ik heb voldoende aan de hulp gehad om na de hulp zelf verder te gaan?', rule:'vraag_verplicht', condition:'leeftijd', op:'<', value:12 },
-      { question:'Ouder - Cliënttevredenheid score', rule:'vraag_verplicht', condition:'leeftijd', op:'<', value:12 },
-    ] },
-    { name:'Kindcheck', questions:[
-      { question:'Zijn er kinderen in het gezin?', rule:'vraag_verplicht', condition:'leeftijd', op:'<', value:18 },
-    ] },
-  ],
   generalSettings: { durationLabelStyle:'urenMinuten', travelLabelStyle:'minuten', travelStepMin:5, travelMaxMin:60, portionStepMin:5, lateThresholdHours:24, durationStepMin:15, appointmentMaxMin:480, registrationMaxMin:180, pauseFixedMin:30, nonClientMarker:'*', countWeekends:false, nonClientUursoorten:[], excludedRegistrationStatuses:['do_not_declare'], excludedCalendarTypes:['unavailability','presence'] },
   apiEndpoints: {
     weekEvents: '/calendar/invitee/{inviteeId}/entries/week?date={date}&layer=events',
@@ -1133,8 +1045,8 @@ const DEFAULTS = {
   labelList: [],
 };
 const SECTOREN = ['Jeugd & Gezin', 'Begeleiding'];
-// Centraal herstelde UI-selectors (geïmporteerd uit ui-selectors.json van de
-// UI-inspector). Wordt meegepubliceerd in config.json.
+// Centraal herstelde UI-selectors (geïmporteerd uit ui-selectors.json).
+// Wordt meegepubliceerd in config.json.
 let uiSelectorsState = {};
 // Geïmporteerde ONS-lijsten (uursoorten/labels) die de zoekbare dropdowns vullen.
 // Onderdeel van de config → meegepubliceerd in config.json (extensiemap).
@@ -1163,7 +1075,7 @@ const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 const MANAGER_VERSION = '1.6.292';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
-  managedTexts:'Beheerbare schermteksten', surveyRequired:'Verplichte-vragencontrole', surveyAudit:'Achtergrondaudit vragenlijsten', reportGuidelineLink:'Link Richtlijn rapporteren',
+  managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
   doorplannenToggle:"Doorplannen-knop ('Afspraak doorplannen?')",
   leaveRequest:'Zijpaneel: Verlof aanvragen',
   weekRatio:'Zijpaneel: Verhouding per uursoort',
@@ -1177,7 +1089,6 @@ const FEATURE_META = {
   routeLink:'Zijpaneel: Route van de dag (Google Maps)',
   preload:'Zijpaneel: gegevens vooraf laden',
   formViaModel:'Afspraakformulier: invullen via het ONS-model (uit: alleen klikken en typen, bijv. na een ONS-update)',
-  uiInspector:'UI-inspector voor de beheerder (uit: Open live UI-inspector in ONS werkt niet)'
 };
 let saved = clone(DEFAULTS);   // huidige configuratie in het scherm
 let committed = clone(DEFAULTS); // laatst opgeslagen configuratie; basis voor pagina-annulering
@@ -1206,15 +1117,8 @@ function showSettingsPage(id, updateHash) {
   if(id==='simulator')setTimeout(runSimulator,0);if(id==='configcontrole')setTimeout(()=>runConfigAudit(false),0);if(id==='historie')setTimeout(renderHistory,0);
   if(id==='zelftest')setTimeout(fillDomCheckArea,0);
   if(id==='publiceren')setTimeout(toonPublishDiff,0);
-  if(id==='inspectorinfo')setTimeout(renderInspectorInfo,0);
 }
 
-// Opent ONS met de vlag #ons-ui-inspector; het content-script van de extensie
-// herkent die vlag en opent daar de live UI-inspector.
-function openLiveInspector(){
-  try{ window.open('https://impegno.onsagenda.nl/#ons-ui-inspector','_blank','noopener'); }
-  catch(e){ location.href='https://impegno.onsagenda.nl/#ons-ui-inspector'; }
-}
 // Leesbare namen voor de override-sleutels uit ui-selectors.json.
 const UI_SELECTOR_LABELS = {
   modalPanelSelector:'Afspraakmodal', uursoortFieldSelector:'Uursoort-veld (afspraak)', etiketFieldSelector:'Labels-veld (afspraak)',
@@ -1408,35 +1312,6 @@ function parseXlsxFirstColumn(bytes) {
 }
 function _xmlDecode(s) { return String(s).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&amp;/g, '&'); }
 
-// Uitlegtabel: element → proces → symptoom bij ontbreken. 'H' = herstelbaar
-// (dynamisch opgezocht + centraal overschrijfbaar via ui-selectors.json).
-const INSPECTOR_INFO=[
-  ['Agenda','Dagkolom / Afspraak-blok','Herkent dagen en afspraken om de dagindeling in te kleuren en op vrije dagen te grijzen.','Geen kleuren of grijstinten in de agenda; dagindeling blijft standaard.',''],
-  ['Agenda','Afspraak-titel / Label met title','Leest titels en labels van afspraken om te bepalen welke kleur/behandeling hoort.','Afspraken krijgen verkeerde of geen kleur; labelherkenning valt weg.',''],
-  ['Afspraak','Modal / dialog','Ankerpunt: alle afspraakvelden worden binnen dit paneel gezocht.','De afspraakhulp start niet; niets wordt ingevuld in het afspraakformulier.','H'],
-  ['Afspraak','Uursoort-veld','Zet automatisch de juiste uursoort per cliënt/keuze.','Uursoort wordt niet gezet; gebruiker moet handmatig kiezen.','H'],
-  ['Afspraak','Labels-veld','Zet automatisch het juiste label (etiket) op de afspraak.','Label wordt niet gezet; afspraak mist de vereiste labelmarkering.','H'],
-  ['Afspraak','Toevoegen-knop / Cliëntlijst / Cliëntnaam','Herkent de “Toevoegen”-knop, genodigden en of cliënten aanwezig zijn.','Cliëntgebonden logica werkt niet; verkeerde keuzes worden aangeboden.',''],
-  ['Afspraak','Datum- / Tijd- / Titelveld','Leest datum, begin-/eindtijd en titel om te bepalen wanneer verder gevuld mag worden.','Hulp wacht eindeloos of vult te vroeg; duur/uursoort wordt niet bepaald.',''],
-  ['Afspraak','Opslaan / submit','Detecteert of de afspraak opgeslagen kan worden.','Afrondingsstap herkent niet dat alles klaar is.',''],
-  ['Registratie','Cliënt-formulier','Ankerpunt per cliënt: registratievelden worden hierbinnen gezocht.','Registratiehulp start niet voor die cliënt.',''],
-  ['Registratie','Uursoort-veld','Zet de registratie-uursoort (bv. Behandeling GGZ 18+).','Uursoort niet gezet; melding “Uursoort gezet voor …” blijft uit.',''],
-  ['Registratie','Directe / Indirecte tijd','Vult de verdeling directe/indirecte tijd.','Tijdverdeling wordt niet ingevuld.',''],
-  ['Registratie','Reistijd heen / terug / toevoegen','Vult reistijd en klapt het reistijdveld open indien nodig.','Reistijd blijft leeg of wordt niet geopend.',''],
-  ['Registratie','Rapportageveld','Zet de begintekst/sjabloon van de rapportage.','Rapportagesjabloon wordt niet voorgevuld.',''],
-  ['Vragenlijst','Survey-titel / Vraag / Vraagtekst','Herkent de vragenlijst en de (verplichte) vragen voor de signaal-/verplichtcontrole.','Verplichte-vraag-controle en signalen werken niet.',''],
-  ['Vragenlijst','Volgende status','Knop om de status door te zetten na invullen.','Statusovergang wordt niet ondersteund.',''],
-];
-function renderInspectorInfo(){
-  const tb=document.getElementById('inspectorInfoRows'); if(!tb) return;
-  tb.innerHTML='';
-  INSPECTOR_INFO.forEach((r)=>{
-    const tr=document.createElement('tr'); tr.style.borderBottom='1px solid #eee'; tr.style.verticalAlign='top';
-    const cells=[r[0],r[1],r[2],r[3], r[4]==='H'?'✔ ja':'—'];
-    cells.forEach((c,i)=>{const td=document.createElement('td'); td.style.padding='6px 8px'; if(i===4){td.style.textAlign='center';td.style.color=r[4]==='H'?'#1e8449':'#999';td.style.fontWeight='700';} td.textContent=c; tr.appendChild(td);});
-    tb.appendChild(tr);
-  });
-}
 function initialSettingsPage(){let id=String(location.hash||'').replace(/^#/,'');if(!id)try{id=localStorage.getItem(SETTINGS_PAGE_KEY)||'';}catch(e){}return id||'afspraaktypes';}
 // Onthoud de laatst opgeslagen config in deze browser, zodat het beheerscherm
 // de volgende keer met de huidige instellingen opent (niet met de standaard).
@@ -1882,220 +1757,6 @@ function readLabelForm() {
   }).filter((x) => x.form && x.contains.length);
 }
 
-// ----- Vragenlijsten -----
-// Vergelijkingen met beschrijving. '<>' = binnen (tussen twee grenzen),
-// '><' = buiten (buiten twee grenzen); die twee gebruiken twee waarden (van-tot).
-const SURVEY_OPS = [
-  ['=',  'Gelijk aan'],
-  ['>',  'Groter dan'],
-  ['<',  'Kleiner dan'],
-  ['>=', 'Groter dan of gelijk aan'],
-  ['<=', 'Kleiner dan of gelijk aan'],
-  ['<>', 'Binnen de grenzen'],
-  ['><', 'Buiten de grenzen'],
-];
-const SURVEY_RANGE_OPS = ['<>', '><'];
-const SURVEY_RULES = [
-  ['vraag_verplicht', 'Vraag verplicht'],
-  ['signaal_tonen', 'Signaal tonen'],
-];
-function surveyRuleSelect(val) {
-  const sel = document.createElement('select'); sel.setAttribute('data-rule', '1');
-  SURVEY_RULES.forEach(([v, txt]) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.appendChild(o); });
-  sel.value = val === 'signaal_tonen' ? 'signaal_tonen' : 'vraag_verplicht';
-  return sel;
-}
-function surveyConditionSelect(val) {
-  const sel = document.createElement('select'); sel.setAttribute('data-condition', '1');
-  [['leeftijd', 'Leeftijd'],['altijd','Altijd']].forEach(([v, txt]) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.appendChild(o); });
-  sel.value = val || 'leeftijd';
-  sel.addEventListener('change', markDirty);
-  return sel;
-}
-function defaultSurveySignal() {
-  return { text:'', html:'', color:'#704b00', bold:true, italic:false, sizePx:13 };
-}
-function normalizeSurveyQuestion(q) {
-  q = q || {};
-  const legacyCondition = q.rule === 'leeftijd';
-  return Object.assign({}, q, {
-    rule: q.rule === 'signaal_tonen' ? 'signaal_tonen' : 'vraag_verplicht',
-    condition: q.condition || (legacyCondition ? q.rule : 'leeftijd'),
-    signal: Object.assign(defaultSurveySignal(), q.signal || {})
-  });
-}
-function numInput(val, role) {
-  const i = document.createElement('input'); i.type = 'number'; i.min = '0'; i.max = '130'; i.value = (val == null || val === '') ? '' : val;
-  i.setAttribute('data-role', role);
-  Object.assign(i.style, { width: '62px', border: '1px solid #ddd', borderRadius: '6px', padding: '4px 5px', font: 'inherit' });
-  i.addEventListener('input', markDirty);
-  return i;
-}
-function _svSpan(txt) { return Object.assign(document.createElement('span'), { textContent: txt, style: 'color:#888' }); }
-function surveyValueCell(op, value, value2) {
-  const wrap = document.createElement('span'); wrap.setAttribute('data-valwrap', '1');
-  wrap.style.cssText = 'display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:center';
-  const build = (o, v, v2) => {
-    wrap.innerHTML = '';
-    if (SURVEY_RANGE_OPS.includes(o)) wrap.append(numInput(v, 'value'), _svSpan('t/m'), numInput(v2, 'value2'), _svSpan('jaar'));
-    else wrap.append(numInput(v, 'value'), _svSpan('jaar'));
-  };
-  build(op, value, value2);
-  // Bij het wisselen van vergelijking: huidige waarden behouden.
-  wrap._apply = (o) => { const cv = wrap.querySelector('[data-role=value]'); const cv2 = wrap.querySelector('[data-role=value2]'); build(o, cv ? cv.value : '', cv2 ? cv2.value : ''); };
-  return wrap;
-}
-function opSelect(val, valWrap) {
-  const sel = document.createElement('select'); sel.setAttribute('data-op', '1');
-  SURVEY_OPS.forEach(([v, txt]) => { const o = document.createElement('option'); o.value = v; o.textContent = txt; sel.appendChild(o); });
-  sel.value = val || '>=';
-  sel.addEventListener('change', () => { if (valWrap && valWrap._apply) valWrap._apply(sel.value); markDirty(); });
-  return sel;
-}
-let surveySignalState = { row:null };
-function surveySignalPreviewText(signal) {
-  const text = String(signal && signal.text || '').replace(/\s+/g, ' ').trim();
-  return text ? (text.length > 54 ? text.slice(0, 51) + '…' : text) : 'Nog geen signaaltekst';
-}
-function surveyConditionSummary(tr) {
-  const condition=tr.querySelector('[data-condition]')?.value||'leeftijd';if(condition==='altijd')return 'altijd';
-  const op=tr.querySelector('[data-op]')?.value||'>=',v=tr.querySelector('[data-role=value]')?.value,v2=tr.querySelector('[data-role=value2]')?.value;
-  if(v==='')return 'Vul eerst een leeftijd in';
-  if(op==='=')return `precies ${v} jaar`;
-  if(op==='>')return `ouder dan ${v} jaar`;
-  if(op==='<')return `jonger dan ${v} jaar`;
-  if(op==='>=')return `${v} jaar en ouder`;
-  if(op==='<=')return `${v} jaar en jonger`;
-  if(op==='<>')return v2!==''?`${v} t/m ${v2} jaar`:'vul ook de tweede grens in';
-  if(op==='><')return v2!==''?`jonger dan ${v} of ouder dan ${v2} jaar`:'vul ook de tweede grens in';
-  return 'onbekende voorwaarde';
-}
-function applySurveyConditionState(tr) {
-  const always=tr.querySelector('[data-condition]')?.value==='altijd',op=tr.querySelector('[data-op]'),wrap=tr.querySelector('[data-valwrap]');
-  const toggle=(node,normalDisplay)=>{if(!node)return;const td=node.parentElement;node.disabled=always;node.style.display=always?'none':normalDisplay;let dash=td.querySelector('[data-always-placeholder]');if(always&&!dash){dash=_svSpan('—');dash.setAttribute('data-always-placeholder','1');dash.title='Niet nodig bij voorwaarde Altijd';td.appendChild(dash);}if(!always&&dash)dash.remove();};
-  toggle(op,'');toggle(wrap,'inline-flex');renderSurveySignalCell(tr);
-}
-function renderSurveySignalCell(tr) {
-  const cellEl = tr.querySelector('[data-signal-cell]');
-  const rule = tr.querySelector('[data-rule]');
-  if (!cellEl || !rule) return;
-  const isSignal = rule.value === 'signaal_tonen';
-  cellEl.innerHTML = '';
-  if (!isSignal) { const dash=_svSpan('—');dash.title='Niet van toepassing';cellEl.appendChild(dash); return; }
-  const wrap = document.createElement('div'); wrap.style.cssText = 'display:flex;flex-direction:column;gap:3px;align-items:flex-start;min-width:160px';
-  const button = document.createElement('button'); button.type = 'button'; button.className = 'knop klein';
-  button.textContent = tr._signal && tr._signal.text ? 'Signaal bewerken' : 'Signaal maken';
-  button.addEventListener('click', () => openSurveySignalDialog(tr));
-  const active=document.createElement('small');active.style.cssText='color:#704b00;font-weight:700;line-height:1.25';active.textContent='Actief bij: '+surveyConditionSummary(tr);
-  const preview = document.createElement('small'); preview.style.cssText = 'color:#777;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-  preview.textContent = surveySignalPreviewText(tr._signal);
-  wrap.append(button,active,preview); cellEl.appendChild(wrap);
-}
-// Eén vraag binnen een vragenlijst (rij in de vragen-tabel).
-function addSurveyQuestion(tb, q) {
-  q = normalizeSurveyQuestion(q || { question:'', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:'' });
-  const tr = document.createElement('tr');
-  tr._signal = clone(q.signal || defaultSurveySignal());
-  const question = txtInput(q.question); question.style.minWidth = '0';
-  const rule = surveyRuleSelect(q.rule);
-  const condition = surveyConditionSelect(q.condition);
-  const valWrap = surveyValueCell(q.op || '>=', q.value, q.value2);
-  const op = opSelect(q.op || '>=', valWrap);
-  const signalCell = cell(document.createTextNode(''), 'center'); signalCell.setAttribute('data-signal-cell', '1');
-  rule.addEventListener('change', () => { renderSurveySignalCell(tr); markDirty(); });
-  condition.addEventListener('change',()=>{applySurveyConditionState(tr);markDirty();});
-  op.addEventListener('change',()=>renderSurveySignalCell(tr));
-  tr.addEventListener('input',(event)=>{if(event.target&&event.target.matches&&event.target.matches('[data-role=value],[data-role=value2]'))renderSurveySignalCell(tr);});
-  tr.append(cell(question), cell(rule, 'center'), cell(condition, 'center'), cell(op, 'center'), cell(valWrap, 'center'), signalCell, cell(rowActions(() => addSurveyQuestion(tb, readSurveyQuestionRow(tr)), () => tr.remove()), 'center'));
-  tb.appendChild(tr);
-  applySurveyConditionState(tr);
-}
-function readSurveyQuestionRow(tr) {
-  const t = tr.querySelector('input[type=text]');
-  const rule = tr.querySelector('select[data-rule]'); const condition = tr.querySelector('select[data-condition]'); const op = tr.querySelector('select[data-op]');
-  const v = tr.querySelector('[data-role=value]'); const v2 = tr.querySelector('[data-role=value2]');
-  const o = { question: t ? t.value.trim() : '', rule: rule ? rule.value : 'vraag_verplicht', condition: condition ? condition.value : 'leeftijd' };
-  if(o.condition==='leeftijd'){o.op=op?op.value:'>=';o.value=v&&v.value!==''?parseInt(v.value,10):'';if(SURVEY_RANGE_OPS.includes(o.op))o.value2=v2&&v2.value!==''?parseInt(v2.value,10):'';}
-  if (o.rule === 'signaal_tonen') o.signal = clone(tr._signal || defaultSurveySignal());
-  return o;
-}
-// Eén vragenlijst = kaart met naam + eigen vragen (gegroepeerd, net als zone-profielen).
-function addSurveyList(name, questions) {
-  name = name || 'Nieuwe vragenlijst';
-  questions = (questions && questions.length) ? questions : [{ question:'', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:'' }];
-  const wrap = document.createElement('div'); wrap.className = 'kaart subkaart'; wrap.style.margin = '0 0 10px'; wrap.dataset.survey = '1';
-  const head = document.createElement('div'); head.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px';
-  const nm = txtInput(name); nm.style.maxWidth = '340px'; nm.style.fontWeight = '700';
-  const table = document.createElement('table'); table.className='survey-table'; table.innerHTML = '<colgroup><col style="width:26%"><col style="width:13%"><col style="width:9%"><col style="width:16%"><col style="width:10%"><col style="width:16%"><col style="width:86px"></colgroup><thead><tr><th>Vraag</th><th class="center">Regel</th><th class="center">Voorwaarde</th><th class="center">Vergelijking</th><th class="center">Waarde</th><th>Signaal</th><th></th></tr></thead><tbody></tbody>';
-  const acties = rowActions(() => {
-    const qs = [...table.querySelectorAll('tbody tr')].map(readSurveyQuestionRow);
-    addSurveyList((nm.value || 'Vragenlijst') + ' (kopie)', qs);
-  }, () => wrap.remove());
-  acties.style.marginLeft = 'auto';
-  const collapse = document.createElement('button'); collapse.type = 'button'; collapse.className = 'knop klein';
-  collapse.textContent = 'Inklappen'; collapse.setAttribute('aria-expanded', 'true');
-  head.append(document.createTextNode('Vragenlijst: '), nm, collapse, acties);
-  const tableWrap=document.createElement('div');tableWrap.className='survey-table-wrap';tableWrap.appendChild(table);
-  wrap.append(head, tableWrap);
-  const btn = document.createElement('button'); btn.className = 'knop klein'; btn.textContent = '+ Vraag'; btn.style.marginTop = '8px';
-  btn.onclick = () => { addSurveyQuestion(table.querySelector('tbody'), { question:'', rule:'vraag_verplicht', condition:'leeftijd', op:'>=', value:'' }); markDirty(); };
-  collapse.onclick = () => {
-    const open = collapse.getAttribute('aria-expanded') === 'true';
-    collapse.setAttribute('aria-expanded', open ? 'false' : 'true');
-    collapse.textContent = open ? 'Uitklappen' : 'Inklappen';
-    tableWrap.hidden = open;
-    btn.hidden = open;
-  };
-  wrap.append(btn);
-  $('#surveyList').appendChild(wrap);
-  questions.forEach((q) => addSurveyQuestion(table.querySelector('tbody'), q));
-}
-function renderSurveys(list) {
-  $('#surveyList').innerHTML = '';
-  (list || []).forEach((s) => {
-    // Achterwaarts compatibel: oude platte regels ({name,question,op,value}) -> één vraag.
-    const questions = Array.isArray(s.questions) ? s.questions : [{ question:s.question, rule:s.rule, condition:s.condition, op:s.op, value:s.value, value2:s.value2, signal:s.signal }];
-    addSurveyList(s.name, questions);
-  });
-}
-function readSurveys() {
-  return [...$('#surveyList').children].map((wrap) => {
-    const nameInput = wrap.querySelector('input[type=text]');
-    const name = nameInput ? nameInput.value.trim() : '';
-    const questions = [...wrap.querySelectorAll('tbody tr')].map(readSurveyQuestionRow).filter((q) => q.question);
-    return { name, questions };
-  }).filter((s) => s.name && s.questions.length);
-}
-// Importeer een ONS-vragenlijst (XML) → laadt de vraagteksten als nieuwe
-// vragenlijst-kaart in, zodat je niets hoeft over te typen. survey-import.js
-// levert de parser (window.OnsSurveyImport).
-function importSurveyXml(event) {
-  const input = event && event.target;
-  const file = input && input.files && input.files[0];
-  const info = document.getElementById('surveyXmlImportInfo');
-  const setInfo = (t, ok) => { if (info) { info.textContent = t; info.style.color = ok === false ? '#b3261e' : '#1b7f3b'; } };
-  if (!file) return;
-  if (!window.OnsSurveyImport || typeof window.OnsSurveyImport.parseSurveyToConfig !== 'function') { setInfo('Import-module (survey-import.js) niet geladen.', false); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const cfg = window.OnsSurveyImport.parseSurveyToConfig(String(reader.result || ''));
-      if (!cfg.questions.length) { setInfo('Geen actieve vragen gevonden in dit bestand.', false); return; }
-      addSurveyList(cfg.name || 'Vragenlijst', cfg.questions);
-      if (typeof markDirty === 'function') markDirty();
-      setInfo('Geïmporteerd: "' + (cfg.name || 'Vragenlijst') + '" met ' + cfg.questions.length + ' vraag/vragen. Stel nu per vraag de regel in.');
-      const last = document.getElementById('surveyList').lastElementChild;
-      if (last && last.scrollIntoView) last.scrollIntoView({ block: 'center' });
-    } catch (e) {
-      setInfo('⚠ ' + (e && e.message ? e.message : 'Kon het bestand niet lezen.'), false);
-    } finally {
-      if (input) input.value = '';
-    }
-  };
-  reader.onerror = () => setInfo('Kon het bestand niet lezen.', false);
-  reader.readAsText(file);
-}
-
 // ----- 3. Registratievormen -----
 function roleInput(val, role) { const i = txtInput(val, role === 'us' ? 'uursoortOptions' : null); i.setAttribute('data-role', role); return i; }
 function startVerdelingCell(startVerdeling) {
@@ -2455,7 +2116,7 @@ function insertRichTag(editor,tag) {
 }
 function richTagBar(editor) {
   const bar=document.createElement('div');bar.className='rich-tagbar';const label=document.createElement('span');label.className='rich-tagbar-label';label.textContent='Tags invoegen:';bar.appendChild(label);
-  const tags=editor&&editor.dataset.key==='survey_signal'?RICH_TEXT_TAGS.concat([['{vraag}','Vraagtekst']]):RICH_TEXT_TAGS;
+  const tags=RICH_TEXT_TAGS;
   tags.forEach(([tag,name])=>{const button=document.createElement('button');button.type='button';button.className='rich-tag';button.textContent=tag;const lbl=`${name} invoegen op de cursorpositie`;button.title=lbl;button.setAttribute('aria-label',lbl);button.addEventListener('mousedown',(event)=>{event.preventDefault();insertRichTag(editor,tag);});bar.appendChild(button);});return bar;
 }
 function plainTextTagBar(control) {
@@ -2540,35 +2201,6 @@ function applyRichHtmlSource() {
   const editor=richHtmlState.editor;if(!editor){closeRichHtmlDialog();return;}const safe=sanitizeManagedHtml($('#richHtmlSource').value);if(!richPlainText(Object.assign(document.createElement('div'),{innerHTML:safe})).trim()){const error=$('#richHtmlError');error.textContent='De HTML bevat geen bruikbare tekst.';error.className='melding fout';return;}
   editor.innerHTML=safe;editor.dispatchEvent(new Event('input',{bubbles:true}));closeRichHtmlDialog();richRememberSelection(editor);
 }
-function openSurveySignalDialog(row) {
-  surveySignalState = { row };
-  const question = row && row.querySelector('input[type=text]');
-  $('#surveySignalQuestion').textContent = question && question.value.trim() ? 'Vraag: ' + question.value.trim() : 'Vul na het bouwen van het signaal ook de vraagtekst in.';
-  const box = $('#surveySignalEditor'); box.innerHTML = '';
-  box.appendChild(textEditor('survey_signal', clone(row && row._signal || defaultSurveySignal()), () => {}));
-  const error = $('#surveySignalError'); error.className = 'melding'; error.textContent = '';
-  const dialog = $('#surveySignalDialog');
-  if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
-  setTimeout(() => { const editor=box.querySelector('[data-key="survey_signal"]'); if(editor)editor.focus(); }, 0);
-}
-function closeSurveySignalDialog() {
-  const dialog = $('#surveySignalDialog');
-  if (dialog.close) dialog.close(); else dialog.removeAttribute('open');
-  surveySignalState = { row:null };
-}
-function saveSurveySignalDialog() {
-  const row = surveySignalState.row, editor = $('#surveySignalEditor [data-key="survey_signal"]');
-  if (!row || !editor) { closeSurveySignalDialog(); return; }
-  const signal = readManagedEditor(editor);
-  if (!signal.text.trim()) {
-    const error = $('#surveySignalError'); error.textContent = 'Vul de tekst van het signaal in.'; error.className = 'melding fout'; return;
-  }
-  row._signal = signal;
-  renderSurveySignalCell(row);
-  markDirty();
-  closeSurveySignalDialog();
-}
-
 // ===== 6-13. Preventief beheer, compatibiliteit en support =====
 function escapeHtmlText(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function textToManaged(value, base) {
@@ -2795,7 +2427,6 @@ function configAudit(cfg) {
   const colors=new Set(Object.keys(cfg.palette||{}));
   Object.keys(cfg.zoneProfiles||{}).forEach((profile)=>{const rows=cfg.zoneProfiles[profile]||[];let prev=null;rows.forEach((r,i)=>{const start=timeMinutes(r.start),end=timeMinutes(r.end);if(start==null||end==null||end<=start)add('fout','Zoneprofielen',`${profile}, regel ${i+1}: ongeldige tijd ${r.start}–${r.end}.`,false);if(prev!=null&&start!=null){if(start<prev)add('fout','Zoneprofielen',`${profile}: zones overlappen bij ${r.start}.`,false);else if(start>prev)add('waarschuwing','Zoneprofielen',`${profile}: gat tussen ${String(Math.floor(prev/60)).padStart(2,'0')}:${String(prev%60).padStart(2,'0')} en ${r.start}.`,false);}if(end!=null)prev=end;if(!colors.has(r.color))add('fout','Zoneprofielen',`${profile}: onbekende kleur “${r.color}”.`,true);});if(!String((cfg.profileSectors||{})[profile]||'').trim())add('fout','Sectoren',`${profile} heeft geen sector.`,true);});
   Object.keys(cfg.texts||{}).forEach((key)=>{const html=String((cfg.texts[key]||{}).html||'');if(/<(?:script|iframe|object|embed|form|input|img|svg)\b/i.test(html)||/\bon\w+\s*=/i.test(html)||/href\s*=\s*["']?(?:javascript|data):/i.test(html))add('fout','Teksten',`${key} bevat niet-toegestane HTML of een onveilige link.`,true);});
-  (cfg.surveys||[]).forEach((survey)=>{(survey.questions||[]).forEach((q,i)=>{const label=`${survey.name||'Vragenlijst'}, vraag ${i+1}`;if(!SURVEY_RULES.some((x)=>x[0]===q.rule))add('fout','Vragenlijsten',`${label}: onbekende regel “${q.rule||''}”.`,false);if(!['leeftijd','altijd'].includes(q.condition))add('fout','Vragenlijsten',`${label}: onbekende voorwaarde “${q.condition||''}”.`,false);if(q.condition==='leeftijd'&&(q.value===''||q.value==null))add('fout','Vragenlijsten',`${label}: leeftijd ontbreekt.`,false);if(q.condition==='leeftijd'&&SURVEY_RANGE_OPS.includes(q.op)&&(q.value2===''||q.value2==null))add('fout','Vragenlijsten',`${label}: tweede leeftijdsgrens ontbreekt.`,false);if(q.rule==='signaal_tonen'){if(!q.signal||!String(q.signal.text||'').trim())add('fout','Vragenlijsten',`${label}: signaaltekst ontbreekt.`,false);else if(sanitizeManagedHtml(q.signal.html||'')!==(q.signal.html||''))add('fout','Vragenlijsten',`${label}: signaal bevat niet-toegestane opmaak of een onveilige link.`,true);}});});
   const compat=cfg.compatibility||{};if(!Number.isInteger(+compat.schemaVersion)||+compat.schemaVersion<1)add('fout','Compatibiliteit','Configuratieschema moet een positief geheel getal zijn.',true);if(!semverParts(compat.minimumExtensionVersion))add('fout','Compatibiliteit',`Ongeldige minimale extensieversie “${compat.minimumExtensionVersion||''}”.`,true);
   Object.keys(FEATURE_META).forEach((k)=>{if(typeof (cfg.features||{})[k]!=='boolean')add('fout','Functies',`Functieschakelaar ${k} ontbreekt.`,true);});
   return issues;
@@ -2812,7 +2443,6 @@ function autoFixConfig() {
   (cfg.registrationForms||[]).forEach((f)=>{if(!parseDistribution(f.startVerdeling))f.startVerdeling='100% direct';if((parseInt(f.eindtijdBeginPlusMin,10)||0)<0)f.eindtijdBeginPlusMin=0;});
   Object.keys(cfg.zoneProfiles||{}).forEach((p)=>{(cfg.zoneProfiles[p]||[]).forEach((r)=>{if(!cfg.palette[r.color])r.color=firstColor;});if(!cfg.profileSectors[p])cfg.profileSectors[p]='Overige';});
   Object.keys(cfg.texts||{}).forEach((k)=>{if(cfg.texts[k]&&cfg.texts[k].html!=null)cfg.texts[k].html=sanitizeManagedHtml(cfg.texts[k].html);});
-  (cfg.surveys||[]).forEach((survey)=>{(survey.questions||[]).forEach((q)=>{if(q.signal&&q.signal.html!=null)q.signal.html=sanitizeManagedHtml(q.signal.html);});});
   cfg.compatibility=Object.assign({},DEFAULTS.compatibility,cfg.compatibility||{});if(!semverParts(cfg.compatibility.minimumExtensionVersion))cfg.compatibility.minimumExtensionVersion=MANAGER_VERSION;cfg.compatibility.schemaVersion=Math.max(1,parseInt(cfg.compatibility.schemaVersion,10)||2);cfg.features=Object.assign({},DEFAULTS.features,cfg.features||{});
   renderAll(cfg);markDirty();runConfigAudit(true);melding('Veilige herstelacties zijn toegepast. Controleer en klik daarna op Opslaan.',true);
 }
@@ -2849,7 +2479,7 @@ function buildConfigFromDOM(options) {
   // Teams zijn nu de sleutels van profileSectors; afspraaktypen/registratievormen
   // koppelen zelf aan teams via 'relevantForTeams'. Geen aparte sector-/team-
   // instellingen en geen labelToForm meer (labels zitten in de registratievorm).
-  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), routesProxy:readRoutesProxy(), surveys:readSurveys(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
+  return { choices:readChoices(), nonClientCategories:readNonClientCategories(), extraKnownLabels:readExtraKnownLabels(), registrationForms:readForms(), palette:readPalette(), profileSectors:zs.profileSectors, zoneProfiles:zs.zoneProfiles, texts:readTexts(), compatibility:readCompatibility(), features:readFeatures(), offices:readOffices(), routesProxy:readRoutesProxy(), generalSettings:readGeneralSettings(), apiEndpoints:readApiEndpoints(), declarabiliteitRules:readDeclarabiliteitRules(), support:readSupport(), activation:readActivation(), uiSelectors:Object.assign({}, uiSelectorsState), uursoortList:uursoortList.slice(), labelList:labelList.slice() };
 }
 function renderAll(cfg) {
   cfg=normalizeConfig(cfg);
@@ -2866,7 +2496,6 @@ function renderAll(cfg) {
   $('#tblNonClientChoices tbody').innerHTML=''; flattenNonClientCategories(_ncCats).forEach(addNonClientChoice); refreshNcCategoryDropdowns();
   // Registratievormen eerst renderen; de label->vorm-dropdowns halen hun opties hieruit.
   $('#tblForms tbody').innerHTML = ''; sortByVolgorde(cfg.registrationForms || []).forEach(addForm);
-  renderSurveys(cfg.surveys);
   $('#tblPalette tbody').innerHTML = ''; Object.keys(_palette).forEach((k) => addColor(k, _palette[k]));
   $('#zones').innerHTML = '';
   const secs = cfg.profileSectors || {};
@@ -2889,7 +2518,7 @@ function save() {
   melding('Wijzigingen opgeslagen.', true);
 }
 const PAGE_CANCEL_KEYS = {
-  afspraaktypes:['choices','nonClientCategories'], registratievormen:['registrationForms'], vragenlijsten:['surveys'], algemeen:['generalSettings'],
+  afspraaktypes:['choices','nonClientCategories'], registratievormen:['registrationForms'], algemeen:['generalSettings'],
   palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'], tekstbeheer:['texts'], compatibiliteit:['compatibility'], functies:['features','offices','routesProxy'],
   sectorinstellingen:['zoneProfiles','profileSectors']
 };
@@ -3448,7 +3077,7 @@ function troubleValidateConfigWiring(contentJs, configInfo, results) {
     'Registratievormen': ['registrationForms','vorm','startVerdeling','uursoort','eindtijdBeginPlusMin','rapportagePrefix','vraagDirecteTijd','vraagIndirecteTijd','vraagReistijd','labels','relevantForTeams','volgorde'],
     'Kleurzones': ['palette','profileSectors','zoneProfiles','start','end','zone','color','fill','legend'],
     'Beheerbare teksten': ['texts','text','html','bold','italic','sizePx'],
-    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','surveyRequired','surveyAudit','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerDirect','routeLink','preload','formViaModel','uiInspector','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerDirect','routeLink','preload','formViaModel','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
     'Teams': ['profileSectors']
   };
   Object.keys(groups).forEach((group) => {
@@ -3937,7 +3566,7 @@ function toggleThema() {
 // ===== Zie code per onderdeel =====
 const SECTION_CONFIG_KEYS = {
   afspraaktypes:['choices'], registratievormen:['registrationForms'],
-  vragenlijsten:['surveys'], algemeen:['generalSettings'], palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'],
+  algemeen:['generalSettings'], palet:['palette'], zoneprofielen:['zoneProfiles','profileSectors'],
   tekstbeheer:['texts'], functies:['features','offices','routesProxy'], compatibiliteit:['compatibility'], sectorinstellingen:['profileSectors']
 };
 function sectionCodeJson(id) {

@@ -31,10 +31,6 @@
     // { state }       toestand van de Agendahulp
     AGENDA_GONE: "ag-gone",
     //                 agenda verlaten
-    SURVEY_STATE: "survey-state",
-    // { state }       toestand van de vragenlijst-checklist
-    SURVEY_GONE: "survey-gone",
-    //                 vragenlijst verlaten
     // SP -> CS (naar het gevolgde tabblad)
     AGENDA_GET_STATE: "ag-get-state",
     //  -> { state }
@@ -78,12 +74,8 @@
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
-    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    AGENDA_RANGE_PROGRESS: "ag-range-progress"
     // { kind: 'open'|'productie', done, total } voortgang
-    SURVEY_GET_STATE: "survey-get-state",
-    //  -> { state }
-    SURVEY_OPEN_ITEM: "survey-open-item"
-    // { index }
   };
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
 
@@ -2984,14 +2976,14 @@
       if (!kaart2.contains(e.target)) e.preventDefault();
     });
     doc.body.appendChild(host2);
-    function el3(tag2, stijl, tekst) {
+    function el2(tag2, stijl, tekst) {
       const n = doc.createElement(tag2);
       if (stijl) Object.assign(n.style, stijl);
       if (tekst != null) n.textContent = tekst;
       return n;
     }
     function knop(tekst, hoofd, attr, fn) {
-      const b = el3("button", {
+      const b = el2("button", {
         height: "32px",
         padding: hoofd ? "0 14px" : "0 12px",
         borderRadius: "9px",
@@ -3084,11 +3076,11 @@
       const s = stappen[i];
       kaart2.innerHTML = "";
       kaart2.setAttribute("data-rondleiding-stap", String(i));
-      pijl = el3("div", { position: "absolute", width: "14px", height: "14px", background: "#fff", transform: "rotate(45deg)" });
+      pijl = el2("div", { position: "absolute", width: "14px", height: "14px", background: "#fff", transform: "rotate(45deg)" });
       kaart2.appendChild(pijl);
       const tel = telbaar(), nr = tel.indexOf(s);
       if (!s.vind) {
-        const ic = el3("div", { width: "44px", height: "44px", borderRadius: "12px", background: "#fbe6f2", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px", color: BRAND });
+        const ic = el2("div", { width: "44px", height: "44px", borderRadius: "12px", background: "#fbe6f2", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px", color: BRAND });
         if (opts.icoon) {
           try {
             ic.appendChild(opts.icoon());
@@ -3097,21 +3089,21 @@
         }
         kaart2.appendChild(ic);
       }
-      kaart2.appendChild(el3("div", { fontSize: "11px", fontWeight: "700", color: BRAND }, nr >= 0 ? (opts.stapLabel || "Stap") + " " + (nr + 1) + " van " + tel.length : opts.kop || "Rondleiding"));
-      const kop = el3("div", { fontSize: "15px", fontWeight: "700", margin: "2px 0 4px" }, s.titel);
+      kaart2.appendChild(el2("div", { fontSize: "11px", fontWeight: "700", color: BRAND }, nr >= 0 ? (opts.stapLabel || "Stap") + " " + (nr + 1) + " van " + tel.length : opts.kop || "Rondleiding"));
+      const kop = el2("div", { fontSize: "15px", fontWeight: "700", margin: "2px 0 4px" }, s.titel);
       kop.setAttribute("data-rondleiding-titel", "");
       kaart2.appendChild(kop);
-      kaart2.appendChild(el3("div", { color: "#4b4448" }, s.tekst));
-      const voet = el3("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "14px" });
-      const stip = el3("div", { display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" });
+      kaart2.appendChild(el2("div", { color: "#4b4448" }, s.tekst));
+      const voet = el2("div", { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "14px" });
+      const stip = el2("div", { display: "flex", alignItems: "center", gap: "3px", flexWrap: "wrap" });
       if (nr >= 0) tel.forEach(function(_, k) {
-        stip.appendChild(el3("i", { display: "inline-block", width: k === nr ? "14px" : "5px", height: "5px", borderRadius: "3px", background: k === nr ? BRAND : "#ecd3e1" }));
+        stip.appendChild(el2("i", { display: "inline-block", width: k === nr ? "14px" : "5px", height: "5px", borderRadius: "3px", background: k === nr ? BRAND : "#ecd3e1" }));
       });
       voet.appendChild(stip);
-      const kn = el3("div", { display: "flex", gap: "6px", alignItems: "center", flex: "0 0 auto" });
+      const kn = el2("div", { display: "flex", gap: "6px", alignItems: "center", flex: "0 0 auto" });
       const laatste = i === stappen.length - 1;
       if (i === 0) {
-        const over = el3("button", { border: "0", background: "transparent", color: "#6b6367", font: '600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer", padding: "0 6px" }, "Overslaan");
+        const over = el2("button", { border: "0", background: "transparent", color: "#6b6367", font: '600 12.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer", padding: "0 6px" }, "Overslaan");
         over.type = "button";
         over.setAttribute("data-rondleiding-sluiten", "");
         over.addEventListener("click", function() {
@@ -3128,7 +3120,7 @@
       voet.appendChild(kn);
       kaart2.appendChild(voet);
       if (i > 0 && !laatste) {
-        const dicht = el3("button", { display: "block", margin: "8px auto 0", border: "0", background: "transparent", color: "#8d8589", font: '11.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer" }, "Rondleiding sluiten");
+        const dicht = el2("button", { display: "block", margin: "8px auto 0", border: "0", background: "transparent", color: "#8d8589", font: '11.5px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', cursor: "pointer" }, "Rondleiding sluiten");
         dicht.type = "button";
         dicht.setAttribute("data-rondleiding-sluiten", "");
         dicht.addEventListener("click", function() {
@@ -10047,330 +10039,9 @@
     };
   }
 
-  // src/sidepanel/survey-panel.js
-  var T2 = {
-    ink: "#201d1f",
-    inkSoft: "#6b6367",
-    line: "#ece7e5",
-    lineSoft: "#f6f2f0",
-    brand: "#cc087d",
-    ok: "#1b7f3b",
-    okWash: "#eaf6ee",
-    amber: "#b45309",
-    amberWash: "#fff7d6",
-    amberLine: "#f0b429",
-    amberInk: "#704b00"
-  };
-  var SVG_NS4 = "http://www.w3.org/2000/svg";
-  function el2(tag2, styles, text) {
-    const n = document.createElement(tag2);
-    if (styles) Object.assign(n.style, styles);
-    if (text != null) n.textContent = text;
-    return n;
-  }
-  function focusRing2(node, color) {
-    node.addEventListener("focus", function() {
-      node.style.outline = "2px solid " + (color || T2.brand);
-      node.style.outlineOffset = "2px";
-    });
-    node.addEventListener("blur", function() {
-      node.style.outline = "none";
-    });
-  }
-  function svgStroke(d, w) {
-    const svg = document.createElementNS(SVG_NS4, "svg");
-    svg.setAttribute("viewBox", "0 0 14 14");
-    svg.setAttribute("width", "11");
-    svg.setAttribute("height", "11");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", w || "1.8");
-    svg.setAttribute("stroke-linecap", "round");
-    svg.setAttribute("stroke-linejoin", "round");
-    const p = document.createElementNS(SVG_NS4, "path");
-    p.setAttribute("d", d);
-    svg.appendChild(p);
-    return svg;
-  }
-  var ICON_OK = "M3 7.2l2.6 2.6L11 4";
-  var ICON_LET_OP = "M7 3.6v4.2M7 10.3v.1";
-  function create2(host2, actions) {
-    actions = actions || {};
-    let state = null;
-    const root = el2("div", {
-      background: "#fff",
-      color: T2.ink,
-      font: '400 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-      overflow: "hidden",
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "stretch",
-      height: "100%",
-      width: "100%"
-    });
-    const spine = el2("div", {
-      width: "16px",
-      flex: "0 0 auto",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: "12px 0",
-      userSelect: "none",
-      background: T2.brand
-    });
-    spine.setAttribute("aria-hidden", "true");
-    const spineChip = el2("span", {
-      width: "20px",
-      height: "20px",
-      borderRadius: "50%",
-      background: "rgba(255,255,255,.24)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#fff",
-      flex: "0 0 auto"
-    });
-    spine.appendChild(spineChip);
-    const mainCol = el2("div", {
-      flex: "1 1 auto",
-      minWidth: "0",
-      display: "flex",
-      flexDirection: "column",
-      overflowY: "auto",
-      overflowX: "hidden"
-    });
-    const header = el2("div", {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      background: "#fff",
-      color: T2.ink,
-      padding: "12px",
-      fontWeight: "700",
-      userSelect: "none",
-      borderBottom: "1px solid #f1ecea",
-      flex: "0 0 auto"
-    });
-    const title = el2("span", {
-      flex: "1 1 auto",
-      minWidth: "0",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      fontSize: "15px"
-    }, "Vragenlijst");
-    header.appendChild(title);
-    mainCol.appendChild(header);
-    const body = el2("div", { padding: "12px", flex: "1 1 auto" });
-    mainCol.appendChild(body);
-    root.appendChild(spine);
-    root.appendChild(mainCol);
-    host2.appendChild(root);
-    function tel(s) {
-      const items = s && s.items || [];
-      const open = items.filter(function(i) {
-        return !i.done;
-      }).length;
-      const signalen = s && s.signals || [];
-      return {
-        items,
-        open,
-        klaar: items.length - open,
-        signalen,
-        waarschuwing: s && s.respondentWarning,
-        letOp: signalen.length > 0 || !!(s && s.respondentWarning)
-      };
-    }
-    function paintSpine() {
-      const t = tel(state);
-      const kleur = t.open ? T2.brand : t.letOp ? T2.amber : T2.ok;
-      spine.style.background = kleur;
-      spineChip.innerHTML = "";
-      spineChip.appendChild(svgStroke(t.open || t.letOp ? ICON_LET_OP : ICON_OK, t.open || t.letOp ? "2" : "1.8"));
-    }
-    function paintTitle() {
-      const t = tel(state);
-      if (!state) {
-        title.textContent = "Vragenlijst";
-        return;
-      }
-      if (t.open) {
-        title.textContent = "Nog " + t.open + " van " + t.items.length + " verplichte " + (t.items.length === 1 ? "vraag" : "vragen");
-      } else if (t.signalen.length) {
-        title.textContent = t.signalen.length + " " + (t.signalen.length === 1 ? "signaal" : "signalen");
-      } else if (t.waarschuwing) {
-        title.textContent = "Controleer cliënttevredenheid";
-      } else {
-        title.textContent = t.items.length ? "Alle " + t.klaar + " verplichte vragen ingevuld" : "Alle verplichte vragen ingevuld";
-      }
-    }
-    function meldkader(tekst, rol) {
-      const box = el2("div", {
-        margin: "4px 0 10px",
-        padding: "10px 11px",
-        borderRadius: "7px",
-        border: "1px solid " + T2.amberLine,
-        background: T2.amberWash,
-        color: T2.amberInk,
-        fontWeight: "600",
-        lineHeight: "1.4",
-        fontSize: "13px"
-      }, tekst);
-      if (rol) box.setAttribute("role", rol);
-      return box;
-    }
-    function render() {
-      paintSpine();
-      paintTitle();
-      body.innerHTML = "";
-      if (!state) {
-        body.appendChild(el2(
-          "div",
-          { fontSize: "12px", color: T2.inkSoft, lineHeight: "1.45" },
-          "Geen vragenlijst open. Open in ONS een cliëntvragenlijst; de checklist verschijnt hier dan vanzelf."
-        ));
-        return;
-      }
-      const t = tel(state);
-      t.signalen.forEach(function(s) {
-        const box = meldkader("", "alert");
-        box.textContent = "";
-        box.appendChild(el2("div", {
-          marginBottom: "4px",
-          fontSize: "12px",
-          fontWeight: "600",
-          color: T2.amberInk
-        }, s.question || "Signaal"));
-        box.appendChild(el2("div", { fontWeight: "600" }, s.text || ""));
-        body.appendChild(box);
-      });
-      if (t.waarschuwing) body.appendChild(meldkader(t.waarschuwing, "alert"));
-      if (!t.items.length) {
-        body.appendChild(el2("div", {
-          display: "flex",
-          alignItems: "center",
-          gap: "7px",
-          padding: "8px 10px",
-          borderRadius: "10px",
-          background: T2.okWash,
-          color: T2.ok,
-          fontSize: "13px",
-          fontWeight: "600"
-        }, "Geen verplichte vragen gevonden."));
-        return;
-      }
-      const groepen = [];
-      const index = {};
-      t.items.forEach(function(item, i) {
-        const key = item.category + "||" + item.group;
-        if (!index[key]) {
-          index[key] = { category: item.category, group: item.group, items: [] };
-          groepen.push(index[key]);
-        }
-        index[key].items.push({ item, i });
-      });
-      groepen.forEach(function(g) {
-        body.appendChild(el2("div", {
-          fontWeight: "700",
-          fontSize: "13px",
-          color: T2.ink,
-          margin: "12px 0 6px",
-          paddingTop: "12px",
-          borderTop: "1px solid " + T2.line
-        }, g.category === g.group ? g.group : g.category + " > " + g.group));
-        const lijst2 = el2("ul", { listStyle: "none", margin: "0 0 4px", padding: "0" });
-        g.items.forEach(function(rij) {
-          const item = rij.item;
-          const li = el2("li", {
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "8px",
-            padding: "5px 0",
-            borderBottom: "1px solid #f3f3f3"
-          });
-          const onbekend = !!item.unknown && !item.done;
-          const link = document.createElement("a");
-          link.textContent = item.question + (onbekend ? " (niet automatisch te controleren)" : "");
-          if (onbekend) link.title = "Deze verplichte vraag kon niet automatisch worden gecontroleerd. Kijk haar zelf na.";
-          link.setAttribute("role", "button");
-          link.tabIndex = 0;
-          Object.assign(link.style, {
-            flex: "1 1 auto",
-            minWidth: "0",
-            color: item.done ? T2.inkSoft : onbekend ? T2.amberInk : T2.brand,
-            textDecoration: item.done ? "line-through" : "none",
-            fontWeight: item.done ? "400" : "600",
-            cursor: "pointer",
-            fontSize: "13px"
-          });
-          link.addEventListener("mouseenter", function() {
-            if (!item.done) link.style.textDecoration = "underline";
-          });
-          link.addEventListener("mouseleave", function() {
-            if (!item.done) link.style.textDecoration = "none";
-          });
-          const ga = function() {
-            if (actions.onOpenItem) actions.onOpenItem(rij.i);
-          };
-          link.addEventListener("click", function(e) {
-            e.preventDefault();
-            ga();
-          });
-          link.addEventListener("keydown", function(e) {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              ga();
-              return;
-            }
-            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-              e.preventDefault();
-              const links = Array.prototype.slice.call(body.querySelectorAll('a[tabindex="0"]'));
-              const k = links.indexOf(link);
-              const next = links[k + (e.key === "ArrowDown" ? 1 : -1)];
-              if (next) next.focus();
-            }
-          });
-          focusRing2(link);
-          const mark = el2("span", item.done || onbekend ? {
-            flex: "0 0 auto",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: "1px",
-            width: "18px",
-            height: "18px",
-            borderRadius: "999px",
-            background: item.done ? T2.ok : T2.amber,
-            color: "#fff",
-            fontWeight: "700",
-            fontSize: "11px",
-            lineHeight: "1"
-          } : { display: "none" }, item.done ? "✓" : onbekend ? "?" : "");
-          mark.setAttribute("aria-label", item.done ? "Ingevuld" : onbekend ? "Niet te controleren" : "Nog niet ingevuld");
-          li.appendChild(link);
-          li.appendChild(mark);
-          lijst2.appendChild(li);
-        });
-        body.appendChild(lijst2);
-      });
-    }
-    paintSpine();
-    render();
-    return {
-      update: function(next) {
-        state = next || null;
-        render();
-      },
-      destroy: function() {
-        if (root.parentNode) root.parentNode.removeChild(root);
-      }
-    };
-  }
-
   // src/sidepanel/index.js
   var NIETS_KOP = "Niets om te tonen";
-  var NIETS_TEKST = "Ga in ONS naar de agenda of open een cliëntvragenlijst; het paneel vult zich dan vanzelf.";
+  var NIETS_TEKST = "Ga in ONS naar de agenda; het paneel vult zich dan vanzelf.";
   var host = document.getElementById("paneel");
   var huidig = null;
   var onsTabId = null;
@@ -10486,16 +10157,10 @@
       vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb);
     }
   };
-  var vragenlijstActies = {
-    onOpenItem: function(index) {
-      naarTab({ type: MSG.SURVEY_OPEN_ITEM, index });
-    }
-  };
   function toon(soort, state) {
     if (!huidig || huidig.soort !== soort) {
       leeg();
-      const paneel = soort === "vragenlijst" ? create2(host, vragenlijstActies) : create(host, agendaActies);
-      huidig = { soort, paneel };
+      huidig = { soort, paneel: create(host, agendaActies) };
     }
     huidig.paneel.update(state);
   }
@@ -10526,20 +10191,13 @@
     if (onsTabId != null && onsTabId !== tabId) meldStand(onsTabId, false);
     onsTabId = tabId;
     meldStand(tabId, true);
-    chrome.tabs.sendMessage(tabId, { type: MSG.SURVEY_GET_STATE }, function(res) {
+    chrome.tabs.sendMessage(tabId, { type: MSG.AGENDA_GET_STATE }, function(res) {
       void chrome.runtime.lastError;
       if (res && res.state) {
-        toon("vragenlijst", res.state);
+        toon("agenda", res.state);
         return;
       }
-      chrome.tabs.sendMessage(tabId, { type: MSG.AGENDA_GET_STATE }, function(res2) {
-        void chrome.runtime.lastError;
-        if (res2 && res2.state) {
-          toon("agenda", res2.state);
-          return;
-        }
-        if (!huidig) toonMelding(NIETS_KOP, NIETS_TEKST);
-      });
+      if (!huidig) toonMelding(NIETS_KOP, NIETS_TEKST);
     });
   }
   function zoekOnsTab() {
@@ -10551,7 +10209,7 @@
           onsTabId = null;
           toonMelding(
             "Geen ONS-scherm open",
-            "Open ONS in een tabblad; de Agendahulp of de vragenlijst-checklist verschijnt hier dan vanzelf."
+            "Open ONS in een tabblad; de Agendahulp verschijnt hier dan vanzelf."
           );
           return;
         }
@@ -10576,11 +10234,7 @@
       }
       return;
     }
-    if (msg.type === MSG.SURVEY_STATE || msg.type === MSG.AGENDA_STATE) annuleerSluiten();
-    if (msg.type === MSG.SURVEY_STATE && msg.state) {
-      toon("vragenlijst", msg.state);
-      return;
-    }
+    if (msg.type === MSG.AGENDA_STATE) annuleerSluiten();
     if (msg.type === MSG.AGENDA_DUPLICATES_DONE) {
       if (huidig && huidig.soort === "agenda" && huidig.paneel.setDuplicates) huidig.paneel.setDuplicates(msg);
       return;
@@ -10590,18 +10244,10 @@
       return;
     }
     if (msg.type === MSG.AGENDA_STATE && msg.state) {
-      if (huidig && huidig.soort === "vragenlijst") return;
       toon("agenda", msg.state);
       return;
     }
-    if (msg.type === MSG.SURVEY_GONE) {
-      if (huidig && huidig.soort === "vragenlijst") {
-        leeg();
-        naNavigatie(sender && sender.tab);
-      }
-      return;
-    }
-    if (msg.type === MSG.AGENDA_GONE && (!huidig || huidig.soort === "agenda")) {
+    if (msg.type === MSG.AGENDA_GONE) {
       toonMelding(NIETS_KOP, NIETS_TEKST);
       naNavigatie(sender && sender.tab);
     }
@@ -10646,20 +10292,16 @@
     let leegAchterElkaar = 0;
     const kijk = function() {
       sluitTimer = null;
-      chrome.tabs.sendMessage(tab.id, { type: MSG.SURVEY_GET_STATE }, function(res) {
+      chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function(res) {
         void chrome.runtime.lastError;
         if (res && res.state) return;
-        chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function(res2) {
-          void chrome.runtime.lastError;
-          if (res2 && res2.state) return;
-          if (res2 && typeof res2 === "object") leegAchterElkaar++;
-          else leegAchterElkaar = 0;
-          if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) {
-            sluitZijpaneel();
-            return;
-          }
-          sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
-        });
+        if (res && typeof res === "object") leegAchterElkaar++;
+        else leegAchterElkaar = 0;
+        if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) {
+          sluitZijpaneel();
+          return;
+        }
+        sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
       });
     };
     sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);

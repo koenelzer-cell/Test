@@ -11,11 +11,9 @@ invullen versnelt/controleert:
 - **Afspraakhulp** — vult titel, label, uursoort per cliënt en duur in op het
   afspraakscherm.
 - **Registratiehulp** — ondersteunt het registratieformulier.
-- **Vragenlijst-checklist** — controleert op het ONS-dossier of verplichte
-  vragen (o.a. JG Outcome) zijn ingevuld en toont een checklist.
 - **Gekleurde dagindeling** — visuele opmaak van de agenda, met de
   ongeregistreerde tijd per dag (ook als getal op het extensie-icoon).
-- **Zijpaneel** — toont de Agendahulp of de vragenlijst-checklist naast ONS.
+- **Zijpaneel** — toont de Agendahulp naast ONS.
 - **Herinnering** (standaard uit) — wekelijkse melding als er nog tijd openstaat.
 - **Verlof aanvragen** — knop rechtsonder in de agenda: legt verlof als
   onbeschikbaarheid vast in de ONS-agenda en opent daarna AFAS in een nieuw
@@ -56,7 +54,7 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 
 ## Gegevens
 - **Wat wordt gelezen:** velden die zichtbaar in de ONS-UI staan — o.a.
-  cliëntnaam en (voor de leeftijdstak van de vragenlijst) leeftijd/geboortedatum.
+  cliëntnaam.
   Dit gebeurt in het geheugen van de pagina, om de hulp te laten werken.
 - **API-responses van ONS** worden direct teruggebracht tot neutrale velden
   (tijden, uursoortnaam, afspraaklabel, aantal cliënten). Namen, BSN,
@@ -133,10 +131,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     alleen teruggestuurd naar dezelfde ONS-omgeving.
 - **Opslag:**
   - `sessionStorage` van de ONS-pagina (weg bij het sluiten van het tabblad):
-    checklist-status van de vragenlijst, tijdelijke audit-cache, de
-    registratievorm bij "Registreren" vanuit een afspraak (registratie-id,
+    de registratievorm bij "Registreren" vanuit een afspraak (registratie-id,
     vorm, label, tijden — geen cliëntgegevens).
-  - `localStorage` van de ONS-pagina: aan/uit-schakelaars en paneelbreedte.
+  - `localStorage` van de ONS-pagina: aan/uit-schakelaars.
   - `chrome.storage.local`: voorkeuren, de lijst registratievormen voor het
     menu, en een *momentopname* van de week voor de herinnering — uitsluitend
     getallen en datums (afgedwongen in `src/background/snapshot.js`, getest).
@@ -145,13 +142,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - **Berichten binnen de extensie:** het zijpaneel krijgt van de agendapagina de
   lijst nog te registreren afspraken, met de afspraaktitel zoals ONS die toont
   (die kan een voornaam bevatten). Dit bericht blijft binnen de extensie en
-  wordt niet opgeslagen. De vragenlijst stuurt alleen vraagteksten en
-  statussen naar het zijpaneel.
-- **Bewaartermijn:** checklist-status vervalt na 4 uur; audit-cache na 30 min;
-  een onthouden registratievorm na 10 minuten.
-- **Logging:** het content-script logt niets naar de console; de
-  vragenlijstcontrole logt bij een fout alleen een vaste omschrijving en de
-  foutmelding, nooit gegevens uit het dossier.
+  wordt niet opgeslagen.
+- **Bewaartermijn:** een onthouden registratievorm vervalt na 10 minuten.
+- **Logging:** het content-script logt niets naar de console.
 
 ## Netwerk
 - De extensie stuurt **geen** gegevens naar externe servers. Geen tracking,
@@ -160,8 +153,7 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   (`credentials: same-origin`, de bestaande sessie van de medewerker): week- en
   registratiegegevens van de eigen agenda, afspraakdetails (alleen het label
   wordt gelezen), cliënt zoeken op naam (om de interne id te vinden),
-  toegestane uursoorten (`product_selection`), en — in de vragenlijstmodule —
-  de andere categorieën van de huidige vragenlijst. Het volledige overzicht staat
+  en toegestane uursoorten (`product_selection`). Het volledige overzicht staat
   in `docs/ARCHITECTURE.md` (ONS-API).
 - **Schrijven:** alleen bij 'Verlof aanvragen', na bevestiging door de
   medewerker: één `POST /calendar/unavailabilities` met dezelfde velden als ONS
@@ -211,19 +203,17 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - **HTML-injectie (`innerHTML`) en sanitizing:** de meeste `innerHTML`-toewijzingen
   maken alleen eigen UI leeg (`= ''`). Waar wél opmaak wordt getoond, gaat die
   door een allowlist-sanitizer:
-  - Beheerbare rich-text (`texts[].html`) en vragenlijstmeldingen →
+  - Beheerbare rich-text (`texts[].html`) →
     `veiligeHtml` (`src/shared/veilige-html.js`, DOMPurify): alleen een vaste
     lijst opmaaktags, geen scripts, event-attributen, SVG/MathML of
     `javascript:`; links alleen `https?/mailto/#` (nieuw tabblad,
     `noopener`); van de inline-stijl blijven alleen kleur, achtergrond, vet,
     cursief en onderstreping over (geen `url()`). Het beheerscherm doet
     hetzelfde met `sanitizeManagedHtml`.
-  - HTML die de hulp zelf opbouwt (registratieoverzicht, UI-inspector) gaat
+  - HTML die de hulp zelf opbouwt (registratieoverzicht) gaat
     ook door DOMPurify (`zetHtml`).
   - Het meldingenkanaal tekent uitsluitend met `textContent` (tekst of
     `{ title, items }`); HTML uit een module is daar niet mogelijk.
-  - Geïmporteerde vragenlijst-XML komt uitsluitend in `<input>`-velden
-    (`value`), niet in `innerHTML`.
 - **Main-world brug (postMessage, `src/content/core/page-bridge.js`):**
   berichten worden alleen aangenomen uit hetzelfde venster
   (`event.source === window`) en dezelfde origin (`event.origin ===
@@ -244,11 +234,9 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   De hulp zet geen eigen scripts in de pagina.
 - **URL's uit config** (TOPdesk-meldknop) worden afgedwongen op `^https?://`;
   een `javascript:`-URL valt terug op de standaard.
-- `config.json` en `dist/ui-inspector.js` zijn web-accessible resources met
-  `use_dynamic_url: true`, zodat pagina-scripts ze niet via een raadbare URL
-  kunnen uitlezen (de content-scripts benaderen ze gewoon via
-  `chrome.runtime.getURL`). De UI-inspector staat daar omdat het
-  content-script hem pas met `import()` laadt als de beheerder hem opent.
+- `config.json` is een web-accessible resource met `use_dynamic_url: true`,
+  zodat pagina-scripts hem niet via een raadbare URL kunnen uitlezen (de
+  content-scripts benaderen hem gewoon via `chrome.runtime.getURL`).
 - Defensieve `try/catch` rond DOM-bewerkingen, zodat een fout de ONS-pagina niet
   blokkeert.
 - **Antwoorden van ONS** worden voor gebruik op vorm gecontroleerd (valibot,
@@ -267,11 +255,10 @@ Standaard staat alles aan (fail-open); een vlag op `false` schakelt uit:
 
 | Sleutel | Effect |
 | --- | --- |
-| `enabled` | Hoofdschakelaar (afspraak + registratie + vragenlijst) |
+| `enabled` | Hoofdschakelaar (afspraak + registratie) |
 | `appointmentHelperEnabled` | Afspraakhulp |
 | `registrationHelperEnabled` | Registratiehulp |
-| `surveyHelperEnabled` | Vragenlijst-checklist |
-| `surveyAuditEnabled` | Achtergrond-audit + "Volgende status"-controle |
+| `surveyHelperEnabled`, `surveyAuditEnabled` | Vervallen: de vragenlijsthulp is uit de extensie gehaald; de sleutels doen niets meer |
 | `helperConfig.features.formViaModel` | Invullen via het afspraakmodel van ONS (uit: alleen klikken en typen) |
 
 Zo kan een functie die door een ONS-wijziging breekt direct organisatiebreed
@@ -283,7 +270,7 @@ beheerscherm kan zo uit via `helperConfig.features.<naam>`; zie
 - **Afhankelijkheid van de ONS-DOM:** een ONS-release kan selectors breken.
   Beperk impact met de beheerschakelaars hierboven en een snel patch-proces.
 - **Prestaties:** de extensie observeert de DOM en pollt periodiek (URL 250 ms,
-  agenda-totalen 300 ms alleen met focus, vragenlijst 1,2 s); meet dit
+  agenda-totalen 300 ms alleen met focus); meet dit
   eenmalig op een gemiddelde werkplek. Overzicht in `docs/ARCHITECTURE.md`.
 - **Leverancier:** informeer ONS/Nedap over het gebruik, omdat de extensie de
   UI van hun product aanvult.

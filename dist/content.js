@@ -2315,10 +2315,6 @@
   var LOCAL = {
     TEST_CONFIG: "onsHelperConfig",
     // lokale testconfiguratie (beheer); wint van config.json
-    UI_OVERRIDES: "onsHelper.uiOverrides",
-    // door de UI-inspector herstelde selectors
-    INSPECTOR_OPEN: "onsHelper.inspectorOpen",
-    // UI-inspector blijft open bij paginawissel
     SNAPSHOT: "onsHelper.snapshot",
     // laatste weekstand (service worker; alleen getallen)
     REMINDER_SETTINGS: "onsHelper.reminders",
@@ -2333,8 +2329,6 @@
     // afspraak-/registratiehulp aan/uit ('1'/'0')
     GREY_ENABLED: "onsHelper.greyEnabled",
     // gekleurde dagindeling aan/uit ('1'/'0')
-    SURVEY_PANEL_WIDTH: "onsHelper.surveyPanelWidth",
-    // breedte vragenlijstpaneel (px)
     EVENT_META_TEMPLATE: "onsHelper.eventMetaTemplate",
     // instellingen van het afspraakformulier (alleen ja/nee en getallen)
     EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
@@ -2347,13 +2341,6 @@
     // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
     PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
     // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
-    PENDING_SURVEY_QUESTION: "onsHelper.pendingSurveyQuestion",
-    SURVEY_CHECKLIST: "onsHelper.surveyChecklist",
-    SURVEY_CATEGORY_URLS: "onsHelper.surveyCategoryUrls.",
-    // + resultaat-id
-    SURVEY_AUDIT_CACHE: "onsHelper.surveyCategoryAuditCache",
-    SURVEY_AUDIT_RESUME: "onsHelper.surveyAuditResume",
-    SURVEY_MANUAL_AGE: "onsHelper.surveyManualAge",
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };
@@ -2752,7 +2739,7 @@
       doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
     },
     compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, surveyRequired: true, surveyAudit: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true, uiInspector: true },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true },
     nonClientCategories: [],
     // Eigen server voor rijtijden over de weg (Google Routes API; zie
     // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
@@ -2818,9 +2805,8 @@
     // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
     // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
     activation: { appointmentNeedle: "/events/new", registrationNeedle: "/registrations", domains: [] },
-    // Centraal (beheerscherm) herstelde UI-selectors — geëxporteerd door de
-    // UI-inspector en gepubliceerd in config.json, zodat correcties voor ALLE
-    // gebruikers gelden i.p.v. alleen op één testapparaat.
+    // Centraal (beheerscherm) herstelde UI-selectors, gepubliceerd in
+    // config.json, zodat een correctie voor alle gebruikers geldt.
     uiSelectors: {}
   };
   var NONCLIENT_CATEGORIES = [
@@ -3397,10 +3383,6 @@
     // { state }       toestand van de Agendahulp
     AGENDA_GONE: "ag-gone",
     //                 agenda verlaten
-    SURVEY_STATE: "survey-state",
-    // { state }       toestand van de vragenlijst-checklist
-    SURVEY_GONE: "survey-gone",
-    //                 vragenlijst verlaten
     // SP -> CS (naar het gevolgde tabblad)
     AGENDA_GET_STATE: "ag-get-state",
     //  -> { state }
@@ -3444,12 +3426,8 @@
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
-    AGENDA_RANGE_PROGRESS: "ag-range-progress",
+    AGENDA_RANGE_PROGRESS: "ag-range-progress"
     // { kind: 'open'|'productie', done, total } voortgang
-    SURVEY_GET_STATE: "survey-get-state",
-    //  -> { state }
-    SURVEY_OPEN_ITEM: "survey-open-item"
-    // { index }
   };
   var PAGE_BRIDGE = {
     MARKER: "__onsah",
@@ -4397,8 +4375,6 @@
 
   // src/content/ons/selector-overrides.js
   var UI_OVERRIDES = {};
-  var CONFIG_UI_SELECTORS = {};
-  var LOCAL_UI_SELECTORS = {};
   function _pickStringSelectors(u) {
     const out = {};
     if (u && typeof u === "object") {
@@ -4433,34 +4409,11 @@
     const map = { agDayColumn: "dayColumn", agDayCell: "dayColumnCell", agOccurrence: "occurrenceBase", agOccurrenceTitle: "occurrenceTitle", agApptTitle: "appointmentTitle", agLabelTitle: "labelWithTitle", agPopover: "popoverRoot", agPopoverLabel: "popoverLabelTag", agDeclare: "declareTrigger" };
     for (const key in map) if (UI_OVERRIDES[key]) ONS[map[key]] = UI_OVERRIDES[key];
   }
-  function recomputeUiOverrides() {
+  function seedUiOverridesFromConfig() {
     for (const k in UI_OVERRIDES) delete UI_OVERRIDES[k];
-    Object.assign(UI_OVERRIDES, CONFIG_UI_SELECTORS, LOCAL_UI_SELECTORS);
+    Object.assign(UI_OVERRIDES, _pickStringSelectors(APP_CONFIG.uiSelectors));
     applyCentralUiSelectors();
     applyAgendaSelectorOverrides();
-  }
-  function seedUiOverridesFromConfig() {
-    CONFIG_UI_SELECTORS = _pickStringSelectors(APP_CONFIG.uiSelectors);
-    recomputeUiOverrides();
-  }
-  function watchLocalUiOverrides() {
-    try {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        const applyUiOverrides = (o) => {
-          LOCAL_UI_SELECTORS = _pickStringSelectors(o);
-          recomputeUiOverrides();
-        };
-        chrome.storage.local.get([LOCAL.UI_OVERRIDES], (res) => {
-          applyUiOverrides(res && res[LOCAL.UI_OVERRIDES]);
-        });
-        if (chrome.storage.onChanged) {
-          chrome.storage.onChanged.addListener((changes, area2) => {
-            if (area2 === "local" && changes[LOCAL.UI_OVERRIDES]) applyUiOverrides(changes[LOCAL.UI_OVERRIDES].newValue);
-          });
-        }
-      }
-    } catch (e) {
-    }
   }
 
   // src/content/ons/time-input.js
@@ -15841,8 +15794,8 @@
   }
   function select2SearchInputForHourType(resultsRoot) {
     if (!resultsRoot || !/hour_type_id-results/.test(resultsRoot.id || "")) return null;
-    const open2 = resultsRoot.closest(".select2-container--open") || document;
-    return deepQueryAll("input.select2-search__field", open2).find((inp) => visible(inp) && !isOwnPopup(inp)) || null;
+    const open = resultsRoot.closest(".select2-container--open") || document;
+    return deepQueryAll("input.select2-search__field", open).find((inp) => visible(inp) && !isOwnPopup(inp)) || null;
   }
   function visibleSelect2Options(resultsRoot) {
     const out = [];
@@ -18643,9 +18596,9 @@
     } catch (e) {
     }
   }
-  function setSidePanelOpen(open2) {
-    if (agendaPage.sidePanelOpen === !!open2) return;
-    agendaPage.sidePanelOpen = !!open2;
+  function setSidePanelOpen(open) {
+    if (agendaPage.sidePanelOpen === !!open) return;
+    agendaPage.sidePanelOpen = !!open;
     if (agendaPage.sidePanelOpen) {
       agendaPage._agStateSig = "";
       safe(function() {
@@ -19215,31 +19168,6 @@
     } else {
       syncAgendaPage();
     }
-  }
-
-  // src/content/features/ui-inspector.js
-  function gevraagdInAdres() {
-    return /ons-?ui-?inspector/i.test(location.hash) || /[?&]onsInspector=1/i.test(location.search);
-  }
-  function haalVlagWeg() {
-    history.replaceState(null, "", location.href.replace(/#.*$/, "").replace(/([?&])onsInspector=1/i, "$1").replace(/[?&]$/, ""));
-  }
-  function open() {
-    import(chrome.runtime.getURL("dist/ui-inspector.js")).then((inspector) => inspector.openInspector()).catch((e) => console.warn("ONS Agendahulp: de UI-inspector laadt niet.", e));
-  }
-  function startUiInspector() {
-    if (window.top !== window.self) return;
-    if (APP_CONFIG.features && APP_CONFIG.features.uiInspector === false) return;
-    const uitAdres = () => {
-      if (!gevraagdInAdres()) return;
-      haalVlagWeg();
-      open();
-    };
-    window.addEventListener("hashchange", uitAdres);
-    wachtTot(gevraagdInAdres, { max: 1e4 }).then(uitAdres);
-    chrome.storage.local.get([LOCAL.INSPECTOR_OPEN], (r) => {
-      if (r && r[LOCAL.INSPECTOR_OPEN]) open();
-    });
   }
 
   // src/shared/losgekoppeld.js
@@ -19924,7 +19852,6 @@
   watchConfigChanges();
   var HELPER_CONFIG_READY = startConfigLoading();
   seedUiOverridesFromConfig();
-  watchLocalUiOverrides();
   installFreeDayTracking();
   installPanelDragListeners();
   installUrlWatch();
@@ -19937,7 +19864,6 @@
   installDeclareClickCapture();
   startDayColoring();
   registerQualityModule();
-  HELPER_CONFIG_READY.then(startUiInspector);
   bewaakVerbinding();
 })();
 /*! Bundled license information:

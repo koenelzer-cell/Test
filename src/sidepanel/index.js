@@ -1,28 +1,20 @@
-// Het zijpaneel.
+// Het zijpaneel: de Agendahulp (agenda-panel.js) op de agendaschermen.
 //
-// Twee panelen delen deze plek:
-//   - de Agendahulp   (agenda-panel.js)  op de agendaschermen;
-//   - de Vragenlijst  (survey-panel.js)  op een cliëntvragenlijst.
-//
-// Welke je ziet volgt de pagina waar je bent: het content-script dat iets te
-// melden heeft, zendt zijn toestand uit en dit bestand wisselt daarop. Er is
-// dus geen keuzemenu — je krijgt wat bij het scherm hoort.
-//
-// De panelen zelf tekenen; dit bestand doet alleen de koppeling. Klikken gaan
-// terug naar het betreffende content-script, want alleen dat kan de ONS-pagina
-// lezen en aansturen.
+// Het content-script van de ONS-pagina zendt zijn toestand uit; dit bestand
+// geeft die door aan het paneel. Het paneel tekent zelf; dit bestand doet
+// alleen de koppeling. Klikken gaan terug naar het content-script, want alleen
+// dat kan de ONS-pagina lezen en aansturen.
 
 import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { ONS_URL_PATTERNS, isOnsUrl } from '../shared/ons-hosts.js';
 import { create as createAgendaPanel } from './agenda-panel.js';
 import { formulierTitel } from './bewaard.js';
-import { create as createSurveyPanel } from './survey-panel.js';
 
 const NIETS_KOP = 'Niets om te tonen';
-const NIETS_TEKST = 'Ga in ONS naar de agenda of open een cliëntvragenlijst; het paneel vult zich dan vanzelf.';
+const NIETS_TEKST = 'Ga in ONS naar de agenda; het paneel vult zich dan vanzelf.';
 
 const host = document.getElementById('paneel');
-let huidig = null;        // { soort: 'agenda' | 'vragenlijst', paneel }
+let huidig = null;        // { soort: 'agenda', paneel }
 let onsTabId = null;
 
 function leeg() {
@@ -94,19 +86,12 @@ const agendaActies = {
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
 };
 
-const vragenlijstActies = {
-  onOpenItem: function (index) { naarTab({ type: MSG.SURVEY_OPEN_ITEM, index: index }); },
-};
-
-// Wisselen van paneel bouwt opnieuw op; binnen hetzelfde paneel is het een
-// gewone update, zodat in/uitklappen en scrollpositie blijven staan.
+// De eerste keer bouwt het paneel op; daarna is het een gewone update, zodat
+// in/uitklappen en scrollpositie blijven staan.
 function toon(soort, state) {
   if (!huidig || huidig.soort !== soort) {
     leeg();
-    const paneel = (soort === 'vragenlijst')
-      ? createSurveyPanel(host, vragenlijstActies)
-      : createAgendaPanel(host, agendaActies);
-    huidig = { soort: soort, paneel: paneel };
+    huidig = { soort: soort, paneel: createAgendaPanel(host, agendaActies) };
   }
   huidig.paneel.update(state);
 }
@@ -138,15 +123,10 @@ function vraagToestand(tabId) {
   if (onsTabId != null && onsTabId !== tabId) meldStand(onsTabId, false);
   onsTabId = tabId;
   meldStand(tabId, true);
-  // Eerst de vragenlijst: sta je op een vragenlijst, dan is dát wat je wilt zien.
-  chrome.tabs.sendMessage(tabId, { type: MSG.SURVEY_GET_STATE }, function (res) {
+  chrome.tabs.sendMessage(tabId, { type: MSG.AGENDA_GET_STATE }, function (res) {
     void chrome.runtime.lastError;
-    if (res && res.state) { toon('vragenlijst', res.state); return; }
-    chrome.tabs.sendMessage(tabId, { type: MSG.AGENDA_GET_STATE }, function (res2) {
-      void chrome.runtime.lastError;
-      if (res2 && res2.state) { toon('agenda', res2.state); return; }
-      if (!huidig) toonMelding(NIETS_KOP, NIETS_TEKST);
-    });
+    if (res && res.state) { toon('agenda', res.state); return; }
+    if (!huidig) toonMelding(NIETS_KOP, NIETS_TEKST);
   });
 }
 
@@ -158,7 +138,7 @@ function zoekOnsTab() {
         if (onsTabId != null) meldStand(onsTabId, false);
         onsTabId = null;
         toonMelding('Geen ONS-scherm open',
-          'Open ONS in een tabblad; de Agendahulp of de vragenlijst-checklist verschijnt hier dan vanzelf.');
+          'Open ONS in een tabblad; de Agendahulp verschijnt hier dan vanzelf.');
         return;
       }
       const actief = tabs.find(function (t) { return t.active; });
@@ -184,9 +164,7 @@ function onMessage(msg, sender, sendResponse) {
     try { sendResponse({ title: formulierTitel(String(msg.date || ''), String(msg.time || '')) }); } catch (e) {}
     return;
   }
-  if (msg.type === MSG.SURVEY_STATE || msg.type === MSG.AGENDA_STATE) annuleerSluiten();
-
-  if (msg.type === MSG.SURVEY_STATE && msg.state) { toon('vragenlijst', msg.state); return; }
+  if (msg.type === MSG.AGENDA_STATE) annuleerSluiten();
 
   if (msg.type === MSG.AGENDA_DUPLICATES_DONE) {
     if (huidig && huidig.soort === 'agenda' && huidig.paneel.setDuplicates) huidig.paneel.setDuplicates(msg);
@@ -198,22 +176,13 @@ function onMessage(msg, sender, sendResponse) {
   }
 
   if (msg.type === MSG.AGENDA_STATE && msg.state) {
-    // Een vragenlijst gaat voor: die is specifiek voor dit scherm, terwijl de
-    // Agendahulp op alle ONS-schermen meedraait.
-    if (huidig && huidig.soort === 'vragenlijst') return;
     toon('agenda', msg.state);
     return;
   }
 
-  // De vragenlijst is weg (ander scherm): niet op een oude lijst blijven staan,
-  // maar opnieuw kijken wat dit tabblad nu te bieden heeft.
-  if (msg.type === MSG.SURVEY_GONE) {
-    if (huidig && huidig.soort === 'vragenlijst') { leeg(); naNavigatie(sender && sender.tab); }
-    return;
-  }
   // De agenda is weg (ander scherm in hetzelfde tabblad): kijken of er nog
   // iets te tonen is, anders sluit het paneel.
-  if (msg.type === MSG.AGENDA_GONE && (!huidig || huidig.soort === 'agenda')) {
+  if (msg.type === MSG.AGENDA_GONE) {
     toonMelding(NIETS_KOP, NIETS_TEKST);
     naNavigatie(sender && sender.tab);
   }
@@ -224,7 +193,7 @@ chrome.runtime.onMessage.addListener(onMessage);
 /* ── Automatisch sluiten bij een andere pagina ─────────────────────────── */
 
 // Ga je in het venster van dit zijpaneel naar een andere pagina (ander
-// tabblad, andere site, of een ONS-scherm zonder agenda of vragenlijst), dan
+// tabblad, andere site, of een ONS-scherm zonder agenda), dan
 // sluit het zijpaneel zichzelf. Een ONS-pagina die net laadt krijgt eerst
 // even de tijd om zijn toestand te melden; komt er binnen die tijd niets, dan
 // gaat het paneel dicht. Bij het openen zelf sluiten we nooit: dan zie je de
@@ -254,7 +223,7 @@ function sluitZijpaneel() {
 //  - Ander tabblad of site buiten ONS: het paneel blijft open met een korte
 //    melding. Zo staat het meteen weer klaar als je terugkomt in ONS (Chrome
 //    laat een extensie het paneel niet zelf heropenen).
-//  - ONS-scherm zonder agenda of vragenlijst (bijv. een afspraakformulier):
+//  - ONS-scherm zonder agenda (bijv. een afspraakformulier):
 //    dicht, zodra de pagina antwoordt dat er niets is (meestal binnen ~1 s).
 //    Antwoordt de pagina nog niet (nog aan het laden), dan wachten we tot
 //    SLUIT_NA_MS.
@@ -273,20 +242,16 @@ function naNavigatie(tab) {
   let leegAchterElkaar = 0;
   const kijk = function () {
     sluitTimer = null;
-    chrome.tabs.sendMessage(tab.id, { type: MSG.SURVEY_GET_STATE }, function (res) {
+    chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function (res) {
       void chrome.runtime.lastError;
       if (res && res.state) return;
-      chrome.tabs.sendMessage(tab.id, { type: MSG.AGENDA_GET_STATE }, function (res2) {
-        void chrome.runtime.lastError;
-        if (res2 && res2.state) return;
-        // De agendahulp draait op elk ONS-scherm en antwoordt altijd; zegt hij
-        // twee keer achter elkaar 'niets' (één keer kan een tussenstap bij het
-        // wisselen van scherm zijn), dan dicht. Geen antwoord = nog aan het laden.
-        if (res2 && typeof res2 === 'object') leegAchterElkaar++;
-        else leegAchterElkaar = 0;
-        if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) { sluitZijpaneel(); return; }
-        sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
-      });
+      // De agendahulp draait op elk ONS-scherm en antwoordt altijd; zegt hij
+      // twee keer achter elkaar 'niets' (één keer kan een tussenstap bij het
+      // wisselen van scherm zijn), dan dicht. Geen antwoord = nog aan het laden.
+      if (res && typeof res === 'object') leegAchterElkaar++;
+      else leegAchterElkaar = 0;
+      if (leegAchterElkaar >= 2 || Date.now() - begin >= SLUIT_NA_MS) { sluitZijpaneel(); return; }
+      sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);
     });
   };
   sluitTimer = setTimeout(kijk, KIJK_ELKE_MS);

@@ -11,7 +11,6 @@ manifest.json ──┬─ service worker ........ dist/background.js     ← sr
                 ├─ popup ................. pages/popup.html        ← src/popup/
                 ├─ zijpaneel ............. pages/sidepanel.html    ← src/sidepanel/ (+ React-bundel)
                 └─ content-scripts
-                   ├─ ONS Dossier, alle frames  dist/survey.js        ← src/survey/
                    ├─ ONS-pagina's              dist/react-bundle.js  ← src/react/
                    │                            dist/content.js       ← src/content/
                    ├─ ONS-pagina's              dist/edge-tab.js      ← src/edge-tab/
@@ -39,21 +38,19 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 
 | Onderdeel | Draait in | Taak |
 |---|---|---|
-| `content/` | elke ONS-pagina (geïsoleerde wereld) | de afspraak- en registratiehulp, de gekleurde dagindeling en ongeregistreerde tijd op de agenda, het declarabiliteitspaneel, het meldingenkanaal; laadt de UI-inspector op verzoek |
-| `survey/` | ONS Dossier, **alle frames**, als eerste geladen | vragenlijst-checklist: verplichte (leeftijdsafhankelijke) vragen over alle categorieën, "Volgende status" tegenhouden |
+| `content/` | elke ONS-pagina (geïsoleerde wereld) | de afspraak- en registratiehulp, de gekleurde dagindeling en ongeregistreerde tijd op de agenda, het declarabiliteitspaneel, het meldingenkanaal |
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
 | `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, eigen werktijden, herinnering aan/uit, meldlink |
-| `sidepanel/` | zijpaneel | toont de Agendahulp of de vragenlijst-checklist van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda of vragenlijst |
+| `sidepanel/` | zijpaneel | toont de Agendahulp van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda |
 | `main-world/` | pagina-context van ONS | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, en het medewerker-id uit `onsContext()` lezen |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
-| `ui-inspector/` | ONS-pagina's, een module die `content` pas laadt als de beheerder hem opent (`#ons-ui-inspector`; uit met `features.uiInspector: false`) | alle plekken in de pagina die de hulp gebruikt tonen, en een plek opnieuw laten aanwijzen |
 | `react/` | apart script vóór `content` en `sidepanel` | de schermen van de wizard en het weekoverzicht (React), via `window.__onsahReact` |
 
 ## Het zijpaneel (`src/sidepanel/`)
 
 `index.js` zoekt het actieve ONS-tabblad, stuurt verzoeken met `vraagAanTab`
-en kiest welk paneel er staat (Agendahulp of vragenlijst). De Agendahulp:
+en geeft de toestand door aan de Agendahulp:
 
 | Bestand | Wat |
 |---|---|
@@ -74,8 +71,8 @@ bijvoorbeeld `ctx.naarMaken(...)` of `ctx.startPlan()`.
 `index.js` is het enige bestand dat bij het laden iets dóét; alle andere
 modules bevatten alleen declaraties. Het opstartblok koppelt eerst de
 config-haken, start dan het moduleplatform, de listeners, het inlezen van de
-configuratie, de URL-bewaking, de agenda-inkleuring en de UI-inspector — in
-een vaste, gedocumenteerde volgorde.
+configuratie, de URL-bewaking en de agenda-inkleuring, in een vaste,
+gedocumenteerde volgorde.
 
 ### Lagen
 
@@ -122,7 +119,7 @@ boven de veldfuncties in `fields.js`; bij de registratie staan ze in
 
 | Ik wil … | Kijk in |
 |---|---|
-| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/time-input.js` (tijdvelden, begintijd beschermd), `ons/form-controls.js` (invoer), `ons/interaction.js` (dropdowns kiezen) — of laat de beheerder het herstellen met de UI-inspector |
+| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/time-input.js` (tijdvelden, begintijd beschermd), `ons/form-controls.js` (invoer), `ons/interaction.js` (dropdowns kiezen), of een herstelde selector in `config.json` (`uiSelectors`, beheerscherm, Troubleshooting) |
 | weten welke hulp op welke URL draait | `helper/routing.js` (`syncWithUrl`) |
 | het afspraaktype-scherm | `features/appointment/choices.js` (+ `src/react/components/`) |
 | welk scherm een ander opent | `screen/schermen.js` (register), aangemeld in `index.js` |
@@ -145,7 +142,6 @@ benoemde objecten, niet in losse variabelen:
 - `state.js` — `helperPanel` (het zwevende hulppaneel en de modus),
   `appointmentFlow` (afspraakhulp), `registrationFlow` (registratiehulp).
 - `features/agenda/state.js` — `agendaPage`.
-- `src/survey/state.js` — `surveyState`.
 
 `deactivate()` (`helper/lifecycle.js`) zet de toestand van de hulp terug.
 Een `let` die alleen binnen zijn eigen module verandert, blijft gewoon daar.
@@ -157,8 +153,8 @@ Alle typen staan met richting en inhoud in `src/shared/messages.js`.
 ```text
 content ──badge/summary/forms/sidepanel-query──▶ service worker ──ctx-register/sidepanel-state──▶ content
 popup ──reminder-get/reminder-settings──▶ service worker
-content/survey ──ag-state/ag-gone/survey-state/survey-gone──▶ (uitgezonden) ──▶ zijpaneel
-zijpaneel ──ag-*/survey-get-state/survey-open-item/sidepanel-state──▶ content of survey (gevolgd tabblad)
+content ──ag-state/ag-gone──▶ (uitgezonden) ──▶ zijpaneel
+zijpaneel ──ag-*/sidepanel-state──▶ content (gevolgd tabblad)
 zijpaneel ──poort 'agendahulp-sidepanel'──▶ service worker (zolang het zijpaneel open is)
 content ──open-tab {url}──▶ service worker (AFAS in een nieuw tabblad na verlof; alleen https)
 main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated)──▶ content
@@ -173,10 +169,10 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 | Waar | Wat |
 |---|---|
 | `chrome.storage.sync` | gekozen bedrijfsonderdeel en team, eigen werktijden (`shared/work-hours.js`; reist mee naar andere apparaten) |
-| `chrome.storage.local` | lokale testconfig, UI-inspector-herstel, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen |
+| `chrome.storage.local` | lokale testconfig, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen |
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
-| localStorage van de ONS-pagina | aan/uit-schakelaars, breedte vragenlijstpaneel, geleerde vorm van ONS-verzoeken |
-| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, vragenlijst-checklist en -cache, het lipje (weg bij sluiten tabblad) |
+| localStorage van de ONS-pagina | aan/uit-schakelaars, geleerde vorm van ONS-verzoeken |
+| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, het lipje (weg bij sluiten tabblad) |
 | localStorage van het zijpaneel | vertrekpunt van Route van de dag, geziene rondleidingen |
 
 Een nieuwe sleutel komt eerst in dat bestand. Bestaande namen en plekken
@@ -184,7 +180,7 @@ veranderen niet zonder migratie: dan raakt een medewerker een voorkeur kwijt.
 
 ## Configuratie
 
-Lagen, oplopend in voorrang (content-script, vragenlijst en popup gelijk):
+Lagen, oplopend in voorrang (content-script en popup gelijk):
 
 1. `config/defaults.js` — de standaard in de code
 2. `config.json` — gebundeld, gemaakt met het beheerscherm
@@ -192,8 +188,7 @@ Lagen, oplopend in voorrang (content-script, vragenlijst en popup gelijk):
 4. `chrome.storage.local` → `onsHelperConfig` — lokale testconfig
 5. `chrome.storage.managed` — bedrijfsbeleid, **wint altijd**
 
-UI-selectors: `config.json` (`uiSelectors`) als basis, lokaal herstel uit de
-UI-inspector wint per sleutel.
+Herstelde UI-selectors komen alleen uit `config.json` (`uiSelectors`).
 
 ## ONS-API
 
@@ -286,15 +281,12 @@ medewerkers, datum en begintijd vooraf ingevuld).
 Het zijpaneel geldt voor het hele venster. Wissel je naar een tabblad buiten
 ONS, dan blijft het open met de melding 'Niet in ONS'; terug in ONS staat het
 meteen weer klaar (Chrome laat een extensie het paneel niet zelf heropenen,
-dus sluiten we het daar niet). Op een ONS-scherm zonder agenda of vragenlijst
+dus sluiten we het daar niet). Op een ONS-scherm zonder agenda
 (zoals een afspraakformulier) sluit het zodra de pagina twee keer 'niets'
 antwoordt (~1 s). Valt de poort weg doordat de worker herstart, dan verbindt
 het paneel opnieuw; het randlipje vraagt bij terugkeer op het tabblad opnieuw
 of het paneel openstaat. (1.6.223/224 probeerden een paneel per tabblad; dat
 kwam niet terug na een tabwissel en is teruggedraaid.)
-
-Daarnaast haalt de vragenlijstcontrole de HTML van andere categorieën op
-(same-origin `fetch` en verborgen frames, `src/survey/category-audit.js`).
 
 ## ONS-specifieke workarounds
 
@@ -310,14 +302,12 @@ Deze keuzes zien er vreemd uit maar hebben een reden. Ze staan ook bij de code.
 | Eén patroon voor formuliervelden | Elke zetter of wisser: `eerstViaFormulier(viaFormulier, viaScherm)`, eerst ONS' Vue-koppeling met controle, anders één keer klikken of typen. Main-world: `formulierBoom()` (één wandeling: velden per element en `EventDetails`) en `zetEnControleer()`. Wachten op toestand: `wachtTot()` (MutationObserver plus vangnet-interval) | `ons/form-model.js`, `core/wacht.js`, `src/main-world/` |
 | Labels zetten via de Vue-koppeling van het formulier i.p.v. de dropdown | Het afspraakformulier is Vue 3 met `uc-*`-webcomponenten (Lit). Het labelveld (`uc-combo-box[data-qa=label_select]`) heeft in zijn vnode `model-value`, `available-labels` en `onUpdate:modelValue` (→ `onChange(t, 'label_ids')`). Alleen de main-world kan daarbij: hij zoekt de vnode vanaf de app-houder (`__vue_app__`, `_vnode`) en roept de functie aan met de id's; het content-script vraagt het via `PAGE_COMMAND.SET_LABELS` en klikt als het mislukt. Uursoort per cliënt idem: `uc-select[data-qa=hour_type_select]`, `onUpdate:modelValue(id, omschrijving)` (→ `update:invitation`), het veld van de juiste cliënt even gemarkeerd met `data-onsah-doel`, het id uit de productlijst (`fetchProductOptions`); niet cliëntgebonden: het veld op afspraakniveau (ook `aria-label="Uursoort"`), id uit `fetchEmployeeProductOptions`. Vanuit de planhulp vindt de main-world het veld aan `client-ids` in de vnode. Wissen: labels `[]`, uursoort `(null, '')` (`wis: true`). Eén veld zetten (`PAGE_COMMAND.SET_FIELD`): `EventDetails.onChange(waarde, veld)`, alleen `name`, `comment`, `start_time`, `end_time`, `travel_time_before`/`after`, met controle in het model (noodschakelaar `features.formViaModel: false`: `formulierViaModelAan()` in `ons/form-model.js`, dan gaat er niets naar de main-world); gebruikt voor de titel (`features/appointment/title.js`, `zetTitelAsync`), de eindtijd (`features/appointment/end-time.js`, `zetEindtijdAsync`; de eindtijd-guard negeert de oude tijd zolang die loopt) en de reistijd heen en terug (`features/appointment/travel.js`, `zetReistijdenAsync`, ook op 0 zetten). Lezen (`PAGE_COMMAND.READ_FORM`): het model staat in de component `EventDetails` als `props.event` (`clients`, `client_ids`, `label_ids`, `name`, tijden als `"14:00"`); terug gaan alleen cliënt-id en voornaam, de uursoort per cliënt (uit de velden) en de label-id's | `src/main-world/`, `ons/form-model.js`, `features/appointment/labels.js`, `features/appointment/uursoort-field.js`, `title.js`, `end-time.js`, `travel.js` |
 | "+ Toevoegen"-bewaking | een synthetische klik (dropdown sluiten) opende soms de zoek-genodigden-modal | `features/appointment/invitee-guard.js` |
-| Popover / top layer voor meldingen en UI-inspector | anders vallen ze achter de ONS-modal | `platform/module-host.js`, `src/ui-inspector/index.js` |
+| Popover / top layer voor meldingen | anders vallen ze achter de ONS-modal | `platform/module-host.js` |
 | Wachten tot de pagina "rustig" is voor herstel na refresh | het registratieformulier laadt in stappen | `features/registration/prereqs.js` |
 | Zijpaneel openen kan mislukken vanuit de pagina | `sidePanel.open()` mag alleen vanuit een gebaar op de browser-UI; dan wijzen we naar het rechtermuismenu | `background/side-panel.js`, `src/edge-tab/` |
 | Laatste stap medewerker-id: script in paginacontext, met tijdslimiet | blokkeert de pagina inline-scripts, dan komt er nooit antwoord | `services/ons-api/employee.js` |
 | `*` in een uursoortnaam = niet-cliëntgebonden, `#` niet | ONS gebruikt `#` voor "niet declarabel" | `domain/hour-types.js` |
 | Registratiedetails: tijden uit `presenceLogs`, niet het registratieniveau | het registratieniveau gaf de "240 uur"-fout | `domain/registrations.js` |
-| Vragenlijst luistert naar `locationchange` van het content-script | beide scripts delen in het bovenste frame dezelfde geïsoleerde wereld | `src/survey/start.js` |
-| Verborgen scanframes met `window.name = 'ons-helper-survey-scan'` | andere categorieën controleren zonder de pagina te verlaten; de controle start daarin niet opnieuw | `src/survey/category-audit.js`, `src/survey/index.js` |
 
 ## MutationObservers
 
@@ -327,9 +317,6 @@ Deze keuzes zien er vreemd uit maar hebben een reden. Ze staan ook bij de code.
 | `helper/lifecycle.js` | hele document | zolang de hulp actief is | `deactivate()` |
 | `features/agenda/lifecycle.js` | hele document | zolang de agendapagina actief is | `deactivateAgendaPage()` |
 | `screen/status.js` laadstippen | het schermvak | per laadscherm | zodra het scherm weg is, uiterlijk 30 s |
-| `src/ui-inspector/index.js` | hele document | zolang de inspector open is | `closePanel()` |
-| `src/survey/lifecycle.js` | hele document | zolang de pagina | n.v.t.; negeert mutaties in het eigen paneel |
-| `src/survey/category-audit.js` | een scanframe | per gescande categorie | na de scan |
 | `src/io-planning-block/` | hele document | zolang de pagina | n.v.t. |
 
 Elke observer doet per mutatie weinig: een cache legen of een vlag zetten, of
@@ -347,9 +334,8 @@ eenmalige start).
   (`sanitizeSnapshot`, getest).
 - Het zijpaneel krijgt bij de "nog te registreren"-lijst wel de afspraaktitel
   (kan een voornaam bevatten): dat bericht blijft binnen de extensie en wordt
-  niet opgeslagen. De vragenlijst stuurt alleen vraagteksten en statussen.
-- Geen `console`-logging in het content-script; de vragenlijstcontrole logt
-  alleen een vaste omschrijving + foutmelding (`src/survey/log.js`).
+  niet opgeslagen.
+- Geen `console`-logging in het content-script.
 - HTML uit de beheerconfig gaat door DOMPurify met een allowlist
   (`src/shared/veilige-html.js`, via `ui/managed-text.js`);
   het meldingenkanaal tekent uitsluitend met `textContent`.
@@ -368,5 +354,5 @@ eenmalige start).
 4. Een nieuw bericht of opslagsleutel: eerst in `src/shared/`.
 5. Testen: interne functies via `test/helpers/content-api.js` (de testbundel
    van het content-script, in jsdom), of rechtstreeks importeren uit `src/`
-   als de module geen browser nodig heeft (zie `test/survey.test.js`).
+   als de module geen browser nodig heeft (zie `test/werktijden.test.js`).
 6. `npm run check && npm test`.

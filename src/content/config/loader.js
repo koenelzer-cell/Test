@@ -94,7 +94,7 @@ function loadManagedConfig() {
 }
 // Opstarten: config opnieuw inlezen als beleid, lokale override of teamkeuze
 // wijzigt. Alleen dan: in chrome.storage.local schrijven ook de service worker
-// (momentopname, vormen) en de UI-inspector, en elke herlaadbeurt brengt de
+// (momentopname, vormen), en elke herlaadbeurt brengt de
 // pagina opnieuw in lijn met de configuratie.
 export function watchConfigChanges() {
   chrome.storage.onChanged.addListener((changes, area) => {

@@ -1,4 +1,4 @@
-// Veilige HTML uit de beheerconfig (beheerbare teksten, vragenlijstmeldingen).
+// Veilige HTML uit de beheerconfig (beheerbare teksten).
 //
 // DOMPurify haalt alles weg wat code kan uitvoeren (scripts, event-attributen,
 // javascript:-links, SVG- en MathML-trucs). Daarna houden we bewust weinig

@@ -233,8 +233,8 @@ export function labelChips(trigger) {
     seen.add(el);
     out.push({ el: el, name: name });
   };
-  // Low-code herstel: heeft de beheerder de labelchips via de UI-inspector
-  // opnieuw aangewezen (sleutel 'afsLabelChips'), gebruik dan die elementen
+  // Low-code herstel: staat er voor de labelchips een herstelde selector in de
+  // beheerconfig (sleutel 'afsLabelChips'), gebruik dan die elementen
   // rechtstreeks — geen geometrie/naam-heuristiek nodig.
   const ov = overrideAll('afsLabelChips');
   const source = (ov && ov.length)
@@ -366,7 +366,7 @@ export function findClientEntries() {
 // ul._selected-clients_*. Gebruik deze structurele relatie als primaire route;
 // zo is Afspraakhulp niet afhankelijk van afstanden/afmetingen op het scherm.
 function findClientEntriesFromModalStructure() {
-  // Low-code herstel: cliëntlijst-rijen via de UI-inspector (sleutel 'afsClientList').
+  // Low-code herstel: cliëntlijst-rijen via de beheerconfig (sleutel 'afsClientList').
   const ovRows = overrideAll('afsClientList');
   const rows = (ovRows && ovRows.length)
     ? ovRows
@@ -484,7 +484,7 @@ function _findClientEntriesUncached() {
 // ---- Herhaling / doorplannen ------------------------------------------------
 // De 'Herhaling'-accordeonkop in de ONS-afspraakmodal. De hashed klassen
 // (_header_186fh_22) zijn buildafhankelijk, dus we matchen op de zichtbare
-// titeltekst "Herhaling" van een uitklapknop (met UI-inspector-override).
+// titeltekst "Herhaling" van een uitklapknop (met herstelde selector uit de beheerconfig).
 export function findRecurrenceHeader() {
   const ov = overrideEl('recurrenceHeader'); if (ov) return ov;
   const btns = deepQueryAll('button[aria-expanded]').filter((b) => visible(b) && !isOwnPopup(b));
@@ -496,7 +496,7 @@ export function findRecurrenceHeader() {
 }
 // Het recurrence-type keuzeveld (<uc-form-field data-qa="recurrence-type">) dat
 // na het uitklappen van 'Herhaling' verschijnt. Dit is het veld dat we roze
-// markeren en waaruit we de gekozen waarde lezen (met UI-inspector-override).
+// markeren en waaruit we de gekozen waarde lezen (met herstelde selector uit de beheerconfig).
 export function findRecurrenceField() {
   const ovSel = UI_OVERRIDES.recurrenceType;
   return (ovSel ? deepQueryAll(ovSel) : deepQueryAll('[data-qa="recurrence-type"]')).find((el) => visible(el) && !isOwnPopup(el)) || null;

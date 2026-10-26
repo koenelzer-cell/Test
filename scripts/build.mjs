@@ -37,7 +37,6 @@ const common = {
 const SCRIPT_ENTRIES = [
   // [bron, uitvoer]                                     waar het draait
   ['src/content/index.js', 'dist/content.js'],            // content-script, ONS-pagina's
-  ['src/survey/index.js', 'dist/survey.js'],              // content-script, ONS Dossier (alle frames)
   ['src/main-world/index.js', 'dist/main-world.js'],      // content-script, pagina-context van ONS
   ['src/edge-tab/index.js', 'dist/edge-tab.js'],          // content-script, ONS-pagina's
   ['src/io-planning-block/index.js', 'dist/io-planning-block.js'], // content-script, ioservice.net
@@ -54,15 +53,6 @@ const builds = [
     sourcemap: watch ? 'linked' : false,
     charset: 'utf8',
   })),
-  // De UI-inspector: een module die het content-script pas laadt als hij
-  // gevraagd wordt (import() van een web_accessible_resource).
-  {
-    ...common,
-    entryPoints: ['src/ui-inspector/index.js'],
-    outfile: 'dist/ui-inspector.js',
-    format: 'esm',
-    charset: 'utf8',
-  },
   // De React-schermen (src/react/): geminificeerd, productiebuild van React.
   // Laadt als apart script vóór dist/content.js en dist/sidepanel.js en biedt
   // window.__onsahReact aan (zie src/content/ui/react-bridge.js).

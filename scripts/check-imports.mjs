@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Controleert de importen in src/ (zonder te bundelen):
 //
-//  1. Elk onderdeel (content, survey, background, popup, sidepanel, …) wordt
+//  1. Elk onderdeel (content, background, popup, sidepanel, …) wordt
 //     een aparte bundel. Ze delen code alleen via src/shared/ — nooit
 //     rechtstreeks uit elkaars map (dan belandt code van het ene onderdeel
 //     ongemerkt in de bundel van het andere).

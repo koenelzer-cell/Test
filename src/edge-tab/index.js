@@ -1,9 +1,8 @@
 /* ============================================================================
    edge-tab — het lipje aan de rechterrand dat het zijpaneel opent.
 
-   Eén klein, zelfstandig content-script op alle ONS-pagina's: zowel de agenda
-   als het vragenlijst-scherm krijgen hetzelfde lipje, zodat het zijpaneel
-   overal op dezelfde plek te vinden is.
+   Eén klein, zelfstandig content-script op alle ONS-pagina's: overal hetzelfde
+   lipje, zodat het zijpaneel overal op dezelfde plek te vinden is.
 
    Een kleine animatie maakt het lipje vindbaar zonder in de weg te zitten:
    in rust tikt de pijl elke paar seconden even naar links, bij het verschijnen
@@ -36,7 +35,7 @@ import { bijLosgekoppeld } from '../shared/losgekoppeld.js';
 (function () {
   if (window.__onsEdgeTab) return;
   window.__onsEdgeTab = true;
-  // Verborgen hulpframes van de vragenlijstmodule mogen geen eigen lipje krijgen.
+  // Alleen het hoofdvenster krijgt een lipje, geen frames.
   if (window.top !== window) return;
 
   const ROZE = '#cc087d';
