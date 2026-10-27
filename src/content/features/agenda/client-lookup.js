@@ -10,6 +10,8 @@ import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson } from '../../services/ons-api/http.js';
 import { controleerOns } from '../../services/ons-api/formaat.js';
 import { postcodeFromClient } from '../../domain/route.js';
+import { medewerkersUitZoek } from '../../domain/collega.js';
+import { agendaIds } from './free-slots.js';
 
 export const MAX_TREFFERS = 8;
 
@@ -34,4 +36,13 @@ export function searchClientsForPlan(term, outOfCare) {
   const t = String(term || '').trim();
   if (t.length < 2) return Promise.resolve([]);
   return getJson(_apiUrl('searchClients', { term: t, outOfCare: outOfCare === true ? 'true' : 'false' })).then(function (j) { return clientsForPlan(controleerOns('clienten', j)); });
+}
+
+// Afspraak maken: een collega zoeken (dezelfde zoekfunctie als ONS bij
+// 'Genodigden toevoegen'). Wie al als agenda open staat, telt niet mee.
+// term (min. 2 tekens) -> Promise<[{ id, name, team, kanUitnodigen }]>
+export function searchEmployeesForPlan(term) {
+  const t = String(term || '').trim();
+  if (t.length < 2) return Promise.resolve([]);
+  return getJson(_apiUrl('searchEmployees', { term: t })).then(function (j) { return medewerkersUitZoek(controleerOns('medewerkers', j), agendaIds()); });
 }

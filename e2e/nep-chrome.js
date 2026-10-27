@@ -35,6 +35,22 @@
         employeeHourTypes: msg.medewerker ? [{ id: 77, name: 'Teamoverleg', recent: true }] : undefined };
     },
     'ag-client-search': function () { return { ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB', number: '106839', birth: '01-01-1990' }] }; },
+    'ag-employee-search': function () {
+      return { ok: true, employees: [{ id: '555', name: 'Eva Vermeulen', team: 'Team Oost', kanUitnodigen: true }, { id: '556', name: 'Bram Verhoeven', team: 'Medewerker Forta Services ICT', kanUitnodigen: false },
+        { id: '557', name: 'Sanne Verbeek', team: '', kanUitnodigen: true }] };
+    },
+    // Eva heeft bij het eerste moment een afspraak met reistijd, Sanne is bij het tweede de hele dag afwezig.
+    'ag-colleague-check': function (msg) {
+      const result = {};
+      (msg.ids || []).forEach(function (id) {
+        result[id] = (msg.moments || []).map(function (m, i) {
+          if (id === '555' && i === 0) return { kan: false, soort: 'afspraak', heleDag: false, van: m.startMin - 30, tot: m.startMin + 45, reistijd: true };
+          if (id === '557' && i === 1) return { kan: false, soort: 'afwezig', heleDag: true, van: 0, tot: 1440, reistijd: false };
+          return { kan: true };
+        });
+      });
+      return { ok: true, result: result };
+    },
     'ag-check-range': function (msg) {
       return { ok: true, result: { from: msg.from, to: msg.to, days: [
         { date: vorigeWeek, client: 90, overig: 30, count: 2, lateCount: 2, items: [item(1, vorigeWeek, '09:00', 60, true, 'JW GGZ Speciaal'), item(2, vorigeWeek, '11:00', 30, false, 'Overleg *')] },

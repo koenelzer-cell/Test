@@ -520,6 +520,38 @@ en oker).
   niet: er is 10 min vrij voor 9:00'). Na het maken zoekt de planhulp de
   vrije tijd opnieuw.
   Schakelaar: 'Planhulp: afspraak meteen in ONS maken'.
+- **Medewerkers** (kaart bij Afspraak maken, onder Voor alle afspraken): 'Jij'
+  (of 'n open agenda's') en de collega's die je erbij zet. Met **+ Medewerker**
+  zoek je een collega op naam, met dezelfde zoekfunctie als ONS bij
+  genodigden (`/search_panel/employees?term=…&usage=event&page=1`, pas als je
+  even stopt met typen, minimaal twee letters, hooguit acht treffers, met het
+  team eronder). Een collega die ONS niet laat uitnodigen
+  (`can_create_event: false`) staat grijs in de lijst met 'Kan niet worden
+  uitgenodigd'; wie al als agenda open staat, staat er niet in. Escape sluit
+  het zoeken; het kruisje haalt een collega weer weg. Hooguit zes collega's.
+  Na het kiezen kijkt de hulp de agenda van de collega na voor elke afspraak
+  (de weken van die afspraken, dezelfde lagen en regels als de vrije tijd in
+  de planhulp: afspraken met reistijd, afwezigheid, geplande bezoeken en
+  bezette Outlook-afspraken; reserveringen en Outlook 'vrij' of 'elders aan
+  het werk' tellen niet). In elke afspraakkaart staat per collega 'Eva kan'
+  of 'Eva kan niet: heeft een afspraak met reistijd van 08:30 tot 09:45'
+  ('is afwezig van … tot …', 'is de hele dag afwezig'); alleen tijden, nooit
+  wat er in de agenda van de collega staat. Hebben twee collega's dezelfde
+  voornaam, dan de hele naam. Waar een collega niet kan, staat de schakelaar
+  **Toch inplannen met Eva**: uit (standaard) maakt die afspraak zonder Eva,
+  aan zet Eva er toch bij. Onderin telt de hulp dat op ('1 keer toch
+  ingepland bij een collega die niet kan, 1 keer zonder een collega die niet
+  kan.'). Zolang er nog een agenda wordt nagekeken, staat de knop op
+  'Agenda's nakijken…'. Geeft ONS de agenda niet (geen recht, storing), dan
+  'Agenda van Eva niet na te kijken; Eva wordt uitgenodigd'. De afspraak gaat
+  naar ONS met de collega's in `employee_ids`, naast je eigen agenda('s).
+  Via de link **ONS Afspraakformulier** komen de collega's van de eerste
+  afspraak als genodigde in het formulier (`invitee_ids[]`); de kopieën en
+  volgende formulieren nemen de medewerkers over van die eerste opgeslagen
+  afspraak, dus daar geldt een andere keuze per afspraak niet. Van een
+  collega bewaart de hulp niets: id, naam en team staan alleen in het
+  zijpaneel zolang de pagina open is (geboortedatum, personeelsnummer en
+  geslacht uit het zoekantwoord vallen meteen weg).
 - **Geavanceerd** (vinkje bij Afspraak maken): reistijd heen en terug per
   afspraak, en een knop met padicoon **Efficiënter indelen**. Die kijkt naar
   je andere afspraken op die dag(en) - afspraken met een cliënt (postcode uit

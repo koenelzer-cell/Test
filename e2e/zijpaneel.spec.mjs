@@ -146,5 +146,31 @@ for (const breedte of [340, 420]) {
       await expect(page.locator('[data-maak-afspraak]')).toHaveCount(1);
       await controleer(page, testInfo, 'maken-een-moment');
     });
+
+    test('afspraak maken: collega erbij, nakijken en toch inplannen', async ({ page }, testInfo) => {
+      await page.locator('[data-hulp="plan"]').click();
+      const tijden = page.locator('[data-dag][data-start]');
+      await expect(tijden.first()).toBeVisible();
+      const eerste = await tijden.first().getAttribute('data-dag');
+      await tijden.first().click();
+      await page.locator('[data-dag]:not([data-dag="' + eerste + '"])[data-start]').first().click();
+      await page.getByRole('button', { name: /Afspraak maken op 2 momenten/ }).click();
+      await expect(page.locator('[data-mw-kaart]')).toBeVisible();
+      await page.locator('[data-mw-plus]').click();
+      await page.locator('[data-mw-zoek]').fill('ver');
+      await expect(page.locator('[data-mw-id="556"]')).toBeDisabled();
+      await controleer(page, testInfo, 'maken-collega-zoeken');
+      await page.locator('[data-mw-id="555"]').click();
+      await page.locator('[data-mw-plus]').click();
+      await page.locator('[data-mw-zoek]').fill('ver');
+      await page.locator('[data-mw-id="557"]').click();
+      await expect(page.locator('[data-mw-status="kanniet"]')).toHaveCount(2);
+      await expect(page.locator('[data-mw-status="kan"]')).toHaveCount(2);
+      await page.locator('[data-maak-zoek]').first().fill('Tam');
+      await page.locator('[data-client-id="11142"]').first().click();
+      await page.locator('[data-mw-toch="0-555"]').click();
+      await expect(page.locator('[data-mw-samenvatting]')).toHaveText('1 keer toch ingepland bij een collega die niet kan, 1 keer zonder een collega die niet kan.');
+      await controleer(page, testInfo, 'maken-collegas');
+    });
   });
 }

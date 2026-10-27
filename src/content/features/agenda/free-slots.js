@@ -16,6 +16,7 @@ import { weekRange, workWindowFor } from '../../../shared/work-hours.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../domain/free-slots.js';
+import { beschikbaarheid } from '../../domain/collega.js';
 import { addressFromDetails, isAtClient, postcodeFromAddress } from '../../domain/route.js';
 import { officeForLocation } from '../../domain/offices.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
@@ -42,7 +43,7 @@ export function workWindow() {
   return { start: start, end: end };
 }
 
-function agendaIds() {
+export function agendaIds() {
   let ids = currentInviteeIds();
   if (!ids.length) { const een = currentInviteeId(null) || resolveInviteeId(); if (een != null) ids = [String(een)]; }
   return ids;
@@ -112,6 +113,33 @@ function weekVoor(ids, start, wachtrij) {
       bijLaag('weekReservations', 'reservations', start, id, wachtrij)
     ]);
   }));
+}
+// Afspraak maken met collega's: kan elke collega op elk moment? Haalt per
+// collega de weken van die momenten op (dezelfde lagen als de vrije tijd) en
+// rekent per moment in domain/collega.js. Lukt het ophalen van de afspraken
+// niet (bijv. geen recht om die agenda te zien), dan 'onbekend'.
+// ids: [id], moments: [{ date, startMin, minutes }]
+// -> Promise<{ id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend: true }] }>
+export function checkColleagues(ids, moments) {
+  const uniek = (Array.isArray(ids) ? ids : []).map(String).filter(function (x, i, a) { return /^\d{1,12}$/.test(x) && a.indexOf(x) === i; }).slice(0, 10);
+  const lijst = (Array.isArray(moments) ? moments : []).map(function (m) {
+    const s = parseInt(m && m.startMin, 10), n = parseInt(m && m.minutes, 10);
+    return m && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date)) && s >= 0 && s < 24 * 60 && n > 0 && n <= 24 * 60 ? { date: String(m.date), startMin: s, minutes: n } : null;
+  }).filter(Boolean).slice(0, 20);
+  const weken = [];
+  lijst.forEach(function (m) { const w = maandagenTussen(m.date, m.date)[0]; if (w && weken.indexOf(w) < 0) weken.push(w); });
+  const wachtrij = createLimiter(4);
+  const plat = function (a) { return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a]; };
+  return Promise.all(uniek.map(function (id) {
+    return Promise.all(weken.map(function (w) { return weekVoor([id], w, wachtrij); }))
+      .then(function (r) { return { id: id, entries: plat(r) }; }, function () { return { id: id, fout: true }; });
+  })).then(function (per) {
+    const uit = {};
+    per.forEach(function (p) {
+      uit[p.id] = lijst.map(function (m) { return p.fout ? { onbekend: true } : beschikbaarheid(p.entries, m.date, m.startMin, m.minutes); });
+    });
+    return uit;
+  });
 }
 // Meer laden (en de volgende week in het weekraster) vraagt de week na
 // lastDate. Die alvast ophalen als de lijst er staat en het tabblad zichtbaar

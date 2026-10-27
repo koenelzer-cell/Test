@@ -20,7 +20,9 @@ const SOORTEN = {
   // calendar/events/available_labels: lijst met afspraaktypes.
   afspraaktypes: { naam: 'de afspraaktypes', schema: LIJST },
   // search_panel/clients: { clients: [...] } of direct een lijst.
-  clienten: { naam: 'de gevonden cliënten', schema: v.union([LIJST, v.looseObject({ clients: LIJST })]) }
+  clienten: { naam: 'de gevonden cliënten', schema: v.union([LIJST, v.looseObject({ clients: LIJST })]) },
+  // search_panel/employees: { employees: [...] } of direct een lijst.
+  medewerkers: { naam: 'de gevonden medewerkers', schema: v.union([LIJST, v.looseObject({ employees: LIJST })]) }
 };
 
 export class OnsFormaatFout extends Error {

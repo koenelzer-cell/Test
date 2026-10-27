@@ -63,7 +63,8 @@ export function eventOptions(clientIds, opts) {
 }
 
 // events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }] (of clientId +
-//           hourTypeId), labelId, name, clientPresent, travelBefore, travelAfter }]
+//           hourTypeId), labelId, name, clientPresent, travelBefore, travelAfter,
+//           medewerkers: [id] (collega's erbij, optioneel) }]
 //   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name }.
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
@@ -73,8 +74,11 @@ export async function createEvents(events, post) {
   if (!ids.length) throw new Error('Open eerst je agenda in ONS.');
   const meta = leesMeta(), results = [];
   for (const e of (events || []).slice(0, 20)) {
+    // Collega's die bij deze afspraak horen (Afspraak maken: + Medewerker).
+    const collegas = (Array.isArray(e.medewerkers) ? e.medewerkers : []).map(String)
+      .filter(function (x, i, a) { return /^\d{1,12}$/.test(x) && ids.indexOf(x) < 0 && a.indexOf(x) === i; }).slice(0, 10);
     const payload = buildEventPayload({
-      date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids,
+      date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids.concat(collegas),
       // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
       // de uursoort op de afspraak zelf.
       clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),

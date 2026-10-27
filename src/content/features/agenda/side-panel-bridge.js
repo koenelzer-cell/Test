@@ -17,9 +17,9 @@ import { defaultProductionFrom } from './production.js';
 import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached, openAantal } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
-import { searchClientsForPlan } from './client-lookup.js';
+import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
-import { checkSlotWithOns } from './free-slots.js';
+import { checkColleagues, checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG, choiceLabels, effectiveChoices } from '../../config/app-config.js';
 
@@ -246,6 +246,20 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, clients: clients }); } catch (e) {}
           }, function () {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_EMPLOYEE_SEARCH:
+          searchEmployeesForPlan(msg.term).then(function (employees) {
+            try { sendResponse({ ok: true, employees: employees }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.name === 'OnsFormaatFout' && e.message) || 'Zoeken in ONS mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_COLLEAGUE_CHECK:
+          checkColleagues(msg.ids, msg.moments).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function () {
+            try { sendResponse({ ok: false, error: 'Nakijken mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_FREE_SLOTS:

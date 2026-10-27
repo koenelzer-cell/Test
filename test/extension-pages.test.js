@@ -1235,6 +1235,129 @@ test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uurs
   assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
 });
 
+// + Medewerker: collega zoeken in ONS; het antwoord op het nakijken komt pas als de test het geeft.
+function paneelMetCollegas(employees) {
+  const wacht = [];
+  const r = maakPaneel({
+    'ag-employee-search': (msg, cb) => cb({ ok: true, employees }),
+    'ag-colleague-check': (msg, cb) => wacht.push([msg, cb]),
+  });
+  r.wacht = wacht;
+  r.voegToe = async (term, id) => {
+    r.document.querySelector('[data-mw-plus]').click();
+    typ(r.document.querySelector('[data-mw-zoek]'), term);
+    await new Promise((res) => setTimeout(res, 420));
+    r.document.querySelector('[data-mw-id="' + id + '"]').click();
+    await tick();
+  };
+  return r;
+}
+const mwRegel = (document, sleutel) => document.querySelector('[data-mw-voor="' + sleutel + '"]');
+
+test('zijpaneel: afspraak maken - + Medewerker: collega zoeken, per afspraak nakijken en toch inplannen', async () => {
+  const { document, dom, verzonden, wacht } = paneelMetCollegas([
+    { id: '555', name: 'Eva Vermeulen', team: 'Team Oost', kanUitnodigen: true }, { id: '556', name: 'Bram Verhoeven', team: '', kanUitnodigen: false },
+  ]);
+  await tweeMomenten(document);
+  const kaart = document.querySelector('[data-mw-kaart]');
+  assert.ok(kaart, 'kaart Medewerkers');
+  assert.equal(kaart.textContent, 'Jij+ Medewerker');
+  assert.equal(document.querySelector('[data-mw-zoek]'), null, 'zoeken pas na + Medewerker');
+  assert.doesNotMatch(document.body.textContent, /Na het kiezen kijkt de hulp/);
+  document.querySelector('[data-mw-plus]').click();
+  assert.equal(document.querySelector('[data-mw-plus]'), null, 'tijdens het zoeken geen tweede knop');
+  typ(document.querySelector('[data-mw-zoek]'), 'v');
+  await new Promise((r) => setTimeout(r, 420));
+  assert.equal(verzonden.filter((m) => m.type === 'ag-employee-search').length, 0, 'eerst twee letters');
+  typ(document.querySelector('[data-mw-zoek]'), 'ver');
+  await new Promise((r) => setTimeout(r, 420));
+  assert.deepEqual(verzonden.filter((m) => m.type === 'ag-employee-search').map((m) => m.term), ['ver']);
+  assert.equal(document.querySelector('[data-mw-id="555"]').textContent, 'Eva VermeulenTeam OostToevoegen');
+  assert.equal(document.querySelector('[data-mw-id="556"]').disabled, true, 'mag ONS niet uitnodigen');
+  assert.equal(document.querySelector('[data-mw-id="556"]').textContent, 'Bram VerhoevenKan niet worden uitgenodigd');
+  document.querySelector('[data-mw-id="555"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-mw-gekozen="555"]').textContent, 'Eva Vermeulen×');
+  assert.equal(document.querySelector('[data-mw-zoek]'), null, 'zoeken dicht na de keuze');
+  // Eén vraag voor beide afspraken; zolang het antwoord er niet is, nog niet maken.
+  assert.equal(wacht.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify([wacht[0][0].ids, wacht[0][0].moments])), [['555'], [{ date: '2026-10-12', startMin: 600, minutes: 60 }, { date: '2026-10-13', startMin: 600, minutes: 60 }]]);
+  assert.equal(document.querySelectorAll('[data-mw-status="laden"]').length, 2);
+  assert.equal(mwRegel(document, '0-555').textContent, 'Agenda van Eva nakijken…');
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
+  const maakKnop = () => document.querySelector('[data-maak-knop]');
+  assert.equal(maakKnop().disabled, true);
+  assert.equal(maakKnop().textContent, 'Agenda’s nakijken…');
+  wacht[0][1]({ ok: true, result: { 555: [{ kan: false, soort: 'afspraak', heleDag: false, van: 570, tot: 660, reistijd: true }, { kan: true }] } });
+  await tick();
+  assert.equal(mwRegel(document, '0-555').getAttribute('data-mw-status'), 'kanniet');
+  assert.equal(mwRegel(document, '0-555').textContent, 'Eva kan niet: heeft een afspraak met reistijd van 09:30 tot 11:00');
+  assert.equal(mwRegel(document, '1-555').textContent, 'Eva kan');
+  assert.equal(maakKnop().disabled, false);
+  assert.equal(maakKnop().textContent, '2 afspraken maken in ONS');
+  assert.equal(document.querySelector('[data-mw-samenvatting]').textContent, '1 keer zonder een collega die niet kan.');
+  const toch = () => document.querySelector('[data-mw-toch="0-555"]');
+  assert.equal(toch().getAttribute('aria-checked'), 'false');
+  assert.equal(toch().getAttribute('aria-label'), 'Toch inplannen met Eva');
+  assert.equal(document.querySelector('[data-mw-toch="1-555"]'), null, 'alleen waar Eva niet kan');
+  // Via het formulier van ONS: de collega's van de eerste afspraak.
+  document.querySelector('[data-maak-ons]').click();
+  await tick();
+  assert.equal(verzonden.filter((m) => m.type === 'ag-new-event').at(-1).medewerkers, undefined, 'Eva kan niet en niet toch gekozen');
+  toch().click();
+  assert.equal(toch().getAttribute('aria-checked'), 'true');
+  assert.equal(document.querySelector('[data-mw-samenvatting]').textContent, '1 keer toch ingepland bij een collega die niet kan.');
+  document.querySelector('[data-maak-ons]').click();
+  await tick();
+  assert.deepEqual([...verzonden.filter((m) => m.type === 'ag-new-event').at(-1).medewerkers], ['555']);
+  toch().click();
+  maakKnop().click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.medewerkers), [undefined, ['555']], 'Eva alleen waar ze kan');
+});
+
+test('zijpaneel: afspraak maken - collega weghalen, agenda niet na te kijken, alleen een nieuwe collega nakijken', async () => {
+  const { document, dom, verzonden, wacht, voegToe } = paneelMetCollegas([
+    { id: '555', name: 'Eva Vermeulen', team: '', kanUitnodigen: true }, { id: '558', name: 'Eva de Boer', team: '', kanUitnodigen: true },
+  ]);
+  await tweeMomenten(document);
+  await voegToe('eva', '555');
+  wacht.shift()[1]({ ok: false, error: 'Nakijken mislukt.' });
+  await tick();
+  assert.equal(mwRegel(document, '0-555').getAttribute('data-mw-status'), 'onbekend');
+  assert.equal(mwRegel(document, '0-555').textContent, 'Agenda van Eva niet na te kijken; Eva wordt uitgenodigd');
+  await voegToe('eva', '558');
+  assert.equal(wacht.length, 1);
+  assert.deepEqual([...wacht[0][0].ids], ['558'], 'alleen de nieuwe collega');
+  wacht.shift()[1]({ ok: true, result: { 558: [{ kan: true }, { kan: false, soort: 'afwezig', heleDag: true, van: 0, tot: 1440, reistijd: false }] } });
+  await tick();
+  assert.equal(mwRegel(document, '0-558').textContent, 'Eva de Boer kan', 'zelfde voornaam: de hele naam');
+  assert.equal(mwRegel(document, '1-558').textContent, 'Eva de Boer kan niet: is de hele dag afwezig');
+  assert.equal(mwRegel(document, '1-555').textContent, 'Agenda van Eva Vermeulen niet na te kijken; Eva Vermeulen wordt uitgenodigd');
+  document.querySelector('[data-mw-gekozen="555"] button').click();
+  await tick();
+  assert.equal(document.querySelector('[data-mw-gekozen="555"]'), null);
+  assert.equal(mwRegel(document, '0-555'), null);
+  assert.equal(mwRegel(document, '0-558').textContent, 'Eva kan', 'weer alleen de voornaam');
+  assert.equal(wacht.length, 0, 'weghalen vraagt niets');
+  // Escape sluit het zoeken.
+  document.querySelector('[data-mw-plus]').click();
+  document.querySelector('[data-mw-zoek]').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await tick();
+  assert.equal(document.querySelector('[data-mw-zoek]'), null);
+  assert.ok(document.querySelector('[data-mw-plus]'));
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '1135');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.medewerkers), [['558'], undefined]);
+  assert.match(document.body.textContent, /2 afspraken gemaakt in ONS\./);
+  assert.equal(document.querySelector('[data-mw-kaart]'), null, 'na het maken geen kaart Medewerkers meer');
+});
+
 const TYPES_BEHEER = [
   { label: 'Huisbezoek', etiketten: ['JG Huisbezoek'], clientPresent: true, addTravelTime: true },
   { label: 'MDO', etiketten: ['JG MDO'], clientPresent: false, addTravelTime: false },

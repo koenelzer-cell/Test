@@ -84,6 +84,17 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     naar het zijpaneel van deze extensie, alleen om de juiste cliënt te
     kiezen, en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
     Buiten ONS gaan alleen postcodes (Google Routes, met een sleutel).
+  - **Collega erbij bij Afspraak maken** (+ Medewerker): de medewerker zoekt
+    een collega via dezelfde ONS-zoekfunctie als bij genodigden
+    (`/search_panel/employees`, pas na een korte pauze in het typen). Van elke
+    treffer gaan alleen id, naam, team en of ONS uitnodigen toestaat naar het
+    zijpaneel; geboortedatum, personeelsnummer en geslacht vallen in de
+    agendapagina al weg. Daarna leest de agendapagina de weekagenda van die
+    collega (dezelfde lagen als de planhulp, binnen de rechten van de
+    medewerker in ONS) en geeft per gekozen moment alleen 'kan' of 'kan niet'
+    met tijden en soort (afspraak of afwezig) door, nooit wat er staat.
+    Niets hiervan wordt opgeslagen. De collega's gaan alleen als id mee in
+    `employee_ids` van het verzoek.
   - **Efficiënter indelen** (alleen als de medewerker bij Afspraak maken
     'Geavanceerd' aanvinkt en op de knop klikt): van de afspraken met een cliënt op de
     gekozen dagen geeft de agendapagina alleen de postcode (6 tekens)

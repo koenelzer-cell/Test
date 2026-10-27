@@ -116,6 +116,29 @@ function ClientOptie({ c, onKies }) {
   );
 }
 
+// Een treffer in de lijst van collega zoeken: naam en team.
+function MedewerkerOptie({ m, onKies }) {
+  const [over, hover] = useHover();
+  const kan = m.kanUitnodigen !== false;
+  return (
+    <button type="button" role="option" data-mw-id={m.id} disabled={!kan} aria-disabled={kan ? undefined : 'true'} {...hover}
+      onMouseDown={function (e) { e.preventDefault(); }} onClick={kan ? onKies : undefined}
+      style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', border: '0', background: over && kan ? T.brandWash : '#fff', padding: '7px 10px', cursor: kan ? 'pointer' : 'default', font: '400 13px ' + FONT, color: kan ? T.ink : T.inkSoft, textAlign: 'left' }}>
+      <span style={{ flex: '1 1 auto', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        <span style={{ fontWeight: '600' }}>{m.name || 'Medewerker ' + m.id}</span>
+        {m.team ? <span style={{ fontSize: '11.5px', color: T.inkSoft }}>{m.team}</span> : null}
+      </span>
+      <span style={{ flex: '0 0 auto', fontSize: '12px', fontWeight: '600', color: kan ? T.brand : T.inkSoft }}>{kan ? 'Toevoegen' : 'Kan niet worden uitgenodigd'}</span>
+    </button>
+  );
+}
+// Waarom een collega niet kan, in gewone taal (alleen tijden, nooit wat er staat).
+function waaromNiet(s) {
+  if (s.heleDag) return s.soort === 'afwezig' ? 'is de hele dag afwezig' : 'heeft een afspraak die de hele dag duurt';
+  const tijd = hm(s.van) + ' tot ' + hm(s.tot);
+  return s.soort === 'afwezig' ? 'is afwezig van ' + tijd : 'heeft een afspraak' + (s.reistijd ? ' met reistijd' : '') + ' van ' + tijd;
+}
+
 /* ── Geavanceerd: efficiënter indelen op rijtijd (Google Routes) ── */
 function pcVan(mk, it) { const c = clientsVan(mk, it)[0]; return c ? normPostcode(c.pc) : ''; }
 function reisInvullen(mk, reis) { (reis || []).forEach(function (r, i) { if (mk.items[i] && r) { mk.items[i].reisHeen = r.heen; mk.items[i].reisTerug = r.terug; } }); }
@@ -181,6 +204,137 @@ export function maakAfspraakMaken(ctx) {
         </label>
       </div>
     );
+  }
+  /* ── Collega's (+ Medewerker) ──
+     mk.collegas: [{ id, name, team }]; mk.mwZoek: { open, zoek, treffers };
+     mk.beschikbaar: per collega en moment wat de agenda zegt; it.toch: per
+     collega of je toch inplant als die niet kan. */
+  function mwSleutel(id, it) { return id + '|' + it.date + '|' + it.startMin + '|' + it.minutes; }
+  function collegaStatus(mk, it, c) { return (mk.beschikbaar || {})[mwSleutel(c.id, it)] || { laden: true }; }
+  // Gaat deze collega mee met deze afspraak? Ja, tenzij de agenda zegt dat
+  // die niet kan en je niet 'Toch inplannen' koos.
+  function gaatMee(mk, it, c) { const s = collegaStatus(mk, it, c); return s.kan === false ? !!(it.toch && it.toch[c.id]) : true; }
+  function meeMet(mk, it) { return (mk.collegas || []).filter(function (c) { return gaatMee(mk, it, c); }).map(function (c) { return c.id; }); }
+  // Voornaam, of de hele naam als twee collega's dezelfde voornaam hebben.
+  function roepnaam(mk, c) {
+    const voor = function (x) { return String(x.name || '').trim().split(/\s+/)[0] || 'Collega'; };
+    const v = voor(c);
+    return (mk.collegas || []).filter(function (x) { return voor(x) === v; }).length > 1 ? c.name : v;
+  }
+  function zoekCollega(z, wacht) {
+    clearTimeout(z._timer);
+    const term = String(z.zoek || '').trim();
+    if (term.length < 2 || !actions.onEmployeeSearch) { z.treffers = null; renderPagina(); return; }
+    z._timer = setTimeout(function () {
+      const mijn = z._nr = (z._nr || 0) + 1;
+      z.treffers = { zoekt: true, lijst: [] }; renderPagina();
+      actions.onEmployeeSearch(term, function (res) {
+        if (mijn !== z._nr) return;   // intussen verder getypt
+        z.treffers = res && res.ok ? { lijst: res.employees || [] } : { fout: (res && res.error) || 'Zoeken mislukt.', lijst: [] };
+        renderPagina();
+      });
+    }, wacht);
+  }
+  function voegCollegaToe(mk, m) {
+    mk.collegas = mk.collegas || [];
+    if (!mk.collegas.some(function (c) { return c.id === m.id; })) mk.collegas.push({ id: m.id, name: m.name, team: m.team || '' });
+    mk.mwZoek = { open: false, zoek: '', treffers: null };
+    renderPagina();
+  }
+  // Vóór het tekenen: de agenda van nieuwe collega's (of op nieuwe momenten)
+  // nakijken. Eén verzoek voor alles wat nog ontbreekt.
+  function nakijkenCollegas(mk) {
+    if (!actions.onColleagueCheck || !(mk.collegas || []).length || mk.uitslag) return;
+    mk.beschikbaar = mk.beschikbaar || {};
+    const ids = [], momenten = [];
+    mk.items.forEach(function (it) {
+      mk.collegas.forEach(function (c) {
+        const k = mwSleutel(c.id, it);
+        if (mk.beschikbaar[k]) return;
+        mk.beschikbaar[k] = { laden: true };
+        if (ids.indexOf(c.id) < 0) ids.push(c.id);
+        if (!momenten.some(function (m) { return m.date === it.date && m.startMin === it.startMin && m.minutes === it.minutes; })) momenten.push({ date: it.date, startMin: it.startMin, minutes: it.minutes });
+      });
+    });
+    if (!ids.length) return;
+    actions.onColleagueCheck({ ids: ids, moments: momenten }, function (res) {
+      momenten.forEach(function (m, j) {
+        ids.forEach(function (id) {
+          const k = mwSleutel(id, m);
+          if (!mk.beschikbaar[k] || !mk.beschikbaar[k].laden) return;
+          const r = res && res.ok && res.result && Array.isArray(res.result[id]) ? res.result[id][j] : null;
+          mk.beschikbaar[k] = r || { onbekend: true };
+        });
+      });
+      if (BEWAARD.maak === mk && ctx.pagina === 'maken') renderPagina();
+    });
+  }
+  // De kaart Medewerkers: jij (of de open agenda's), de gekozen collega's en zoeken.
+  function collegaKaart(mk) {
+    const z = mk.mwZoek || (mk.mwZoek = { open: false, zoek: '', treffers: null });
+    const open = (ctx.plan && ctx.plan.result && ctx.plan.result.invitees) || 1;
+    const chip = function (inhoud, props) {
+      return <span {...props} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', minHeight: '28px', padding: '0 4px 0 10px', borderRadius: '7px', background: T.lineSoft, fontWeight: '600', fontSize: '12.5px' }}>{inhoud}</span>;
+    };
+    let zoeker = null;
+    if (z.open) {
+      const t = z.treffers;
+      let lijst = null;
+      if (t) {
+        const melding = function (tekst, kleur) { return <div style={{ padding: '8px 10px', fontSize: '12.5px', color: kleur || T.inkSoft }}>{tekst}</div>; };
+        lijst = t.zoekt ? melding('Zoeken in ONS…') : t.fout ? melding(t.fout, T.bad) : !t.lijst.length ? melding('Geen collega gevonden.')
+          : t.lijst.map(function (m) { return <MedewerkerOptie key={m.id} m={m} onKies={function () { voegCollegaToe(mk, m); }} />; });
+      }
+      zoeker = (
+        <div style={{ position: 'relative', marginTop: '6px' }}>
+          <Invoer waarde={z.zoek} placeholder="Collega zoeken" data-mw-zoek="" autoComplete="off" autoFocus style={{ width: '100%' }} aria-label="Collega zoeken"
+            onWaarde={function (v) { z.zoek = v; zoekCollega(z, 350); }}
+            onBlur={function () { setTimeout(function () { z.treffers = null; renderPagina(); }, 150); }}
+            onKeyDown={function (e) { if (e.key === 'Escape') { z.open = false; z.treffers = null; renderPagina(); } }} />
+          <div role="listbox" data-mw-lijst="" style={{ position: 'absolute', left: '0', right: '0', top: '100%', zIndex: '5', background: '#fff', border: '1px solid ' + T.line, borderRadius: '8px', boxShadow: '0 10px 24px -14px rgba(32,20,15,.45)', marginTop: '2px', display: t ? '' : 'none', maxHeight: '240px', overflowY: 'auto' }}>
+            {lijst}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <>
+        <SectieKop tekst="Medewerkers" />
+        <div data-mw-kaart="" style={Object.assign({}, KAART_DOOS, { padding: '8px 12px' })}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+            {chip(open > 1 ? open + ' open agenda’s' : 'Jij', { style: undefined })}
+            {(mk.collegas || []).map(function (c, i) {
+              return chip(<>{c.name}<WegKnop label={c.name + ' weghalen'} onClick={function () { mk.collegas.splice(i, 1); renderPagina(); }} /></>, { key: c.id, 'data-mw-gekozen': c.id });
+            })}
+            {!z.open && (mk.collegas || []).length < 6 ? (
+              <button type="button" data-mw-plus="" onClick={function () { z.open = true; z.zoek = ''; z.treffers = null; renderPagina(); }}
+                style={{ border: '0', background: 'transparent', color: T.brand, cursor: 'pointer', font: '600 12.5px ' + FONT, padding: '4px 2px' }}>+ Medewerker</button>
+            ) : null}
+          </div>
+          {zoeker}
+        </div>
+      </>
+    );
+  }
+  // Per afspraak: kan elke collega? Zo niet, de keuze om toch in te plannen.
+  function collegaRegels(mk, it, k) {
+    return (mk.collegas || []).map(function (c) {
+      const s = collegaStatus(mk, it, c), naam = roepnaam(mk, c);
+      if (s.laden) return <Regel key={c.id} toon="info" tekst={'Agenda van ' + naam + ' nakijken…'} data-mw-status="laden" data-mw-voor={k + '-' + c.id} />;
+      if (s.onbekend) return <Regel key={c.id} toon="info" tekst={'Agenda van ' + naam + ' niet na te kijken; ' + naam + ' wordt uitgenodigd'} data-mw-status="onbekend" data-mw-voor={k + '-' + c.id} />;
+      if (s.kan) return <Regel key={c.id} toon="ok" tekst={naam + ' kan'} data-mw-status="kan" data-mw-voor={k + '-' + c.id} />;
+      const toch = !!(it.toch && it.toch[c.id]);
+      return (
+        <div key={c.id}>
+          <Regel toon="let" tekst={naam + ' kan niet: ' + waaromNiet(s)} data-mw-status="kanniet" data-mw-voor={k + '-' + c.id} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '6px 0 2px 20px' }}>
+            <span style={{ fontSize: '12.5px' }}>{'Toch inplannen met ' + naam}</span>
+            <Schakelaar aan={toch} label={'Toch inplannen met ' + naam} data-mw-toch={k + '-' + c.id}
+              onClick={function () { it.toch = Object.assign({}, it.toch); it.toch[c.id] = !toch; renderPagina(); }} />
+          </div>
+        </div>
+      );
+    });
   }
   function kanDirect() { return fAan('plannerDirect') && !!actions.onEventOptions && !!actions.onCreateEvents; }
   function naarMaken(momenten, minutes) {
@@ -376,7 +530,7 @@ export function maakAfspraakMaken(ctx) {
     if (!mk) return;
     mk.open = mk.open || {};
     if (mk.items.length === 1) mk.modus = 'dup';
-    if (!mk.laden && !mk.uitslag && !(mk.error && !mk.labels.length)) onsMetClienten(mk);
+    if (!mk.laden && !mk.uitslag && !(mk.error && !mk.labels.length)) { onsMetClienten(mk); nakijkenCollegas(mk); }
   }
   // Afspraak maken: eerst wat voor alle afspraken geldt, daaronder per
   // afspraak een eigen kaart met nummer ('Afspraak 1 van 2'), en onderin
@@ -473,6 +627,7 @@ export function maakAfspraakMaken(ctx) {
         ) : null}
         {ncKaart}
         {alleKaart}
+        {!klaar && actions.onEmployeeSearch ? collegaKaart(mk) : null}
         {/* Afspraken: elk een eigen kaart. */}
         <SectieKop tekst={n > 1 ? n + ' afspraken' : 'Moment'} />
         <div>{mk.items.map(function (it, k) { return afspraakKaart(mk, it, k, n, klaar); })}</div>
@@ -575,6 +730,7 @@ export function maakAfspraakMaken(ctx) {
           {body}
           {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="Op dit tijdstip staat al een afspraak bij de cliënt(en)" /> : null}
           {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
+          {!klaar && (mk.collegas || []).length ? <div data-mw-moment={String(k)} style={{ padding: '2px 0 4px' }}>{collegaRegels(mk, it, k)}</div> : null}
         </div>
         {!klaar ? (
           <div style={{ display: 'flex', gap: '8px', padding: '8px 12px 10px', borderTop: '1px solid ' + T.lineSoft }}>
@@ -664,9 +820,19 @@ export function maakAfspraakMaken(ctx) {
       const cs = clientsVan(mk, it);
       return cs.length && cs.every(function (c) { return !!mk.uursoort[c.clientId]; });
     });
+    // Collega's: pas maken als hun agenda is nagekeken.
+    const nakijken = mk.items.some(function (it) { return (mk.collegas || []).some(function (c) { return collegaStatus(mk, it, c).laden; }); });
+    let zonder = 0, toch = 0;
+    mk.items.forEach(function (it) {
+      (mk.collegas || []).forEach(function (c) { if (collegaStatus(mk, it, c).kan === false) { if (gaatMee(mk, it, c)) toch += 1; else zonder += 1; } });
+    });
+    const samen = [];
+    if (toch) samen.push(toch === 1 ? '1 keer toch ingepland bij een collega die niet kan' : toch + ' keer toch ingepland bij een collega die niet kan');
+    if (zonder) samen.push(zonder === 1 ? '1 keer zonder een collega die niet kan' : zonder + ' keer zonder een collega die niet kan');
     return (
       <div style={stijl}>
-        <PrimaryBtn tekst={mk.busy ? 'Bezig met maken…' : (n === 1 ? 'Afspraak maken in ONS' : n + ' afspraken maken in ONS')} disabled={mk.busy || !compleet} data-maak-knop=""
+        {samen.length ? <div data-mw-samenvatting="" style={{ fontSize: '12px', color: T.inkSoft, margin: '0 0 8px' }}>{samen.join(', ').replace(/^./, function (x) { return x.toUpperCase(); }) + '.'}</div> : null}
+        <PrimaryBtn tekst={mk.busy ? 'Bezig met maken…' : nakijken ? 'Agenda’s nakijken…' : (n === 1 ? 'Afspraak maken in ONS' : n + ' afspraken maken in ONS')} disabled={mk.busy || !compleet || nakijken} data-maak-knop=""
           title={!compleet ? (mk.nietClient ? 'Kies eerst de uursoort.' : 'Kies eerst bij elke afspraak een cliënt en per cliënt de uursoort.') : undefined}
           style={{ marginTop: '0' }} onClick={function () { maakInOns(mk); }} />
         {link('ONS Afspraakformulier', function () { viaFormulier(mk); }, 'data-maak-ons')}
@@ -676,12 +842,13 @@ export function maakAfspraakMaken(ctx) {
   function maakInOns(mk) {
     mk.busy = true; mk.error = ''; renderPagina();
     const lijst = mk.items.map(function (it) {
-      if (mk.nietClient) return { date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' };
-      return { date: it.date, startMin: it.startMin, minutes: it.minutes,
+      const mee = meeMet(mk, it);
+      if (mk.nietClient) return Object.assign({ date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' }, mee.length ? { medewerkers: mee } : null);
+      return Object.assign(mee.length ? { medewerkers: mee } : {}, { date: it.date, startMin: it.startMin, minutes: it.minutes,
         clients: clientsVan(mk, it).map(function (c) { return { id: c.clientId, hourTypeId: Number(mk.uursoort[c.clientId]) }; }),
         labelId: it.labelId ? Number(it.labelId) : null, name: String(titelVan(mk, it) || '').trim() || 'Afspraak',
         clientPresent: aanwezigVan(mk, it),
-        travelBefore: reisVan(mk, it) ? it.reisHeen || 0 : 0, travelAfter: reisVan(mk, it) ? it.reisTerug || 0 : 0 };
+        travelBefore: reisVan(mk, it) ? it.reisHeen || 0 : 0, travelAfter: reisVan(mk, it) ? it.reisTerug || 0 : 0 });
     });
     actions.onCreateEvents(lijst, function (res) {
       mk.busy = false;
@@ -724,6 +891,10 @@ export function maakAfspraakMaken(ctx) {
       return { date: it.date, time: hm(it.startMin), titel: t };
     }));
     const req = metType({ date: eerste.date, time: hm(eerste.startMin), minutes: eerste.minutes, clientIds: ids(eerste), extra: [], eigen: [] }, eerste);
+    // Collega's: die van het eerste moment komen als genodigde in het formulier;
+    // kopieën en volgende formulieren nemen ze van ONS over.
+    const mee = meeMet(mk, eerste);
+    if (mee.length) req.medewerkers = mee;
     if (mk.modus === 'los') { req.multi = true; req.eigen = items.slice(1).map(function (it) { return metType(Object.assign(tijd(it), { minutes: it.minutes, clientIds: ids(it) }), it); }); }
     else req.extra = items.slice(1).map(tijd);
     actions.onNewEvent(req, function (r) { if (!(r && r.ok)) { mk.error = (r && r.error) || 'Openen mislukt.'; renderPagina(); } });

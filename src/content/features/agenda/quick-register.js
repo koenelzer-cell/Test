@@ -29,6 +29,9 @@ export function openNewEvent(req) {
   let ids = currentInviteeIds();
   if (!ids.length) { const id = currentInviteeId(ymd) || resolveInviteeId(); if (id != null) ids = [String(id)]; }
   if (!ids.length) return { ok: false, error: 'Open eerst je agenda in ONS.' };
+  // Collega's uit Afspraak maken: als genodigde in het formulier, net als de
+  // open agenda's (kopieën en volgende formulieren nemen ze van ONS over).
+  (Array.isArray(req.medewerkers) ? req.medewerkers : []).map(String).forEach(function (m) { if (/^\d{1,12}$/.test(m) && ids.indexOf(m) < 0 && ids.length < 20) ids = ids.concat([m]); });
   // Afspraaktype uit de planhulp ({ id, name }): komt in het lege afspraakmodel.
   const leesLabel = function (l) {
     const naam = String((l && l.name) || '').trim();

@@ -2,6 +2,19 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.298
+
+- **Afspraak maken met een collega**: bij Afspraak maken staat een kaart
+  **Medewerkers**. Met **+ Medewerker** zoek je een collega op naam (zoals in
+  ONS bij genodigden) en zet je die erbij. De afspraak komt dan ook in de
+  agenda van je collega.
+- De hulp kijkt meteen in de agenda van je collega: per afspraak staat er
+  "Eva kan" of bijvoorbeeld "Eva kan niet: heeft een afspraak met reistijd van
+  08:30 tot 09:45". Kan je collega niet, dan maakt de hulp die afspraak zonder
+  je collega, tenzij je **Toch inplannen met Eva** aanzet.
+- Kan de hulp de agenda van je collega niet inzien, dan staat dat erbij en
+  wordt je collega gewoon uitgenodigd.
+
 ## 1.6.297
 
 - Voor de beheerder: het **beheerscherm** heeft een nieuwe opzet. Het opent op

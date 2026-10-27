@@ -3290,6 +3290,7 @@
     registrationDetails: "/calendar/invitee/{inviteeId}/registrations/{occurrenceId}/details",
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
     searchClients: "/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1",
+    searchEmployees: "/search_panel/employees?term={term}&usage=event&page=1",
     holidays: "/calendar/holidays",
     availableLabels: "/calendar/events/available_labels",
     createEvent: "/calendar/events",
@@ -3419,6 +3420,10 @@
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
+    // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
+    AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",
+    // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
     AGENDA_FREE_SLOTS: "ag-free-slots",
     // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
@@ -3651,8 +3656,8 @@
       directTargetPct: 80
     };
   }
-  function _isWeekendYmd(ymd3) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd3 || ""));
+  function _isWeekendYmd(ymd4) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd4 || ""));
     if (!m) return false;
     const wd = new Date(+m[1], +m[2] - 1, +m[3]).getDay();
     return wd === 0 || wd === 6;
@@ -3667,8 +3672,8 @@
   function _countWeekends() {
     return !!_agGenSettings().countWeekends;
   }
-  function _excludeWeekendYmd(ymd3) {
-    return _isWeekendYmd(ymd3) && !_countWeekends();
+  function _excludeWeekendYmd(ymd4) {
+    return _isWeekendYmd(ymd4) && !_countWeekends();
   }
   function _nonClientMarker() {
     const m = _agGenSettings().nonClientMarker;
@@ -4041,12 +4046,12 @@
   function twee(n) {
     return ("0" + n).slice(-2);
   }
-  function ymdNl(ymd3) {
-    const p = ymd3.split("-");
+  function ymdNl(ymd4) {
+    const p = ymd4.split("-");
     return p[2] + "-" + p[1] + "-" + p[0];
   }
-  function isoIn(ymd3, min, vorm) {
-    const off = isoLocalWithOffset(ymd3, min);
+  function isoIn(ymd4, min, vorm) {
+    const off = isoLocalWithOffset(ymd4, min);
     if (!off) return null;
     if (vorm === "offset") return off;
     if (vorm === "utc") return new Date(off).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -4067,8 +4072,8 @@
     const genodigden = metClientRol ? ids : ids.concat(cl.filter(function(c) {
       return ids.indexOf(c) < 0;
     }));
-    const ymd3 = String(req.date || ""), s = req.startMin, e = req.endMin;
-    if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd3) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
+    const ymd4 = String(req.date || ""), s = req.startMin, e = req.endMin;
+    if (!ids.length || !/^\d{4}-\d{2}-\d{2}$/.test(ymd4) || !(s >= 0) || !(e > s) || e > 24 * 60) return null;
     let delen = [], fout = false;
     const zet = function(k, v) {
       delen.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
@@ -4095,14 +4100,14 @@
           break;
         case "startIso":
         case "endIso": {
-          const iso = isoIn(ymd3, p.role === "startIso" ? s : e, p.form);
+          const iso = isoIn(ymd4, p.role === "startIso" ? s : e, p.form);
           if (!iso) fout = true;
           else zet(p.key, iso);
           break;
         }
         case "startDate":
         case "endDate":
-          zet(p.key, p.form === "nl" ? ymdNl(ymd3) : ymd3);
+          zet(p.key, p.form === "nl" ? ymdNl(ymd4) : ymd4);
           break;
         case "startTime":
         case "endTime": {
@@ -6559,8 +6564,8 @@
     } catch (e) {
     }
   }
-  function onsDateText(ymd3) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd3 || ""));
+  function onsDateText(ymd4) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd4 || ""));
     return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
   }
   function schrijf(inp, text2) {
@@ -7234,7 +7239,9 @@
     // calendar/events/available_labels: lijst met afspraaktypes.
     afspraaktypes: { naam: "de afspraaktypes", schema: LIJST },
     // search_panel/clients: { clients: [...] } of direct een lijst.
-    clienten: { naam: "de gevonden cliënten", schema: union([LIJST, looseObject({ clients: LIJST })]) }
+    clienten: { naam: "de gevonden cliënten", schema: union([LIJST, looseObject({ clients: LIJST })]) },
+    // search_panel/employees: { employees: [...] } of direct een lijst.
+    medewerkers: { naam: "de gevonden medewerkers", schema: union([LIJST, looseObject({ employees: LIJST })]) }
   };
   var OnsFormaatFout = class extends Error {
     constructor(soort, naam, issues) {
@@ -7409,17 +7416,17 @@
   // src/content/services/ons-api/open-registrations.js
   var OVERLAP_TTL_MS = 6e4;
   var _overlapCache = /* @__PURE__ */ Object.create(null);
-  function overlapKey(ymd3, startMin, endMin, hourTypeId) {
-    return ymd3 + "|" + startMin + "|" + endMin + "|" + (hourTypeId || "");
+  function overlapKey(ymd4, startMin, endMin, hourTypeId) {
+    return ymd4 + "|" + startMin + "|" + endMin + "|" + (hourTypeId || "");
   }
-  function fetchOnsOverlap(ymd3, startMin, endMin, hourTypeId) {
-    const startTime = isoLocalWithOffset(ymd3, startMin);
-    const endTime = isoLocalWithOffset(ymd3, endMin);
+  function fetchOnsOverlap(ymd4, startMin, endMin, hourTypeId) {
+    const startTime = isoLocalWithOffset(ymd4, startMin);
+    const endTime = isoLocalWithOffset(ymd4, endMin);
     if (!startTime || !endTime || !(endMin > startMin)) return Promise.resolve(null);
-    const key = overlapKey(ymd3, startMin, endMin, hourTypeId);
+    const key = overlapKey(ymd4, startMin, endMin, hourTypeId);
     const c = _overlapCache[key];
     if (c && Date.now() - c.ts < OVERLAP_TTL_MS) return c.promise;
-    const promise = getJson(_apiUrl("detectOverlap", { date: ymd3, startTime, endTime, hourTypeId: hourTypeId || "" })).then(parseDetectOverlap).catch(function() {
+    const promise = getJson(_apiUrl("detectOverlap", { date: ymd4, startTime, endTime, hourTypeId: hourTypeId || "" })).then(parseDetectOverlap).catch(function() {
       return null;
     }).then(function(v) {
       _overlapCache[key].value = v;
@@ -7428,8 +7435,8 @@
     _overlapCache[key] = { ts: Date.now(), promise, value: void 0 };
     return promise;
   }
-  function knownOnsOverlap(ymd3, startMin, endMin, hourTypeId) {
-    const c = _overlapCache[overlapKey(ymd3, startMin, endMin, hourTypeId)];
+  function knownOnsOverlap(ymd4, startMin, endMin, hourTypeId) {
+    const c = _overlapCache[overlapKey(ymd4, startMin, endMin, hourTypeId)];
     if (!c || Date.now() - c.ts >= OVERLAP_TTL_MS) return void 0;
     return c.value;
   }
@@ -8231,6 +8238,56 @@
     });
   }
 
+  // src/content/domain/collega.js
+  var MAX_COLLEGAS = 8;
+  function medewerkersUitZoek(json, eigen) {
+    const lijst = json && Array.isArray(json.employees) ? json.employees : Array.isArray(json) ? json : [];
+    const al = (eigen || []).map(String);
+    const tekst = function(v, max) {
+      return v == null ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, max);
+    };
+    return lijst.filter(function(m) {
+      return m && /^\d{1,12}$/.test(String(m.id)) && (m.type == null || m.type === "employee") && al.indexOf(String(m.id)) < 0;
+    }).slice(0, MAX_COLLEGAS).map(function(m) {
+      return { id: String(m.id), name: tekst(m.name || m.display_name || m.sortable_name, 120), team: tekst(m.team, 80), kanUitnodigen: m.can_create_event !== false };
+    });
+  }
+  function ymd3(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function beschikbaarheid(entries2, date, startMin, minutes) {
+    const eind = startMin + minutes;
+    const botsingen = [];
+    (entries2 || []).forEach(function(e) {
+      if (!e) return;
+      if (e.layer === "reservations" || e.type === "reservation") return;
+      const toon = String(e.showAs || "").toLowerCase();
+      if (toon === "free" || toon === "workingelsewhere") return;
+      const afwezig = e.layer === "unavailabilities";
+      if ((e.allDay || afwezig) && (e.allDay || e.startMs == null || e.endMs == null)) {
+        if (e.date === date) botsingen.push({ soort: afwezig ? "afwezig" : "afspraak", heleDag: true, van: 0, tot: 24 * 60, reistijd: false });
+        return;
+      }
+      if (e.startMs == null || e.endMs == null) return;
+      const d0 = new Date(e.startMs);
+      for (let k = 0; k < 62; k++) {
+        const dag = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
+        const dStart = dag.getTime();
+        if (dStart >= e.endMs) break;
+        if (ymd3(dag) !== date) continue;
+        const voor = afwezig ? 0 : e.travelBefore || 0, na = afwezig ? 0 : e.travelAfter || 0;
+        const s = Math.max(0, Math.round((e.startMs - dStart) / 6e4) - voor);
+        const en = Math.min(24 * 60, Math.round((e.endMs - dStart) / 6e4) + na);
+        if (en > startMin && s < eind) botsingen.push({ soort: afwezig ? "afwezig" : "afspraak", heleDag: s <= 0 && en >= 24 * 60, van: s, tot: en, reistijd: voor + na > 0 });
+      }
+    });
+    if (!botsingen.length) return { kan: true };
+    botsingen.sort(function(a, b) {
+      return (a.soort === "afwezig" ? 0 : 1) - (b.soort === "afwezig" ? 0 : 1) || a.van - b.van;
+    });
+    return Object.assign({ kan: false }, botsingen[0]);
+  }
+
   // src/content/domain/route.js
   function isAtClient(entry, opKantoor) {
     return !!(entry && entry.clientPresent && !opKantoor);
@@ -8485,6 +8542,41 @@
         bijLaag("weekReservations", "reservations", start, id, wachtrij)
       ]);
     }));
+  }
+  function checkColleagues(ids, moments) {
+    const uniek = (Array.isArray(ids) ? ids : []).map(String).filter(function(x, i, a) {
+      return /^\d{1,12}$/.test(x) && a.indexOf(x) === i;
+    }).slice(0, 10);
+    const lijst = (Array.isArray(moments) ? moments : []).map(function(m) {
+      const s = parseInt(m && m.startMin, 10), n = parseInt(m && m.minutes, 10);
+      return m && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date)) && s >= 0 && s < 24 * 60 && n > 0 && n <= 24 * 60 ? { date: String(m.date), startMin: s, minutes: n } : null;
+    }).filter(Boolean).slice(0, 20);
+    const weken = [];
+    lijst.forEach(function(m) {
+      const w = maandagenTussen(m.date, m.date)[0];
+      if (w && weken.indexOf(w) < 0) weken.push(w);
+    });
+    const wachtrij = createLimiter(4);
+    const plat = function(a) {
+      return Array.isArray(a) ? [].concat.apply([], a.map(plat)) : [a];
+    };
+    return Promise.all(uniek.map(function(id) {
+      return Promise.all(weken.map(function(w) {
+        return weekVoor([id], w, wachtrij);
+      })).then(function(r) {
+        return { id, entries: plat(r) };
+      }, function() {
+        return { id, fout: true };
+      });
+    })).then(function(per) {
+      const uit = {};
+      per.forEach(function(p) {
+        uit[p.id] = lijst.map(function(m) {
+          return p.fout ? { onbekend: true } : beschikbaarheid(p.entries, m.date, m.startMin, m.minutes);
+        });
+      });
+      return uit;
+    });
   }
   var VOORAF_NA_MS = 1e3;
   function volgendeWeekVooraf(ids, lastDate) {
@@ -8845,11 +8937,14 @@
     if (!ids.length) throw new Error("Open eerst je agenda in ONS.");
     const meta = leesMeta(), results = [];
     for (const e of (events || []).slice(0, 20)) {
+      const collegas = (Array.isArray(e.medewerkers) ? e.medewerkers : []).map(String).filter(function(x, i, a) {
+        return /^\d{1,12}$/.test(x) && ids.indexOf(x) < 0 && a.indexOf(x) === i;
+      }).slice(0, 10);
       const payload = buildEventPayload({
         date: e.date,
         startMin: e.startMin,
         minutes: e.minutes,
-        employeeIds: ids,
+        employeeIds: ids.concat(collegas),
         // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
         // de uursoort op de afspraak zelf.
         clients: e.nietClient === true ? [] : Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }],
@@ -12911,20 +13006,20 @@
     const d = getDateInput();
     const ruw = d ? String(inputTextValue(d) || "") : "";
     const m = /(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(ruw);
-    const ymd3 = m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : null;
+    const ymd4 = m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : null;
     const start = timeTextToMinutes(appointmentCurrentStartTimeText() || "");
     const e = getEndTimeInput();
     const eind = timeTextToMinutes(e ? String(inputTextValue(e) || "").trim() : "");
-    return { ymd: ymd3, startMin: start, eindMin: eind };
+    return { ymd: ymd4, startMin: start, eindMin: eind };
   }
   function huidigRegistratieTijdvak() {
     const d = registrationDateInput();
     const ruw = d ? String(inputTextValue(d) || "") : "";
     const m = /(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(ruw);
-    const ymd3 = m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : null;
+    const ymd4 = m ? m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2) : null;
     const start = timeTextToMinutes(registrationLiveTimeValue(registrationTimeInput("declaration_start_time_display")));
     const eind = timeTextToMinutes(registrationLiveTimeValue(registrationTimeInput("declaration_end_time_display")));
-    return { ymd: ymd3, startMin: start, eindMin: eind };
+    return { ymd: ymd4, startMin: start, eindMin: eind };
   }
   var _tijdvakCache = /* @__PURE__ */ Object.create(null);
   function _klokMinuten(v) {
@@ -12939,13 +13034,13 @@
     if (aEind <= aStart || bEind <= bStart) return false;
     return aStart < bEind && bStart < aEind;
   }
-  function fetchWeekTijdvakken(laag, ymd3) {
+  function fetchWeekTijdvakken(laag, ymd4) {
     const id = resolveInviteeId();
-    if (id == null || !ymd3) return Promise.resolve([]);
-    const key = laag + "|" + id + "|" + ymd3;
+    if (id == null || !ymd4) return Promise.resolve([]);
+    const key = laag + "|" + id + "|" + ymd4;
     const c = _tijdvakCache[key];
     if (c && Date.now() - c.ts < 6e4) return Promise.resolve(c.rows);
-    const url = _apiUrl(laag === "registraties" ? "weekRegistrations" : "weekEvents", { inviteeId: id, date: ymd3 });
+    const url = _apiUrl(laag === "registraties" ? "weekRegistrations" : "weekEvents", { inviteeId: id, date: ymd4 });
     return getJson(url).then(function(j) {
       const rows = (mapAgendaWeekResponse(j) || []).map(function(e) {
         if (!e) return null;
@@ -12959,18 +13054,18 @@
       return [];
     });
   }
-  function geladenTijdvakken(laag, ymd3) {
+  function geladenTijdvakken(laag, ymd4) {
     const id = resolveInviteeId();
-    if (id == null || !ymd3) return null;
-    const c = _tijdvakCache[laag + "|" + id + "|" + ymd3];
+    if (id == null || !ymd4) return null;
+    const c = _tijdvakCache[laag + "|" + id + "|" + ymd4];
     return c ? c.rows : null;
   }
-  function overlappendTijdvak(laag, ymd3, startMin, eindMin, negeerId) {
-    const rijen = geladenTijdvakken(laag, ymd3);
+  function overlappendTijdvak(laag, ymd4, startMin, eindMin, negeerId) {
+    const rijen = geladenTijdvakken(laag, ymd4);
     if (!rijen || !rijen.length || startMin == null || eindMin == null) return null;
     for (let i = 0; i < rijen.length; i++) {
       const r = rijen[i];
-      if (r.ymd !== ymd3) continue;
+      if (r.ymd !== ymd4) continue;
       if (negeerId && String(r.id) === String(negeerId)) continue;
       if (_tijdvakkenOverlappen(startMin, eindMin, r.startMin, r.endMin)) return r;
     }
@@ -18321,16 +18416,19 @@
   // src/content/features/agenda/quick-register.js
   function openNewEvent(req) {
     req = req || {};
-    const ymd3 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd3) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
+    const ymd4 = String(req.date || ""), hhmm = String(req.time || ""), minutes = parseInt(req.minutes, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd4) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm) || !(minutes > 0)) return { ok: false, error: "Ongeldig tijdstip." };
     const aantal = 1 + (Array.isArray(req.extra) ? req.extra.length : 0) + (Array.isArray(req.eigen) ? req.eigen.length : 0);
     if (aantal > MAX_MOMENTEN) return { ok: false, error: "Kies hooguit " + MAX_MOMENTEN + " momenten tegelijk." };
     let ids = currentInviteeIds();
     if (!ids.length) {
-      const id = currentInviteeId(ymd3) || resolveInviteeId();
+      const id = currentInviteeId(ymd4) || resolveInviteeId();
       if (id != null) ids = [String(id)];
     }
     if (!ids.length) return { ok: false, error: "Open eerst je agenda in ONS." };
+    (Array.isArray(req.medewerkers) ? req.medewerkers : []).map(String).forEach(function(m) {
+      if (/^\d{1,12}$/.test(m) && ids.indexOf(m) < 0 && ids.length < 20) ids = ids.concat([m]);
+    });
     const leesLabel = function(l) {
       const naam = String(l && l.name || "").trim();
       return l && Number(l.id) > 0 && naam ? { id: Number(l.id), name: naam.slice(0, 100) } : null;
@@ -18346,7 +18444,7 @@
       return id > 0 ? { hourTypeId: id, name: String(u && u.name || "").trim().slice(0, 200) } : null;
     };
     storePendingAppointment({
-      date: ymd3,
+      date: ymd4,
       time: hhmm,
       minutes,
       label: leesLabel(req.label),
@@ -18378,16 +18476,16 @@
     const kopieen = f.plannerCopies !== false;
     const eigenOk = kopieen;
     storePendingDuplicates(kopieen && !req.multi ? lees(req.extra) : [], eigenOk ? lees(req.eigen) : []);
-    spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd3));
+    spaNavigate(location.origin + newEventUrl(ids, clientLijst(req.clientIds), ymd4));
     return { ok: true };
   }
-  function quickRegisterUrl(inviteeId, ymd3, hhmm, minutes) {
-    return _apiUrl("newRegistration", { inviteeId, date: ymd3, startTime: hhmm, durationSec: minutes * 60 });
+  function quickRegisterUrl(inviteeId, ymd4, hhmm, minutes) {
+    return _apiUrl("newRegistration", { inviteeId, date: ymd4, startTime: hhmm, durationSec: minutes * 60 });
   }
-  function overlapCheck(ymd3, startMin, endMin) {
-    return fetchOnsOverlap(ymd3, startMin, endMin, "").then(function(ons) {
-      return fetchWeekTijdvakken("registraties", ymd3).then(function() {
-        const hit = overlappendTijdvak("registraties", ymd3, startMin, endMin, null);
+  function overlapCheck(ymd4, startMin, endMin) {
+    return fetchOnsOverlap(ymd4, startMin, endMin, "").then(function(ons) {
+      return fetchWeekTijdvakken("registraties", ymd4).then(function() {
+        const hit = overlappendTijdvak("registraties", ymd4, startMin, endMin, null);
         if (hit) return overlapMelding(hit, "een registratie");
         if (ons === true) return "Let op: ONS meldt dat dit tijdvak overlapt met een bestaande registratie.";
         return null;
@@ -18396,23 +18494,23 @@
   }
   function quickRegister(req) {
     req = req || {};
-    const ymd3 = String(req.date || "");
+    const ymd4 = String(req.date || "");
     let hhmm = String(req.time || "").trim();
     const minutes = parseInt(req.minutes, 10);
     const startMin = timeTextToMinutes(hhmm);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd3)) return Promise.resolve({ ok: false, error: "Kies een datum." });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd4)) return Promise.resolve({ ok: false, error: "Kies een datum." });
     if (startMin == null || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(hhmm)) return Promise.resolve({ ok: false, error: "Vul een begintijd in (uu:mm)." });
     if (!(minutes > 0) || minutes > 24 * 60) return Promise.resolve({ ok: false, error: "Vul een duur in minuten in." });
     if (startMin + minutes > 24 * 60) return Promise.resolve({ ok: false, error: "De registratie loopt over middernacht." });
-    const id = currentInviteeId(ymd3) || resolveInviteeId();
+    const id = currentInviteeId(ymd4) || resolveInviteeId();
     if (id == null) return Promise.resolve({ ok: false, error: "Open eerst je agenda in ONS." });
     hhmm = ("0" + Math.floor(startMin / 60)).slice(-2) + ":" + ("0" + startMin % 60).slice(-2);
     const go = function() {
-      spaNavigate(location.origin + quickRegisterUrl(id, ymd3, hhmm, minutes));
+      spaNavigate(location.origin + quickRegisterUrl(id, ymd4, hhmm, minutes));
       return { ok: true };
     };
     if (req.force) return Promise.resolve(go());
-    return overlapCheck(ymd3, startMin, startMin + minutes).then(function(msg) {
+    return overlapCheck(ymd4, startMin, startMin + minutes).then(function(msg) {
       return msg ? { ok: false, overlap: msg } : go();
     });
   }
@@ -18438,6 +18536,13 @@
     if (t.length < 2) return Promise.resolve([]);
     return getJson(_apiUrl("searchClients", { term: t, outOfCare: outOfCare === true ? "true" : "false" })).then(function(j) {
       return clientsForPlan(controleerOns("clienten", j));
+    });
+  }
+  function searchEmployeesForPlan(term) {
+    const t = String(term || "").trim();
+    if (t.length < 2) return Promise.resolve([]);
+    return getJson(_apiUrl("searchEmployees", { term: t })).then(function(j) {
+      return medewerkersUitZoek(controleerOns("medewerkers", j), agendaIds());
     });
   }
 
@@ -18768,6 +18873,32 @@
             }, function() {
               try {
                 sendResponse({ ok: false, error: "Zoeken in ONS mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_EMPLOYEE_SEARCH:
+            searchEmployeesForPlan(msg.term).then(function(employees) {
+              try {
+                sendResponse({ ok: true, employees });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.name === "OnsFormaatFout" && e.message || "Zoeken in ONS mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_COLLEAGUE_CHECK:
+            checkColleagues(msg.ids, msg.moments).then(function(result) {
+              try {
+                sendResponse({ ok: true, result });
+              } catch (e) {
+              }
+            }, function() {
+              try {
+                sendResponse({ ok: false, error: "Nakijken mislukt." });
               } catch (e2) {
               }
             });

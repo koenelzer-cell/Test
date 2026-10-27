@@ -60,11 +60,11 @@ import { _setOnsOverlapForTest, fetchEntriesForRange } from '../../src/content/s
 import { openNewEvent, quickRegister, quickRegisterUrl } from '../../src/content/features/agenda/quick-register.js';
 import { createEvents, eventOptions } from '../../src/content/features/agenda/event-create.js';
 import { controleerOns } from '../../src/content/services/ons-api/formaat.js';
-import { searchClientsForPlan } from '../../src/content/features/agenda/client-lookup.js';
+import { searchClientsForPlan, searchEmployeesForPlan } from '../../src/content/features/agenda/client-lookup.js';
 import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest, newEventUrl } from '../../src/content/features/agenda/navigation.js';
 import { onsDateText } from '../../src/content/features/appointment/prefill.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../src/content/domain/free-slots.js';
-import { _forgetHolidays, findFreeSlots } from '../../src/content/features/agenda/free-slots.js';
+import { _forgetHolidays, checkColleagues, findFreeSlots } from '../../src/content/features/agenda/free-slots.js';
 import { parseHolidays } from '../../src/content/domain/holidays.js';
 import { declareUrlUitDetails, registerOpenItem } from '../../src/content/features/agenda/register-item.js';
 import { mergeOpenRangePerPersoon } from '../../src/content/features/agenda/open-range.js';
@@ -273,6 +273,8 @@ window.__onsHelperTestApi = {
   eventOptions,
   controleerOns,
   searchClientsForPlan,
+  searchEmployeesForPlan,
+  checkColleagues,
   onsDateText,
   findFreeGaps, reservationBlocks, reservationsOverlapping,
   findFreeSlots,
