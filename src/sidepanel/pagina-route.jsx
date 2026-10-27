@@ -155,7 +155,7 @@ export function maakRoute(ctx) {
           <iframe src={embedUrl(kaartKey, kaartStops, vertrekAdres)} title="Kaart van de route" loading="lazy" referrerPolicy="no-referrer-when-downgrade" data-kaart=""
             style={{ width: '100%', height: '300px', border: '1px solid ' + T.line, borderRadius: '12px', marginTop: '10px', display: 'block' }} />
         ) : !kaartKey && kaartStops.length ? (
-          <Txt kind="help" style={{ margin: '8px 0 0', fontSize: '11.5px' }}>Voor de kaart: vul in het beheerscherm (Functies → Google Maps) een sleutel voor de Maps Embed API in.</Txt>
+          <Txt kind="help" style={{ margin: '8px 0 0', fontSize: '11.5px' }}>Voor de kaart: vul in het beheerscherm bij Google Maps een sleutel voor de Maps Embed API in.</Txt>
         ) : null}
         {knoppen.length ? <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>{knoppen}</div> : null}
         {kortste}

@@ -131,7 +131,7 @@ boven de veldfuncties in `fields.js`; bij de registratie staan ze in
 
 | Ik wil … | Kijk in |
 |---|---|
-| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/time-input.js` (tijdvelden, begintijd beschermd), `ons/form-controls.js` (invoer), `ons/interaction.js` (dropdowns kiezen), of een herstelde selector in `config.json` (`uiSelectors`, beheerscherm, Troubleshooting) |
+| een ONS-selector aanpassen na een ONS-release | `ons/selectors.js` (agenda, popup), `ons/appointment-form.js` (afspraakformulier), `ons/time-input.js` (tijdvelden, begintijd beschermd), `ons/form-controls.js` (invoer), `ons/interaction.js` (dropdowns kiezen), of een herstelde selector in `config.json` (`uiSelectors`, beheerscherm, Storingen, tabblad Herstelde selectors) |
 | weten welke hulp op welke URL draait | `helper/routing.js` (`syncWithUrl`) |
 | het afspraaktype-scherm | `features/appointment/choices.js` (+ `src/react/components/`) |
 | welk scherm een ander opent | `screen/schermen.js` (register), aangemeld in `index.js` |
@@ -201,6 +201,28 @@ Lagen, oplopend in voorrang (content-script en popup gelijk):
 5. `chrome.storage.managed` — bedrijfsbeleid, **wint altijd**
 
 Herstelde UI-selectors komen alleen uit `config.json` (`uiSelectors`).
+
+### Het beheerscherm
+
+`tools/beheer/beheer.html` is één losse pagina (geen bundel, geen extensie-API):
+`DEFAULTS` bovenin, per onderdeel een `render…` en een `read…`, en
+`buildConfigFromDOM()` maakt er de config van. Elke pagina is een
+`<section data-settings-page>`; `showSettingsPage(id)` wisselt (oude namen via
+`PAGINA_ALIAS`, het menu via `data-menu-target`). Wijzigingen tellen per pagina
+(`markDirty` → `dirtyPages`); `PAGE_CANCEL_KEYS` zegt wat Annuleren terugzet
+(ook losse velden, `generalSettings.x`). De kopbalk (`updateKop`) vergelijkt
+de laatst opgeslagen config met de laatst gepubliceerde (`localStorage`
+`onsBeheerLaatstGepubliceerd`, datum en notitie in
+`onsBeheerLaatstePublicatie`) via `beschrijfWijzigingen()`, die ook Overzicht
+en stap 2 van Publiceren vult.
+
+Afspraaktypes, niet-cliëntgebonden keuzes en registratievormen: de gegevens
+van een rij staan op `tr._data` (plus `tr._settings`, `tr._formExtra`, de
+volgorde op `tr._volg`); de tabel toont een samenvatting en `kiesRij()` opent
+de rij in het paneel ernaast (`tekenChoicePaneel` enz.). Teams: elk team is een
+blok in `#zones` (`addProfile`), alleen het gekozen team is zichtbaar;
+`renderTeamList()` bouwt de lijst links uit die blokken. `e2e/beheer.spec.mjs`
+draait elke pagina en de belangrijkste handelingen in Chromium.
 
 ## ONS-API
 

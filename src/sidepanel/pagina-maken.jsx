@@ -731,7 +731,7 @@ export function maakAfspraakMaken(ctx) {
   function routesBron() { return ctx.state && ctx.state.routesProxy && (ctx.state.routesProxy.key || ctx.state.routesProxy.url) ? ctx.state.routesProxy : null; }
   function effBlok(mk) {
     if (!routesBron()) {
-      return <div style={{ marginTop: '8px' }}><Txt kind="help" style={{ margin: '0', fontSize: '11.5px' }}>Efficiënter indelen gebruikt de Google Routes API: vul in het beheerscherm (Functies → Google Maps) een Routes-sleutel in.</Txt></div>;
+      return <div style={{ marginTop: '8px' }}><Txt kind="help" style={{ margin: '0', fontSize: '11.5px' }}>Efficiënter indelen gebruikt de Google Routes API: vul in het beheerscherm bij Google Maps een Routes-sleutel in.</Txt></div>;
     }
     const ontbreekt = mk.items.filter(function (it) { return !pcVan(mk, it); }).length;
     const e = mk.eff;

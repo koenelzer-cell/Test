@@ -129,11 +129,55 @@ Lagen, oplopend in voorrang:
 
 De sleutels van laag 5 staan in `managed_schema.json`.
 
+### Beheerscherm
+
+`tools/beheer/beheer.html`, lokaal in de browser geopend. Bovenaan een
+kopbalk die zegt wat er nog moet gebeuren: wijzigingen op deze pagina
+(Annuleren en Opslaan), of hoeveel opgeslagen wijzigingen nog niet
+gepubliceerd zijn (Publiceren). Een pagina met wijzigingen die nog niet zijn
+opgeslagen kun je niet verlaten. Links het menu:
+
+- **Overzicht** (start): wanneer er voor het laatst gepubliceerd is en met
+  welke notitie, hoeveel wijzigingen nog wachten, wat de controle vindt
+  (met een knop naar de plek), voor welke extensieversie de instellingen zijn,
+  veelgebruikte taken en wat er sinds de vorige publicatie is gewijzigd. Staat
+  de noodschakelaar uit, dan staat dat hier bovenaan.
+- **Inrichting**: *Afspraaktypes* (tabbladen cliëntgebonden,
+  niet-cliëntgebonden met categorieën, extra labels), *Registratievormen*,
+  *Duur en tijden*, *Tellen en declarabiliteit* en *Teksten*. Bij
+  afspraaktypes en registratievormen toont de tabel een samenvatting; een rij
+  kiezen opent hem in een paneel ernaast (alle instellingen, ook duur,
+  duurkiezer, informatielabel, rapportageprefix en eindtijd). De volgorde
+  sleep je aan de greep (of pijltjestoetsen op de greep); daarna krijgt elke
+  rij zijn plek als volgorde.
+- **Organisatie**: *Teams en dagindeling* (links de bedrijfsonderdelen met
+  hun teams, rechts de dagindeling van het gekozen team met een dagbalk die
+  gaten en overlap meldt, en 'Dagindeling overnemen van'), *Kleuren* en
+  *Kantoren*.
+- **Functies en koppelingen**: *Functies* (per onderdeel, met uitleg;
+  onderdelen van de Planhulp worden grijs als de Planhulp uit staat; de
+  noodschakelaar apart), *Google Maps* en *ONS-koppeling* (uursoorten en
+  labels inladen, API-adressen, waar de hulp start).
+- **Controleren**: *Controle* (configuratiecontrole en testmatrix),
+  *Uitproberen* (de scenario-simulator) en *Storingen* (tabbladen
+  paginaopnames, herstelde selectors, DOM-zelftest, supportpakket,
+  meldkanaal).
+- **Uitrollen**: *Publiceren* in vier stappen (controleren, wijzigingen
+  bekijken in gewone taal, versienotitie, publiceren: slaat op, maakt een
+  herstelpunt en downloadt `config.json` en `helperConfig-beleid.json`), met
+  de compatibiliteit ernaast; *Historie* en *Geavanceerd* (de volledige JSON,
+  importeren, exporteren, standaard herstellen).
+
+Oude adressen (`#algemeen`, `#zoneprofielen`, `#configcontrole`,
+`#troubleshooting` enzovoort) openen de pagina waar dat onderdeel nu staat.
+Alles blijft in deze browser (`localStorage`); de laatste publicatie wordt
+onthouden om de wijzigingen sindsdien te tonen.
+
 ### Herstelde selectors
 
 Wijst ONS na een update een veld of knop anders aan dan de hulp verwacht, dan
 kan een herstelde selector in `config.json` (`uiSelectors`, in het beheerscherm
-onder Troubleshooting als `ui-selectors.json` te laden). Die geldt voor alle
+bij Storingen, tabblad Herstelde selectors, als `ui-selectors.json` te laden). Die geldt voor alle
 medewerkers, zonder nieuwe versie van de extensie. (De vragenlijsthulp op ONS
 Dossier en de live UI-inspector zijn sinds 1.6.293 uit de extensie gehaald.)
 
@@ -489,7 +533,7 @@ en oker).
   tijden én de reistijd; is je indeling al efficiënt, dan vult hij alleen de
   reistijd in. Nodig: een Routes-sleutel (of de eigen server) in het
   beheerscherm. Schakelaar: 'Afspraak maken: Geavanceerd'.
-- **Google Maps (optioneel, beheerscherm -> Functies -> Google Maps)**:
+- **Google Maps (optioneel, beheerscherm, pagina Google Maps)**:
   - *Rijtijden over de weg*: met een Routes-sleutel (alleen Routes API,
     met dagmaximum) berekent Route van de dag de **kortste volgorde**
     (rondrit vanaf je vertrekpunt).
@@ -501,7 +545,7 @@ en oker).
   - *Kaart*: met een aparte sleutel die alleen de Maps Embed API mag (gratis)
     toont Route van de dag de route op een kaart, na een klik op 'Kaart
     tonen'. Hoe je de sleutels beperkt staat in `SECURITY.md`.
-- **Zijpaneelfuncties aan/uit** (beheerscherm -> Functies): Verhouding per
+- **Zijpaneelfuncties aan/uit** (beheerscherm, pagina Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
   (met apart: kopieën op meerdere momenten, afspraak meteen maken en Huisbezoek/efficiënter indelen), Route
   van de dag, Verlof aanvragen en het vooraf laden. Uit = de knop of het

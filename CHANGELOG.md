@@ -2,6 +2,23 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.297
+
+- Voor de beheerder: het **beheerscherm** heeft een nieuwe opzet. Het opent op
+  een **Overzicht** (wanneer er voor het laatst gepubliceerd is, hoeveel
+  wijzigingen nog wachten, wat de controle vindt en wat er sindsdien is
+  veranderd). Het menu is ingedeeld in Inrichting, Organisatie, Functies en
+  koppelingen, Controleren en Uitrollen; Algemene instellingen is verdeeld
+  over de pagina's waar het bij hoort.
+- Afspraaktypes en registratievormen bewerk je in een paneel naast de tabel
+  in plaats van in losse vensters; de volgorde versleep je aan de greep.
+- Teams en dagindeling staan op één pagina, met een dagbalk die gaten en
+  overlap meldt en de knop "Dagindeling overnemen van".
+- Publiceren gaat in vier stappen, met de wijzigingen in gewone taal. Opslaan,
+  Annuleren en Publiceren staan in de kopbalk.
+- Voor medewerkers verandert er niets: het beheerscherm maakt dezelfde
+  `config.json` als voorheen.
+
 ## 1.6.296
 
 - Kortere teksten: bij overlap staat nu "Om 09:30 staat al een afspraak", en

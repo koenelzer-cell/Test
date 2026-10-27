@@ -1479,7 +1479,7 @@ test('zijpaneel: geavanceerd zonder Routes-sleutel - uitleg in plaats van de kno
   const adv = document.querySelector('[data-maak-geavanceerd]');
   adv.click();
   assert.equal(document.querySelector('[data-maak-efficient]'), null);
-  assert.match(document.body.textContent, /vul in het beheerscherm \(Functies → Google Maps\) een Routes-sleutel in/);
+  assert.match(document.body.textContent, /vul in het beheerscherm bij Google Maps een Routes-sleutel in/);
   document.querySelector('[data-maak-aanpassen="0"]').click();
   assert.ok(document.querySelector('[data-maak-heen="0"]'), 'reistijd wel zelf in te vullen');
   assert.equal(google.length, 0);
