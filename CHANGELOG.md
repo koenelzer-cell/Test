@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.299
+
+- **Locatie bij Afspraak maken**: onder Type kies je nu de locatie uit ONS,
+  bijvoorbeeld BG Rotterdam. Die geldt voor alle afspraken; met Aanpassen
+  geef je een afspraak een andere locatie. Ook bij een niet cliëntgebonden
+  afspraak. Kies je via het ONS Afspraakformulier, dan kies je de locatie
+  daar zelf.
+
 ## 1.6.298
 
 - **Afspraak maken met een collega**: bij Afspraak maken staat een kaart

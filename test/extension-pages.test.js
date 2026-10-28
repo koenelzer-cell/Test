@@ -1358,6 +1358,77 @@ test('zijpaneel: afspraak maken - collega weghalen, agenda niet na te kijken, al
   assert.equal(document.querySelector('[data-mw-kaart]'), null, 'na het maken geen kaart Medewerkers meer');
 });
 
+// Locaties zoals de content-kant ze geeft (uit search_panel/locations/tree).
+const LOCATIES = [{ id: '46', name: 'BG Rotterdam', groep: 'Begeleiding', kan: true }, { id: '34', name: 'BG Breda', groep: 'Begeleiding', kan: true }, { id: '60', name: 'J&G Oosterhout', groep: 'Behandeling', kan: false }];
+function paneelMetLocaties(antwoord = { locations: LOCATIES }) {
+  return maakPaneel({
+    'ag-event-options': (msg, cb) => cb({ ok: true, metaKnown: true, labels: [{ id: 46, name: 'Huisbezoek' }, { id: 47, name: 'Face to face' }],
+      hourTypes: Object.fromEntries((msg.clientIds || []).map((c) => [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }]])),
+      ...(msg.medewerker ? { employeeHourTypes: [{ id: 77, name: 'Teamoverleg', recent: true }] } : {}),
+      ...(msg.locaties ? antwoord : {}) }),
+  });
+}
+
+test('zijpaneel: afspraak maken - locatie voor alle afspraken, per afspraak aan te passen, mee naar ONS', async () => {
+  const { document, dom, verzonden } = paneelMetLocaties();
+  await tweeMomenten(document);
+  assert.equal(verzonden.find((m) => m.type === 'ag-event-options').locaties, true, 'locaties gevraagd bij het openen');
+  const alle = () => document.querySelector('[data-maak-locatie-alle]');
+  assert.equal(alle().value, '', 'standaard geen locatie');
+  assert.deepEqual([...alle().querySelectorAll('optgroup')].map((g) => g.label + ': ' + [...g.querySelectorAll('option')].map((o) => o.textContent + (o.disabled ? ' (grijs)' : '')).join(', ')),
+    ['Begeleiding: BG Rotterdam, BG Breda', 'Behandeling: J&G Oosterhout (grijs)']);
+  assert.equal(alle().closest('[data-maak-alle]').textContent.indexOf('Locatie') > alle().closest('[data-maak-alle]').textContent.indexOf('Type'), true, 'onder Type');
+  assert.equal(document.querySelector('[data-maak-locatie-label]'), null);
+  kies(document, dom, '[data-maak-locatie-alle]', '46');
+  assert.deepEqual([...document.querySelectorAll('[data-maak-locatie-label]')].map((e) => e.textContent), ['BG Rotterdam', 'BG Rotterdam']);
+  assert.ok(document.querySelector('[data-maak-ons-locatie]'), 'uitleg bij het formulier van ONS');
+  // Aanpassen: een eigen locatie voor de tweede afspraak.
+  document.querySelector('[data-maak-aanpassen="1"]').click();
+  assert.equal(document.querySelector('[data-maak-locatie="1"]').value, '46');
+  kies(document, dom, '[data-maak-locatie="1"]', '34');
+  document.querySelector('[data-maak-aanpassen="1"]').click();
+  assert.equal(document.querySelector('[data-maak-locatie-label="1"]').textContent, 'BG Breda');
+  assert.ok(document.querySelector('[data-eigen-keuze="1"]'), 'eigen keuze');
+  kies(document, dom, '[data-maak-locatie-alle]', '');
+  assert.equal(document.querySelector('[data-maak-locatie-label="0"]'), null, 'voor alle weer zonder');
+  assert.equal(document.querySelector('[data-maak-locatie-label="1"]').textContent, 'BG Breda', 'eigen keuze blijft');
+  kies(document, dom, '[data-maak-locatie-alle]', '46');
+  // Per afspraak anders: de locatie staat in elke kaart.
+  document.querySelector('[data-maak-modus="los"]').click();
+  assert.deepEqual([document.querySelector('[data-maak-locatie="0"]').value, document.querySelector('[data-maak-locatie="1"]').value], ['46', '34']);
+  assert.match(document.querySelector('[data-maak-alle]').textContent, /Cliënten, type, locatie, aanwezig en reistijd stel je hieronder per afspraak in\./);
+  document.querySelector('[data-maak-modus="dup"]').click();
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.locationId), [46, 34]);
+});
+
+test('zijpaneel: afspraak maken - locatie bij een niet cliëntgebonden afspraak, en geen regel zonder locaties', async () => {
+  const { document, dom, verzonden } = paneelMetLocaties();
+  await tweeMomenten(document);
+  document.querySelector('[data-maak-niet-client]').click();
+  await tick();
+  kies(document, dom, '[data-maak-nc-uursoort]', '77');
+  kies(document, dom, '[data-maak-locatie-alle]', '34');
+  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /TeamoverlegBG BredaVerwijderen$/);
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.nietClient, e.hourTypeId, e.locationId]), [[true, 77, 34], [true, 77, 34]]);
+  // Geeft ONS geen locaties, dan geen regel; geeft ONS ze in een andere vorm, dan een melding in de regel.
+  const leeg = paneelMetLocaties({ locations: [] });
+  await tweeMomenten(leeg.document);
+  assert.equal(leeg.document.querySelector('[data-maak-locatie-alle]'), null);
+  assert.doesNotMatch(leeg.document.querySelector('[data-maak-alle]').textContent, /Locatie/);
+  const fout = paneelMetLocaties({ locations: [], locationsError: 'De locaties konden niet worden opgehaald uit ONS.' });
+  await tweeMomenten(fout.document);
+  assert.equal(fout.document.querySelector('[data-maak-locatie-fout]').textContent, 'De locaties konden niet worden opgehaald uit ONS.');
+  assert.equal(fout.document.querySelector('[data-maak-knop]').textContent, '2 afspraken maken in ONS', 'maken kan gewoon');
+});
+
 const TYPES_BEHEER = [
   { label: 'Huisbezoek', etiketten: ['JG Huisbezoek'], clientPresent: true, addTravelTime: true },
   { label: 'MDO', etiketten: ['JG MDO'], clientPresent: false, addTravelTime: false },

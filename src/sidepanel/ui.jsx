@@ -355,7 +355,8 @@ export function Invoer({ type, waarde, onWaarde, onKlaar, onBlur, style, ...rest
 export function Keuzelijst({ opties, waarde, onKies, leeg, style, ...rest }) {
   const groepen = [], los = [];
   (opties || []).forEach(function (o) {
-    const op = <option key={String(o.id)} value={String(o.id)}>{o.name}</option>;
+    // uit: wel zichtbaar, niet te kiezen (grijs).
+    const op = <option key={String(o.id)} value={String(o.id)} disabled={o.uit ? true : undefined}>{o.name}</option>;
     if (!o.groep) { los.push(op); return; }
     let g = groepen.filter(function (x) { return x.label === o.groep; })[0];
     if (!g) { g = { label: o.groep, opties: [] }; groepen.push(g); los.push(g); }

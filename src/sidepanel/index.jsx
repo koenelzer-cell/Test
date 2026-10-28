@@ -68,7 +68,7 @@ const agendaActies = {
     vraagAanTab(m, cb);
   },
   onEventOptions: function (clientIds, cb, opts) {
-    vraagAanTab(Object.assign({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, opts && opts.medewerker ? { medewerker: true } : {}), cb);
+    vraagAanTab(Object.assign({ type: MSG.AGENDA_EVENT_OPTIONS, clientIds: clientIds }, opts && opts.medewerker ? { medewerker: true } : {}, opts && opts.locaties ? { locaties: true } : {}), cb);
   },
   onCreateEvents: function (events, cb) { vraagAanTab({ type: MSG.AGENDA_CREATE_EVENTS, events: events }, cb); },
   onReloadAgenda: function () { vraagAanTab({ type: MSG.AGENDA_RELOAD }, function () {}); },

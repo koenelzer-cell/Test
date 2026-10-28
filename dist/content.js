@@ -3291,6 +3291,7 @@
     eventDetails: "/calendar/invitee/{inviteeId}/events/{occurrenceId}/details",
     searchClients: "/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1",
     searchEmployees: "/search_panel/employees?term={term}&usage=event&page=1",
+    locationsTree: "/search_panel/locations/tree",
     holidays: "/calendar/holidays",
     availableLabels: "/calendar/events/available_labels",
     createEvent: "/calendar/events",
@@ -3413,9 +3414,9 @@
     AGENDA_SLOT_CHECK: "ag-slot-check",
     // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
     AGENDA_EVENT_OPTIONS: "ag-event-options",
-    // { clientIds } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown }
+    // { clientIds, medewerker?, locaties? } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown, employeeHourTypes?, locations?: [{ id, name, groep, kan }], locationsError? }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
@@ -6933,7 +6934,8 @@
       label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
       labels: [],
       location: null,
-      location_id: null,
+      // Locatie: value uit search_panel/locations/tree (zoals het formulier van ONS).
+      location_id: /^\d{1,12}$/.test(String(spec.locationId == null ? "" : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null,
       name: String(spec.name || "Afspraak").slice(0, 200),
       team_ids: [],
       teams: [],
@@ -7241,7 +7243,9 @@
     // search_panel/clients: { clients: [...] } of direct een lijst.
     clienten: { naam: "de gevonden cliënten", schema: union([LIJST, looseObject({ clients: LIJST })]) },
     // search_panel/employees: { employees: [...] } of direct een lijst.
-    medewerkers: { naam: "de gevonden medewerkers", schema: union([LIJST, looseObject({ employees: LIJST })]) }
+    medewerkers: { naam: "de gevonden medewerkers", schema: union([LIJST, looseObject({ employees: LIJST })]) },
+    // search_panel/locations/tree: een lijst knopen, één knoop met children, of { data: [...] }.
+    locaties: { naam: "de locaties", schema: union([LIJST, looseObject({ children: LIJST }), looseObject({ data: LIJST })]) }
   };
   var OnsFormaatFout = class extends Error {
     constructor(soort, naam, issues) {
@@ -7260,6 +7264,33 @@
   }
   function weekEntries(json) {
     return mapAgendaWeekResponse(controleerOns("weekagenda", json));
+  }
+
+  // src/content/domain/locaties.js
+  var MAX_LOCATIES = 500;
+  function locatiesUitBoom(json) {
+    const wortels = Array.isArray(json) ? json : json && Array.isArray(json.data) ? json.data : json && Array.isArray(json.locations) ? json.locations : json && typeof json === "object" ? [json] : [];
+    const tekst = function(v) {
+      return v == null ? "" : String(v).replace(/\s+/g, " ").trim().slice(0, 120);
+    };
+    const uit = [], gezien = {};
+    (function loop(knopen, ouder, diepte) {
+      if (diepte > 12) return;
+      knopen.forEach(function(n) {
+        if (!n || typeof n !== "object" || uit.length >= MAX_LOCATIES) return;
+        const naam = tekst(n.label != null ? n.label : n.name);
+        const kinderen = Array.isArray(n.children) ? n.children : [];
+        if (kinderen.length) {
+          loop(kinderen, naam || ouder, diepte + 1);
+          return;
+        }
+        const id = String(n.value);
+        if (!/^\d{1,12}$/.test(id) || !naam || gezien[id]) return;
+        gezien[id] = true;
+        uit.push({ id, name: naam, groep: ouder, kan: n.authorized !== false });
+      });
+    })(wortels, "", 0);
+    return uit;
   }
 
   // src/content/config/loader.js
@@ -8897,6 +8928,20 @@
       return null;
     }
   }
+  var locatiesBelofte = null;
+  function locaties() {
+    if (!locatiesBelofte) {
+      locatiesBelofte = Promise.resolve().then(function() {
+        return getJson(_apiUrl("locationsTree"));
+      }).then(function(j) {
+        return locatiesUitBoom(controleerOns("locaties", j));
+      });
+      locatiesBelofte.catch(function() {
+        locatiesBelofte = null;
+      });
+    }
+    return locatiesBelofte;
+  }
   function eventOptions(clientIds, opts) {
     if (!directCreateEnabled()) return Promise.reject(new Error("Afspraken maken vanuit de planhulp staat uit (beheer)."));
     const ids = medewerkers();
@@ -8923,10 +8968,19 @@
         return parseProductOptions(controleerOns("productlijst", j), { alleGroepen: true });
       }, function() {
         return [];
+      }) : null,
+      opts && opts.locaties ? locaties().then(function(l) {
+        return { lijst: l };
+      }, function(e) {
+        return { lijst: [], fout: e && e.name === "OnsFormaatFout" && e.message || "De locaties konden niet worden opgehaald uit ONS." };
       }) : null
     ]).then(function(r) {
       const uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
       if (r[2]) uit.employeeHourTypes = r[2];
+      if (r[3]) {
+        uit.locations = r[3].lijst;
+        if (r[3].fout) uit.locationsError = r[3].fout;
+      }
       return uit;
     });
   }
@@ -8953,7 +9007,8 @@
         name: e.name,
         clientPresent: e.clientPresent !== false,
         travelBefore: e.travelBefore,
-        travelAfter: e.travelAfter
+        travelAfter: e.travelAfter,
+        locationId: e.locationId
       }, meta);
       if (!payload) {
         results.push({ ok: false, error: "Onvolledig (cliënt, uursoort of tijd)." });
@@ -18827,7 +18882,7 @@
             });
             return true;
           case MSG.AGENDA_EVENT_OPTIONS:
-            eventOptions(msg.clientIds, { medewerker: !!msg.medewerker }).then(function(r) {
+            eventOptions(msg.clientIds, { medewerker: !!msg.medewerker, locaties: !!msg.locaties }).then(function(r) {
               try {
                 sendResponse(Object.assign({ ok: true }, r));
               } catch (e) {

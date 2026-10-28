@@ -72,7 +72,7 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     medewerker, met het overzicht vooraf. Het verzoek (POST
     `/calendar/events`) gaat alleen naar dezelfde ONS-omgeving, met de
     sessie en het CSRF-token van de pagina, en bevat alleen id's (medewerker,
-    cliënt, uursoort, afspraaktype), tijden en de naam van de afspraak. Van
+    cliënt, uursoort, afspraaktype, locatie), tijden en de naam van de afspraak. Van
     afspraken die de medewerker zelf opslaat leest de pagina alleen
     `event.meta`, en bewaart daarvan alleen ja/nee- en getalwaarden
     (localStorage `onsHelper.eventMetaTemplate`). Uit te zetten met
@@ -84,6 +84,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     naar het zijpaneel van deze extensie, alleen om de juiste cliënt te
     kiezen, en staan alleen in het geheugen daarvan; niets wordt opgeslagen.
     Buiten ONS gaan alleen postcodes (Google Routes, met een sleutel).
+  - **Locatie bij Afspraak maken**: de agendapagina haalt de locatieboom van
+    ONS op (`/search_panel/locations/tree`; namen van vestigingen en teams,
+    geen persoonsgegevens) en geeft per locatie alleen id, naam, groep en of
+    de medewerker er toegang toe heeft door aan het zijpaneel. De gekozen
+    locatie gaat alleen als id mee in `location_id` van het verzoek.
   - **Collega erbij bij Afspraak maken** (+ Medewerker): de medewerker zoekt
     een collega via dezelfde ONS-zoekfunctie als bij genodigden
     (`/search_panel/employees`, pas na een korte pauze in het typen). Van elke

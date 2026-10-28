@@ -32,7 +32,9 @@
     'ag-event-options': function (msg) {
       return { ok: true, metaKnown: true, labels: [{ id: 46, name: 'JG Huisbezoek' }, { id: 47, name: 'Face to face' }, { id: 48, name: 'Beeldbellen' }],
         hourTypes: Object.fromEntries((msg.clientIds || []).map(function (c) { return [c, [{ id: 5, name: 'JW BG H10 Individuele BG midde', recent: true }, { id: 1135, name: 'Behandeling (GGZ 18+)', recent: false }]]; })),
-        employeeHourTypes: msg.medewerker ? [{ id: 77, name: 'Teamoverleg', recent: true }] : undefined };
+        employeeHourTypes: msg.medewerker ? [{ id: 77, name: 'Teamoverleg', recent: true }] : undefined,
+        locations: msg.locaties ? [{ id: '46', name: 'BG Rotterdam', groep: 'Begeleiding', kan: true }, { id: '34', name: 'BG Breda', groep: 'Begeleiding', kan: true },
+          { id: '60', name: 'J&G Oosterhout', groep: 'Behandeling', kan: false }] : undefined };
     },
     'ag-client-search': function () { return { ok: true, clients: [{ id: '11142', name: 'Tamara Test', pc: '2611EB', number: '106839', birth: '01-01-1990' }] }; },
     'ag-employee-search': function () {

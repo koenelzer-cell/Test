@@ -72,6 +72,10 @@ function titelVan(mk, it) {
   if (mk.modus !== 'los' && String(mk.titelAlle || '').trim()) return mk.titelAlle;
   return autoTitel(mk, it);
 }
+// Locatie van een afspraak (id, '' = geen): eigen keuze of die voor alle
+// afspraken; niet cliëntgebonden alleen die voor alle afspraken.
+function locatieVan(mk, it) { return String((mk.nietClient ? mk.locatieAlle : it.locatie) || ''); }
+function locatieNaam(mk, id) { const l = (mk.locaties || []).filter(function (x) { return String(x.id) === String(id); })[0]; return l ? l.name : ''; }
 // 'Huisbezoek Tamara', bij meer cliënten 'Huisbezoek Tamara en Bram'.
 function autoTitel(mk, it) {
   const namen = namenVan(mk, it);
@@ -339,7 +343,7 @@ export function maakAfspraakMaken(ctx) {
   function kanDirect() { return fAan('plannerDirect') && !!actions.onEventOptions && !!actions.onCreateEvents; }
   function naarMaken(momenten, minutes) {
     const items = momenten.map(function (m) {
-      return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
+      return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, locatie: '', locatieAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
     });
     BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
     naarPagina('maken');
@@ -348,9 +352,12 @@ export function maakAfspraakMaken(ctx) {
       if (BEWAARD.maak !== mk) return;
       mk.laden = false;
       if (!(res && res.ok)) mk.error = (res && res.error) || 'Kon de keuzes niet ophalen uit ONS.';
-      else { mk.labels = res.labels || []; mk.metaKnown = !!res.metaKnown; standaardType(mk); }
+      else {
+        mk.labels = res.labels || []; mk.metaKnown = !!res.metaKnown; standaardType(mk);
+        mk.locaties = Array.isArray(res.locations) ? res.locations : []; mk.locatieFout = res.locationsError || '';
+      }
       if (ctx.pagina === 'maken') renderPagina();
-    });
+    }, { locaties: true });
   }
   // Standaard afspraaktype voor wat nog niet zelf gekozen is.
   function standaardType(mk) {
@@ -370,6 +377,28 @@ export function maakAfspraakMaken(ctx) {
     mk.items[k].typeAangepast = v !== mk.typeAlle;
     mk.items[k].aanwezig = null;   // aanwezig volgt het nieuwe type
     pasReisAlleToe(mk);
+  }
+  // Locatie voor alle afspraken: geldt voor elke afspraak zonder eigen locatie.
+  function zetLocatieAlle(mk, v) {
+    mk.locatieAlle = v;
+    mk.items.forEach(function (it) { if (!it.locatieAangepast) it.locatie = v; });
+  }
+  // Eigen locatie voor één afspraak (gelijk aan die voor alle = weer gewoon).
+  function zetLocatie(mk, k, v) {
+    mk.items[k].locatie = v;
+    mk.items[k].locatieAangepast = v !== (mk.locatieAlle || '');
+  }
+  // Regel Locatie: de locaties uit ONS met de groep als kopje; waar je in ONS
+  // geen toegang toe hebt, staat grijs. Geeft ONS geen locaties, dan geen regel.
+  function locatieRij(mk, waarde, attr, onKies, stijl) {
+    if (mk.locatieFout) return <LabelRij label="Locatie" style={stijl}><Regel toon="let" tekst={mk.locatieFout} style={{ marginTop: '0' }} data-maak-locatie-fout="" /></LabelRij>;
+    if (!(mk.locaties || []).length) return null;
+    const opties = mk.locaties.map(function (l) { return { id: l.id, name: l.name, groep: l.groep, uit: l.kan === false }; });
+    return (
+      <LabelRij label="Locatie" style={stijl}>
+        <Keuzelijst {...{ [attr[0]]: attr[1] }} opties={opties} waarde={waarde || ''} leeg="Geen locatie" aria-label="Locatie" onKies={function (v) { onKies(v); renderPagina(); }} />
+      </LabelRij>
+    );
   }
   // Instelling van een afspraaktype uit het beheerscherm (tabel Afspraaktypes:
   // Cliënt aanwezig, Reistijd). Eerst een exacte naam (ONS-label of naam in
@@ -570,6 +599,7 @@ export function maakAfspraakMaken(ctx) {
               <span style={Object.assign({ flex: '0 0 74px' }, LABEL)}>Uursoort</span>
               {keuze}
             </div>
+            {locatieRij(mk, mk.locatieAlle, ['data-maak-locatie-alle', ''], function (v) { zetLocatieAlle(mk, v); })}
           </div>
         </>
       );
@@ -579,7 +609,7 @@ export function maakAfspraakMaken(ctx) {
     if (!klaar && !mk.nietClient) {
       const losAlle = mk.modus === 'los';
       let rest;
-      if (losAlle) rest = <div style={{ fontSize: '11.5px', color: T.inkSoft, padding: '0 0 6px' }}>Cliënten, type, aanwezig en reistijd stel je hieronder per afspraak in.</div>;
+      if (losAlle) rest = <div style={{ fontSize: '11.5px', color: T.inkSoft, padding: '0 0 6px' }}>Cliënten, type, locatie, aanwezig en reistijd stel je hieronder per afspraak in.</div>;
       else {
         // Cliënten zijn aanwezig: standaard volgens het afspraaktype (beheer);
         // omzetten geldt voor alle afspraken.
@@ -610,6 +640,7 @@ export function maakAfspraakMaken(ctx) {
             <LabelRij label="Type" style={losAlle ? { borderTop: '0' } : null}>
               <Keuzelijst data-maak-type-alle="" opties={mk.labels} waarde={mk.typeAlle || ''} leeg="Geen afspraaktype" onKies={function (v) { zetTypeAlle(mk, v); renderPagina(); }} />
             </LabelRij>
+            {locatieRij(mk, mk.locatieAlle, ['data-maak-locatie-alle', ''], function (v) { zetLocatieAlle(mk, v); })}
             {rest}
           </div>
         </>
@@ -662,6 +693,7 @@ export function maakAfspraakMaken(ctx) {
         </LabelRij>
       );
     };
+    const locatieHier = locatieRij(mk, it.locatie, ['data-maak-locatie', String(k)], function (v) { zetLocatie(mk, k, v); });
     const aanwezigHier = <AanwezigRij aan={aanwezigVan(mk, it)} attr={['data-maak-aanwezig-afspraak', String(k)]} onClick={function () { it.aanwezig = !aanwezigVan(mk, it); renderPagina(); }} />;
     const reisHier = function () {
       return reisInvoer(it.reisHeen, it.reisTerug, function (soort) { return ['data-maak-' + soort, String(k)]; }, function (soort, w) {
@@ -675,16 +707,24 @@ export function maakAfspraakMaken(ctx) {
       </LabelRij>
     );
     let body;
-    if (mk.nietClient) body = <div style={{ fontWeight: '600', fontSize: '13px', padding: '6px 0' }}>{ncNaam(mk) || 'Niet cliëntgebonden'}</div>;
+    if (mk.nietClient) {
+      const loc = locatieNaam(mk, locatieVan(mk, it));
+      body = (
+        <div style={{ padding: '6px 0' }}>
+          <div style={{ fontWeight: '600', fontSize: '13px' }}>{ncNaam(mk) || 'Niet cliëntgebonden'}</div>
+          {loc ? <div data-maak-locatie-label={String(k)} style={{ fontSize: '12px', color: T.inkSoft, marginTop: '2px' }}>{loc}</div> : null}
+        </div>
+      );
+    }
     else if (klaar) body = <div style={{ fontWeight: '600', fontSize: '13px', padding: '6px 0' }}>{titelVan(mk, it)}</div>;
     else if (los) {
       // Per afspraak anders: alles van deze afspraak staat in de kaart.
-      body = <>{clientsLijst(mk, it.clients, 'los' + k + '-')}{typeSel()}{titelHier}{aanwezigHier}{reisVan(mk, it) ? reisHier() : null}</>;
+      body = <>{clientsLijst(mk, it.clients, 'los' + k + '-')}{typeSel()}{locatieHier}{titelHier}{aanwezigHier}{reisVan(mk, it) ? reisHier() : null}</>;
     } else if (open) {
       body = (
         <>
           <div style={{ fontSize: '11.5px', color: T.inkSoft, padding: '4px 0' }}>Alleen voor deze afspraak:</div>
-          {typeSel({ borderTop: '0' })}{titelHier}{aanwezigHier}{reisVan(mk, it) ? reisHier() : null}
+          {typeSel({ borderTop: '0' })}{locatieHier}{titelHier}{aanwezigHier}{reisVan(mk, it) ? reisHier() : null}
         </>
       );
     } else {
@@ -696,12 +736,14 @@ export function maakAfspraakMaken(ctx) {
         );
       };
       const aw = aanwezigVan(mk, it);
-      const eigen = it.typeAangepast || it.aanwezig != null || it.reisAangepast || it.titelAangepast;
+      const eigen = it.typeAangepast || it.locatieAangepast || it.aanwezig != null || it.reisAangepast || it.titelAangepast;
+      const loc = locatieNaam(mk, locatieVan(mk, it));
       body = (
         <div data-maak-samenvatting={String(k)} style={{ padding: '4px 0 2px' }}>
           <div style={{ fontWeight: '600', fontSize: '13px', padding: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titelVan(mk, it)}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', padding: '0 0 4px' }}>
             {chip(aw ? 'Cliënten aanwezig' : 'Cliënten niet aanwezig', aw ? '' : 'uit', { 'data-maak-aanwezig-label': aw ? 'ja' : 'nee' })}
+            {loc ? chip(loc, '', { 'data-maak-locatie-label': String(k) }) : null}
             {reisVan(mk, it) && (it.reisHeen || it.reisTerug) ? chip('Reistijd ' + (it.reisHeen || 0) + ' min heen en ' + (it.reisTerug || 0) + ' min terug') : null}
             {eigen ? chip('Eigen keuze', 'eigen', { 'data-eigen-keuze': String(k), 'data-eigen-type': it.typeAangepast && it.labelId !== mk.typeAlle ? String(k) : undefined }) : null}
           </div>
@@ -836,15 +878,20 @@ export function maakAfspraakMaken(ctx) {
           title={!compleet ? (mk.nietClient ? 'Kies eerst de uursoort.' : 'Kies eerst bij elke afspraak een cliënt en per cliënt de uursoort.') : undefined}
           style={{ marginTop: '0' }} onClick={function () { maakInOns(mk); }} />
         {link('ONS Afspraakformulier', function () { viaFormulier(mk); }, 'data-maak-ons')}
+        {/* De locatie gaat (nog) niet mee naar het formulier van ONS. */}
+        {mk.items.some(function (it) { return !!locatieVan(mk, it); }) ? (
+          <div data-maak-ons-locatie="" style={{ fontSize: '11.5px', color: T.inkSoft, textAlign: 'center', marginTop: '2px' }}>In het formulier van ONS kies je de locatie zelf.</div>
+        ) : null}
       </div>
     );
   }
   function maakInOns(mk) {
     mk.busy = true; mk.error = ''; renderPagina();
     const lijst = mk.items.map(function (it) {
-      const mee = meeMet(mk, it);
-      if (mk.nietClient) return Object.assign({ date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' }, mee.length ? { medewerkers: mee } : null);
-      return Object.assign(mee.length ? { medewerkers: mee } : {}, { date: it.date, startMin: it.startMin, minutes: it.minutes,
+      const mee = meeMet(mk, it), loc = locatieVan(mk, it);
+      const extra = Object.assign({}, mee.length ? { medewerkers: mee } : null, loc ? { locationId: Number(loc) } : null);
+      if (mk.nietClient) return Object.assign({ date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' }, extra);
+      return Object.assign(extra, { date: it.date, startMin: it.startMin, minutes: it.minutes,
         clients: clientsVan(mk, it).map(function (c) { return { id: c.clientId, hourTypeId: Number(mk.uursoort[c.clientId]) }; }),
         labelId: it.labelId ? Number(it.labelId) : null, name: String(titelVan(mk, it) || '').trim() || 'Afspraak',
         clientPresent: aanwezigVan(mk, it),

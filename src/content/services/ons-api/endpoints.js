@@ -16,6 +16,7 @@ import { APP_CONFIG } from '../../config/app-config.js';
 //   calendarVariables                 medewerker-id                        (employee.js)
 //   searchClients                     interne cliënt-id                    (clients.js)
 //   searchEmployees                   collega zoeken bij Afspraak maken      (client-lookup.js)
+//   locationsTree                     locatie kiezen bij Afspraak maken      (event-create.js)
 //   productList                       uursoorten bij een afspraak          (products.js)
 //   unavailabilities                  verlof vastleggen (POST)             (unavailability.js)
 //   detectOverlap                     overlapcontrole door ONS zelf        (open-registrations.js)
@@ -38,6 +39,7 @@ const _API_DEFAULTS = {
   eventDetails: '/calendar/invitee/{inviteeId}/events/{occurrenceId}/details',
   searchClients: '/search_panel/clients?term={term}&usage=event&out_of_care={outOfCare}&page=1',
   searchEmployees: '/search_panel/employees?term={term}&usage=event&page=1',
+  locationsTree: '/search_panel/locations/tree',
   holidays: '/calendar/holidays',
   availableLabels: '/calendar/events/available_labels',
   createEvent: '/calendar/events',

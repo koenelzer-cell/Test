@@ -129,8 +129,12 @@ for (const breedte of [340, 420]) {
       const zoek = page.locator('[data-maak-zoek]').first();
       await zoek.fill('Tam');
       await page.locator('[data-client-id="11142"]').first().click();
+      // Een locatie voor alle afspraken: komt als label in de kaarten.
+      await page.locator('[data-maak-locatie-alle]').selectOption('46');
+      await expect(page.locator('[data-maak-locatie-label]')).toHaveCount(2);
       await controleer(page, testInfo, 'maken-zelfde-client');
       await page.locator('[data-maak-aanpassen="0"]').click();
+      await expect(page.locator('[data-maak-locatie="0"]')).toHaveValue('46');
       await controleer(page, testInfo, 'maken-zelfde-aanpassen');
 
       await page.locator('[data-maak-modus="los"]').click();

@@ -103,7 +103,8 @@ export function buildEventPayload(spec, meta) {
     label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
     labels: [],
     location: null,
-    location_id: null,
+    // Locatie: value uit search_panel/locations/tree (zoals het formulier van ONS).
+    location_id: /^\d{1,12}$/.test(String(spec.locationId == null ? '' : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null,
     name: String(spec.name || 'Afspraak').slice(0, 200),
     team_ids: [],
     teams: [],

@@ -16,6 +16,7 @@ import { buildEventPayload, learnEventMeta, parseLabels, parseProductOptions } f
 import { _apiUrl } from '../../services/ons-api/endpoints.js';
 import { getJson, postJson } from '../../services/ons-api/http.js';
 import { controleerOns } from '../../services/ons-api/formaat.js';
+import { locatiesUitBoom } from '../../domain/locaties.js';
 import { currentInviteeId, currentInviteeIds } from './navigation.js';
 import { resolveInviteeId } from '../../ons/agenda-location.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -37,9 +38,23 @@ function leesMeta() {
   try { return learnEventMeta(JSON.parse(localStorage.getItem(META_KEY) || 'null')); } catch (e) { return null; }
 }
 
+// Locaties (search_panel/locations/tree): één keer per pagina. Mislukt het,
+// dan de volgende keer opnieuw.
+let locatiesBelofte = null;
+function locaties() {
+  if (!locatiesBelofte) {
+    locatiesBelofte = Promise.resolve().then(function () { return getJson(_apiUrl('locationsTree')); })
+      .then(function (j) { return locatiesUitBoom(controleerOns('locaties', j)); });
+    locatiesBelofte.catch(function () { locatiesBelofte = null; });
+  }
+  return locatiesBelofte;
+}
+
 // clientIds -> Promise<{ labels, hourTypes: { id: [...] }, metaKnown }>
 // opts.medewerker: ook de uursoorten zonder cliënt (employeeHourTypes), voor
 // een niet cliëntgebonden afspraak.
+// opts.locaties: ook de locaties (locations, of locationsError als ONS ze niet
+// geeft; Afspraak maken kan dan gewoon zonder locatie).
 export function eventOptions(clientIds, opts) {
   if (!directCreateEnabled()) return Promise.reject(new Error('Afspraken maken vanuit de planhulp staat uit (beheer).'));
   const ids = medewerkers();
@@ -54,18 +69,24 @@ export function eventOptions(clientIds, opts) {
     })),
     opts && opts.medewerker
       ? getJson(_apiUrl('employeeProductOptions', { employeeId: ids[0] })).then(function (j) { return parseProductOptions(controleerOns('productlijst', j), { alleGroepen: true }); }, function () { return []; })
+      : null,
+    opts && opts.locaties
+      ? locaties().then(function (l) { return { lijst: l }; }, function (e) {
+        return { lijst: [], fout: (e && e.name === 'OnsFormaatFout' && e.message) || 'De locaties konden niet worden opgehaald uit ONS.' };
+      })
       : null
   ]).then(function (r) {
     const uit = { labels: r[0], hourTypes: types, metaKnown: !!leesMeta() };
     if (r[2]) uit.employeeHourTypes = r[2];
+    if (r[3]) { uit.locations = r[3].lijst; if (r[3].fout) uit.locationsError = r[3].fout; }
     return uit;
   });
 }
 
 // events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }] (of clientId +
 //           hourTypeId), labelId, name, clientPresent, travelBefore, travelAfter,
-//           medewerkers: [id] (collega's erbij, optioneel) }]
-//   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name }.
+//           medewerkers: [id] (collega's erbij, optioneel), locationId (optioneel) }]
+//   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name, locationId? }.
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
   if (!directCreateEnabled()) throw new Error('Afspraken maken vanuit de planhulp staat uit (beheer).');
@@ -84,7 +105,7 @@ export async function createEvents(events, post) {
       clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),
       hourTypeId: e.nietClient === true ? e.hourTypeId : null, labelId: e.labelId, name: e.name,
       clientPresent: e.clientPresent !== false,
-      travelBefore: e.travelBefore, travelAfter: e.travelAfter
+      travelBefore: e.travelBefore, travelAfter: e.travelAfter, locationId: e.locationId
     }, meta);
     if (!payload) { results.push({ ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }); continue; }
     try { await post(_apiUrl('createEvent'), payload); results.push({ ok: true }); }

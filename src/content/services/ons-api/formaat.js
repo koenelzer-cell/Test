@@ -22,7 +22,9 @@ const SOORTEN = {
   // search_panel/clients: { clients: [...] } of direct een lijst.
   clienten: { naam: 'de gevonden cliënten', schema: v.union([LIJST, v.looseObject({ clients: LIJST })]) },
   // search_panel/employees: { employees: [...] } of direct een lijst.
-  medewerkers: { naam: 'de gevonden medewerkers', schema: v.union([LIJST, v.looseObject({ employees: LIJST })]) }
+  medewerkers: { naam: 'de gevonden medewerkers', schema: v.union([LIJST, v.looseObject({ employees: LIJST })]) },
+  // search_panel/locations/tree: een lijst knopen, één knoop met children, of { data: [...] }.
+  locaties: { naam: 'de locaties', schema: v.union([LIJST, v.looseObject({ children: LIJST }), v.looseObject({ data: LIJST })]) }
 };
 
 export class OnsFormaatFout extends Error {

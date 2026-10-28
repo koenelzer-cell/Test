@@ -464,7 +464,8 @@ en oker).
   zoekt hij ook cliënten uit zorg, `out_of_care=true`, met het label 'Uit
   zorg'), daarna een compacte regel met initialen, naam,
   de labels 'Cl 106839' en de postcode, en rechts de uursoort (een rood !
-  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken, daaronder
+  zolang die ontbreekt) - plus het afspraaktype voor alle afspraken, de
+  **Locatie** voor alle afspraken (zie hieronder), daaronder
   de **Titel** voor alle afspraken (standaard type en voornamen, 'Huisbezoek
   Tamara en Bram'; leegmaken = weer automatisch), de
   schakelaar **Cliënten zijn aanwezig** (`client_present`; standaard volgens
@@ -520,6 +521,21 @@ en oker).
   niet: er is 10 min vrij voor 9:00'). Na het maken zoekt de planhulp de
   vrije tijd opnieuw.
   Schakelaar: 'Planhulp: afspraak meteen in ONS maken'.
+- **Locatie** (regel bij Afspraak maken, onder Type): de locaties uit ONS
+  (`/search_panel/locations/tree`, één keer per pagina opgehaald), met de
+  groep uit de boom als kopje ('Begeleiding': BG Rotterdam, BG Breda). Alleen
+  de onderste locaties zijn te kiezen, geen groepen; een locatie waar je in
+  ONS geen toegang toe hebt (`authorized: false`) staat grijs. Standaard
+  'Geen locatie'. De keuze geldt voor alle afspraken; met Aanpassen (of bij
+  Per afspraak anders in de kaart) kies je per afspraak een andere ('Eigen
+  keuze'). In de dichte kaart staat de locatie als label. Ook bij een niet
+  cliëntgebonden afspraak, onder de uursoort, voor alle afspraken. De
+  afspraak gaat naar ONS met `location_id` = de `value` uit de boom (zo
+  stuurt het formulier van ONS het zelf). Via de link **ONS
+  Afspraakformulier** gaat de locatie niet mee; daar staat 'In het formulier
+  van ONS kies je de locatie zelf.' Geeft ONS geen locaties, dan is er geen
+  regel; geeft ONS ze in een andere vorm of mislukt het ophalen, dan staat de
+  melding in de regel en kun je gewoon zonder locatie maken.
 - **Medewerkers** (kaart bij Afspraak maken, onder Voor alle afspraken): 'Jij'
   (of 'n open agenda's') en de collega's die je erbij zet. Met **+ Medewerker**
   zoek je een collega op naam, met dezelfde zoekfunctie als ONS bij
