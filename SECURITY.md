@@ -88,7 +88,10 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     ONS op (`/search_panel/locations/tree`; namen van vestigingen en teams,
     geen persoonsgegevens) en geeft per locatie alleen id, naam, groep en of
     de medewerker er toegang toe heeft door aan het zijpaneel. De gekozen
-    locatie gaat alleen als id mee in `location_id` van het verzoek.
+    locatie gaat alleen als id mee in `location_id` van het verzoek. Een zelf
+    ingevulde locatie (Andere locatie) kan een adres zijn: die tekst staat
+    alleen in het geheugen van het zijpaneel en gaat alleen in
+    `custom_location` van het verzoek naar dezelfde ONS-omgeving.
   - **Collega erbij bij Afspraak maken** (+ Medewerker): de medewerker zoekt
     een collega via dezelfde ONS-zoekfunctie als bij genodigden
     (`/search_panel/employees`, pas na een korte pauze in het typen). Van elke

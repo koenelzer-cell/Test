@@ -525,17 +525,29 @@ en oker).
   (`/search_panel/locations/tree`, één keer per pagina opgehaald), met de
   groep uit de boom als kopje ('Begeleiding': BG Rotterdam, BG Breda). Alleen
   de onderste locaties zijn te kiezen, geen groepen; een locatie waar je in
-  ONS geen toegang toe hebt (`authorized: false`) staat grijs. Standaard
-  'Geen locatie'. De keuze geldt voor alle afspraken; met Aanpassen (of bij
-  Per afspraak anders in de kaart) kies je per afspraak een andere ('Eigen
-  keuze'). In de dichte kaart staat de locatie als label. Ook bij een niet
-  cliëntgebonden afspraak, onder de uursoort, voor alle afspraken. De
-  afspraak gaat naar ONS met `location_id` = de `value` uit de boom (zo
-  stuurt het formulier van ONS het zelf). Via de link **ONS
+  ONS geen toegang toe hebt (`authorized: false`) staat grijs met 'Geen
+  toegang'. Standaard 'Geen locatie'. Onderaan **Andere locatie**: daaronder
+  komt een tekstveld ('Adres of plek') en de afspraak gaat naar ONS met die
+  tekst in `custom_location` (zoals het formulier van ONS een zelf
+  ingevulde locatie stuurt), zonder `location_id`; leeg = geen locatie. De
+  keuze geldt voor alle afspraken; met Aanpassen (of bij Per afspraak anders
+  in de kaart) kies je per afspraak een andere locatie of een eigen tekst
+  ('Eigen keuze'). In de dichte kaart staat de locatie als label. Ook bij een
+  niet cliëntgebonden afspraak, onder de uursoort, voor alle afspraken. Een
+  locatie uit de lijst gaat naar ONS met `location_id` = de `value` uit de
+  boom (zo stuurt het formulier van ONS het zelf). Via de link **ONS
   Afspraakformulier** gaat de locatie niet mee; daar staat 'In het formulier
-  van ONS kies je de locatie zelf.' Geeft ONS geen locaties, dan is er geen
-  regel; geeft ONS ze in een andere vorm of mislukt het ophalen, dan staat de
-  melding in de regel en kun je gewoon zonder locatie maken.
+  van ONS kies je de locatie zelf.' Geeft ONS geen locaties, dan kan alleen
+  Andere locatie; geeft ONS ze in een andere vorm of mislukt het ophalen,
+  dan staat de melding onder de regel en kun je gewoon zonder locatie maken.
+  Een zelf ingevulde locatie kan een adres zijn: de hulp bewaart hem nergens.
+- **Keuzelijsten bij Afspraak maken** (uursoort, type en locatie) zijn in de
+  stijl van de hulp in plaats van de lijst van de browser: het veld klapt
+  eronder een lijst open over de breedte van de kaart, met de groepen als
+  kopje ('Onlangs gebruikt', 'Toegestaan'; bij locaties de groep uit ONS),
+  de gekozen keuze in roze met een vinkje en grijs wat niet te kiezen is.
+  Vanaf negen keuzes staat er een zoekveld boven. Pijltjes en Enter kiezen,
+  Escape of ernaast klikken sluit de lijst.
 - **Medewerkers** (kaart bij Afspraak maken, onder Voor alle afspraken): 'Jij'
   (of 'n open agenda's') en de collega's die je erbij zet. Met **+ Medewerker**
   zoek je een collega op naam, met dezelfde zoekfunctie als ONS bij

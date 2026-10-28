@@ -129,12 +129,25 @@ for (const breedte of [340, 420]) {
       const zoek = page.locator('[data-maak-zoek]').first();
       await zoek.fill('Tam');
       await page.locator('[data-client-id="11142"]').first().click();
+      // De uursoort en de locatie: de keuzelijst in hulpstijl, open.
+      await page.locator('[data-maak-uursoort="11142"]').click();
+      await expect(page.locator('[data-keuze-lijst] [data-optie="5"]')).toBeVisible();
+      await controleer(page, testInfo, 'maken-uursoort-lijst');
+      await page.locator('[data-keuze-lijst] [data-optie="5"]').click();
+      await expect(page.locator('[data-keuze-lijst]')).toHaveCount(0);
+      await page.locator('[data-maak-locatie-alle]').click();
+      await expect(page.locator('[data-keuze-lijst] [data-optie="60"]')).toHaveAttribute('aria-disabled', 'true');
+      await controleer(page, testInfo, 'maken-locatie-lijst');
       // Een locatie voor alle afspraken: komt als label in de kaarten.
-      await page.locator('[data-maak-locatie-alle]').selectOption('46');
+      await page.locator('[data-keuze-lijst] [data-optie="46"]').click();
       await expect(page.locator('[data-maak-locatie-label]')).toHaveCount(2);
       await controleer(page, testInfo, 'maken-zelfde-client');
       await page.locator('[data-maak-aanpassen="0"]').click();
-      await expect(page.locator('[data-maak-locatie="0"]')).toHaveValue('46');
+      await expect(page.locator('[data-maak-locatie="0"]')).toHaveAttribute('value', '46');
+      // Andere locatie voor deze afspraak: een tekstveld eronder.
+      await page.locator('[data-maak-locatie="0"]').click();
+      await page.locator('[data-keuze-lijst] [data-optie="eigen"]').click();
+      await page.locator('[data-maak-locatie-eigen="0"]').fill('Wijkcentrum De Brug, Kerkstraat 12');
       await controleer(page, testInfo, 'maken-zelfde-aanpassen');
 
       await page.locator('[data-maak-modus="los"]').click();

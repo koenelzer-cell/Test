@@ -3416,7 +3416,7 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds, medewerker?, locaties? } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown, employeeHourTypes?, locations?: [{ id, name, groep, kan }], locationsError? }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
@@ -6913,6 +6913,8 @@
     cl.forEach(function(c) {
       info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
     });
+    const eigenLocatie = String(spec.customLocation == null ? "" : spec.customLocation).replace(/\s+/g, " ").trim().slice(0, 200);
+    const locatieId = !eigenLocatie && /^\d{1,12}$/.test(String(spec.locationId == null ? "" : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null;
     const ev = {
       valid_from: spec.date,
       start_time: isoLocalWithOffset(spec.date, start),
@@ -6925,7 +6927,7 @@
       client_present: !zonderClient && spec.clientPresent !== false,
       clients: [],
       comment: String(spec.comment || ""),
-      custom_location: null,
+      custom_location: eigenLocatie || null,
       employee_ids: emp,
       employees: [],
       group: null,
@@ -6935,7 +6937,7 @@
       labels: [],
       location: null,
       // Locatie: value uit search_panel/locations/tree (zoals het formulier van ONS).
-      location_id: /^\d{1,12}$/.test(String(spec.locationId == null ? "" : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null,
+      location_id: locatieId,
       name: String(spec.name || "Afspraak").slice(0, 200),
       team_ids: [],
       teams: [],
@@ -9008,7 +9010,8 @@
         clientPresent: e.clientPresent !== false,
         travelBefore: e.travelBefore,
         travelAfter: e.travelAfter,
-        locationId: e.locationId
+        locationId: e.locationId,
+        customLocation: e.customLocation
       }, meta);
       if (!payload) {
         results.push({ ok: false, error: "Onvolledig (cliënt, uursoort of tijd)." });

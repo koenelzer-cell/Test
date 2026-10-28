@@ -85,8 +85,9 @@ export function eventOptions(clientIds, opts) {
 
 // events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }] (of clientId +
 //           hourTypeId), labelId, name, clientPresent, travelBefore, travelAfter,
-//           medewerkers: [id] (collega's erbij, optioneel), locationId (optioneel) }]
-//   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name, locationId? }.
+//           medewerkers: [id] (collega's erbij, optioneel), locationId of
+//           customLocation (zelf ingevulde locatie, tekst; optioneel) }]
+//   Niet cliëntgebonden: { date, startMin, minutes, nietClient: true, hourTypeId, name, locationId?, customLocation? }.
 // post: (url, body) -> Promise (voor tests te vervangen).
 export async function createEvents(events, post) {
   if (!directCreateEnabled()) throw new Error('Afspraken maken vanuit de planhulp staat uit (beheer).');
@@ -105,7 +106,7 @@ export async function createEvents(events, post) {
       clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),
       hourTypeId: e.nietClient === true ? e.hourTypeId : null, labelId: e.labelId, name: e.name,
       clientPresent: e.clientPresent !== false,
-      travelBefore: e.travelBefore, travelAfter: e.travelAfter, locationId: e.locationId
+      travelBefore: e.travelBefore, travelAfter: e.travelAfter, locationId: e.locationId, customLocation: e.customLocation
     }, meta);
     if (!payload) { results.push({ ok: false, error: 'Onvolledig (cliënt, uursoort of tijd).' }); continue; }
     try { await post(_apiUrl('createEvent'), payload); results.push({ ok: true }); }

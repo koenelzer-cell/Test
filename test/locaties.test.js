@@ -41,6 +41,15 @@ test('verzoek: location_id is de value; zonder of onzin blijft het null', () => 
   assert.equal(buildEventPayload({ ...basis, locationId: 0 }).event.location_id, null);
   assert.equal(buildEventPayload(basis).event.location_id, null);
   assert.equal(buildEventPayload({ ...basis, locationId: 46 }).event.location, null, 'location zelf blijft leeg');
+  assert.equal(buildEventPayload(basis).event.custom_location, null);
+});
+
+test('verzoek: zelf ingevulde locatie als tekst in custom_location, dan geen location_id', () => {
+  const basis = { date: '2026-10-27', startMin: 600, minutes: 60, employeeIds: [42479], clients: [{ id: 11142, hourTypeId: 5 }] };
+  const p = buildEventPayload({ ...basis, customLocation: '  Wijkcentrum\n De Brug  ', locationId: 46 }).event;
+  assert.deepEqual([p.custom_location, p.location_id], ['Wijkcentrum De Brug', null]);
+  assert.equal(buildEventPayload({ ...basis, customLocation: '   ' }).event.custom_location, null, 'leeg telt niet');
+  assert.equal(buildEventPayload({ ...basis, customLocation: 'x'.repeat(300) }).event.custom_location.length, 200);
 });
 
 const DAG = 'https://impegno.onsagenda.nl/invitees/42479/calendar/day?date=2026-10-27';
@@ -70,9 +79,10 @@ test('locaties ophalen bij Afspraak maken: één keer per pagina, en meesturen b
     { date: '2026-10-28', startMin: 600, minutes: 60, clients: [{ id: '11142', hourTypeId: 5 }], labelId: 47, name: 'Face to face Tamara', locationId: 46 },
     { date: '2026-10-29', startMin: 600, minutes: 60, nietClient: true, hourTypeId: 77, name: 'Teamoverleg', locationId: 34 },
     { date: '2026-10-30', startMin: 600, minutes: 60, clients: [{ id: '11142', hourTypeId: 5 }], labelId: 47, name: 'Face to face Tamara' },
+    { date: '2026-10-31', startMin: 600, minutes: 60, clients: [{ id: '11142', hourTypeId: 5 }], labelId: 47, name: 'Face to face Tamara', customLocation: 'Bij de cliënt thuis' },
   ] });
-  assert.deepEqual(JSON.parse(JSON.stringify(res.results)), [{ ok: true }, { ok: true }, { ok: true }]);
-  assert.deepEqual(gepost.map((e) => e.location_id), [46, 34, null]);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.results)), [{ ok: true }, { ok: true }, { ok: true }, { ok: true }]);
+  assert.deepEqual(gepost.map((e) => [e.location_id, e.custom_location]), [[46, null], [34, null], [null, null], [null, 'Bij de cliënt thuis']]);
 });
 
 test('locaties die ONS niet geeft: Afspraak maken gaat door, met een melding voor de regel Locatie', async () => {

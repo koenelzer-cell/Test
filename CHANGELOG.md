@@ -2,6 +2,15 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.300
+
+- **Andere locatie**: staat je locatie niet in de lijst, kies dan onderaan
+  "Andere locatie" en typ zelf een adres of plek. Dat kan voor alle
+  afspraken of per afspraak.
+- De keuzelijsten bij Afspraak maken (uursoort, type en locatie) hebben nu
+  de stijl van de hulp: de lijst klapt onder het veld open, met kopjes per
+  groep en een zoekveld bij een lange lijst.
+
 ## 1.6.299
 
 - **Locatie bij Afspraak maken**: onder Type kies je nu de locatie uit ONS,

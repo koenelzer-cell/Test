@@ -350,25 +350,119 @@ export function Invoer({ type, waarde, onWaarde, onKlaar, onBlur, style, ...rest
       }, ring.stijl, style)} {...rest} />
   );
 }
-// Keuzelijst. opties: [{ id, name, groep? }]; met groep in <optgroup>s in de
-// volgorde waarin ze voorkomen. leeg: tekst van de lege keuze bovenaan.
-export function Keuzelijst({ opties, waarde, onKies, leeg, style, ...rest }) {
-  const groepen = [], los = [];
-  (opties || []).forEach(function (o) {
-    // uit: wel zichtbaar, niet te kiezen (grijs).
-    const op = <option key={String(o.id)} value={String(o.id)} disabled={o.uit ? true : undefined}>{o.name}</option>;
-    if (!o.groep) { los.push(op); return; }
-    let g = groepen.filter(function (x) { return x.label === o.groep; })[0];
-    if (!g) { g = { label: o.groep, opties: [] }; groepen.push(g); los.push(g); }
-    g.opties.push(op);
-  });
+const CHEV_ONDER = 'M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z';
+const VINK = 'M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 12-12-1.4-1.4z';
+function zoekVorm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+// Eén keuze in KeuzeMenu: gekozen in roze met een vinkje, uit in grijs.
+function MenuOptie({ o, gekozen, actief, onKies }) {
+  const [over, hover] = useHover();
+  const licht = !o.uit && (over || actief);
   return (
-    <select value={waarde == null ? '' : String(waarde)} onChange={function (e) { onKies(e.target.value); }}
-      style={Object.assign({ height: '34px', width: '100%', border: '1px solid ' + T.line, borderRadius: '8px', padding: '0 8px', font: '400 13px ' + FONT, color: T.ink, background: '#fff', boxSizing: 'border-box' }, style)} {...rest}>
-      {leeg ? <option value="">{leeg}</option> : null}
-      {los.map(function (x) { return x.opties ? <optgroup key={'g|' + x.label} label={x.label}>{x.opties}</optgroup> : x; })}
-    </select>
+    <div role="option" aria-selected={gekozen ? 'true' : 'false'} aria-disabled={o.uit ? 'true' : undefined} data-optie={String(o.id)} {...hover}
+      onMouseDown={function (e) { e.preventDefault(); }} onClick={o.uit ? undefined : onKies}
+      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', cursor: o.uit ? 'default' : 'pointer', borderTop: o.apart ? '1px solid ' + T.line : '0',
+        background: licht ? T.brandWash : 'transparent', color: o.uit ? '#b3aaae' : gekozen ? T.brand : T.ink, fontSize: '13px', lineHeight: '1.3', fontWeight: gekozen ? '600' : '400' }}>
+      <span style={{ flex: '1 1 auto', minWidth: '0' }}>{o.name}</span>
+      {o.noot ? <span style={{ flex: '0 0 auto', fontSize: '11px', color: T.inkSoft, fontWeight: '400' }}>{o.noot}</span> : null}
+      {gekozen ? <Icoon d={VINK} size={14} style={{ flex: '0 0 auto' }} /> : null}
+    </div>
   );
+}
+// Keuzelijst in de stijl van de hulp, in plaats van de lijst van de browser:
+// een veld (VeldKnop) dat eronder een lijst openklapt, zoals de datum- en
+// tijdkiezer. Groepen als kopje in de volgorde waarin ze voorkomen, de keuze
+// in roze met een vinkje, grijs wat niet te kiezen is (uit), een lijn boven
+// een keuze apart. Vanaf zoekVanaf keuzes eerst een zoekveld. Pijltjes,
+// Enter en Escape werken; klikken ernaast sluit de lijst.
+//   opties: [{ id, name, groep?, uit?, noot?, apart? }]
+//   leeg: tekst zonder keuze; leegKiesbaar: ook als keuze bovenaan.
+//   stijl: voor het vak om het veld (breedte); de rest (data-*, aria-label)
+//   komt op het veld zelf, met value = de keuze.
+//   children(veld, lijst): tekent de rij met het veld en de lijst eronder.
+export function KeuzeMenu({ opties, waarde, onKies, leeg, leegKiesbaar, zoekVanaf, stijl, children, ...rest }) {
+  const [open, zetOpen] = useDirect(false);
+  const [zoek, zetZoek] = useDirect('');
+  const [actief, zetActief] = useDirect(null);
+  const knopRef = useRef(null), lijstRef = useRef(null);
+  const nu = waarde == null ? '' : String(waarde);
+  useEffect(function () {
+    if (!open) return undefined;
+    const lijst = lijstRef.current;
+    if (lijst) {
+      try { (lijst.querySelector('input') || lijst).focus(); } catch (e) {}
+      try { lijst.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    }
+    const buiten = function (e) {
+      const t = e.target;
+      if ((knopRef.current && knopRef.current.contains(t)) || (lijstRef.current && lijstRef.current.contains(t))) return;
+      zetOpen(false);
+    };
+    document.addEventListener('mousedown', buiten);
+    return function () { document.removeEventListener('mousedown', buiten); };
+  }, [open]);
+  const alle = (leegKiesbaar ? [{ id: '', name: leeg }] : []).concat(opties || []);
+  const term = zoekVorm(zoek).trim();
+  const zichtbaar = term ? alle.filter(function (o) { return o.id !== '' && zoekVorm(o.name + ' ' + (o.groep || '')).indexOf(term) >= 0; }) : alle;
+  // Groepen bij elkaar, in de volgorde waarin ze voorkomen.
+  const volgorde = [];
+  zichtbaar.forEach(function (o) {
+    const g = o.groep || '', laatste = volgorde[volgorde.length - 1];
+    let blok = g ? volgorde.filter(function (x) { return x.groep === g; })[0] : (laatste && !laatste.groep ? laatste : null);
+    if (!blok) { blok = { groep: g, opties: [] }; volgorde.push(blok); }
+    blok.opties.push(o);
+  });
+  const kiesbaar = [].concat.apply([], volgorde.map(function (b) { return b.opties; })).filter(function (o) { return !o.uit; });
+  const gekozen = alle.filter(function (o) { return String(o.id) === nu && o.id !== ''; })[0];
+  function sluit() { zetOpen(false); zetZoek(''); try { knopRef.current.focus(); } catch (e) {} }
+  function kies(o) { if (o.uit) return; sluit(); onKies(String(o.id)); }
+  function toets(e) {
+    if (e.key === 'Escape') { e.preventDefault(); sluit(); return; }
+    if (e.key === 'Tab') { zetOpen(false); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = kiesbaar.findIndex(function (o) { return String(o.id) === actief; });
+      const j = e.key === 'ArrowDown' ? Math.min(kiesbaar.length - 1, i + 1) : Math.max(0, i - 1);
+      if (kiesbaar[j]) zetActief(String(kiesbaar[j].id));
+      return;
+    }
+    if (e.key === 'Enter') {
+      const o = kiesbaar.filter(function (x) { return String(x.id) === actief; })[0] || (term ? kiesbaar[0] : null);
+      if (o) { e.preventDefault(); kies(o); }
+    }
+  }
+  const veld = (
+    <span style={Object.assign({ display: 'block', flex: '1 1 auto', minWidth: '0' }, stijl)}>
+      <VeldKnop ref={knopRef} tekst={gekozen ? gekozen.name : leeg} leeg={!gekozen} icoon={CHEV_ONDER} open={open} aria-haspopup="listbox" value={nu} {...rest}
+        onClick={function () { if (open) { sluit(); return; } zetZoek(''); zetActief(nu || null); zetOpen(true); }}
+        onKeyDown={function (e) { if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); zetActief(nu || null); zetOpen(true); } }} />
+    </span>
+  );
+  let lijst = null;
+  if (open) {
+    lijst = (
+      <div ref={lijstRef} role="listbox" tabIndex={-1} aria-label={rest['aria-label'] || leeg} data-keuze-lijst="" onKeyDown={toets}
+        style={{ margin: '2px 0 8px', border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', boxShadow: '0 10px 28px -14px rgba(32,20,15,.35)', overflow: 'hidden', outline: 'none' }}>
+        {alle.length >= (zoekVanaf || 9) ? (
+          <div style={{ padding: '8px 8px 2px' }}>
+            <Invoer waarde={zoek} onWaarde={function (v) { zetZoek(v); zetActief(null); }} placeholder="Zoeken" aria-label="Zoeken" data-keuze-zoek="" autoComplete="off" />
+          </div>
+        ) : null}
+        <div style={{ maxHeight: '240px', overflowY: 'auto', padding: '4px 0', overscrollBehavior: 'contain' }}>
+          {volgorde.length ? volgorde.map(function (b, i) {
+            return (
+              <div key={i + '|' + b.groep} role="group" aria-label={b.groep || undefined}>
+                {b.groep ? <div role="presentation" style={{ padding: '8px 10px 3px', fontSize: '11.5px', fontWeight: '700', color: T.inkSoft }}>{b.groep}</div> : null}
+                {b.opties.map(function (o) {
+                  return <MenuOptie key={'o|' + o.id} o={o} gekozen={String(o.id) === nu} actief={String(o.id) === actief} onKies={function () { kies(o); }} />;
+                })}
+              </div>
+            );
+          }) : <div style={{ padding: '8px 10px', fontSize: '12.5px', color: T.inkSoft }}>Niets gevonden.</div>}
+        </div>
+      </div>
+    );
+  }
+  return children(veld, lijst);
 }
 // Klikbare kaart (dagen in een resultaat, afspraken in dagweergave).
 export function ClickCard({ onClick, title, style, children, ...rest }) {

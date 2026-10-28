@@ -1117,7 +1117,15 @@ async function kiesClient(document, dom, sleutel, naam) {
   await new Promise((r) => setTimeout(r, 420));
   document.querySelector('[data-client-id="' + CLIENTEN[naam].id + '"]').click();
 }
-const kies = (document, dom, sel, v) => kiesUit(document.querySelector(sel), v);
+// Een <select> of de keuzelijst in hulpstijl (KeuzeMenu): openen en de keuze aanklikken.
+function kies(document, dom, sel, v) {
+  const el = document.querySelector(sel);
+  if (el.tagName === 'SELECT') return kiesUit(el, v);
+  if (el.getAttribute('aria-expanded') !== 'true') el.click();
+  const optie = document.querySelector('[data-keuze-lijst] [data-optie="' + v + '"]');
+  assert.ok(optie, 'keuze ' + v + ' in de lijst van ' + sel);
+  optie.click();
+}
 
 test('zijpaneel: planhulp toont de lijst meteen en kijkt daarna de eerste blokken na bij ONS', async () => {
   const dagen = ['2026-10-08', '2026-10-09', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16'];
@@ -1358,6 +1366,11 @@ test('zijpaneel: afspraak maken - collega weghalen, agenda niet na te kijken, al
   assert.equal(document.querySelector('[data-mw-kaart]'), null, 'na het maken geen kaart Medewerkers meer');
 });
 
+// Wat de open keuzelijst (KeuzeMenu) toont: per groep 'kopje: keuze, keuze'.
+function lijstInhoud(document) {
+  return [...document.querySelectorAll('[data-keuze-lijst] [role="group"]')].map((g) => (g.getAttribute('aria-label') || '') + ': ' +
+    [...g.querySelectorAll('[role="option"]')].map((o) => o.textContent + (o.getAttribute('aria-disabled') === 'true' ? ' (grijs)' : '') + (o.getAttribute('aria-selected') === 'true' ? ' (gekozen)' : '')).join(', '));
+}
 // Locaties zoals de content-kant ze geeft (uit search_panel/locations/tree).
 const LOCATIES = [{ id: '46', name: 'BG Rotterdam', groep: 'Begeleiding', kan: true }, { id: '34', name: 'BG Breda', groep: 'Begeleiding', kan: true }, { id: '60', name: 'J&G Oosterhout', groep: 'Behandeling', kan: false }];
 function paneelMetLocaties(antwoord = { locations: LOCATIES }) {
@@ -1375,9 +1388,17 @@ test('zijpaneel: afspraak maken - locatie voor alle afspraken, per afspraak aan 
   assert.equal(verzonden.find((m) => m.type === 'ag-event-options').locaties, true, 'locaties gevraagd bij het openen');
   const alle = () => document.querySelector('[data-maak-locatie-alle]');
   assert.equal(alle().value, '', 'standaard geen locatie');
-  assert.deepEqual([...alle().querySelectorAll('optgroup')].map((g) => g.label + ': ' + [...g.querySelectorAll('option')].map((o) => o.textContent + (o.disabled ? ' (grijs)' : '')).join(', ')),
-    ['Begeleiding: BG Rotterdam, BG Breda', 'Behandeling: J&G Oosterhout (grijs)']);
+  assert.equal(alle().textContent, 'Geen locatie');
   assert.equal(alle().closest('[data-maak-alle]').textContent.indexOf('Locatie') > alle().closest('[data-maak-alle]').textContent.indexOf('Type'), true, 'onder Type');
+  // De lijst in hulpstijl: groepen als kopje, grijs zonder toegang, Andere locatie apart onderaan.
+  alle().click();
+  assert.equal(alle().getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(lijstInhoud(document), [': Geen locatie (gekozen)', 'Begeleiding: BG Rotterdam, BG Breda', 'Behandeling: J&G OosterhoutGeen toegang (grijs)', ': Andere locatie']);
+  document.querySelector('[data-keuze-lijst] [data-optie="60"]').click();
+  assert.ok(document.querySelector('[data-keuze-lijst]'), 'grijs: niet te kiezen, lijst blijft open');
+  document.querySelector('[data-keuze-lijst]').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(document.querySelector('[data-keuze-lijst]'), null, 'Escape sluit');
+  assert.equal(alle().value, '');
   assert.equal(document.querySelector('[data-maak-locatie-label]'), null);
   kies(document, dom, '[data-maak-locatie-alle]', '46');
   assert.deepEqual([...document.querySelectorAll('[data-maak-locatie-label]')].map((e) => e.textContent), ['BG Rotterdam', 'BG Rotterdam']);
@@ -1418,15 +1439,75 @@ test('zijpaneel: afspraak maken - locatie bij een niet cliëntgebonden afspraak,
   await tick();
   const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
   assert.deepEqual(ev.map((e) => [e.nietClient, e.hourTypeId, e.locationId]), [[true, 77, 34], [true, 77, 34]]);
-  // Geeft ONS geen locaties, dan geen regel; geeft ONS ze in een andere vorm, dan een melding in de regel.
+  // Geeft ONS geen locaties, dan alleen Andere locatie; mislukt het ophalen, dan de melding eronder.
   const leeg = paneelMetLocaties({ locations: [] });
   await tweeMomenten(leeg.document);
-  assert.equal(leeg.document.querySelector('[data-maak-locatie-alle]'), null);
-  assert.doesNotMatch(leeg.document.querySelector('[data-maak-alle]').textContent, /Locatie/);
+  leeg.document.querySelector('[data-maak-locatie-alle]').click();
+  assert.deepEqual(lijstInhoud(leeg.document), [': Geen locatie (gekozen), Andere locatie']);
   const fout = paneelMetLocaties({ locations: [], locationsError: 'De locaties konden niet worden opgehaald uit ONS.' });
   await tweeMomenten(fout.document);
   assert.equal(fout.document.querySelector('[data-maak-locatie-fout]').textContent, 'De locaties konden niet worden opgehaald uit ONS.');
+  assert.ok(fout.document.querySelector('[data-maak-locatie-alle]'), 'Andere locatie kan nog wel');
   assert.equal(fout.document.querySelector('[data-maak-knop]').textContent, '2 afspraken maken in ONS', 'maken kan gewoon');
+});
+
+test('zijpaneel: afspraak maken - Andere locatie: zelf invullen, voor alle of per afspraak, als tekst naar ONS', async () => {
+  const { document, dom, verzonden } = paneelMetLocaties();
+  await tweeMomenten(document);
+  kies(document, dom, '[data-maak-locatie-alle]', 'eigen');
+  assert.equal(document.querySelector('[data-maak-locatie-alle]').textContent, 'Andere locatie');
+  const veld = document.querySelector('[data-maak-locatie-eigen-alle]');
+  assert.equal(veld.getAttribute('placeholder'), 'Adres of plek');
+  assert.equal(document.querySelector('[data-maak-locatie-label]'), null, 'nog leeg: geen label');
+  typ(veld, 'Wijkcentrum De Brug');
+  assert.deepEqual([...document.querySelectorAll('[data-maak-locatie-label]')].map((e) => e.textContent), ['Wijkcentrum De Brug', 'Wijkcentrum De Brug']);
+  // De tweede afspraak: een eigen tekst.
+  document.querySelector('[data-maak-aanpassen="1"]').click();
+  assert.equal(document.querySelector('[data-maak-locatie="1"]').value, 'eigen');
+  assert.equal(document.querySelector('[data-maak-locatie-eigen="1"]').value, 'Wijkcentrum De Brug');
+  typ(document.querySelector('[data-maak-locatie-eigen="1"]'), 'Bij de cliënt thuis');
+  document.querySelector('[data-maak-aanpassen="1"]').click();
+  assert.equal(document.querySelector('[data-maak-locatie-label="1"]').textContent, 'Bij de cliënt thuis');
+  assert.ok(document.querySelector('[data-eigen-keuze="1"]'));
+  assert.equal(document.querySelector('[data-maak-locatie-label="0"]').textContent, 'Wijkcentrum De Brug');
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.customLocation, e.locationId]), [['Wijkcentrum De Brug', undefined], ['Bij de cliënt thuis', undefined]]);
+});
+
+test('zijpaneel: keuzelijst in hulpstijl - zoeken bij een lange lijst, pijltjes en Enter, klikken ernaast sluit', async () => {
+  const veel = Array.from({ length: 12 }, (_, i) => ({ id: String(100 + i), name: (i === 7 ? 'BG Tilburg' : 'BG Plaats ' + i), groep: i < 6 ? 'Begeleiding' : 'Behandeling', kan: true }));
+  const { document, dom } = paneelMetLocaties({ locations: veel });
+  await tweeMomenten(document);
+  const knop = () => document.querySelector('[data-maak-locatie-alle]');
+  knop().click();
+  const zoek = document.querySelector('[data-keuze-lijst] [data-keuze-zoek]');
+  assert.ok(zoek, 'lange lijst: zoekveld');
+  assert.equal(document.activeElement, zoek, 'meteen typen');
+  typ(zoek, 'tilb');
+  assert.deepEqual(lijstInhoud(document), ['Behandeling: BG Tilburg']);
+  zoek.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(knop().value, '107', 'Enter kiest de enige treffer');
+  assert.equal(document.querySelector('[data-keuze-lijst]'), null);
+  // Pijltjes: vanaf de keuze naar de volgende.
+  knop().click();
+  const lijst = document.querySelector('[data-keuze-lijst]');
+  lijst.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  lijst.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(knop().value, '108');
+  // Klikken ernaast sluit zonder te kiezen.
+  knop().click();
+  assert.ok(document.querySelector('[data-keuze-lijst]'));
+  document.querySelector('[data-paneel-titel]').dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
+  assert.equal(document.querySelector('[data-keuze-lijst]'), null);
+  assert.equal(knop().value, '108');
+  // De uursoort gebruikt dezelfde lijst, met Onlangs gebruikt en Toegestaan.
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  document.querySelector('[data-maak-uursoort="11142"]').click();
+  assert.deepEqual(lijstInhoud(document), ['Onlangs gebruikt: JW BG H10 Individuele BG midde']);
 });
 
 const TYPES_BEHEER = [
@@ -1512,12 +1593,13 @@ test('zijpaneel: afspraak maken - titel onder type: bij Zelfde cliënt(en) voor 
   kies(document, dom, '[data-maak-uursoort="11142"]', '5');
   const alle = document.querySelector('[data-maak-alle]');
   const labels = [...alle.querySelectorAll(':scope > div > span:first-child')].map((x) => x.textContent);
-  assert.deepEqual(labels.slice(-3), ['Type', 'Titel', 'Cliënten zijn aanwezig'], 'titel direct onder type');
+  assert.deepEqual(labels.slice(-4), ['Type', 'Locatie', 'Titel', 'Cliënten zijn aanwezig'], 'titel onder type en locatie');
   const tl = document.querySelector('[data-maak-titel-alle]');
   assert.equal(tl.value, 'Face to face Tamara', 'standaard type en voornaam');
   const typeLabel = labels.indexOf('Type');
   const lab = [...alle.querySelectorAll(':scope > div > span:first-child')];
-  assert.deepEqual([lab[typeLabel + 2].style.fontSize, lab[typeLabel + 2].style.fontWeight, lab[typeLabel + 2].style.color], [lab[typeLabel].style.fontSize, lab[typeLabel].style.fontWeight, lab[typeLabel].style.color], 'Cliënten zijn aanwezig in dezelfde letters als Type');
+  assert.deepEqual([lab[typeLabel + 3].style.fontSize, lab[typeLabel + 3].style.fontWeight, lab[typeLabel + 3].style.color], [lab[typeLabel].style.fontSize, lab[typeLabel].style.fontWeight, lab[typeLabel].style.color], 'Cliënten zijn aanwezig in dezelfde letters als Type');
+  assert.deepEqual([lab[typeLabel + 1].style.fontSize, lab[typeLabel + 1].style.fontWeight, lab[typeLabel + 1].style.color], [lab[typeLabel].style.fontSize, lab[typeLabel].style.fontWeight, lab[typeLabel].style.color], 'Locatie ook');
   typ(tl, 'Intake'); tl.dispatchEvent(new dom.window.Event('change'));
   await tick();
   assert.match(document.querySelector('[data-maak-samenvatting="0"]').textContent, /^Intake/);

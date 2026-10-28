@@ -84,6 +84,10 @@ export function buildEventPayload(spec, meta) {
   if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
   const info = {};
   cl.forEach(function (c) { info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] }; });
+  // Zelf ingevulde locatie (custom_location): gewone tekst, zoals het
+  // formulier van ONS hem stuurt; dan geen locatie uit de lijst.
+  const eigenLocatie = String(spec.customLocation == null ? '' : spec.customLocation).replace(/\s+/g, ' ').trim().slice(0, 200);
+  const locatieId = !eigenLocatie && /^\d{1,12}$/.test(String(spec.locationId == null ? '' : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null;
   const ev = {
     valid_from: spec.date,
     start_time: isoLocalWithOffset(spec.date, start),
@@ -94,7 +98,7 @@ export function buildEventPayload(spec, meta) {
     client_present: !zonderClient && spec.clientPresent !== false,
     clients: [],
     comment: String(spec.comment || ''),
-    custom_location: null,
+    custom_location: eigenLocatie || null,
     employee_ids: emp,
     employees: [],
     group: null,
@@ -104,7 +108,7 @@ export function buildEventPayload(spec, meta) {
     labels: [],
     location: null,
     // Locatie: value uit search_panel/locations/tree (zoals het formulier van ONS).
-    location_id: /^\d{1,12}$/.test(String(spec.locationId == null ? '' : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null,
+    location_id: locatieId,
     name: String(spec.name || 'Afspraak').slice(0, 200),
     team_ids: [],
     teams: [],
