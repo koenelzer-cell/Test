@@ -179,15 +179,19 @@ export function setRegistrationSubmitBlocked(blocked) {
     }
   }
 }
+// De Indienen-knop in het paneel heet altijd Indienen; zolang de rapportage
+// ontbreekt is hij grijs (de reden staat eronder, zie completeness.js). Een
+// klik zet dan de cursor in het rapportageveld.
 export function updateRegistrationReportSubmitButton() {
   const btn = helperPanel.popupEl && helperPanel.popupEl.querySelector('[data-registration-helper-submit]');
   if (!btn) return;
   const blocked = registrationReportNeedsContent();
-  btn.textContent = blocked ? 'Rapportage' : 'Indienen';
-  btn.title = blocked ? 'Schrijf de rapportage' : 'Registratie indienen';
-  btn.style.background = blocked ? '#a3241f' : '#1b7f3b';
-  btn.style.boxShadow = blocked ? '0 6px 16px -7px rgba(163,36,31,.55)' : '0 6px 16px -7px rgba(27,127,59,.55)';
-  btn.style.opacity = blocked ? '0.85' : '1';
+  btn.textContent = 'Indienen';
+  btn.removeAttribute('title');
+  btn.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+  btn.style.background = blocked ? '#c9c1bd' : '#1b7f3b';
+  btn.style.boxShadow = blocked ? 'none' : '0 6px 16px -7px rgba(27,127,59,.55)';
+  btn.style.opacity = '1';
   btn.style.cursor = blocked ? 'not-allowed' : 'pointer';
 }
 export function submitRegistrationFromHelper() {
@@ -195,7 +199,6 @@ export function submitRegistrationFromHelper() {
   updateRegistrationSubmitGuard();
   updateRegistrationReportSubmitButton();
   if (registrationReportNeedsContent()) {
-    setStatus('Schrijf de rapportage', false);
     const field = registrationPrimaryReportField();
     focusRegistrationReportAtEnd(field);
     // Sommige ONS-componenten herstellen de selectie nog na focus; zet de
@@ -230,5 +233,4 @@ export function blockRegistrationSubmitIfReportEmpty(e) {
   e.stopPropagation();
   if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   updateRegistrationSubmitGuard();
-  setStatus('Schrijf de rapportage', false);
 }

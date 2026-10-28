@@ -33,18 +33,18 @@ import { clientVoornamenAsync, findClientFirstNames } from '../../src/content/fe
 import { clearAppointmentSnapshot, clearSettings, hasAppointmentSnapshot, takeAppointmentSnapshot } from '../../src/content/features/appointment/undo.js';
 import { fetchProductList, parseProductList } from '../../src/content/services/ons-api/products.js';
 import { clientsMissingUursoortEntries, uursoortContexts } from '../../src/content/features/appointment/uursoort-queue.js';
-import { doorplannenBlocksSave, doorplannenWarnText, recurrenceHeaderExpanded, recurrenceIsSet, recurrenceValue } from '../../src/content/features/appointment/recurrence.js';
-import { appointmentFlow, registrationFlow } from '../../src/content/state.js';
+import { doorplannenBlocksSave, doorplannenWarnText, recurrenceHeaderExpanded, recurrenceIsSet, recurrenceValue, setRecurrenceToNiet } from '../../src/content/features/appointment/recurrence.js';
+import { appointmentFlow, helperPanel, registrationFlow } from '../../src/content/state.js';
 import { durationChipLabel, durationLabelStyle, mkDurationPicker, PICKER_CHIP_LIMIT } from '../../src/content/ui/duration-picker.js';
 import { clearScreenMark, currentScreen, markScreen } from '../../src/content/screen/screen-state.js';
 import { renderScreen } from '../../src/content/ui/react-bridge.js';
 import { closeOnsModal } from '../../src/content/ons/modal.js';
 import { OnsAdapter, onsGemisteVelden, onsVergeetGemist } from '../../src/content/features/appointment/ons-adapter.js';
-import { appointmentMissingHooks, helperQualityIssues } from '../../src/content/features/quality.js';
+import { appointmentMissingHooks, helperQualityIssues, kwaliteitsMelding } from '../../src/content/features/quality.js';
 import { applyAppointmentDuration } from '../../src/content/features/appointment/duration.js';
-import { _regCareFlags, activeRegistrationClientForms, registrationClientFormIsRemoved, registrationCompletenessIssues } from '../../src/content/features/registration/completeness.js';
+import { activeRegistrationClientForms, mkRegistrationCompletenessNode, mkRegistrationSubmitNode, _regCareFlags, registrationClientFormIsRemoved, registrationCompletenessIssues } from '../../src/content/features/registration/completeness.js';
 import { registrationPageSettled, registrationRestoreHolding } from '../../src/content/features/registration/prereqs.js';
-import { _prefixScheiding, choicePrefix, registrationChoicePrefixRegex, registrationPrefixRegex } from '../../src/content/features/registration/report.js';
+import { _prefixScheiding, choicePrefix, registrationChoicePrefixRegex, registrationPrefixRegex, submitRegistrationFromHelper, updateRegistrationReportSubmitButton } from '../../src/content/features/registration/report.js';
 import { getRegistrationClientNumber } from '../../src/content/features/registration/prompts.js';
 import { capturePendingRegistrationLabel, loadPendingRegistrationLabel, matchRegistrationChoiceByLabel, persistRegistrationTimes, popoverLabelFromDom, restoreRegistrationExtras, setRegistrationIdOverride } from '../../src/content/features/registration/pending.js';
 import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from '../../src/content/features/registration/context-menu.js';
@@ -89,6 +89,7 @@ window.__onsHelperTestApi = {
   registrationClientFormIsRemoved,
   getRegistrationClientNumber,
   helperQualityIssues,
+  kwaliteitsMelding,
   appointmentMissingHooks,
   closeOnsModal,
   _regToMin,
@@ -168,6 +169,12 @@ window.__onsHelperTestApi = {
   __setRegistrationHoldStart: function (t) { try { registrationFlow.registrationRestoreHoldStart = t; } catch (e) {} },
   helperNeedsTeamChoice,
   __setActiveProfile: setActiveProfileForTest,
+  // Registratiehulp: knop, controles en het meldingenkanaal.
+  mkRegistrationCompletenessNode,
+  mkRegistrationSubmitNode,
+  updateRegistrationReportSubmitButton,
+  submitRegistrationFromHelper,
+  __setHelperPanel: function (o) { try { Object.assign(helperPanel, o); } catch (e) {} },
   applyHelperConfig,
   effectiveChoices,
   effectiveRegistrationForms,
@@ -256,6 +263,7 @@ window.__onsHelperTestApi = {
   recurrenceHeaderExpanded,
   recurrenceValue,
   recurrenceIsSet,
+  setRecurrenceToNiet,
   doorplannenWarnText,
   doorplannenBlocksSave,
   // Open registraties: periodecontrole, snel registreren.

@@ -274,10 +274,34 @@ Ook weghalen gaat zo: 'Verwijder instellingen' en het wissen van een
 uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te
 klikken of de dropdown te openen.
 
+Zet je 'Afspraak doorplannen?' uit, dan zet de hulp de herhaling terug op
+'Niet' via dezelfde koppeling van het herhalingveld (`data-qa=recurrence-type`),
+zonder de keuzelijst te openen. De waarde van 'Niet' komt uit de keuzes van
+dat veld zelf; daarna kijkt hij of het veld hem heeft. Lukt dat niet, dan
+opent hij de keuzelijst en klikt hij 'Niet' zoals vroeger. Daarna klapt hij de
+sectie Herhaling weer in.
+
 In het beheerscherm blijft alles op naam staan (afspraaktypes, labels,
 uursoorten): de hulp zoekt de id's zelf op in wat ONS het formulier geeft.
 Lukt het rechtstreeks zetten niet (onbekende naam, ander formulier na een
 ONS-update), dan opent de hulp de dropdown en klikt hij zoals vroeger.
+
+### Registratiehulp: indienen
+
+Op het rapportagescherm van de registratiehulp staat onder de opdracht
+('Schrijf nu je rapportage, volgens Richtlijn rapporteren') de knop
+**Indienen**. Zolang de rapportage ontbreekt (leeg, of alleen het begin dat de
+hulp zelf zette, zoals 'Verslaglegging - '), is die knop grijs; een klik zet
+de cursor dan achteraan in het rapportageveld. Daaronder staat wat nog moet,
+elk punt op één regel met een waarschuwingsicoon: 'Schrijf eerst de
+rapportage voor Tamara Test', 'Uursoort ontbreekt voor …', een overlap met
+een andere registratie, of direct en indirect die niet optellen tot de duur.
+De lijst loopt elke seconde mee met wat je invult. De knop Indienen van ONS
+zelf blijft intussen uit.
+
+Dezelfde punten staan linksonder op de pagina ('Controleer voor opslaan')
+alleen als het paneel ingeklapt is of een ander scherm toont; staat het
+paneel open op deze lijst, dan staan ze daar niet nog een keer.
 
 ### Zijpaneel
 

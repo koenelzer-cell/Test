@@ -5,6 +5,7 @@ import { resolveText } from '../../ui/managed-text.js';
 import { clean, deepQueryAll, isOwnPopup, pollFor, visible } from '../../ons/dom.js';
 import { clickElementCenter, clickOption, clickUiButton } from '../../ons/form-controls.js';
 import { findRecurrenceField, findRecurrenceHeader } from '../../ons/appointment-form.js';
+import { eerstViaFormulier, zetHerhalingNietViaFormulier } from '../../ons/form-model.js';
 import { appointmentFlow } from '../../state.js';
 import { highlightField } from '../../ui/highlight.js';
 
@@ -53,20 +54,28 @@ function recurrenceCombo() {
   const field = findRecurrenceField();
   return field ? (deepQueryAll('[role="combobox"]', field)[0] || null) : null;
 }
-// Zet de herhaling terug op 'Niet' (open de keuzelijst en klik de optie 'Niet').
-function setRecurrenceToNiet(done) {
+// Via het scherm: de keuzelijst openen en de optie 'Niet' aanklikken.
+function herhalingNietViaScherm() {
+  return new Promise((klaar) => {
+    const combo = recurrenceCombo();
+    if (!combo) { klaar(false); return; }
+    clickElementCenter(combo); // open de keuzelijst
+    pollFor(() => {
+      const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
+      return opts.find((o) => clean(o.textContent) === 'niet') || null;
+    }, (opt) => {
+      if (opt) clickElementCenter(opt);
+      else { try { combo.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); } catch (e) {} }
+      klaar(!!opt);
+    }, { timeout: 2000, interval: 50 });
+  });
+}
+// Zet de herhaling terug op 'Niet': eerst via het formulier (Vue, zonder de
+// keuzelijst te openen), anders via het scherm.
+export function setRecurrenceToNiet(done) {
   if (!recurrenceIsSet()) { if (done) done(true); return; }
-  const combo = recurrenceCombo();
-  if (!combo) { if (done) done(false); return; }
-  clickElementCenter(combo); // open de keuzelijst
-  pollFor(() => {
-    const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
-    return opts.find((o) => clean(o.textContent) === 'niet') || null;
-  }, (opt) => {
-    if (opt) clickElementCenter(opt);
-    else { try { combo.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); } catch (e) {} }
-    if (done) done(!!opt);
-  }, { timeout: 2000, interval: 50 });
+  eerstViaFormulier(() => zetHerhalingNietViaFormulier(), herhalingNietViaScherm)
+    .then((ok) => { if (done) done(!!ok); }, () => { if (done) done(false); });
 }
 // Toggle 'uit': eerst de herhaling terug op 'Niet' zetten en dán de sectie
 // inklappen (ook als er bv. 'Dagelijks' stond), zodat de afspraak niet stiekem

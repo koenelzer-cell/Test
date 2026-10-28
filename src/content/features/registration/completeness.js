@@ -3,6 +3,7 @@
 import { fetchOnsOverlap, knownOnsOverlap } from '../../services/ons-api/open-registrations.js';
 import { fetchWeekTijdvakken, huidigRegistratieTijdvak, overlapMelding, overlappendTijdvak } from '../overlap.js';
 import { safe } from '../../screen/status.js';
+import { helperPanel } from '../../state.js';
 import { mkPillButton } from '../../ui/controls.js';
 import { submitRegistrationFromHelper } from './report.js';
 import { currentRegistrationId } from './pending.js';
@@ -42,7 +43,7 @@ export function registrationCompletenessIssues() {
     const noShow = !!(cb && cb.checked);
     const ta = document.getElementById('declaration_client_information_' + id + '__dossier_report_comment');
     const report = ta ? String(ta.value || ta.textContent || '').trim() : '';
-    if (flags.requireReport && !noShow && !report) issues.push({ sev: 'error', msg: 'Rapportage ontbreekt voor ' + name });
+    if (flags.requireReport && !noShow && !report) issues.push({ sev: 'error', msg: 'Schrijf eerst de rapportage voor ' + name });
     if (noShow && report) issues.push({ sev: 'warn', msg: 'No-show maar wel rapportage voor ' + name });
   }
   const startMin = _regToMin(_regFieldVal('#declaration_start_time') || _regFieldVal('#declaration_start_time_display'));
@@ -86,32 +87,52 @@ export function mkRegistrationSubmitNode() {
   submit.setAttribute('data-registration-helper-submit', '');
   return submit;
 }
-// Compleetheidsvak als losse knoop (null als er niets te melden is).
+// Wat nog moet voor indienen, onder de Indienen-knop: per punt één regel met
+// een icoon (compact, zoals de meldingen in het zijpaneel), geen gekleurd
+// vak. De kwaliteitsmodule (features/quality.js) houdt de lijst elke seconde
+// bij zolang het paneel open is; dan staat dezelfde melding niet ook nog
+// linksonder op de pagina.
+export const REGISTRATIE_CONTROLES = 'data-registration-helper-checks';
 export function mkRegistrationCompletenessNode() {
   const holder = document.createElement('div');
-  appendRegistrationCompleteness(holder);
-  return holder.firstChild ? holder.firstChild : null;
-}
-function appendRegistrationCompleteness(body) {
+  holder.setAttribute(REGISTRATIE_CONTROLES, '');
   let issues = [];
-  try { issues = registrationCompletenessIssues(); } catch (e) { return; }
-  if (!issues.length) return;
-  const box = document.createElement('div');
-  Object.assign(box.style, { margin: '0 0 8px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #f0c0c0', background: '#fdecec' });
-  const h = document.createElement('div');
-  h.textContent = 'Controleer voor indienen:';
-  Object.assign(h.style, { fontSize: '12px', fontWeight: '700', color: '#9b1c1c', marginBottom: '4px' });
-  box.appendChild(h);
-  const ul = document.createElement('ul');
-  Object.assign(ul.style, { margin: '0', padding: '0 0 0 16px' });
-  for (const it of issues) {
-    const li = document.createElement('li');
-    li.textContent = it.msg;
-    Object.assign(li.style, { fontSize: '12px', lineHeight: '1.35', color: it.sev === 'error' ? '#9b1c1c' : '#7a5200' });
-    ul.appendChild(li);
-  }
-  box.appendChild(ul);
-  body.appendChild(box);
+  try { issues = registrationCompletenessIssues(); } catch (e) { issues = []; }
+  vulRegistratieControles(holder, issues);
+  return holder;
+}
+const SVG = 'http://www.w3.org/2000/svg';
+function letOpIcoon(kleur) {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('width', '14'); svg.setAttribute('height', '14'); svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', kleur); svg.setAttribute('stroke-width', '2.2'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+  Object.assign(svg.style, { flex: '0 0 auto', marginTop: '2px' });
+  ['M12 3.8 2.8 19.8h18.4z', 'M12 10v4.2', 'M12 17.2v.01'].forEach(function (d) { const p = document.createElementNS(SVG, 'path'); p.setAttribute('d', d); svg.appendChild(p); });
+  return svg;
+}
+// issues: [{ sev, msg }] -> regels in holder (leeg = niets).
+export function vulRegistratieControles(holder, issues) {
+  const sleutel = (issues || []).map(function (i) { return i.sev + '|' + i.msg; }).join('\n');
+  if (holder.getAttribute('data-inhoud') === sleutel && holder.childNodes.length === (issues || []).length) return;
+  holder.setAttribute('data-inhoud', sleutel);
+  while (holder.firstChild) holder.removeChild(holder.firstChild);
+  (issues || []).forEach(function (it) {
+    const kleur = '#8a5a00';
+    const regel = document.createElement('div');
+    regel.setAttribute('data-registration-check', it.sev);
+    Object.assign(regel.style, { display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '8px', fontSize: '12.5px', lineHeight: '1.45', color: kleur });
+    const tekst = document.createElement('span');
+    tekst.textContent = it.msg;
+    tekst.style.minWidth = '0';
+    regel.append(letOpIcoon(kleur), tekst);
+    holder.appendChild(regel);
+  });
+}
+// De lijst in het open paneel, of null (paneel dicht of een ander scherm).
+export function registratieControlesInPaneel() {
+  const p = helperPanel.popupEl;
+  if (!p || helperPanel.popupCollapsed || !p.isConnected) return null;
+  return p.querySelector('[' + REGISTRATIE_CONTROLES + ']');
 }
 function _regFieldVal(sel) { const el = document.querySelector(sel); if (!el) return ''; return (el.value != null && el.value !== '' ? el.value : el.getAttribute('value')) || ''; }
 // Een uit de registratie verwijderde cliënt: ONS zet de klasse 'removed' op de

@@ -32,6 +32,10 @@
     // { id }  medewerker-id uit onsContext() van de pagina
     USER_READ: "gebruikerGelezen",
     // { id, ok, userId }
+    SET_RECURRENCE_NONE: "zetHerhalingNiet",
+    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
+    RECURRENCE_SET: "herhalingGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -573,6 +577,75 @@
         return soort === "getal" ? Number(nu) === w : String(nu == null ? "" : nu) === w;
       }, klaar);
     }
+    const KEUZE_TEKST = ["label", "name", "description", "text", "title"], KEUZE_WAARDE = ["value", "id", "key"];
+    function herhalingVeld(boom, el) {
+      if (!boom || !el) return null;
+      return boom.veld(el) || boom.velden.filter(function(v) {
+        return v.el && v.el !== el && el.contains(v.el);
+      })[0] || null;
+    }
+    function tekstVan(v) {
+      if (typeof v.children === "string") return v.children;
+      return v.el && v.el.textContent != null ? v.el.textContent : "";
+    }
+    function nietKeuze(v) {
+      const props = v.props || {};
+      for (const k in props) {
+        const lijst = props[k];
+        if (!Array.isArray(lijst)) continue;
+        for (let i = 0; i < lijst.length; i++) {
+          const o = lijst[i];
+          if (!o || typeof o !== "object") continue;
+          const t = KEUZE_TEKST.map(function(x) {
+            return o[x];
+          }).filter(function(x) {
+            return typeof x === "string";
+          })[0];
+          const w = KEUZE_WAARDE.filter(function(x) {
+            return x in o;
+          })[0];
+          if (t != null && w && norm(t) === "niet") return { waarde: o[w], tekst: t };
+        }
+      }
+      let stapel = [v.component ? v.component.subTree : null].concat(Array.isArray(v.children) ? v.children : []), n = 0;
+      while (stapel.length && n < 5e3) {
+        const x = stapel.pop();
+        n++;
+        if (!x || typeof x !== "object") continue;
+        if (x.props && "value" in x.props && norm(tekstVan(x)) === "niet") return { waarde: x.props.value, tekst: "Niet" };
+        if (x.component) stapel.push(x.component.subTree);
+        if (Array.isArray(x.children)) stapel = stapel.concat(x.children);
+      }
+      return null;
+    }
+    function zelfdeKeuze(nu, w) {
+      if (nu && typeof nu === "object") nu = KEUZE_WAARDE.map(function(x) {
+        return nu[x];
+      }).filter(function(x) {
+        return x !== void 0;
+      })[0];
+      return nu == null ? w == null : String(nu) === String(w);
+    }
+    function zetHerhalingNiet(klaar) {
+      const el = diepZoek(document, '[data-qa="recurrence-type"]');
+      const boom = el ? formulierBoom(el) : null, v = herhalingVeld(boom, el);
+      if (!v) {
+        klaar({ ok: false, reden: "geen herhalingveld" });
+        return;
+      }
+      const keuze = nietKeuze(v);
+      if (!keuze) {
+        klaar({ ok: false, reden: "keuze Niet niet gevonden" });
+        return;
+      }
+      const veld = v.el;
+      zetEnControleer(function() {
+        v.props["onUpdate:modelValue"](keuze.waarde, keuze.tekst);
+      }, function() {
+        const b = formulierBoom(veld), na = b && b.veld(veld);
+        return !!na && zelfdeKeuze(propVan(na, "model-value", "modelValue"), keuze.waarde);
+      }, klaar);
+    }
     function leesFormulier() {
       const boom = formulierBoom(), c = boom && boom.details;
       if (!c) return { ok: false, reden: "geen afspraakmodel" };
@@ -635,6 +708,10 @@
         }
         if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) {
           zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET));
+          return;
+        }
+        if (d.type === PAGE_COMMAND.SET_RECURRENCE_NONE) {
+          zetHerhalingNiet(antwoord(PAGE_COMMAND.RECURRENCE_SET));
           return;
         }
         if (d.type === PAGE_COMMAND.SET_LABELS) {

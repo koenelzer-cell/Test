@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.301
+
+- **Registratiehulp rustiger**: de melding dat de rapportage ontbreekt staat
+  nog maar één keer, als korte regel onder de knop Indienen. De knop heet
+  altijd Indienen en is grijs zolang de rapportage ontbreekt. Het roze vak
+  en de extra melding linksonder op de pagina zijn weg zolang het paneel open
+  staat.
+- Zet je "Afspraak doorplannen?" uit, dan zet de hulp de herhaling op "Niet"
+  zonder de keuzelijst eerst open te klappen.
+
 ## 1.6.300
 
 - **Andere locatie**: staat je locatie niet in de lijst, kies dan onderaan

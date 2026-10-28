@@ -12,13 +12,14 @@ export function NeedsClientScreen({ nodes }) {
 }
 
 // Alleen de Indienen-knop (geen rapportage nodig: geen cliënt gekoppeld).
-// completenessNode en submitNode blijven vanilla: die worden elders live
-// bijgewerkt (updateRegistrationReportSubmitButton).
+// submitNode en completenessNode (wat nog moet, onder de knop) blijven
+// vanilla: die worden elders live bijgewerkt (updateRegistrationReportSubmitButton,
+// de kwaliteitsmodule).
 export function SubmitOnlyScreen({ completenessNode, submitNode }) {
   return (
     <div>
-      <VanillaNode node={completenessNode} />
       <VanillaNode node={submitNode} />
+      <VanillaNode node={completenessNode} />
     </div>
   );
 }
@@ -37,8 +38,8 @@ export function ReportPromptScreen({ msgNode, completenessNode, submitNode, toke
         <Pink>individuele rapportage</Pink>.
       </div>
       <br />
-      <VanillaNode node={completenessNode} />
       <VanillaNode node={submitNode} />
+      <VanillaNode node={completenessNode} />
     </div>
   );
 }

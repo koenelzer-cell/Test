@@ -89,6 +89,8 @@ export const PAGE_COMMAND = {
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina
   USER_READ: 'gebruikerGelezen', // { id, ok, userId }
+  SET_RECURRENCE_NONE: 'zetHerhalingNiet', // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
+  RECURRENCE_SET: 'herhalingGezet', // { id, ok, reden? }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
 };

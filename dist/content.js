@@ -3467,6 +3467,10 @@
     // { id }  medewerker-id uit onsContext() van de pagina
     USER_READ: "gebruikerGelezen",
     // { id, ok, userId }
+    SET_RECURRENCE_NONE: "zetHerhalingNiet",
+    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
+    RECURRENCE_SET: "herhalingGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -5587,6 +5591,9 @@
   }
   function zetVeldViaFormulier(veld, waarde, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde }, wachtMs);
+  }
+  function zetHerhalingNietViaFormulier(wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs);
   }
   function leesFormulier(wachtMs) {
     return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
@@ -12170,30 +12177,39 @@
     const field2 = findRecurrenceField();
     return field2 ? deepQueryAll('[role="combobox"]', field2)[0] || null : null;
   }
+  function herhalingNietViaScherm() {
+    return new Promise((klaar) => {
+      const combo = recurrenceCombo();
+      if (!combo) {
+        klaar(false);
+        return;
+      }
+      clickElementCenter(combo);
+      pollFor(() => {
+        const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
+        return opts.find((o) => clean(o.textContent) === "niet") || null;
+      }, (opt) => {
+        if (opt) clickElementCenter(opt);
+        else {
+          try {
+            combo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+          } catch (e) {
+          }
+        }
+        klaar(!!opt);
+      }, { timeout: 2e3, interval: 50 });
+    });
+  }
   function setRecurrenceToNiet(done) {
     if (!recurrenceIsSet()) {
       if (done) done(true);
       return;
     }
-    const combo = recurrenceCombo();
-    if (!combo) {
+    eerstViaFormulier(() => zetHerhalingNietViaFormulier(), herhalingNietViaScherm).then((ok) => {
+      if (done) done(!!ok);
+    }, () => {
       if (done) done(false);
-      return;
-    }
-    clickElementCenter(combo);
-    pollFor(() => {
-      const opts = deepQueryAll('[role="option"], uc-select-list li, [role="listbox"] li').filter((o) => visible(o) && !isOwnPopup(o));
-      return opts.find((o) => clean(o.textContent) === "niet") || null;
-    }, (opt) => {
-      if (opt) clickElementCenter(opt);
-      else {
-        try {
-          combo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-        } catch (e) {
-        }
-      }
-      if (done) done(!!opt);
-    }, { timeout: 2e3, interval: 50 });
+    });
   }
   function collapseRecurrence() {
     const finish = () => {
@@ -13518,11 +13534,12 @@
     const btn = helperPanel.popupEl && helperPanel.popupEl.querySelector("[data-registration-helper-submit]");
     if (!btn) return;
     const blocked = registrationReportNeedsContent();
-    btn.textContent = blocked ? "Rapportage" : "Indienen";
-    btn.title = blocked ? "Schrijf de rapportage" : "Registratie indienen";
-    btn.style.background = blocked ? "#a3241f" : "#1b7f3b";
-    btn.style.boxShadow = blocked ? "0 6px 16px -7px rgba(163,36,31,.55)" : "0 6px 16px -7px rgba(27,127,59,.55)";
-    btn.style.opacity = blocked ? "0.85" : "1";
+    btn.textContent = "Indienen";
+    btn.removeAttribute("title");
+    btn.setAttribute("aria-disabled", blocked ? "true" : "false");
+    btn.style.background = blocked ? "#c9c1bd" : "#1b7f3b";
+    btn.style.boxShadow = blocked ? "none" : "0 6px 16px -7px rgba(27,127,59,.55)";
+    btn.style.opacity = "1";
     btn.style.cursor = blocked ? "not-allowed" : "pointer";
   }
   function submitRegistrationFromHelper() {
@@ -13530,7 +13547,6 @@
     updateRegistrationSubmitGuard();
     updateRegistrationReportSubmitButton();
     if (registrationReportNeedsContent()) {
-      setStatus("Schrijf de rapportage", false);
       const field2 = registrationPrimaryReportField();
       focusRegistrationReportAtEnd(field2);
       setTimeout(() => focusRegistrationReportAtEnd(field2), 0);
@@ -13570,7 +13586,6 @@
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     updateRegistrationSubmitGuard();
-    setStatus("Schrijf de rapportage", false);
   }
 
   // src/content/features/registration/context-menu.js
@@ -13913,7 +13928,7 @@
       const noShow = !!(cb && cb.checked);
       const ta = document.getElementById("declaration_client_information_" + id + "__dossier_report_comment");
       const report = ta ? String(ta.value || ta.textContent || "").trim() : "";
-      if (flags.requireReport && !noShow && !report) issues.push({ sev: "error", msg: "Rapportage ontbreekt voor " + name });
+      if (flags.requireReport && !noShow && !report) issues.push({ sev: "error", msg: "Schrijf eerst de rapportage voor " + name });
       if (noShow && report) issues.push({ sev: "warn", msg: "No-show maar wel rapportage voor " + name });
     }
     const startMin = _regToMin(_regFieldVal("#declaration_start_time") || _regFieldVal("#declaration_start_time_display"));
@@ -13949,35 +13964,62 @@
     submit.setAttribute("data-registration-helper-submit", "");
     return submit;
   }
+  var REGISTRATIE_CONTROLES = "data-registration-helper-checks";
   function mkRegistrationCompletenessNode() {
     const holder = document.createElement("div");
-    appendRegistrationCompleteness(holder);
-    return holder.firstChild ? holder.firstChild : null;
-  }
-  function appendRegistrationCompleteness(body) {
+    holder.setAttribute(REGISTRATIE_CONTROLES, "");
     let issues = [];
     try {
       issues = registrationCompletenessIssues();
     } catch (e) {
-      return;
+      issues = [];
     }
-    if (!issues.length) return;
-    const box = document.createElement("div");
-    Object.assign(box.style, { margin: "0 0 8px", padding: "8px 10px", borderRadius: "8px", border: "1px solid #f0c0c0", background: "#fdecec" });
-    const h = document.createElement("div");
-    h.textContent = "Controleer voor indienen:";
-    Object.assign(h.style, { fontSize: "12px", fontWeight: "700", color: "#9b1c1c", marginBottom: "4px" });
-    box.appendChild(h);
-    const ul = document.createElement("ul");
-    Object.assign(ul.style, { margin: "0", padding: "0 0 0 16px" });
-    for (const it of issues) {
-      const li = document.createElement("li");
-      li.textContent = it.msg;
-      Object.assign(li.style, { fontSize: "12px", lineHeight: "1.35", color: it.sev === "error" ? "#9b1c1c" : "#7a5200" });
-      ul.appendChild(li);
-    }
-    box.appendChild(ul);
-    body.appendChild(box);
+    vulRegistratieControles(holder, issues);
+    return holder;
+  }
+  var SVG = "http://www.w3.org/2000/svg";
+  function letOpIcoon(kleur) {
+    const svg2 = document.createElementNS(SVG, "svg");
+    svg2.setAttribute("viewBox", "0 0 24 24");
+    svg2.setAttribute("width", "14");
+    svg2.setAttribute("height", "14");
+    svg2.setAttribute("aria-hidden", "true");
+    svg2.setAttribute("fill", "none");
+    svg2.setAttribute("stroke", kleur);
+    svg2.setAttribute("stroke-width", "2.2");
+    svg2.setAttribute("stroke-linecap", "round");
+    svg2.setAttribute("stroke-linejoin", "round");
+    Object.assign(svg2.style, { flex: "0 0 auto", marginTop: "2px" });
+    ["M12 3.8 2.8 19.8h18.4z", "M12 10v4.2", "M12 17.2v.01"].forEach(function(d) {
+      const p = document.createElementNS(SVG, "path");
+      p.setAttribute("d", d);
+      svg2.appendChild(p);
+    });
+    return svg2;
+  }
+  function vulRegistratieControles(holder, issues) {
+    const sleutel = (issues || []).map(function(i) {
+      return i.sev + "|" + i.msg;
+    }).join("\n");
+    if (holder.getAttribute("data-inhoud") === sleutel && holder.childNodes.length === (issues || []).length) return;
+    holder.setAttribute("data-inhoud", sleutel);
+    while (holder.firstChild) holder.removeChild(holder.firstChild);
+    (issues || []).forEach(function(it) {
+      const kleur = "#8a5a00";
+      const regel = document.createElement("div");
+      regel.setAttribute("data-registration-check", it.sev);
+      Object.assign(regel.style, { display: "flex", alignItems: "flex-start", gap: "6px", marginTop: "8px", fontSize: "12.5px", lineHeight: "1.45", color: kleur });
+      const tekst = document.createElement("span");
+      tekst.textContent = it.msg;
+      tekst.style.minWidth = "0";
+      regel.append(letOpIcoon(kleur), tekst);
+      holder.appendChild(regel);
+    });
+  }
+  function registratieControlesInPaneel() {
+    const p = helperPanel.popupEl;
+    if (!p || helperPanel.popupCollapsed || !p.isConnected) return null;
+    return p.querySelector("[" + REGISTRATIE_CONTROLES + "]");
   }
   function _regFieldVal(sel) {
     const el = document.querySelector(sel);
@@ -14251,25 +14293,29 @@
     wrap.appendChild(sub);
     return wrap;
   }
+  function kwaliteitsMelding() {
+    let issues = [];
+    try {
+      if (helperPanel.helperEnabled) issues = helperQualityIssues();
+    } catch (e) {
+      issues = [];
+    }
+    const inPaneel = helperPanel.activeMode === "registrations" ? registratieControlesInPaneel() : null;
+    if (inPaneel) {
+      vulRegistratieControles(inPaneel, issues);
+      return null;
+    }
+    if (!issues.length) return null;
+    const errs = issues.filter((i) => i.sev === "error").length;
+    return { title: errs ? "Controleer voor opslaan" : "Aandachtspunt", items: issues.map((i) => ({ text: i.msg, sev: i.sev })) };
+  }
   function registerQualityModule() {
     register(ModuleBase.create(
       { id: "kwaliteit", urls: ONS_URL_PATTERNS },
       { run: function(api) {
-        let issues = [];
-        try {
-          if (helperPanel.helperEnabled) issues = helperQualityIssues();
-        } catch (e) {
-          issues = [];
-        }
-        if (!issues.length) {
-          api.clearMessage();
-          return;
-        }
-        const errs = issues.filter((i) => i.sev === "error").length;
-        api.setMessage({
-          title: errs ? "Controleer voor opslaan" : "Aandachtspunt",
-          items: issues.map((i) => ({ text: i.msg, sev: i.sev }))
-        });
+        const m = kwaliteitsMelding();
+        if (m) api.setMessage(m);
+        else api.clearMessage();
       } }
     ));
   }

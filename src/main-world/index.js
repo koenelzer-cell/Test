@@ -12,10 +12,11 @@
         klaargezet, datum, tijden en afspraaktype in het model zetten waaruit
         ONS het nieuwe afspraakformulier opbouwt.
      5) Op verzoek het medewerker-id uit onsContext() van de pagina lezen.
-     6) Labels en uursoort van het open afspraakformulier zetten op verzoek
-        van de afspraakhulp, via ONS' eigen Vue-koppeling in plaats van de
-        dropdown, en lezen wat erin staat (cliënten, uursoorten, labels);
-        ook titel, notities, tijden en reistijd via EventDetails.onChange.
+     6) Labels, uursoort en herhaling (op 'Niet') van het open
+        afspraakformulier zetten op verzoek van de afspraakhulp, via ONS' eigen
+        Vue-koppeling in plaats van de dropdown, en lezen wat erin staat
+        (cliënten, uursoorten, labels); ook titel, notities, tijden en
+        reistijd via EventDetails.onChange.
 
    Communicatie met de (geïsoleerde) content-scripts loopt via window.postMessage
    met de marker { __onsah: true, dir: 'from-main' }, alleen naar de eigen origin
@@ -446,6 +447,61 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     }, klaar);
   }
 
+  /* Herhaling op 'Niet' (Afspraak doorplannen uit): het keuzeveld
+     uc-form-field[data-qa=recurrence-type] meldt een keuze via
+     onUpdate:modelValue, net als een klik in de keuzelijst. De waarde van
+     'Niet' komt uit de keuzes van dat veld zelf: een lijst in de props, of de
+     optie-vnodes eronder. Nooit een vaste waarde; niet gevonden = ok: false
+     (dan klikt het content-script). */
+  const KEUZE_TEKST = ['label', 'name', 'description', 'text', 'title'], KEUZE_WAARDE = ['value', 'id', 'key'];
+  function herhalingVeld(boom, el) {
+    if (!boom || !el) return null;
+    return boom.veld(el) || boom.velden.filter(function (v) { return v.el && v.el !== el && el.contains(v.el); })[0] || null;
+  }
+  function tekstVan(v) {
+    if (typeof v.children === 'string') return v.children;
+    return v.el && v.el.textContent != null ? v.el.textContent : '';
+  }
+  function nietKeuze(v) {
+    const props = v.props || {};
+    for (const k in props) {
+      const lijst = props[k];
+      if (!Array.isArray(lijst)) continue;
+      for (let i = 0; i < lijst.length; i++) {
+        const o = lijst[i];
+        if (!o || typeof o !== 'object') continue;
+        const t = KEUZE_TEKST.map(function (x) { return o[x]; }).filter(function (x) { return typeof x === 'string'; })[0];
+        const w = KEUZE_WAARDE.filter(function (x) { return x in o; })[0];
+        if (t != null && w && norm(t) === 'niet') return { waarde: o[w], tekst: t };
+      }
+    }
+    let stapel = [v.component ? v.component.subTree : null].concat(Array.isArray(v.children) ? v.children : []), n = 0;
+    while (stapel.length && n < 5000) {
+      const x = stapel.pop(); n++;
+      if (!x || typeof x !== 'object') continue;
+      if (x.props && 'value' in x.props && norm(tekstVan(x)) === 'niet') return { waarde: x.props.value, tekst: 'Niet' };
+      if (x.component) stapel.push(x.component.subTree);
+      if (Array.isArray(x.children)) stapel = stapel.concat(x.children);
+    }
+    return null;
+  }
+  function zelfdeKeuze(nu, w) {
+    if (nu && typeof nu === 'object') nu = KEUZE_WAARDE.map(function (x) { return nu[x]; }).filter(function (x) { return x !== undefined; })[0];
+    return nu == null ? w == null : String(nu) === String(w);
+  }
+  function zetHerhalingNiet(klaar) {
+    const el = diepZoek(document, '[data-qa="recurrence-type"]');
+    const boom = el ? formulierBoom(el) : null, v = herhalingVeld(boom, el);
+    if (!v) { klaar({ ok: false, reden: 'geen herhalingveld' }); return; }
+    const keuze = nietKeuze(v);
+    if (!keuze) { klaar({ ok: false, reden: 'keuze Niet niet gevonden' }); return; }
+    const veld = v.el;
+    zetEnControleer(function () { v.props['onUpdate:modelValue'](keuze.waarde, keuze.tekst); }, function () {
+      const b = formulierBoom(veld), na = b && b.veld(veld);
+      return !!na && zelfdeKeuze(propVan(na, 'model-value', 'modelValue'), keuze.waarde);
+    }, klaar);
+  }
+
   /* Lezen wat het open formulier bevat: cliënt-id en voornaam (voor de
      titel), de uursoort per cliënt (uit de uursoortvelden) en de label-id's.
      Geen volledige naam, geboortedatum, nummer of adres. */
@@ -488,6 +544,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }
+      if (d.type === PAGE_COMMAND.SET_RECURRENCE_NONE) { zetHerhalingNiet(antwoord(PAGE_COMMAND.RECURRENCE_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_LABELS) {
         const namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);
         // Leeg mag alleen als bewust wissen (wis: true).

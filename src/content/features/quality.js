@@ -7,7 +7,7 @@ import { hasClientInAppointment } from './appointment/clients.js';
 import { doorplannenWarnText, recurrenceIsSet } from './appointment/recurrence.js';
 import { appointmentFlow, helperPanel } from '../state.js';
 import { OnsAdapter, onsGemisteVelden, onsVergeetGemist } from './appointment/ons-adapter.js';
-import { registrationCompletenessIssues } from './registration/completeness.js';
+import { registratieControlesInPaneel, registrationCompletenessIssues, vulRegistratieControles } from './registration/completeness.js';
 import { ModuleBase, register } from '../platform/module-host.js';
 import { ONS_URL_PATTERNS } from '../../shared/ons-hosts.js';
 
@@ -67,6 +67,20 @@ export function mkProblemBanner(missing) {
   wrap.appendChild(sub);
   return wrap;
 }
+// Wat het meldingenkanaal toont: { title, items } of null. Registratie met
+// het paneel open op de controles: die lijst bijwerken en niet ook nog
+// linksonder melden. Paneel dicht (of een ander scherm): wel linksonder.
+export function kwaliteitsMelding() {
+  let issues = [];
+  try { if (helperPanel.helperEnabled) issues = helperQualityIssues(); } catch (e) { issues = []; }
+  const inPaneel = helperPanel.activeMode === 'registrations' ? registratieControlesInPaneel() : null;
+  if (inPaneel) { vulRegistratieControles(inPaneel, issues); return null; }
+  if (!issues.length) return null;
+  const errs = issues.filter((i) => i.sev === 'error').length;
+  // Gestructureerde melding (tekst, geen HTML): het meldingenkanaal rendert
+  // dit veilig met textContent.
+  return { title: errs ? 'Controleer voor opslaan' : 'Aandachtspunt', items: issues.map((i) => ({ text: i.msg, sev: i.sev })) };
+}
 // Kwaliteits- en zelfdiagnosemeldingen naar het altijd-zichtbare
 // meldingenkanaal tillen. Draait als kleine module op het framework; wist de
 // melding zodra er niets te melden is of de hulp uit staat.
@@ -76,16 +90,8 @@ export function registerQualityModule() {
   register(ModuleBase.create(
     { id: 'kwaliteit', urls: ONS_URL_PATTERNS },
     { run: function (api) {
-        let issues = [];
-        try { if (helperPanel.helperEnabled) issues = helperQualityIssues(); } catch (e) { issues = []; }
-        if (!issues.length) { api.clearMessage(); return; }
-        const errs = issues.filter((i) => i.sev === 'error').length;
-        // Gestructureerde melding (tekst, geen HTML): het meldingenkanaal
-        // rendert dit veilig met textContent.
-        api.setMessage({
-          title: errs ? 'Controleer voor opslaan' : 'Aandachtspunt',
-          items: issues.map((i) => ({ text: i.msg, sev: i.sev })),
-        });
+        const m = kwaliteitsMelding();
+        if (m) api.setMessage(m); else api.clearMessage();
       } }
   ));
 }

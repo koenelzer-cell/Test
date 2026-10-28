@@ -78,6 +78,12 @@ export function zetVeldViaFormulier(veld, waarde, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_FIELD, PAGE_COMMAND.FIELD_SET, { veld: String(veld), waarde: waarde }, wachtMs);
 }
 
+// De herhaling van het open afspraakformulier op 'Niet' (Afspraak doorplannen
+// uit), met de keuze uit het eigen keuzeveld van ONS. -> Promise<boolean>
+export function zetHerhalingNietViaFormulier(wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs);
+}
+
 // Wat het open formulier bevat (main-world, uit het Vue-model):
 // { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
 //   labelIds } of null als dat niet lukt. Geen volledige namen.
