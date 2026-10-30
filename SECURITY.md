@@ -144,6 +144,26 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   *Quota* een dagmaximum in. Gebruik nooit de Routes-sleutel als
   Embed-sleutel, en gebruik de eigen routes-proxy als de Routes-sleutel niet
   in de extensie mag staan.
+
+  **Sleutels verborgen houden.** Wat in de extensie staat (`config.json` of
+  het beleid), kan iedereen met de extensie lezen; echt geheim blijft alleen
+  wat op de eigen routes-proxy staat. Daarom:
+  - Staat de eigen server ingevuld (adres en token), dan neemt het
+    beheerscherm de Routes-sleutel niet meer op in de configuratie: hij gaat
+    dan niet mee naar de extensie.
+  - De sleutelvelden en het token zijn in het beheerscherm afgeschermd
+    (wachtwoordveld). De configuratiecontrole waarschuwt bij elke sleutel die
+    in de extensie komt, en meldt een fout als de kaartsleutel dezelfde is als
+    de Routes-sleutel.
+  - Het supportpakket en de storingscontrole (vergelijking beheer en ZIP)
+    tonen van sleutels en token alleen of ze zijn ingevuld, nooit de waarde
+    (sinds 1.6.302).
+  - **Sleutels vervangen:** is er vóór versie 1.6.302 een supportpakket
+    gedeeld, dan stonden de sleutels en het proxy-token daar leesbaar in.
+    Maak dan in Google Cloud nieuwe sleutels (oude intrekken), zet een nieuw
+    `PROXY_TOKEN` op de server en vul beide opnieuw in het beheerscherm in.
+    Doe dat ook als een sleutel ergens anders terecht is gekomen; het
+    Google-dagmaximum en de budgetmelding beperken intussen de schade.
   - **Kopieën van een afspraak** (planhulp): het opslaan-verzoek van ONS
     (met cliëntgegevens zoals ONS ze zelf verstuurt) wordt in het geheugen
     gehouden om dezelfde afspraak op de gekozen momenten aan te maken, en
@@ -182,9 +202,32 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   de worker opent alleen `https://`-adressen). Dat is een gewone pagina: de
   extensie stuurt zelf geen gegevens naar AFAS.
 - Endpoints zijn via de beheerconfig aan te passen, maar alleen naar paden die
-  met `/` beginnen: een externe URL wordt geweigerd.
+  met één `/` beginnen: een externe URL wordt geweigerd, ook `//domein` en
+  `/\domein` (die de browser als ander domein leest). Daarnaast controleert
+  `services/ons-api/http.js` bij elk verzoek dat het adres op de ONS-origin
+  uitkomt; anders gaat er niets weg. Zo gaan de sessie en het CSRF-token
+  nooit naar een andere server, ook niet bij een verkeerde instelling.
+- **Beheerscherm:** een los HTML-bestand (geen server, geen inlog). Het haalt
+  niets op en stuurt niets weg: een Content-Security-Policy blokkeert alle
+  verbindingen, externe scripts, afbeeldingen en frames. Wie de configuratie
+  verandert, bepaalt de uitrol (pakket of beleid via IT); medewerkers kunnen
+  het beleid niet overschrijven.
+- **Eigen routes-proxy** (`server/routes-proxy`): alleen https (een verzoek
+  dat als http binnenkwam wordt geweigerd), alleen de toegestane herkomst en
+  het juiste token (constante-tijdvergelijking), alleen geldige postcodes,
+  hooguit 5 kB per verzoek. Limieten: per gebruiker (IP) per minuut, ook vóór
+  de tokencontrole (raden kost tijd), en een plafond per dag voor als het
+  token uitlekt (het staat in de extensie). Beveiligingsheaders op elk
+  antwoord (`no-store`, `nosniff`, een CSP zonder bronnen, HSTS). Een
+  geweigerd verzoek geeft één logregel met tijd, soort, pad en een ingekort
+  IP-adres, nooit het token, de sleutel of de inhoud. De Google-sleutel staat
+  alleen in een omgevingsvariabele (bij Cloud Run als secret).
 
 ## Code-eigenschappen (security)
+- Extensiepagina's (zijpaneel, popup) draaien met de CSP `script-src 'self';
+  object-src 'none'; base-uri 'none'`: geen inline- of externe scripts.
+  HTML van buiten gaat door DOMPurify (`src/shared/veilige-html.js`), de rest
+  via React of `textContent`.
 - Manifest V3, content-scripts in de geïsoleerde wereld; een klein main-world
   script (`src/main-world/`) geeft de afspraaklabels uit ONS' eigen
   details-aanroep door, en van ONS' overlapcontrole alleen het adres en of

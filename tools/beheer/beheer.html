@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Het beheerscherm haalt niets op en stuurt niets weg (er staan sleutels in):
+     geen verbindingen, geen externe scripts, stijlen, afbeeldingen of frames. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
 <title>ONS Agendahulp beheer</title>
 <style>
   :root {
@@ -596,8 +600,8 @@
     <div class="pagina-kop"><div><h1>Google Maps</h1><p>Met een Routes-sleutel deelt Afspraak maken de afspraken efficiënter in op rijtijd en vult het de reistijd in; Route van de dag berekent er de kortste volgorde mee. Met een kaartsleutel toont Route van de dag een kaart. Naar Google gaan alleen postcodes. Leeg laten: geen rijtijden en geen kaart.</p></div></div>
     <div class="kaart">
       <h2>Routes-sleutel</h2>
-      <label class="beheer-veld" style="margin-top:10px;max-width:480px"><span>Sleutel (alleen Routes API)</span><input id="routesKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
-      <p class="veld-uitleg">Deze sleutel komt in de extensie en is daar te zien. Beperk hem in Google Cloud tot alleen de Routes API en stel bij Quotas een maximum per dag in (bijvoorbeeld 1000) plus een budgetmelding. Wil je de sleutel geheim houden, gebruik dan een eigen server; die gaat voor en dit veld mag leeg blijven.</p>
+      <label class="beheer-veld" style="margin-top:10px;max-width:480px"><span>Sleutel (alleen Routes API)</span><input id="routesKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" oninput="markDirty(event)"></label>
+      <p class="veld-uitleg">Deze sleutel komt in de extensie en is daar te zien. Beperk hem in Google Cloud tot alleen de Routes API en stel bij Quotas een maximum per dag in (bijvoorbeeld 1000) plus een budgetmelding. Wil je de sleutel geheim houden, gebruik dan een eigen server: die gaat voor, en dan gaat deze sleutel ook niet mee naar de extensie.</p>
     </div>
     <div class="kaart">
       <h2>Eigen server (optioneel)</h2>
@@ -609,7 +613,7 @@
     </div>
     <div class="kaart">
       <h2>Kaartsleutel</h2>
-      <label class="beheer-veld" style="margin-top:10px;max-width:480px"><span>Sleutel (alleen Maps Embed API)</span><input id="mapsEmbedKey" type="text" autocomplete="off" placeholder="AIza…" oninput="markDirty(event)"></label>
+      <label class="beheer-veld" style="margin-top:10px;max-width:480px"><span>Sleutel (alleen Maps Embed API)</span><input id="mapsEmbedKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" oninput="markDirty(event)"></label>
       <p class="veld-uitleg">De kaartsleutel staat wel in de extensie. Gebruik daarom een aparte sleutel die in Google Cloud is beperkt tot alleen de Maps Embed API (kaarten tonen is daar gratis). Gebruik hier niet de Routes-sleutel.</p>
     </div>
   </section>
@@ -886,7 +890,7 @@
     <div class="pagina-kop"><div><h1>Geavanceerd</h1><p>De volledige configuratie als JSON, importeren en exporteren, en terug naar de standaard.</p></div></div>
     <div class="kaart">
       <h2>Importeren en exporteren</h2>
-      <p class="uitleg">Voor een snelle test: exporteer <code>config.json</code> en kies in de extensiepopup Importeer testconfig; de open ONS-pagina wordt dan vernieuwd. Voor productie: publiceer, en vervang <code>config.json</code> in de extensiemap of laat IT het via beleid uitrollen.</p>
+      <p class="uitleg">Voor een snelle test: exporteer <code>config.json</code> en vervang het bestand in een uitgepakte testversie van de extensie. Voor productie: publiceer, en vervang <code>config.json</code> in de extensiemap of laat IT het via beleid uitrollen.</p>
       <div class="acties-rij">
         <label class="knop" style="cursor:pointer">Bestand importeren<input id="file" type="file" accept="application/json,.json" style="display:none" onchange="importFromFile(event)"></label>
         <button class="knop" type="button" onclick="exportConfig()">config.json exporteren</button>
@@ -1227,7 +1231,7 @@ const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 // De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
-const MANAGER_VERSION = '1.6.301';
+const MANAGER_VERSION = '1.6.302';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -1828,11 +1832,11 @@ function readApiEndpoints() {
   Object.keys(_API_FIELDS).forEach((k) => {
     const el = $(_API_FIELDS[k]); const v = el ? String(el.value || '').trim() : '';
     if (!v) { out[k] = DEFAULTS.apiEndpoints[k]; return; }
-    if (v.charAt(0) !== '/') { warn.push(k); out[k] = DEFAULTS.apiEndpoints[k]; return; } // geen extern/absoluut pad
+    if (!/^\/(?![\/\\])/.test(v)) { warn.push(k); out[k] = DEFAULTS.apiEndpoints[k]; return; } // geen extern/absoluut pad, ook geen //domein
     out[k] = v;
   });
   const w = $('#apiEndpointsWarn');
-  if (w) { if (warn.length) { w.style.display = 'block'; w.textContent = 'Genegeerd (moet met "/" beginnen, same-origin): ' + warn.join(', ') + '. Ingebouwde standaard gebruikt.'; } else { w.style.display = 'none'; w.textContent = ''; } }
+  if (w) { if (warn.length) { w.style.display = 'block'; w.textContent = 'Genegeerd (moet met één "/" beginnen, same-origin): ' + warn.join(', ') + '. Ingebouwde standaard gebruikt.'; } else { w.style.display = 'none'; w.textContent = ''; } }
   return out;
 }
 function renderApiEndpoints(eps) {
@@ -2849,7 +2853,20 @@ function readRoutesProxy() {
   const url = $('#routesProxyUrl').value.trim().replace(/\/+$/, ''), token = $('#routesProxyToken').value.trim();
   const embedKey = $('#mapsEmbedKey').value.trim(), routesKey = $('#routesKey').value.trim();
   const sleutel = (k) => /^[A-Za-z0-9_-]{20,60}$/.test(k) ? k : '';
-  return { url: /^https:\/\/[^/\s]+/.test(url) ? url : '', token, embedKey: sleutel(embedKey), routesKey: sleutel(routesKey) };
+  const server = /^https:\/\/[^/\s]+/.test(url) ? url : '';
+  // Met een eigen server is de Routes-sleutel niet nodig: dan gaat hij ook
+  // niet mee naar de extensie (daar is hij voor iedereen te zien).
+  return { url: server, token, embedKey: sleutel(embedKey), routesKey: server && token ? '' : sleutel(routesKey) };
+}
+// Sleutels en token vervangen door een aanduiding, voor alles wat het
+// beheerscherm deelt met anderen (supportpakket): wel te zien of ze zijn
+// ingevuld, niet wat ze zijn.
+const GEHEIME_VELDEN = ['token', 'routesKey', 'embedKey'];
+function zonderGeheimen(cfg) {
+  const kopie = JSON.parse(JSON.stringify(cfg || {}));
+  const rp = kopie.routesProxy;
+  if (rp && typeof rp === 'object') GEHEIME_VELDEN.forEach((k) => { if (rp[k]) rp[k] = '[verborgen, ingevuld]'; });
+  return kopie;
 }
 // ===== Kantoren (planhulp) =====
 function addOffice(o) {
@@ -3032,6 +3049,10 @@ function configAudit(cfg) {
   Object.keys(cfg.texts||{}).forEach((key)=>{const html=String((cfg.texts[key]||{}).html||'');if(/<(?:script|iframe|object|embed|form|input|img|svg)\b/i.test(html)||/\bon\w+\s*=/i.test(html)||/href\s*=\s*["']?(?:javascript|data):/i.test(html))add('fout','Teksten',`${key} bevat niet-toegestane HTML of een onveilige link.`,true);});
   const compat=cfg.compatibility||{};if(!Number.isInteger(+compat.schemaVersion)||+compat.schemaVersion<1)add('fout','Compatibiliteit','Configuratieschema moet een positief geheel getal zijn.',true);if(!semverParts(compat.minimumExtensionVersion))add('fout','Compatibiliteit',`Ongeldige minimale extensieversie “${compat.minimumExtensionVersion||''}”.`,true);
   Object.keys(FEATURE_META).forEach((k)=>{if(typeof (cfg.features||{})[k]!=='boolean')add('fout','Functies',`Functieschakelaar ${k} ontbreekt.`,true);});
+  const rp=cfg.routesProxy||{};
+  if(rp.routesKey)add('waarschuwing','Google Maps','De Routes-sleutel staat in de extensie en is daar voor iedereen te zien. Beperk hem in Google Cloud tot alleen de Routes API met een dagmaximum, of gebruik de eigen server.',false);
+  if(rp.embedKey)add('waarschuwing','Google Maps','De kaartsleutel staat in de extensie en in het adres van de kaart. Beperk hem in Google Cloud tot alleen de Maps Embed API.',false);
+  if(rp.embedKey&&rp.routesKey&&rp.embedKey===rp.routesKey)add('fout','Google Maps','De kaartsleutel is dezelfde als de Routes-sleutel. Gebruik voor de kaart een aparte sleutel met alleen de Maps Embed API.',false);
   return issues;
 }
 let auditTimer=null;
@@ -3094,7 +3115,7 @@ function storedZip(files){
 function downloadBlob(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function redactedTroubleshooting(){if(!troubleState.report)return null;return{gemaaktOp:troubleState.report.gemaaktOp,extensieVersie:troubleState.report.extensieVersie,samenvatting:troubleState.report.samenvatting,resultaten:(troubleState.report.resultaten||[]).map((x)=>({niveau:x.niveau,onderdeel:x.onderdeel,titel:x.titel,uitleg:x.uitleg,herstel:x.herstel})),herstelplan:troubleState.report.herstelplan};}
 function downloadSupportPackage(){
-  try{const cfg=buildConfigFromDOM(),audit=configAudit(cfg),matrix=calculateTestMatrix(cfg),meta={gemaaktOp:new Date().toISOString(),beheerschermVersie:MANAGER_VERSION,configuratieschema:(cfg.compatibility||{}).schemaVersion,minimaleExtensieversie:(cfg.compatibility||{}).minimumExtensionVersion,actieveFuncties:cfg.features};const files={'LEESMIJ.txt':'Geanonimiseerd ONS Agendahulp-supportpakket. Bevat geen ingeladen ONS-pagina, cliëntnaam of rapportage-inhoud.','config.json':JSON.stringify(cfg,null,2),'configuratiecontrole.json':JSON.stringify({gemaaktOp:meta.gemaaktOp,aantalFouten:audit.filter((x)=>x.niveau==='fout').length,aantalWaarschuwingen:audit.filter((x)=>x.niveau==='waarschuwing').length,bevindingen:audit},null,2),'testmatrix.json':JSON.stringify(matrix,null,2),'metadata.json':JSON.stringify(meta,null,2)};const trouble=redactedTroubleshooting();if(trouble)files['troubleshooting-geanonimiseerd.json']=JSON.stringify(trouble,null,2);const stamp=new Date().toISOString().replace(/[:.]/g,'-');downloadBlob(`ONS-supportpakket-${stamp}.zip`,storedZip(files));const status=$('#supportStatus');status.className='beheer-resultaat ok';status.textContent=`Supportpakket gemaakt met ${Object.keys(files).length} bestanden. Geen ONS-pagina's of cliëntgegevens opgenomen.`;}catch(e){const status=$('#supportStatus');status.className='beheer-resultaat fout';status.textContent='Supportpakket maken mislukt: '+e.message;}
+  try{const cfg=buildConfigFromDOM(),audit=configAudit(cfg),matrix=calculateTestMatrix(cfg),meta={gemaaktOp:new Date().toISOString(),beheerschermVersie:MANAGER_VERSION,configuratieschema:(cfg.compatibility||{}).schemaVersion,minimaleExtensieversie:(cfg.compatibility||{}).minimumExtensionVersion,actieveFuncties:cfg.features};const files={'LEESMIJ.txt':'Geanonimiseerd ONS Agendahulp-supportpakket. Bevat geen ingeladen ONS-pagina, cliëntnaam of rapportage-inhoud.','config.json':JSON.stringify(zonderGeheimen(cfg),null,2),'configuratiecontrole.json':JSON.stringify({gemaaktOp:meta.gemaaktOp,aantalFouten:audit.filter((x)=>x.niveau==='fout').length,aantalWaarschuwingen:audit.filter((x)=>x.niveau==='waarschuwing').length,bevindingen:audit},null,2),'testmatrix.json':JSON.stringify(matrix,null,2),'metadata.json':JSON.stringify(meta,null,2)};const trouble=redactedTroubleshooting();if(trouble)files['troubleshooting-geanonimiseerd.json']=JSON.stringify(trouble,null,2);const stamp=new Date().toISOString().replace(/[:.]/g,'-');downloadBlob(`ONS-supportpakket-${stamp}.zip`,storedZip(files));const status=$('#supportStatus');status.className='beheer-resultaat ok';status.textContent=`Supportpakket gemaakt met ${Object.keys(files).length} bestanden. Geen ONS-pagina's of cliëntgegevens opgenomen.`;}catch(e){const status=$('#supportStatus');status.className='beheer-resultaat fout';status.textContent='Supportpakket maken mislukt: '+e.message;}
 }
 
 // ===== verzamelen / renderen / opslaan =====
@@ -3629,7 +3650,10 @@ function troubleCompareManagementConfig(managementConfig, zipConfig, results) {
   if (!differences.length) {
     troubleResult(results, 'ok', 'Beheer ↔ ZIP', 'Alle beheerinstellingen staan exact in de extensie', 'De zichtbare configuratie en config.json in de zip zijn veld voor veld gelijk.');
   } else {
-    const shown = differences.slice(0, 40).map((d) => `${d.pad}\n  beheer: ${troubleValueText(d.beheer)}\n  zip: ${troubleValueText(d.zip)}`).join('\n');
+    // Sleutels en token: alleen dat ze verschillen, nooit de waarde.
+    const geheim = (pad) => /\.routesProxy\.(token|routesKey|embedKey)$/.test(pad);
+    const waarde = (d, v) => geheim(d.pad) ? (v ? '[verborgen, ingevuld]' : '[leeg]') : troubleValueText(v);
+    const shown = differences.slice(0, 40).map((d) => `${d.pad}\n  beheer: ${waarde(d, d.beheer)}\n  zip: ${waarde(d, d.zip)}`).join('\n');
     const more = differences.length > 40 ? `\n… plus ${differences.length - 40} andere verschillen.` : '';
     troubleResult(results, 'fout', 'Beheer ↔ ZIP', `${differences.length} beheerinstelling(en) wijken af van de ZIP`, shown + more, { aantalVerschillen:differences.length });
   }

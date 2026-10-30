@@ -230,7 +230,9 @@ Alle aanroepen gaan via `services/ons-api/http.js` (`getJson`, en `postJson`
 voor het enige schrijvende verzoek, met het CSRF-token van de pagina): relatief pad,
 same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 `endpoints.js`, overschrijfbaar via `config.apiEndpoints`, alleen paden die met
-`/` beginnen). Wat terugkomt wordt voor gebruik nagekeken met valibot
+één `/` beginnen; `//domein` en `/\domein` tellen niet). `alleenOns()` in
+`http.js` weigert daarnaast elk adres dat niet op de ONS-origin uitkomt,
+voordat er iets (sessie, CSRF-token) weggaat. Wat terugkomt wordt voor gebruik nagekeken met valibot
 (`services/ons-api/formaat.js`, `controleerOns`): klopt de vorm van de
 weekagenda, de uursoortenlijst, de afspraaktypes of de cliëntzoekresultaten
 niet meer, dan meldt de hulp 'ONS geeft … in een andere vorm terug' in plaats

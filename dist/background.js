@@ -84,13 +84,13 @@
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
 
   // src/shared/ons-hosts.js
-  var ONS_URL_PATTERNS = function() {
+  var ONS_URL_PATTERNS = (function() {
     try {
       return chrome.runtime.getManifest().host_permissions || [];
     } catch (e) {
       return [];
     }
-  }();
+  })();
   var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
     const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
     return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");

@@ -3313,7 +3313,7 @@
     try {
       const eps = typeof APP_CONFIG !== "undefined" && APP_CONFIG && APP_CONFIG.apiEndpoints || {};
       const t = eps[name];
-      if (typeof t === "string" && t.charAt(0) === "/") return t;
+      if (typeof t === "string" && /^\/(?![\/\\])/.test(t)) return t;
     } catch (e) {
     }
     return _API_DEFAULTS[name];
@@ -3326,8 +3326,18 @@
   }
 
   // src/content/services/ons-api/http.js
+  function alleenOns(url) {
+    let u = null;
+    try {
+      u = new URL(String(url == null ? "" : url), location.href);
+    } catch (e) {
+      u = null;
+    }
+    if (!u || u.origin !== location.origin) throw new Error("Alleen een adres binnen ONS");
+    return String(url);
+  }
   async function getJson(url) {
-    const response = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
+    const response = await fetch(alleenOns(url), { credentials: "same-origin", headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error("HTTP " + response.status);
     return response.json();
   }
@@ -3337,9 +3347,10 @@
       "Content-Type": "application/json",
       "X-Requested-With": "XMLHttpRequest"
     };
+    const pad = alleenOns(url);
     const token = csrfToken();
     if (token) headers["X-CSRF-Token"] = token;
-    const response = await fetch(url, {
+    const response = await fetch(pad, {
       method: "POST",
       credentials: "same-origin",
       headers,
@@ -14235,13 +14246,13 @@
   }
 
   // src/shared/ons-hosts.js
-  var ONS_URL_PATTERNS = function() {
+  var ONS_URL_PATTERNS = (function() {
     try {
       return chrome.runtime.getManifest().host_permissions || [];
     } catch (e) {
       return [];
     }
-  }();
+  })();
   var ONS_URL_RES = ONS_URL_PATTERNS.map(function(patroon) {
     const m = /^https:\/\/(\*\.)?([^/*]+)\/\*$/.exec(patroon);
     return m && new RegExp("^https://" + (m[1] ? "[^/]+\\." : "") + m[2].replace(/\./g, "\\.") + "/");
@@ -18500,12 +18511,12 @@
   }
   function viaAgenda(id, date, opts) {
     let occ = vindAfspraak(id, date);
-    const naarDag = occ ? Promise.resolve(occ) : function() {
+    const naarDag = occ ? Promise.resolve(occ) : (function() {
       jumpToDay(date, true);
       return wachtOp(function() {
         return vindAfspraak(id, date);
       }, opts.wachtDag || 8e3);
-    }();
+    })();
     return naarDag.then(function(o) {
       if (!o) return { ok: false, error: "De afspraak staat niet (meer) in de agenda. Ververs de lijst en probeer het opnieuw." };
       openOccurrence(o);

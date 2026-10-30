@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ONS Agendahulp",
-  "version": "1.6.301",
+  "version": "1.6.302",
   "description": "Afspraak-/registratiehulp en gekleurde dagindeling voor ONS Agenda.",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "alarms", "contextMenus", "sidePanel"],
@@ -30,7 +30,7 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
   },
   "web_accessible_resources": [
     {

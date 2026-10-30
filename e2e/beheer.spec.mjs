@@ -167,3 +167,49 @@ test('beheer: oude paginanamen gaan naar de nieuwe plek', async ({ page }) => {
   await page.evaluate(() => { location.hash = 'zelftest'; });
   await expect(page.locator('#domCheckArea')).toBeVisible();
 });
+
+test('beheer: sleutels afgeschermd, niet in het supportpakket of de storingscontrole, en de pagina stuurt niets weg', async ({ page }) => {
+  const fouten = await open(page);
+  await page.evaluate(() => showSettingsPage('googlemaps'));
+  for (const id of ['#routesKey', '#mapsEmbedKey', '#routesProxyToken']) await expect(page.locator(id)).toHaveAttribute('type', 'password');
+  const SLEUTEL = 'AIzaRoutesTestsleutel1234567890abcd', KAART = 'AIzaKaartTestsleutel1234567890abcdef', TOKEN = 'proxy-token-0123456789abcdef0123456789';
+  await page.locator('#routesKey').fill(SLEUTEL);
+  await page.locator('#mapsEmbedKey').fill(KAART);
+  // Zonder eigen server gaat de Routes-sleutel mee; de controle waarschuwt dat hij zichtbaar is.
+  let cfg = await page.evaluate(() => buildConfigFromDOM());
+  expect(cfg.routesProxy.routesKey).toBe(SLEUTEL);
+  const audit = await page.evaluate(() => configAudit(buildConfigFromDOM()).filter((x) => x.onderdeel === 'Google Maps').map((x) => x.niveau + ': ' + x.bericht));
+  expect(audit.join('\n')).toMatch(/waarschuwing: De Routes-sleutel staat in de extensie/);
+  expect(audit.join('\n')).toMatch(/waarschuwing: De kaartsleutel staat in de extensie/);
+  // Met eigen server: geen Routes-sleutel meer in de configuratie.
+  await page.locator('#routesProxyUrl').fill('https://agendahulp-routes.example.run.app');
+  await page.locator('#routesProxyToken').fill(TOKEN);
+  cfg = await page.evaluate(() => buildConfigFromDOM());
+  expect(cfg.routesProxy).toEqual({ url: 'https://agendahulp-routes.example.run.app', token: TOKEN, embedKey: KAART, routesKey: '' });
+  // Supportpakket: wel of ze ingevuld zijn, niet wat ze zijn.
+  const support = await page.evaluate(() => JSON.stringify(zonderGeheimen(buildConfigFromDOM())));
+  expect(support).not.toContain(TOKEN);
+  expect(support).not.toContain(KAART);
+  expect(JSON.parse(support).routesProxy).toEqual({ url: 'https://agendahulp-routes.example.run.app', token: '[verborgen, ingevuld]', embedKey: '[verborgen, ingevuld]', routesKey: '' });
+  expect(await page.evaluate(() => buildConfigFromDOM().routesProxy.token), 'het origineel blijft').toBe(TOKEN);
+  // Storingscontrole: een afwijkende sleutel tussen beheer en ZIP zonder de waarde.
+  const uitleg = await page.evaluate(({ T }) => {
+    const res = [], a = buildConfigFromDOM(), b = JSON.parse(JSON.stringify(a));
+    b.routesProxy.token = 'een-ander-token-in-de-zip-1234567890';
+    troubleCompareManagementConfig(a, b, res);
+    return res.map((r) => r.titel + '\n' + r.uitleg).join('\n');
+  }, { T: TOKEN });
+  expect(uitleg).toMatch(/routesProxy\.token/);
+  expect(uitleg).not.toContain(TOKEN);
+  expect(uitleg).not.toContain('een-ander-token-in-de-zip');
+  // ONS-adressen: alleen een echt pad.
+  await page.evaluate(() => showSettingsPage('onskoppeling'));
+  for (const kwaad of ['//evil.example/week', '/\\evil.example/week']) {
+    await page.evaluate((v) => { document.querySelector('#apiWeekEvents').value = v; }, kwaad);
+    expect(await page.evaluate(() => readApiEndpoints().weekEvents), kwaad).toBe(await page.evaluate(() => DEFAULTS.apiEndpoints.weekEvents));
+  }
+  // De pagina kan niets ophalen of wegsturen (Content-Security-Policy).
+  const weg = await page.evaluate(() => fetch('https://example.com/?k=x').then(() => 'verstuurd', () => 'geblokkeerd'));
+  expect(weg).toBe('geblokkeerd');
+  expect(fouten).toEqual([]);
+});

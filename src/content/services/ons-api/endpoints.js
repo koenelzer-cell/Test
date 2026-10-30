@@ -63,7 +63,9 @@ function _apiTemplate(name) {
   try {
     const eps = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG && APP_CONFIG.apiEndpoints) || {};
     const t = eps[name];
-    if (typeof t === 'string' && t.charAt(0) === '/') return t; // same-origin, relatief pad
+    // Alleen een relatief pad (same-origin); '//domein' of '/\\domein' wijst
+    // naar een andere server en telt niet.
+    if (typeof t === 'string' && /^\/(?![\/\\])/.test(t)) return t;
   } catch (e) {}
   return _API_DEFAULTS[name];
 }

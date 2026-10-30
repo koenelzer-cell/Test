@@ -2,6 +2,19 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.302
+
+- Voor medewerkers verandert er niets zichtbaars; dit is een
+  beveiligingsronde.
+- Voor de beheerder: sleutels en het proxy-token staan niet meer in het
+  supportpakket of in de storingscontrole, de sleutelvelden zijn afgeschermd,
+  en met een eigen routes-server gaat de Routes-sleutel niet meer mee naar de
+  extensie. Heb je vóór deze versie een supportpakket gedeeld, vervang dan de
+  sleutels en het token (zie SECURITY.md).
+- De eigen routes-server heeft een dagplafond, een limiet per gebruiker die
+  ook achter Cloud Run werkt, beveiligingsheaders en logregels bij geweigerde
+  verzoeken. Zet op Cloud Run `TRUST_PROXY_HOPS=1`.
+
 ## 1.6.301
 
 - **Registratiehulp rustiger**: de melding dat de rapportage ontbreekt staat
