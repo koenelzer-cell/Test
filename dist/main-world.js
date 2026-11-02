@@ -12,8 +12,12 @@
     // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
     META: "eventMeta",
     // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
-    CREATED: "eventCreated"
+    CREATED: "eventCreated",
     // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+    REQUEST_SEEN: "verzoekGezien",
+    // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
+    MAIN_READY: "mainWorldKlaar"
+    // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
@@ -24,6 +28,8 @@
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
+    SET_METER: "meettellerZetten",
+    // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
     SET_FIELD: "zetVeld",
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
@@ -100,6 +106,41 @@
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };
+
+  // src/shared/meetteller.js
+  var OPEN_WAARDEN = ["layer", "sub_layers[]", "usage"];
+  function deel(d) {
+    if (!d) return d;
+    if (/^[\d,]+$/.test(d) || /^\d{4}-\d{2}-\d{2}$/.test(d) || /^[0-9a-f-]{16,}$/i.test(d) || d.length > 40) return "{n}";
+    return d.replace(/\d+/g, "{n}");
+  }
+  function meetPatroon(url, methode, origin) {
+    let u;
+    try {
+      u = new URL(String(url == null ? "" : url), origin);
+    } catch (e) {
+      return "";
+    }
+    if (!/^https?:$/.test(u.protocol)) return "";
+    const pad = u.pathname.split("/").map(function(d) {
+      let x = d;
+      try {
+        x = decodeURIComponent(d);
+      } catch (e) {
+      }
+      return deel(x);
+    }).join("/");
+    const namen = [];
+    u.searchParams.forEach(function(w, k) {
+      const sleutel = String(k).slice(0, 40).replace(/[^\w[\]]/g, "");
+      if (!sleutel) return;
+      const stuk = OPEN_WAARDEN.indexOf(sleutel) >= 0 && /^[a-z_/]{1,40}$/i.test(w) ? sleutel + "=" + w : sleutel + "=…";
+      if (namen.indexOf(stuk) < 0) namen.push(stuk);
+    });
+    const host = u.origin === origin ? "" : u.host;
+    const m = String(methode || "GET").toUpperCase();
+    return (m === "GET" ? "GET " : (/^[A-Z]{3,7}$/.test(m) ? m : "GET") + " ") + host + pad + (namen.length ? "?" + namen.join("&") : "");
+  }
 
   // src/main-world/index.js
   (function onsAgendahulpMainWorld() {
@@ -270,6 +311,15 @@
       }
       return null;
     }
+    let meten = false;
+    function meet(url, method) {
+      if (!meten) return;
+      try {
+        const p = meetPatroon(url, method, location.origin);
+        if (p) post(PAGE_EVENT.REQUEST_SEEN, { patroon: p });
+      } catch (e) {
+      }
+    }
     function installDetailsWatcher() {
       try {
         const origFetch = window.fetch;
@@ -278,6 +328,7 @@
             const url = typeof input === "string" ? input : input && (input.url || input.href) || "";
             const method = init && init.method || input && typeof input === "object" && input.method || "GET";
             const body = init && init.body;
+            meet(url, method);
             const p = origFetch.apply(this, arguments);
             try {
               if (isNieuwModel(url, method) && klaargezetModel()) {
@@ -331,6 +382,7 @@
           XHR.prototype.send = function(body) {
             try {
               const xhr = this;
+              meet(xhr.__onsahUrl, xhr.__onsahMethod);
               if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
               const melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
               if (melder) {
@@ -694,6 +746,10 @@
             post(type, Object.assign({ id }, r));
           };
         };
+        if (d.type === PAGE_COMMAND.SET_METER) {
+          meten = d.aan === true;
+          return;
+        }
         if (d.type === PAGE_COMMAND.READ_FORM) {
           antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier());
           return;
@@ -727,5 +783,6 @@
       } catch (e) {
       }
     });
+    post(PAGE_EVENT.MAIN_READY, {});
   })();
 })();

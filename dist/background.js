@@ -124,8 +124,10 @@
     // instellingen wekelijkse herinnering
     REMINDER_HANDLED: "onsHelper.reminderHandled",
     // tijdstip (ms) van de laatst afgehandelde herinnering
-    FORMS: "onsHelper.forms"
+    FORMS: "onsHelper.forms",
     // registratievormen voor het rechtermuismenu
+    METER: "onsHelper.meetteller"
+    // meetteller: { start, bijgewerkt, patronen: { soort adres: { ons, hulp } } }; alleen aantallen
   };
 
   // src/shared/chrome-storage.js

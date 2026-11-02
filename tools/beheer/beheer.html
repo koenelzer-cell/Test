@@ -1149,7 +1149,7 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true, meetteller:false },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
   routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
@@ -1231,7 +1231,7 @@ const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 // De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
-const MANAGER_VERSION = '1.6.302';
+const MANAGER_VERSION = '1.6.303';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -2795,6 +2795,9 @@ const FEATURE_GROEPEN = [
     ['leaveRequest', 'Verlof aanvragen', 'Verlof aanvragen vanuit het zijpaneel'],
     ['routeLink', 'Route van de dag', 'De route langs de afspraken van vandaag, via Google Maps'],
     ['preload', 'Gegevens vooraf laden', 'Haalt gegevens alvast op, zodat het zijpaneel sneller is'],
+  ] },
+  { titel:'Meten (pilot)', items:[
+    ['meetteller', 'Meetteller', 'Telt hoeveel verzoeken ONS zelf doet en hoeveel de hulp erbij doet, per soort adres. Te zien in het zijpaneel onder Info. Standaard uit.'],
   ] },
 ];
 const FEATURE_NOOD = 'formViaModel';

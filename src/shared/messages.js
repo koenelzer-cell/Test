@@ -77,6 +77,8 @@ export const PAGE_EVENT = {
   OVERLAP: 'eventOverlap',      // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
   META: 'eventMeta',            // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
   CREATED: 'eventCreated',      // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+  REQUEST_SEEN: 'verzoekGezien', // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
+  MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
 };
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
 // antwoord (dir FROM_MAIN, met hetzelfde id).
@@ -85,6 +87,7 @@ export const PAGE_COMMAND = {
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
   SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
+  SET_METER: 'meettellerZetten', // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
   SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina

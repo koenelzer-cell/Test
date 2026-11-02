@@ -92,6 +92,12 @@ gebruikt dan alleen nog het scherm.
 2. **Wie:** vijf tot tien medewerkers uit minstens twee teams, met
    huisbezoeken én kantoorwerk, in de browser(s) die de organisatie gebruikt.
 3. **Hoe lang:** twee weken. Een korte vragenronde na week één.
+   **Belasting meten:** zet bij de pilotgroep de meetteller aan (beheer,
+   Functies, *Meten (pilot)*). Laat de pilotgebruikers na een paar
+   werkdagen in het zijpaneel bij Info op **Kopiëren** drukken en de tekst
+   sturen: daarin staat hoeveel verzoeken ONS zelf deed en hoeveel de hulp
+   erbij deed, per soort adres. Dat getal kun je aan Nedap laten zien. Zet
+   de meetteller daarna weer uit.
 4. **Daarna:** het beleid voor geforceerd installeren naar iedereen.
 
 ## 4. Per versie: test in echte ONS (ongeveer 15 minuten)

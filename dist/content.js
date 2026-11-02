@@ -1,4 +1,737 @@
 (() => {
+  // src/content/config/defaults.js
+  var DEFAULT_APP_CONFIG = {
+    // Tabel 1: keuze in de helper -> ONS-label + gedrag.
+    choices: [
+      { label: "Huisbezoek", etiket: "JG Huisbezoek", clientPresent: true, pickUursoort: true, addTravelTime: true, kleur: "rood" },
+      { label: "Digitaal", etiket: "ALL Beeldbellen", clientPresent: true, pickUursoort: true, addTravelTime: false, kleur: "blauw" },
+      { label: "MDO", etiket: "JG MDO", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "geel" },
+      { label: "Face 2 face", etiket: "JG Face to face kantoor", clientPresent: true, pickUursoort: true, addTravelTime: false, kleur: "blauw" },
+      { label: "Verslaglegging", etiket: "JG Verslaglegging", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "geel" },
+      { label: "Zorgcoördinatie", etiket: "JG Zorgcoördinatie", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "groen" }
+    ],
+    // Extra bekende labels (naast de etiketten uit choices) die de opschoning kent.
+    extraKnownLabels: [],
+    // Tabel 2: registratievorm -> startverdeling + extra vragen/acties + de
+    // afspraaklabels die deze vorm automatisch kiezen (`labels`, uit de
+    // labellijst). De aparte labelToForm-tabel is hierin opgegaan.
+    // `relevantForTeams` (leeg = alle teams) bepaalt voor welke teams de vorm geldt.
+    registrationForms: [
+      { vorm: "No show", startVerdeling: "100% direct", uursoort: "No show#", eindtijdBeginPlusMin: 1, rapportagePrefix: "No show", vraagTegenTijd: false, labels: [], relevantForTeams: [] },
+      { vorm: "Verslaglegging", startVerdeling: "100% indirect", vraagDirecteTijd: true, stapMin: 5, labels: ["JG Verslaglegging"], relevantForTeams: [] },
+      { vorm: "MDO", startVerdeling: "100% indirect", vraagTegenTijd: false, labels: ["JG MDO"], relevantForTeams: [] },
+      { vorm: "Zorgcoördinatie", startVerdeling: "100% indirect", vraagDirecteTijd: true, labels: ["JG Zorgcoördinatie"], relevantForTeams: [] },
+      { vorm: "Huisbezoek", startVerdeling: "100% direct", vraagIndirecteTijd: true, vraagReistijd: true, labels: ["JG Huisbezoek"], relevantForTeams: [] },
+      { vorm: "Face 2 face kantoor", startVerdeling: "100% direct", vraagIndirecteTijd: true, labels: ["JG Face to face kantoor"], relevantForTeams: [] }
+    ],
+    // Het palet: de toegestane kleuren voor de dag-indeling. Elke zone kiest één
+    // van deze namen. 'fill' = achtergrond in de agenda, 'legend' = legenda-stip.
+    palette: {
+      rood: { naam: "Rood", fill: "rgba(220,70,70,0.15)", legend: "rgba(220,70,70,0.45)" },
+      geel: { naam: "Geel", fill: "rgba(235,205,70,0.20)", legend: "rgba(235,205,70,0.65)" },
+      blauw: { naam: "Blauw", fill: "rgba(70,130,210,0.16)", legend: "rgba(70,130,210,0.45)" },
+      groen: { naam: "Groen", fill: "rgba(60,170,90,0.18)", legend: "rgba(60,170,90,0.50)" }
+    },
+    profileSectors: { "JGGZ": "Jeugd & Gezin", "J&O/JBG": "Jeugd & Gezin", "Begeleiding": "Begeleiding" },
+    // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
+    zoneProfiles: {
+      "JGGZ": [
+        { start: "08:00", end: "08:30", zone: "Dagstart", color: "rood" },
+        { start: "08:30", end: "11:30", zone: "Cliëntafspraken", color: "geel" },
+        { start: "11:30", end: "12:00", zone: "Administratie", color: "rood" },
+        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
+        { start: "12:30", end: "14:00", zone: "Cliëntafspraken", color: "geel" },
+        { start: "14:00", end: "14:45", zone: "Administratie", color: "rood" },
+        { start: "14:45", end: "16:15", zone: "Cliëntafspraken", color: "geel" },
+        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
+      ],
+      "J&O/JBG": [
+        { start: "08:00", end: "08:30", zone: "Administratie (indirect)", color: "geel" },
+        { start: "08:30", end: "12:00", zone: "Huisbezoek (direct)", color: "rood" },
+        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
+        { start: "12:30", end: "14:00", zone: "Huisbezoek (direct)", color: "rood" },
+        { start: "14:00", end: "14:45", zone: "Administratie (indirect)", color: "geel" },
+        { start: "14:45", end: "16:15", zone: "Huisbezoek (direct)", color: "rood" },
+        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
+      ],
+      // Begeleiding: startprofiel (huisbezoek-gedreven). Pas dit aan in het beheerscherm.
+      "Begeleiding": [
+        { start: "08:00", end: "08:30", zone: "Administratie (indirect)", color: "geel" },
+        { start: "08:30", end: "12:00", zone: "Cliëntbegeleiding", color: "rood" },
+        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
+        { start: "12:30", end: "14:00", zone: "Cliëntbegeleiding", color: "rood" },
+        { start: "14:00", end: "14:45", zone: "Administratie (indirect)", color: "geel" },
+        { start: "14:45", end: "16:15", zone: "Cliëntbegeleiding", color: "rood" },
+        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
+      ]
+    },
+    // Aanpasbare schermteksten (per key) met opmaak. Elke key wordt in de
+    // extensie op een vaste plek getoond; hier kun je tekst + kleur/dikte/
+    // cursief/grootte instellen. sizePx = tekstgrootte in pixels.
+    texts: {
+      afspraak_klaar_regel1: { text: "Voeg eventueel nog een locatie en notitie toe.", color: "#333333", bold: false, italic: false, sizePx: 13 },
+      afspraak_klaar_regel2: { text: "Als de instellingen kloppen, kun je de afspraak opslaan", color: "#333333", bold: false, italic: false, sizePx: 13 },
+      afspraak_uursoort_sub: { text: "Daarna gaat de afspraak vanzelf verder.", color: "#666666", bold: false, italic: false, sizePx: 12 },
+      registratie_rapportage_titel: { text: "Schrijf nu je rapportage, volgens Richtlijn rapporteren", color: "#222222", bold: true, italic: false, sizePx: 14 },
+      registratie_prereq_regel1: { text: "Voor cliëntgebonden registraties: vul cliënt, datum en begintijd in.", color: "#c0006a", bold: true, italic: false, sizePx: 13 },
+      registratie_prereq_regel2: { text: "Voor niet cliëntgebonden registraties: vul datum, begintijd en eindtijd in.", color: "#c0006a", bold: true, italic: false, sizePx: 13 },
+      probleem_hulp_werkt_niet: { text: "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.", color: "#b3261e", bold: true, italic: false, sizePx: 13 },
+      probleem_uursoort_zelf: { text: "Kies zelf de uursoort in het gemarkeerde veld hieronder.", color: "#704b00", bold: false, italic: false, sizePx: 13 },
+      probleem_label_zelf: { text: "Controleer het label bovenaan de afspraak en pas het zo nodig zelf aan.", color: "#704b00", bold: false, italic: false, sizePx: 13 },
+      doorplannen_vraag: { text: "Afspraak doorplannen?", color: "#cc087d", bold: false, italic: false, sizePx: 13 },
+      doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
+    },
+    compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
+    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true, meetteller: false },
+    nonClientCategories: [],
+    // Eigen server voor rijtijden over de weg (Google Routes API; zie
+    // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
+    // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
+    // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
+    // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
+    // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.
+    routesProxy: { url: "", token: "", embedKey: "", routesKey: "" },
+    // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
+    // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
+    // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en
+    // Gezin, locatienamen met J&G/Jeugd) of 'bv' (Begeleiding).
+    offices: [
+      // Jeugd en Gezin (ONS-locaties 'J&G …')
+      { sector: "jg", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout", "geertruidenberg", "altena", "west brabant oost", "west-brabant oost", "west-brabant west", "west brabant west"] },
+      { sector: "jg", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom"] },
+      { sector: "jg", name: "Loosduinen (Kracht)", postcode: "2552AE", match: ["kracht", "loosduinen", "den haag"] },
+      { sector: "jg", name: "Tilburg", postcode: "5026RM", match: ["tilburg", "hart van brabant"] },
+      { sector: "jg", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
+      { sector: "jg", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "zuidoost brabant", "zuidoost-brabant"] },
+      { sector: "jg", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
+      { sector: "jg", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden-holland", "midden holland"] },
+      { sector: "jg", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "lekstroom", "utrecht"] },
+      { sector: "jg", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant", "noordoost brabant"] },
+      { sector: "jg", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk", "delft"] },
+      { sector: "jg", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk", "loon op zand"] },
+      { sector: "jg", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
+      // Begeleiding (ONS-locaties 'BG …'). Niet gekoppeld (onbekend):
+      // BG DH2, BG HWDN, BG ADGG, BG De6, BG Overig.
+      { sector: "bv", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom", "brabantse wal"] },
+      { sector: "bv", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout"] },
+      { sector: "bv", name: "Delft", postcode: "2613RR", match: ["delft"] },
+      { sector: "bv", name: "Den Haag Noord-Oost", postcode: "2521DB", match: ["den haag noord-oost", "den haag noordoost", "noord-oost"] },
+      { sector: "bv", name: "Den Haag Zuid-West", postcode: "2552AE", match: ["den haag zuid-west", "den haag zuidwest", "zuid-west"] },
+      { sector: "bv", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
+      { sector: "bv", name: "Ede", postcode: "6716AE", match: ["ede", "veluwe", "gelderland"] },
+      { sector: "bv", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "kempen"] },
+      { sector: "bv", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden holland", "midden-holland"] },
+      { sector: "bv", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
+      { sector: "bv", name: "Leiden", postcode: "2312TH", match: ["leiden", "holland rijnland"] },
+      { sector: "bv", name: "Naaldwijk", postcode: "2671ZP", match: ["naaldwijk", "westland"] },
+      { sector: "bv", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "utrecht"] },
+      { sector: "bv", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant"] },
+      { sector: "bv", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk"] },
+      { sector: "bv", name: "Rotterdam", postcode: "3083CW", match: ["rotterdam"] },
+      { sector: "bv", name: "'s-Hertogenbosch", postcode: "5232BC", match: ["hertogenbosch", "den bosch", "meierij"] },
+      { sector: "bv", name: "Tilburg", postcode: "5026RM", match: ["tilburg"] },
+      { sector: "bv", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk"] },
+      { sector: "bv", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] }
+    ],
+    generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: "*", countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ["do_not_declare"], excludedCalendarTypes: ["unavailability", "presence"] },
+    // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.
+    apiEndpoints: {},
+    // Declarabiliteit-grondslag per profiel (regels 'match -> direct|client').
+    declarabiliteitRules: [],
+    // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
+    support: { topdeskUrl: "https://impegno.topdesk.net/" },
+    // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
+    // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
+    // aan te vragen. maxDays: hoe lang een herhaling hooguit mag lopen.
+    // recurrenceTypes: de waarden van recurrence_type in ONS (mocht ONS die wijzigen).
+    leaveRequest: { description: "Verlof", redirectUrl: "https://login.afasonline.com/83031/Apps", maxDays: 366, recurrenceTypes: { daily: "daily", weekly: "weekly" } },
+    // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
+    // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
+    activation: { appointmentNeedle: "/events/new", registrationNeedle: "/registrations", domains: [] },
+    // Centraal (beheerscherm) herstelde UI-selectors, gepubliceerd in
+    // config.json, zodat een correctie voor alle gebruikers geldt.
+    uiSelectors: {}
+  };
+  var NONCLIENT_CATEGORIES = [
+    { label: "Werkzaamheden", options: [
+      { display: "Acquisitie", uursoort: "Acquisitie*", info: "" },
+      { display: "Werktijdenregeling", uursoort: "Werktijdenregeling*", info: "" },
+      { display: "Voorbereidende werkzaamheden", uursoort: "Voorbereidende werkzaamheden*", info: "" },
+      { display: "Verplichte nevenactiviteiten", uursoort: "verpl nevenact - Verplichte nevenactiviteiten*", info: "" },
+      { display: "Schoolcoaching", uursoort: "Schoolcoaching", info: "" },
+      { display: "Schoolcoaching indirect", uursoort: "Schoolcoaching indirect #", info: "" },
+      { display: "Reistijd", uursoort: "Reistijd", info: "" }
+    ] },
+    { label: "Overleg & medezeggenschap", options: [
+      { display: "Overleg", uursoort: "Overleg*", info: "" },
+      { display: "OR", uursoort: "OR (ondernemingsraad)*", info: "" },
+      { display: "OR-training", uursoort: "OR-training*", info: "" },
+      { display: "OR-vergadering", uursoort: "OR-vergadering*", info: "" },
+      { display: "OR-voorbereiding en uitwerking", uursoort: "OR-voorbereiding en uitwerking*", info: "" }
+    ] },
+    { label: "Ontwikkeling & begeleiding", options: [
+      { display: "J&G verzorgen training extern", uursoort: "J&G verzorgen training extern", info: "" },
+      { display: "Detachering", uursoort: "Detachering", info: "" },
+      { display: "Inwerken", uursoort: "Inwerken*", info: "" },
+      { display: "Opleiding & ontwikkeling", uursoort: "Opleiding & ontwikkeling*", info: "" },
+      { display: "Werkbegeleiding", uursoort: "Werkbegeleiding*", info: "" }
+    ] },
+    { label: "Verlof & ouderschap", options: [
+      { display: "Verlof", uursoort: "Verlof*", durationStep: 60, info: "" },
+      { display: "Ouderschapverlof", uursoort: "Ouderschapverlof*", durationStep: 60, info: "" },
+      { display: "Kolven", uursoort: "Kolven*", info: "" }
+    ] },
+    { label: "Pauze, verzuim & gezondheid", options: [
+      { display: "Pauze", uursoort: "Pauze*", fixedHalfHour: true, info: "" },
+      { display: "Verzuim/ziekte", uursoort: "Verzuim/ziekte*", info: "" }
+    ] },
+    { label: "Projecten J&G", options: [
+      { display: "J&G DH Kracht Basis", uursoort: "J&G DH Kracht Basis", info: "" },
+      { display: "J&G Den Haag Kracht", uursoort: "J&G Den Haag Kracht", info: "" },
+      { display: "J&G Ind Proeftuin Toekomstscenario", uursoort: "J&G Ind Proeftuin Toekomstscenario", info: "" },
+      { display: "J&G Kacht Transformatie", uursoort: "J&G Kacht Transformatie", info: "" },
+      { display: "J&G Kracht Preventie", uursoort: "J&G Kracht Preventie", info: "" },
+      { display: "J&G Project GGZ", uursoort: "J&G Project GGZ#", info: "" },
+      { display: "JBW project", uursoort: "JBW project", info: "" },
+      { display: "Medendo C4", uursoort: "Medendo C4#", info: "" },
+      { display: "Medendo D4", uursoort: "Medendo D4#", info: "" },
+      { display: "PAST Project Gouda", uursoort: "PAST Project Gouda", info: "" }
+    ] },
+    // 'Overig' is een directe optie (geen submenu, geen uursoort): de gebruiker
+    // moet zelf een titel "Overig - ..." invullen voordat opslaan vrijkomt.
+    { label: "Overig", directOption: { display: "Overig", freeTitle: true, info: "" } }
+  ];
+
+  // src/content/config/hooks.js
+  var hooks = {
+    formsChanged: null,
+    // registratievormen gewijzigd -> rechtermuismenu bijwerken
+    selectorsChanged: null,
+    // config.uiSelectors gewijzigd -> selector-overrides herberekenen
+    configApplied: null,
+    // configuratie toegepast -> opnieuw bepalen welke hulp bij de URL hoort
+    teamChanged: null
+    // ander team gekozen -> de hulp opnieuw starten
+  };
+  function connectConfigHooks(handlers) {
+    for (const k of Object.keys(handlers)) {
+      if (!(k in hooks)) throw new Error("onbekende config-haak: " + k);
+      hooks[k] = handlers[k];
+    }
+  }
+  function runConfigHook(name, ...args) {
+    try {
+      if (typeof hooks[name] === "function") hooks[name](...args);
+    } catch (e) {
+    }
+  }
+
+  // src/content/config/app-config.js
+  function _cloneConfig(c) {
+    try {
+      return JSON.parse(JSON.stringify(c));
+    } catch (e) {
+      return c;
+    }
+  }
+  var APP_CONFIG = _cloneConfig(DEFAULT_APP_CONFIG);
+  var ACTIVE_SECTOR = null;
+  var ACTIVE_PROFILE = null;
+  function setActiveTeam(profile, sector) {
+    ACTIVE_PROFILE = profile;
+    ACTIVE_SECTOR = sector;
+  }
+  function anyTeamsDefined() {
+    try {
+      return !!(APP_CONFIG.profileSectors && Object.keys(APP_CONFIG.profileSectors).length);
+    } catch (e) {
+      return false;
+    }
+  }
+  function relevantForActiveTeam(item) {
+    if (!ACTIVE_PROFILE) return true;
+    const teams = item && item.relevantForTeams;
+    if (!Array.isArray(teams) || teams.length === 0) return true;
+    return teams.indexOf(ACTIVE_PROFILE) >= 0;
+  }
+  function helperNeedsTeamChoice() {
+    return !ACTIVE_PROFILE && anyTeamsDefined();
+  }
+  function sortByVolgorde(arr) {
+    return (arr || []).map(function(x, i) {
+      return [x, i];
+    }).sort(function(a, b) {
+      let av = a[0] && a[0].volgorde != null && a[0].volgorde !== "" ? +a[0].volgorde : Infinity;
+      let bv = b[0] && b[0].volgorde != null && b[0].volgorde !== "" ? +b[0].volgorde : Infinity;
+      if (!isFinite(av)) av = Infinity;
+      if (!isFinite(bv)) bv = Infinity;
+      return av === bv ? a[1] - b[1] : av - bv;
+    }).map(function(p) {
+      return p[0];
+    });
+  }
+  function effectiveChoices() {
+    return sortByVolgorde((APP_CONFIG.choices || []).filter(relevantForActiveTeam));
+  }
+  function effectiveRegistrationForms() {
+    return sortByVolgorde((APP_CONFIG.registrationForms || []).filter(relevantForActiveTeam));
+  }
+  function refreshEffectiveConfig() {
+    try {
+      CONFIG.choices = effectiveChoices();
+    } catch (e) {
+    }
+    try {
+      REGISTRATION_CHOICES = buildRegistrationChoices();
+    } catch (e) {
+    }
+    runConfigHook("formsChanged");
+  }
+  function applyHelperConfig(hc) {
+    if (!hc || typeof hc !== "object") return;
+    if (Array.isArray(hc.choices)) APP_CONFIG.choices = hc.choices;
+    if (Array.isArray(hc.extraKnownLabels)) APP_CONFIG.extraKnownLabels = hc.extraKnownLabels;
+    if (Array.isArray(hc.registrationForms)) APP_CONFIG.registrationForms = hc.registrationForms;
+    if (hc.zoneProfiles && typeof hc.zoneProfiles === "object") APP_CONFIG.zoneProfiles = hc.zoneProfiles;
+    if (hc.profileSectors && typeof hc.profileSectors === "object") APP_CONFIG.profileSectors = hc.profileSectors;
+    if (hc.palette && typeof hc.palette === "object") APP_CONFIG.palette = hc.palette;
+    if (hc.texts && typeof hc.texts === "object") APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
+    if (hc.compatibility && typeof hc.compatibility === "object") APP_CONFIG.compatibility = hc.compatibility;
+    if (hc.features && typeof hc.features === "object") APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
+    if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
+    if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
+    if (hc.routesProxy && typeof hc.routesProxy === "object") APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
+    if (hc.generalSettings && typeof hc.generalSettings === "object") APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
+    if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
+    if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
+    if (hc.support && typeof hc.support === "object") APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
+    if (hc.leaveRequest && typeof hc.leaveRequest === "object") APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
+    if (hc.activation && typeof hc.activation === "object") {
+      APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
+      if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
+      if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
+    }
+    if (hc.uiSelectors && typeof hc.uiSelectors === "object") {
+      APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors);
+      runConfigHook("selectorsChanged");
+    }
+    refreshEffectiveConfig();
+    runConfigHook("configApplied");
+    try {
+      if (typeof onHelperConfigChanged === "function") onHelperConfigChanged();
+    } catch (e) {
+    }
+  }
+  function supportTopdeskUrl() {
+    try {
+      const u = APP_CONFIG.support && APP_CONFIG.support.topdeskUrl;
+      if (u && /^https?:\/\//i.test(u)) return u;
+    } catch (e) {
+    }
+    return "https://impegno.topdesk.net/";
+  }
+  var onHelperConfigChanged = null;
+  function setOnHelperConfigChanged(fn) {
+    onHelperConfigChanged = fn;
+  }
+  var CONFIG = {
+    urlNeedle: "/events/new",
+    registrationNeedle: "/registrations",
+    debug: false,
+    clientPresentMatcher: (txt) => txt.includes("client") && txt.includes("aanwezig"),
+    // Afspraaktypes komen uit de beheerbare config (APP_CONFIG.choices).
+    choices: effectiveChoices(),
+    uursoortIgnore: ["onlangs gebruikt", "geadviseerd", "toegestaan", "geen resultaten", "voer minstens", "toont ", "bekijk agenda", "verwijder uit selectie", "client", "medewerker", "toevoegen"],
+    etiketFieldSelector: "",
+    uursoortFieldSelector: "",
+    modalPanelSelector: ""
+  };
+  function gsNum(key, def) {
+    const g = APP_CONFIG.generalSettings || {};
+    return g[key] > 0 ? g[key] : def;
+  }
+  function choiceLabels(c) {
+    const out = [];
+    const push = (v) => {
+      v = (v == null ? "" : String(v)).trim();
+      if (v && out.indexOf(v) === -1) out.push(v);
+    };
+    if (c) {
+      push(c.etiket);
+      if (Array.isArray(c.etiketten)) c.etiketten.forEach(push);
+    }
+    return out;
+  }
+  function allKnownLabels() {
+    const labels = [];
+    CONFIG.choices.forEach(function(c) {
+      choiceLabels(c).forEach(function(l) {
+        if (labels.indexOf(l) === -1) labels.push(l);
+      });
+    });
+    for (const extra of APP_CONFIG.extraKnownLabels || []) if (labels.indexOf(extra) === -1) labels.push(extra);
+    return labels;
+  }
+  function nonClientCategoriesActive() {
+    const c = APP_CONFIG.nonClientCategories;
+    const base = Array.isArray(c) && c.length ? c : NONCLIENT_CATEGORIES;
+    return sortByVolgorde(base).map(function(cat) {
+      if (cat && Array.isArray(cat.options) && cat.options.length) {
+        return Object.assign({}, cat, { options: sortByVolgorde(cat.options) });
+      }
+      return cat;
+    });
+  }
+  function allNonClientHourTypes() {
+    const out = [];
+    nonClientCategoriesActive().forEach(function(cat) {
+      if (cat.directOption && cat.directOption.uursoort) out.push(cat.directOption.uursoort);
+      (cat.options || []).forEach(function(opt) {
+        if (opt.uursoort) out.push(opt.uursoort);
+      });
+    });
+    return out;
+  }
+  function directIndirectLabel(sv) {
+    const m = String(sv == null ? "" : sv).match(/(\d+)\s*%\s*(direct|indirect)/i);
+    if (!m) return "";
+    const pct = Math.max(0, Math.min(100, parseInt(m[1], 10) || 0));
+    const word = m[2].toLowerCase();
+    return pct >= 100 ? word : word === "direct" ? "direct/indirect" : "indirect/direct";
+  }
+  function buildRegistrationChoices() {
+    return effectiveRegistrationForms().map(function(f) {
+      const o = { label: f.vorm };
+      if (f.uursoort) o.hourType = f.uursoort;
+      if (f.eindtijdBeginPlusMin) o.endPlusOneMinute = true;
+      const sv = String(f.startVerdeling || "").match(/(\d+)\s*%\s*(direct|indirect)/i);
+      if (sv) {
+        const pct = Math.max(0, Math.min(100, parseInt(sv[1], 10) || 0));
+        const word = sv[2].toLowerCase();
+        const directPct = word === "indirect" ? 100 - pct : pct;
+        if (directPct === 100) o.directFullDuration = true;
+        else if (directPct === 0) o.indirectFullDuration = true;
+        else o.startSplit = { directPct, indirectPct: 100 - directPct };
+        o.directIndirectLabel = directIndirectLabel(f.startVerdeling);
+      }
+      if (f.vraagDirecteTijd) o.askDirectPortion = true;
+      if (f.vraagIndirecteTijd) o.askIndirectPortion = true;
+      if (f.vraagReistijd) o.addTravelTime = true;
+      if (f.rapportagePrefix) o.reportPrefix = f.rapportagePrefix;
+      return o;
+    });
+  }
+  var REGISTRATION_CHOICES = buildRegistrationChoices();
+
+  // src/shared/messages.js
+  var MSG = {
+    // CS -> SW
+    BADGE: "badge",
+    // { count }       aantal openstaande dagen op het icoon
+    SUMMARY: "summary",
+    // { openDays, … } momentopname (alleen getallen en datums)
+    FORMS: "forms",
+    // { forms: [] }   registratievormen voor het rechtermuismenu
+    OPEN_SIDE_PANEL: "open-side-panel",
+    //                 randlipje vraagt het zijpaneel te openen
+    SIDEPANEL_QUERY: "sidepanel-query",
+    //  -> { open }    staat het zijpaneel open voor dit tabblad?
+    OPEN_TAB: "open-tab",
+    // { url } -> { ok } https-pagina in een nieuw tabblad (AFAS na verlof)
+    // SW -> CS
+    CTX_REGISTER: "ctx-register",
+    // { vorm }        keuze uit het rechtermuismenu
+    SIDEPANEL_STATE: "sidepanel-state",
+    // { open }        (ook SP -> CS)
+    // PU -> SW
+    REMINDER_GET: "reminder-get",
+    //  -> { settings, snapshot }
+    REMINDER_SETTINGS: "reminder-settings",
+    // { enabled, weekday, hour, minute } -> { ok, settings }
+    REMINDER_TEST: "reminder-test",
+    //  -> { ok }      melding nu tonen (handmatig testen)
+    // CS -> SP (uitgezonden; de service worker negeert ze)
+    AGENDA_STATE: "ag-state",
+    // { state }       toestand van de Agendahulp
+    AGENDA_GONE: "ag-gone",
+    //                 agenda verlaten
+    // SP -> CS (naar het gevolgde tabblad)
+    AGENDA_GET_STATE: "ag-get-state",
+    //  -> { state }
+    AGENDA_TOGGLE_ENABLED: "ag-toggle-enabled",
+    // { value }
+    AGENDA_JUMP_DAY: "ag-jump-day",
+    // { date }
+    AGENDA_JUMP_WEEK: "ag-jump-week",
+    AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
+    // { id }
+    AGENDA_REGISTER_ITEM: "ag-register-item",
+    // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
+    AGENDA_OPEN_LEAVE: "ag-open-leave",
+    //                 verlofdialoog openen in de pagina
+    AGENDA_CHECK_RANGE: "ag-check-range",
+    // { from, to } -> { ok, result | error }  open registraties in een periode
+    AGENDA_QUICK_REGISTER: "ag-quick-register",
+    // { date, time, minutes, force } -> { ok, overlap?, error? }
+    AGENDA_NEW_EVENT: "ag-new-event",
+    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    AGENDA_FORM_TITLE: "ag-form-title",
+    // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
+    AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
+    // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
+    AGENDA_DAY_ROUTE: "ag-day-route",
+    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
+    AGENDA_SLOT_CHECK: "ag-slot-check",
+    // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
+    AGENDA_EVENT_OPTIONS: "ag-event-options",
+    // { clientIds, medewerker?, locaties? } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown, employeeHourTypes?, locations?: [{ id, name, groep, kan }], locationsError? }
+    AGENDA_CREATE_EVENTS: "ag-create-events",
+    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
+    AGENDA_RELOAD: "ag-reload",
+    //                 agenda verversen (na afspraken maken)
+    AGENDA_CLIENT_SEARCH: "ag-client-search",
+    // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
+    // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
+    AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",
+    // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
+    AGENDA_FREE_SLOTS: "ag-free-slots",
+    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
+    AGENDA_WEEK_RATIO: "ag-week-ratio",
+    // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
+    AGENDA_PRODUCTION: "ag-production",
+    // { from, to } -> { ok, result | error }  cliënttijd per week
+    // CS -> SP (uitgezonden)
+    AGENDA_RANGE_PROGRESS: "ag-range-progress"
+    // { kind: 'open'|'productie', done, total } voortgang
+  };
+  var PAGE_BRIDGE = {
+    MARKER: "__onsah",
+    TO_MAIN: "to-main",
+    FROM_MAIN: "from-main"
+  };
+  var PAGE_EVENT = {
+    DETAILS: "details",
+    // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
+    OVERLAP: "eventOverlap",
+    // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
+    META: "eventMeta",
+    // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+    CREATED: "eventCreated",
+    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+    REQUEST_SEEN: "verzoekGezien",
+    // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
+    MAIN_READY: "mainWorldKlaar"
+    // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+  };
+  var PAGE_COMMAND = {
+    SET_LABELS: "zetLabels",
+    // { id, labels: ['JG Huisbezoek', …], toevoegen? } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten (vervangen of toevoegen) of wissen
+    LABELS_SET: "labelsGezet",
+    // { id, ok, reden? }
+    SET_HOUR_TYPE: "zetUursoort",
+    // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
+    HOUR_TYPE_SET: "uursoortGezet",
+    // { id, ok, reden? }
+    SET_METER: "meettellerZetten",
+    // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
+    SET_FIELD: "zetVeld",
+    // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
+    FIELD_SET: "veldGezet",
+    // { id, ok, reden? }
+    READ_USER: "leesGebruiker",
+    // { id }  medewerker-id uit onsContext() van de pagina
+    USER_READ: "gebruikerGelezen",
+    // { id, ok, userId }
+    SET_RECURRENCE_NONE: "zetHerhalingNiet",
+    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
+    RECURRENCE_SET: "herhalingGezet",
+    // { id, ok, reden? }
+    READ_FORM: "leesFormulier",
+    // { id }  wat het open afspraakformulier bevat
+    FORM_READ: "formulierGelezen"
+    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
+  };
+
+  // src/content/core/page-bridge.js
+  function onPageEvent(type, fn) {
+    const luister = (ev) => {
+      if (ev.origin !== location.origin || ev.source && ev.source !== window) return;
+      const d = ev.data;
+      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== type) return;
+      fn(d);
+    };
+    window.addEventListener("message", luister);
+    return () => window.removeEventListener("message", luister);
+  }
+  function toMainWorld(type, velden) {
+    window.postMessage({ ...velden, [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type }, location.origin);
+  }
+  var volgnummer = 0;
+  function vraagMainWorld(type, antwoordType, velden, wachtMs) {
+    return new Promise((klaar) => {
+      const id = type + "-" + ++volgnummer + "-" + Date.now();
+      const stop = onPageEvent(antwoordType, (d) => {
+        if (d.id === id) einde(d);
+      });
+      const timer2 = setTimeout(() => einde(null), wachtMs);
+      function einde(antwoord) {
+        clearTimeout(timer2);
+        stop();
+        klaar(antwoord);
+      }
+      toMainWorld(type, { ...velden, id });
+    });
+  }
+
+  // src/shared/storage-keys.js
+  var SYNC = {
+    SECTOR: "sector",
+    // gekozen bedrijfsonderdeel (popup)
+    COLOR_PROFILE: "colorProfile",
+    // gekozen team / dagindeling (popup)
+    WORK_HOURS: "workHours"
+    // eigen werktijden per weekdag (popup; zie shared/work-hours.js)
+  };
+  var LOCAL = {
+    TEST_CONFIG: "onsHelperConfig",
+    // lokale testconfiguratie (beheer); wint van config.json
+    SNAPSHOT: "onsHelper.snapshot",
+    // laatste weekstand (service worker; alleen getallen)
+    REMINDER_SETTINGS: "onsHelper.reminders",
+    // instellingen wekelijkse herinnering
+    REMINDER_HANDLED: "onsHelper.reminderHandled",
+    // tijdstip (ms) van de laatst afgehandelde herinnering
+    FORMS: "onsHelper.forms",
+    // registratievormen voor het rechtermuismenu
+    METER: "onsHelper.meetteller"
+    // meetteller: { start, bijgewerkt, patronen: { soort adres: { ons, hulp } } }; alleen aantallen
+  };
+  var PAGE_LOCAL = {
+    HELPER_ENABLED: "onsHelper.helperEnabled",
+    // afspraak-/registratiehulp aan/uit ('1'/'0')
+    GREY_ENABLED: "onsHelper.greyEnabled",
+    // gekleurde dagindeling aan/uit ('1'/'0')
+    EVENT_META_TEMPLATE: "onsHelper.eventMetaTemplate",
+    // instellingen van het afspraakformulier (alleen ja/nee en getallen)
+    EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
+    // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
+  };
+  var PAGE_SESSION = {
+    PENDING_REGISTRATION: "onsHelper.pendingReg",
+    // registratie vanuit een afspraak (label, vorm, tijden)
+    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
+    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
+    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
+    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
+    EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
+    // het lipje heeft deze sessie al eens gewiebeld
+  };
+
+  // src/shared/meetteller.js
+  var OPEN_WAARDEN = ["layer", "sub_layers[]", "usage"];
+  var MAX_PATRONEN = 300;
+  function deel(d) {
+    if (!d) return d;
+    if (/^[\d,]+$/.test(d) || /^\d{4}-\d{2}-\d{2}$/.test(d) || /^[0-9a-f-]{16,}$/i.test(d) || d.length > 40) return "{n}";
+    return d.replace(/\d+/g, "{n}");
+  }
+  function meetPatroon(url, methode, origin) {
+    let u;
+    try {
+      u = new URL(String(url == null ? "" : url), origin);
+    } catch (e) {
+      return "";
+    }
+    if (!/^https?:$/.test(u.protocol)) return "";
+    const pad = u.pathname.split("/").map(function(d) {
+      let x = d;
+      try {
+        x = decodeURIComponent(d);
+      } catch (e) {
+      }
+      return deel(x);
+    }).join("/");
+    const namen = [];
+    u.searchParams.forEach(function(w, k) {
+      const sleutel = String(k).slice(0, 40).replace(/[^\w[\]]/g, "");
+      if (!sleutel) return;
+      const stuk = OPEN_WAARDEN.indexOf(sleutel) >= 0 && /^[a-z_/]{1,40}$/i.test(w) ? sleutel + "=" + w : sleutel + "=…";
+      if (namen.indexOf(stuk) < 0) namen.push(stuk);
+    });
+    const host = u.origin === origin ? "" : u.host;
+    const m = String(methode || "GET").toUpperCase();
+    return (m === "GET" ? "GET " : (/^[A-Z]{3,7}$/.test(m) ? m : "GET") + " ") + host + pad + (namen.length ? "?" + namen.join("&") : "");
+  }
+  function isPatroon(p) {
+    return typeof p === "string" && p.length <= 300 && /^[A-Z]{3,7} [\w.\-/{}…?&=[\]:]*$/.test(p);
+  }
+  function voegTellingToe(oud, delta, nu) {
+    const goed = oud && typeof oud === "object" && oud.patronen && typeof oud.patronen === "object";
+    const t = { start: goed && oud.start > 0 ? oud.start : nu, bijgewerkt: nu, patronen: goed ? Object.assign({}, oud.patronen) : {} };
+    Object.keys(delta || {}).forEach(function(p) {
+      if (!isPatroon(p)) return;
+      if (!t.patronen[p] && Object.keys(t.patronen).length >= MAX_PATRONEN) return;
+      const a = t.patronen[p] || { ons: 0, hulp: 0 }, d = delta[p] || {};
+      t.patronen[p] = { ons: (a.ons | 0) + (d.ons | 0), hulp: (a.hulp | 0) + (d.hulp | 0) };
+    });
+    return t;
+  }
+
+  // src/content/services/ons-api/meetteller.js
+  var SCHRIJF_NA_MS = 1e4;
+  var aan = false;
+  var buffer = {};
+  var timer = null;
+  var stoppen = [];
+  function tel(patroon, bron) {
+    if (!aan || !isPatroon(patroon)) return;
+    const b = buffer[patroon] || (buffer[patroon] = { ons: 0, hulp: 0 });
+    b[bron]++;
+    if (!timer) timer = setTimeout(schrijf, SCHRIJF_NA_MS);
+  }
+  function telVerzoekVanHulp(url, methode) {
+    if (aan) tel(meetPatroon(url, methode, location.origin), "hulp");
+  }
+  function schrijf() {
+    clearTimeout(timer);
+    timer = null;
+    const delta = buffer;
+    buffer = {};
+    if (!Object.keys(delta).length) return;
+    try {
+      chrome.storage.local.get([LOCAL.METER], function(r) {
+        try {
+          chrome.storage.local.set({ [LOCAL.METER]: voegTellingToe(r && r[LOCAL.METER], delta, Date.now()) });
+        } catch (e) {
+        }
+      });
+    } catch (e) {
+    }
+  }
+  function werkMeettellerBij() {
+    const moet = !!(APP_CONFIG.features && APP_CONFIG.features.meetteller === true);
+    if (moet === aan) return;
+    aan = moet;
+    toMainWorld(PAGE_COMMAND.SET_METER, { aan });
+    if (aan) {
+      stoppen.push(onPageEvent(PAGE_EVENT.REQUEST_SEEN, function(d) {
+        tel(d.patroon, "ons");
+      }));
+      stoppen.push(onPageEvent(PAGE_EVENT.MAIN_READY, function() {
+        toMainWorld(PAGE_COMMAND.SET_METER, { aan: true });
+      }));
+      window.addEventListener("pagehide", schrijf);
+    } else {
+      stoppen.forEach(function(s) {
+        s();
+      });
+      stoppen = [];
+      window.removeEventListener("pagehide", schrijf);
+      schrijf();
+    }
+  }
+
   // node_modules/date-fns/constants.js
   var daysInYear = 365.2425;
   var maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
@@ -2263,11 +2996,11 @@
     const max = opties && opties.max || 3e3;
     const elke = opties && opties.elke || 250;
     return new Promise((klaar) => {
-      let gemeld = false, gepland = false, obs = null, timer = null, tik = null;
+      let gemeld = false, gepland = false, obs = null, timer2 = null, tik = null;
       const einde = (w) => {
         if (gemeld) return;
         gemeld = true;
-        clearTimeout(timer);
+        clearTimeout(timer2);
         clearInterval(tik);
         if (obs) obs.disconnect();
         klaar(w || null);
@@ -2288,7 +3021,7 @@
         gepland = true;
         setTimeout(probeer, 16);
       };
-      timer = setTimeout(() => {
+      timer2 = setTimeout(() => {
         probeer();
         einde(null);
       }, max);
@@ -2302,48 +3035,6 @@
       probeer();
     });
   }
-
-  // src/shared/storage-keys.js
-  var SYNC = {
-    SECTOR: "sector",
-    // gekozen bedrijfsonderdeel (popup)
-    COLOR_PROFILE: "colorProfile",
-    // gekozen team / dagindeling (popup)
-    WORK_HOURS: "workHours"
-    // eigen werktijden per weekdag (popup; zie shared/work-hours.js)
-  };
-  var LOCAL = {
-    TEST_CONFIG: "onsHelperConfig",
-    // lokale testconfiguratie (beheer); wint van config.json
-    SNAPSHOT: "onsHelper.snapshot",
-    // laatste weekstand (service worker; alleen getallen)
-    REMINDER_SETTINGS: "onsHelper.reminders",
-    // instellingen wekelijkse herinnering
-    REMINDER_HANDLED: "onsHelper.reminderHandled",
-    // tijdstip (ms) van de laatst afgehandelde herinnering
-    FORMS: "onsHelper.forms"
-    // registratievormen voor het rechtermuismenu
-  };
-  var PAGE_LOCAL = {
-    HELPER_ENABLED: "onsHelper.helperEnabled",
-    // afspraak-/registratiehulp aan/uit ('1'/'0')
-    GREY_ENABLED: "onsHelper.greyEnabled",
-    // gekleurde dagindeling aan/uit ('1'/'0')
-    EVENT_META_TEMPLATE: "onsHelper.eventMetaTemplate",
-    // instellingen van het afspraakformulier (alleen ja/nee en getallen)
-    EVENT_OVERLAP_TEMPLATE: "onsHelper.eventOverlapTemplate"
-    // geleerde vorm van ONS' overlapcontrole (rollen, geen tijden of id's)
-  };
-  var PAGE_SESSION = {
-    PENDING_REGISTRATION: "onsHelper.pendingReg",
-    // registratie vanuit een afspraak (label, vorm, tijden)
-    PENDING_APPOINTMENT: "onsHelper.pendingAppointment",
-    // afspraak vanuit de planhulp (datum, begintijd, duur; model: velden voor het lege ONS-afspraakmodel; uursoorten: { clientId, hourTypeId, name } per cliënt)
-    PENDING_DUPLICATES: "onsHelper.pendingDuplicates",
-    // planhulp: momenten voor kopieën van de volgende nieuwe afspraak (datum, begintijd)
-    EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
-    // het lipje heeft deze sessie al eens gewiebeld
-  };
 
   // src/content/storage/page-prefs.js
   function storageGet(key, fallback) {
@@ -2656,430 +3347,6 @@
     return /\/registrations\/?$/.test(path != null ? path : location.pathname || "");
   }
 
-  // src/content/config/defaults.js
-  var DEFAULT_APP_CONFIG = {
-    // Tabel 1: keuze in de helper -> ONS-label + gedrag.
-    choices: [
-      { label: "Huisbezoek", etiket: "JG Huisbezoek", clientPresent: true, pickUursoort: true, addTravelTime: true, kleur: "rood" },
-      { label: "Digitaal", etiket: "ALL Beeldbellen", clientPresent: true, pickUursoort: true, addTravelTime: false, kleur: "blauw" },
-      { label: "MDO", etiket: "JG MDO", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "geel" },
-      { label: "Face 2 face", etiket: "JG Face to face kantoor", clientPresent: true, pickUursoort: true, addTravelTime: false, kleur: "blauw" },
-      { label: "Verslaglegging", etiket: "JG Verslaglegging", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "geel" },
-      { label: "Zorgcoördinatie", etiket: "JG Zorgcoördinatie", clientPresent: false, pickUursoort: true, addTravelTime: false, kleur: "groen" }
-    ],
-    // Extra bekende labels (naast de etiketten uit choices) die de opschoning kent.
-    extraKnownLabels: [],
-    // Tabel 2: registratievorm -> startverdeling + extra vragen/acties + de
-    // afspraaklabels die deze vorm automatisch kiezen (`labels`, uit de
-    // labellijst). De aparte labelToForm-tabel is hierin opgegaan.
-    // `relevantForTeams` (leeg = alle teams) bepaalt voor welke teams de vorm geldt.
-    registrationForms: [
-      { vorm: "No show", startVerdeling: "100% direct", uursoort: "No show#", eindtijdBeginPlusMin: 1, rapportagePrefix: "No show", vraagTegenTijd: false, labels: [], relevantForTeams: [] },
-      { vorm: "Verslaglegging", startVerdeling: "100% indirect", vraagDirecteTijd: true, stapMin: 5, labels: ["JG Verslaglegging"], relevantForTeams: [] },
-      { vorm: "MDO", startVerdeling: "100% indirect", vraagTegenTijd: false, labels: ["JG MDO"], relevantForTeams: [] },
-      { vorm: "Zorgcoördinatie", startVerdeling: "100% indirect", vraagDirecteTijd: true, labels: ["JG Zorgcoördinatie"], relevantForTeams: [] },
-      { vorm: "Huisbezoek", startVerdeling: "100% direct", vraagIndirecteTijd: true, vraagReistijd: true, labels: ["JG Huisbezoek"], relevantForTeams: [] },
-      { vorm: "Face 2 face kantoor", startVerdeling: "100% direct", vraagIndirecteTijd: true, labels: ["JG Face to face kantoor"], relevantForTeams: [] }
-    ],
-    // Het palet: de toegestane kleuren voor de dag-indeling. Elke zone kiest één
-    // van deze namen. 'fill' = achtergrond in de agenda, 'legend' = legenda-stip.
-    palette: {
-      rood: { naam: "Rood", fill: "rgba(220,70,70,0.15)", legend: "rgba(220,70,70,0.45)" },
-      geel: { naam: "Geel", fill: "rgba(235,205,70,0.20)", legend: "rgba(235,205,70,0.65)" },
-      blauw: { naam: "Blauw", fill: "rgba(70,130,210,0.16)", legend: "rgba(70,130,210,0.45)" },
-      groen: { naam: "Groen", fill: "rgba(60,170,90,0.18)", legend: "rgba(60,170,90,0.50)" }
-    },
-    profileSectors: { "JGGZ": "Jeugd & Gezin", "J&O/JBG": "Jeugd & Gezin", "Begeleiding": "Begeleiding" },
-    // 6.2/6.3: kleur-dagindeling per profiel (tijd -> zone -> kleur uit palet).
-    zoneProfiles: {
-      "JGGZ": [
-        { start: "08:00", end: "08:30", zone: "Dagstart", color: "rood" },
-        { start: "08:30", end: "11:30", zone: "Cliëntafspraken", color: "geel" },
-        { start: "11:30", end: "12:00", zone: "Administratie", color: "rood" },
-        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
-        { start: "12:30", end: "14:00", zone: "Cliëntafspraken", color: "geel" },
-        { start: "14:00", end: "14:45", zone: "Administratie", color: "rood" },
-        { start: "14:45", end: "16:15", zone: "Cliëntafspraken", color: "geel" },
-        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
-      ],
-      "J&O/JBG": [
-        { start: "08:00", end: "08:30", zone: "Administratie (indirect)", color: "geel" },
-        { start: "08:30", end: "12:00", zone: "Huisbezoek (direct)", color: "rood" },
-        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
-        { start: "12:30", end: "14:00", zone: "Huisbezoek (direct)", color: "rood" },
-        { start: "14:00", end: "14:45", zone: "Administratie (indirect)", color: "geel" },
-        { start: "14:45", end: "16:15", zone: "Huisbezoek (direct)", color: "rood" },
-        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
-      ],
-      // Begeleiding: startprofiel (huisbezoek-gedreven). Pas dit aan in het beheerscherm.
-      "Begeleiding": [
-        { start: "08:00", end: "08:30", zone: "Administratie (indirect)", color: "geel" },
-        { start: "08:30", end: "12:00", zone: "Cliëntbegeleiding", color: "rood" },
-        { start: "12:00", end: "12:30", zone: "Pauze", color: "blauw" },
-        { start: "12:30", end: "14:00", zone: "Cliëntbegeleiding", color: "rood" },
-        { start: "14:00", end: "14:45", zone: "Administratie (indirect)", color: "geel" },
-        { start: "14:45", end: "16:15", zone: "Cliëntbegeleiding", color: "rood" },
-        { start: "16:15", end: "17:00", zone: "Vergadering", color: "groen" }
-      ]
-    },
-    // Aanpasbare schermteksten (per key) met opmaak. Elke key wordt in de
-    // extensie op een vaste plek getoond; hier kun je tekst + kleur/dikte/
-    // cursief/grootte instellen. sizePx = tekstgrootte in pixels.
-    texts: {
-      afspraak_klaar_regel1: { text: "Voeg eventueel nog een locatie en notitie toe.", color: "#333333", bold: false, italic: false, sizePx: 13 },
-      afspraak_klaar_regel2: { text: "Als de instellingen kloppen, kun je de afspraak opslaan", color: "#333333", bold: false, italic: false, sizePx: 13 },
-      afspraak_uursoort_sub: { text: "Daarna gaat de afspraak vanzelf verder.", color: "#666666", bold: false, italic: false, sizePx: 12 },
-      registratie_rapportage_titel: { text: "Schrijf nu je rapportage, volgens Richtlijn rapporteren", color: "#222222", bold: true, italic: false, sizePx: 14 },
-      registratie_prereq_regel1: { text: "Voor cliëntgebonden registraties: vul cliënt, datum en begintijd in.", color: "#c0006a", bold: true, italic: false, sizePx: 13 },
-      registratie_prereq_regel2: { text: "Voor niet cliëntgebonden registraties: vul datum, begintijd en eindtijd in.", color: "#c0006a", bold: true, italic: false, sizePx: 13 },
-      probleem_hulp_werkt_niet: { text: "Let op: de afspraakhulp herkent een veld niet en werkt mogelijk niet volledig. Controleer de afspraak zelf en meld dit via 'Meld probleem' in de extensie.", color: "#b3261e", bold: true, italic: false, sizePx: 13 },
-      probleem_uursoort_zelf: { text: "Kies zelf de uursoort in het gemarkeerde veld hieronder.", color: "#704b00", bold: false, italic: false, sizePx: 13 },
-      probleem_label_zelf: { text: "Controleer het label bovenaan de afspraak en pas het zo nodig zelf aan.", color: "#704b00", bold: false, italic: false, sizePx: 13 },
-      doorplannen_vraag: { text: "Afspraak doorplannen?", color: "#cc087d", bold: false, italic: false, sizePx: 13 },
-      doorplannen_waarschuwing: { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: "#b3261e", bold: true, italic: false, sizePx: 13 }
-    },
-    compatibility: { schemaVersion: 7, minimumExtensionVersion: "1.6.114" },
-    features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true },
-    nonClientCategories: [],
-    // Eigen server voor rijtijden over de weg (Google Routes API; zie
-    // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
-    // embedKey: aparte sleutel met ALLEEN de Maps Embed API (gratis) voor de kaart.
-    // routesKey: sleutel met ALLEEN de Routes API, als er geen server (url) is;
-    // de extensie roept Google dan zelf aan (alleen postcodes). Zet in Google
-    // Cloud een dagmaximum: deze sleutel is zichtbaar in de extensie.
-    routesProxy: { url: "", token: "", embedKey: "", routesKey: "" },
-    // Kantoorlocaties voor de afstand in de planhulp. Een afspraak met een
-    // ONS-locatie (bijv. 'J&G Oosterhout') telt als 'op kantoor'; de locatienaam
-    // wordt herkend aan een van de woorden in 'match'. sector: 'jg' (Jeugd en
-    // Gezin, locatienamen met J&G/Jeugd) of 'bv' (Begeleiding).
-    offices: [
-      // Jeugd en Gezin (ONS-locaties 'J&G …')
-      { sector: "jg", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout", "geertruidenberg", "altena", "west brabant oost", "west-brabant oost", "west-brabant west", "west brabant west"] },
-      { sector: "jg", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom"] },
-      { sector: "jg", name: "Loosduinen (Kracht)", postcode: "2552AE", match: ["kracht", "loosduinen", "den haag"] },
-      { sector: "jg", name: "Tilburg", postcode: "5026RM", match: ["tilburg", "hart van brabant"] },
-      { sector: "jg", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
-      { sector: "jg", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "zuidoost brabant", "zuidoost-brabant"] },
-      { sector: "jg", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
-      { sector: "jg", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden-holland", "midden holland"] },
-      { sector: "jg", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "lekstroom", "utrecht"] },
-      { sector: "jg", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant", "noordoost brabant"] },
-      { sector: "jg", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk", "delft"] },
-      { sector: "jg", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk", "loon op zand"] },
-      { sector: "jg", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] },
-      // Begeleiding (ONS-locaties 'BG …'). Niet gekoppeld (onbekend):
-      // BG DH2, BG HWDN, BG ADGG, BG De6, BG Overig.
-      { sector: "bv", name: "Bergen op Zoom", postcode: "4624DE", match: ["bergen op zoom", "brabantse wal"] },
-      { sector: "bv", name: "Breda", postcode: "4822NH", match: ["breda", "oosterhout"] },
-      { sector: "bv", name: "Delft", postcode: "2613RR", match: ["delft"] },
-      { sector: "bv", name: "Den Haag Noord-Oost", postcode: "2521DB", match: ["den haag noord-oost", "den haag noordoost", "noord-oost"] },
-      { sector: "bv", name: "Den Haag Zuid-West", postcode: "2552AE", match: ["den haag zuid-west", "den haag zuidwest", "zuid-west"] },
-      { sector: "bv", name: "Dongen", postcode: "5102AE", match: ["dongen"] },
-      { sector: "bv", name: "Ede", postcode: "6716AE", match: ["ede", "veluwe", "gelderland"] },
-      { sector: "bv", name: "Eindhoven", postcode: "5612EK", match: ["eindhoven", "kempen"] },
-      { sector: "bv", name: "Gouda", postcode: "2803PB", match: ["gouda", "midden holland", "midden-holland"] },
-      { sector: "bv", name: "Helmond", postcode: "5701MJ", match: ["helmond"] },
-      { sector: "bv", name: "Leiden", postcode: "2312TH", match: ["leiden", "holland rijnland"] },
-      { sector: "bv", name: "Naaldwijk", postcode: "2671ZP", match: ["naaldwijk", "westland"] },
-      { sector: "bv", name: "Nieuwegein", postcode: "3432ET", match: ["nieuwegein", "utrecht"] },
-      { sector: "bv", name: "Oss", postcode: "5344AT", match: ["oss", "nob", "noordoost-brabant"] },
-      { sector: "bv", name: "Rijswijk", postcode: "2285VL", match: ["rijswijk"] },
-      { sector: "bv", name: "Rotterdam", postcode: "3083CW", match: ["rotterdam"] },
-      { sector: "bv", name: "'s-Hertogenbosch", postcode: "5232BC", match: ["hertogenbosch", "den bosch", "meierij"] },
-      { sector: "bv", name: "Tilburg", postcode: "5026RM", match: ["tilburg"] },
-      { sector: "bv", name: "Waalwijk", postcode: "5141PA", match: ["waalwijk"] },
-      { sector: "bv", name: "Zoetermeer", postcode: "2713JA", match: ["zoetermeer"] }
-    ],
-    generalSettings: { travelStepMin: 5, travelMaxMin: 60, portionStepMin: 5, lateThresholdHours: 24, durationStepMin: 15, appointmentMaxMin: 480, registrationMaxMin: 180, pauseFixedMin: 30, nonClientMarker: "*", countWeekends: false, nonClientUursoorten: [], excludedRegistrationStatuses: ["do_not_declare"], excludedCalendarTypes: ["unavailability", "presence"] },
-    // API-endpoint-sjablonen (agenda-analyse) — instelbaar; alleen relatieve same-origin paden.
-    apiEndpoints: {},
-    // Declarabiliteit-grondslag per profiel (regels 'match -> direct|client').
-    declarabiliteitRules: [],
-    // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
-    support: { topdeskUrl: "https://impegno.topdesk.net/" },
-    // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
-    // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
-    // aan te vragen. maxDays: hoe lang een herhaling hooguit mag lopen.
-    // recurrenceTypes: de waarden van recurrence_type in ONS (mocht ONS die wijzigen).
-    leaveRequest: { description: "Verlof", redirectUrl: "https://login.afasonline.com/83031/Apps", maxDays: 366, recurrenceTypes: { daily: "daily", weekly: "weekly" } },
-    // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
-    // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
-    activation: { appointmentNeedle: "/events/new", registrationNeedle: "/registrations", domains: [] },
-    // Centraal (beheerscherm) herstelde UI-selectors, gepubliceerd in
-    // config.json, zodat een correctie voor alle gebruikers geldt.
-    uiSelectors: {}
-  };
-  var NONCLIENT_CATEGORIES = [
-    { label: "Werkzaamheden", options: [
-      { display: "Acquisitie", uursoort: "Acquisitie*", info: "" },
-      { display: "Werktijdenregeling", uursoort: "Werktijdenregeling*", info: "" },
-      { display: "Voorbereidende werkzaamheden", uursoort: "Voorbereidende werkzaamheden*", info: "" },
-      { display: "Verplichte nevenactiviteiten", uursoort: "verpl nevenact - Verplichte nevenactiviteiten*", info: "" },
-      { display: "Schoolcoaching", uursoort: "Schoolcoaching", info: "" },
-      { display: "Schoolcoaching indirect", uursoort: "Schoolcoaching indirect #", info: "" },
-      { display: "Reistijd", uursoort: "Reistijd", info: "" }
-    ] },
-    { label: "Overleg & medezeggenschap", options: [
-      { display: "Overleg", uursoort: "Overleg*", info: "" },
-      { display: "OR", uursoort: "OR (ondernemingsraad)*", info: "" },
-      { display: "OR-training", uursoort: "OR-training*", info: "" },
-      { display: "OR-vergadering", uursoort: "OR-vergadering*", info: "" },
-      { display: "OR-voorbereiding en uitwerking", uursoort: "OR-voorbereiding en uitwerking*", info: "" }
-    ] },
-    { label: "Ontwikkeling & begeleiding", options: [
-      { display: "J&G verzorgen training extern", uursoort: "J&G verzorgen training extern", info: "" },
-      { display: "Detachering", uursoort: "Detachering", info: "" },
-      { display: "Inwerken", uursoort: "Inwerken*", info: "" },
-      { display: "Opleiding & ontwikkeling", uursoort: "Opleiding & ontwikkeling*", info: "" },
-      { display: "Werkbegeleiding", uursoort: "Werkbegeleiding*", info: "" }
-    ] },
-    { label: "Verlof & ouderschap", options: [
-      { display: "Verlof", uursoort: "Verlof*", durationStep: 60, info: "" },
-      { display: "Ouderschapverlof", uursoort: "Ouderschapverlof*", durationStep: 60, info: "" },
-      { display: "Kolven", uursoort: "Kolven*", info: "" }
-    ] },
-    { label: "Pauze, verzuim & gezondheid", options: [
-      { display: "Pauze", uursoort: "Pauze*", fixedHalfHour: true, info: "" },
-      { display: "Verzuim/ziekte", uursoort: "Verzuim/ziekte*", info: "" }
-    ] },
-    { label: "Projecten J&G", options: [
-      { display: "J&G DH Kracht Basis", uursoort: "J&G DH Kracht Basis", info: "" },
-      { display: "J&G Den Haag Kracht", uursoort: "J&G Den Haag Kracht", info: "" },
-      { display: "J&G Ind Proeftuin Toekomstscenario", uursoort: "J&G Ind Proeftuin Toekomstscenario", info: "" },
-      { display: "J&G Kacht Transformatie", uursoort: "J&G Kacht Transformatie", info: "" },
-      { display: "J&G Kracht Preventie", uursoort: "J&G Kracht Preventie", info: "" },
-      { display: "J&G Project GGZ", uursoort: "J&G Project GGZ#", info: "" },
-      { display: "JBW project", uursoort: "JBW project", info: "" },
-      { display: "Medendo C4", uursoort: "Medendo C4#", info: "" },
-      { display: "Medendo D4", uursoort: "Medendo D4#", info: "" },
-      { display: "PAST Project Gouda", uursoort: "PAST Project Gouda", info: "" }
-    ] },
-    // 'Overig' is een directe optie (geen submenu, geen uursoort): de gebruiker
-    // moet zelf een titel "Overig - ..." invullen voordat opslaan vrijkomt.
-    { label: "Overig", directOption: { display: "Overig", freeTitle: true, info: "" } }
-  ];
-
-  // src/content/config/hooks.js
-  var hooks = {
-    formsChanged: null,
-    // registratievormen gewijzigd -> rechtermuismenu bijwerken
-    selectorsChanged: null,
-    // config.uiSelectors gewijzigd -> selector-overrides herberekenen
-    configApplied: null,
-    // configuratie toegepast -> opnieuw bepalen welke hulp bij de URL hoort
-    teamChanged: null
-    // ander team gekozen -> de hulp opnieuw starten
-  };
-  function connectConfigHooks(handlers) {
-    for (const k of Object.keys(handlers)) {
-      if (!(k in hooks)) throw new Error("onbekende config-haak: " + k);
-      hooks[k] = handlers[k];
-    }
-  }
-  function runConfigHook(name, ...args) {
-    try {
-      if (typeof hooks[name] === "function") hooks[name](...args);
-    } catch (e) {
-    }
-  }
-
-  // src/content/config/app-config.js
-  function _cloneConfig(c) {
-    try {
-      return JSON.parse(JSON.stringify(c));
-    } catch (e) {
-      return c;
-    }
-  }
-  var APP_CONFIG = _cloneConfig(DEFAULT_APP_CONFIG);
-  var ACTIVE_SECTOR = null;
-  var ACTIVE_PROFILE = null;
-  function setActiveTeam(profile, sector) {
-    ACTIVE_PROFILE = profile;
-    ACTIVE_SECTOR = sector;
-  }
-  function anyTeamsDefined() {
-    try {
-      return !!(APP_CONFIG.profileSectors && Object.keys(APP_CONFIG.profileSectors).length);
-    } catch (e) {
-      return false;
-    }
-  }
-  function relevantForActiveTeam(item) {
-    if (!ACTIVE_PROFILE) return true;
-    const teams = item && item.relevantForTeams;
-    if (!Array.isArray(teams) || teams.length === 0) return true;
-    return teams.indexOf(ACTIVE_PROFILE) >= 0;
-  }
-  function helperNeedsTeamChoice() {
-    return !ACTIVE_PROFILE && anyTeamsDefined();
-  }
-  function sortByVolgorde(arr) {
-    return (arr || []).map(function(x, i) {
-      return [x, i];
-    }).sort(function(a, b) {
-      let av = a[0] && a[0].volgorde != null && a[0].volgorde !== "" ? +a[0].volgorde : Infinity;
-      let bv = b[0] && b[0].volgorde != null && b[0].volgorde !== "" ? +b[0].volgorde : Infinity;
-      if (!isFinite(av)) av = Infinity;
-      if (!isFinite(bv)) bv = Infinity;
-      return av === bv ? a[1] - b[1] : av - bv;
-    }).map(function(p) {
-      return p[0];
-    });
-  }
-  function effectiveChoices() {
-    return sortByVolgorde((APP_CONFIG.choices || []).filter(relevantForActiveTeam));
-  }
-  function effectiveRegistrationForms() {
-    return sortByVolgorde((APP_CONFIG.registrationForms || []).filter(relevantForActiveTeam));
-  }
-  function refreshEffectiveConfig() {
-    try {
-      CONFIG.choices = effectiveChoices();
-    } catch (e) {
-    }
-    try {
-      REGISTRATION_CHOICES = buildRegistrationChoices();
-    } catch (e) {
-    }
-    runConfigHook("formsChanged");
-  }
-  function applyHelperConfig(hc) {
-    if (!hc || typeof hc !== "object") return;
-    if (Array.isArray(hc.choices)) APP_CONFIG.choices = hc.choices;
-    if (Array.isArray(hc.extraKnownLabels)) APP_CONFIG.extraKnownLabels = hc.extraKnownLabels;
-    if (Array.isArray(hc.registrationForms)) APP_CONFIG.registrationForms = hc.registrationForms;
-    if (hc.zoneProfiles && typeof hc.zoneProfiles === "object") APP_CONFIG.zoneProfiles = hc.zoneProfiles;
-    if (hc.profileSectors && typeof hc.profileSectors === "object") APP_CONFIG.profileSectors = hc.profileSectors;
-    if (hc.palette && typeof hc.palette === "object") APP_CONFIG.palette = hc.palette;
-    if (hc.texts && typeof hc.texts === "object") APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
-    if (hc.compatibility && typeof hc.compatibility === "object") APP_CONFIG.compatibility = hc.compatibility;
-    if (hc.features && typeof hc.features === "object") APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
-    if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
-    if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
-    if (hc.routesProxy && typeof hc.routesProxy === "object") APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
-    if (hc.generalSettings && typeof hc.generalSettings === "object") APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
-    if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
-    if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
-    if (hc.support && typeof hc.support === "object") APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
-    if (hc.leaveRequest && typeof hc.leaveRequest === "object") APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
-    if (hc.activation && typeof hc.activation === "object") {
-      APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
-      if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
-      if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
-    }
-    if (hc.uiSelectors && typeof hc.uiSelectors === "object") {
-      APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors);
-      runConfigHook("selectorsChanged");
-    }
-    refreshEffectiveConfig();
-    runConfigHook("configApplied");
-    try {
-      if (typeof onHelperConfigChanged === "function") onHelperConfigChanged();
-    } catch (e) {
-    }
-  }
-  function supportTopdeskUrl() {
-    try {
-      const u = APP_CONFIG.support && APP_CONFIG.support.topdeskUrl;
-      if (u && /^https?:\/\//i.test(u)) return u;
-    } catch (e) {
-    }
-    return "https://impegno.topdesk.net/";
-  }
-  var onHelperConfigChanged = null;
-  function setOnHelperConfigChanged(fn) {
-    onHelperConfigChanged = fn;
-  }
-  var CONFIG = {
-    urlNeedle: "/events/new",
-    registrationNeedle: "/registrations",
-    debug: false,
-    clientPresentMatcher: (txt) => txt.includes("client") && txt.includes("aanwezig"),
-    // Afspraaktypes komen uit de beheerbare config (APP_CONFIG.choices).
-    choices: effectiveChoices(),
-    uursoortIgnore: ["onlangs gebruikt", "geadviseerd", "toegestaan", "geen resultaten", "voer minstens", "toont ", "bekijk agenda", "verwijder uit selectie", "client", "medewerker", "toevoegen"],
-    etiketFieldSelector: "",
-    uursoortFieldSelector: "",
-    modalPanelSelector: ""
-  };
-  function gsNum(key, def) {
-    const g = APP_CONFIG.generalSettings || {};
-    return g[key] > 0 ? g[key] : def;
-  }
-  function choiceLabels(c) {
-    const out = [];
-    const push = (v) => {
-      v = (v == null ? "" : String(v)).trim();
-      if (v && out.indexOf(v) === -1) out.push(v);
-    };
-    if (c) {
-      push(c.etiket);
-      if (Array.isArray(c.etiketten)) c.etiketten.forEach(push);
-    }
-    return out;
-  }
-  function allKnownLabels() {
-    const labels = [];
-    CONFIG.choices.forEach(function(c) {
-      choiceLabels(c).forEach(function(l) {
-        if (labels.indexOf(l) === -1) labels.push(l);
-      });
-    });
-    for (const extra of APP_CONFIG.extraKnownLabels || []) if (labels.indexOf(extra) === -1) labels.push(extra);
-    return labels;
-  }
-  function nonClientCategoriesActive() {
-    const c = APP_CONFIG.nonClientCategories;
-    const base = Array.isArray(c) && c.length ? c : NONCLIENT_CATEGORIES;
-    return sortByVolgorde(base).map(function(cat) {
-      if (cat && Array.isArray(cat.options) && cat.options.length) {
-        return Object.assign({}, cat, { options: sortByVolgorde(cat.options) });
-      }
-      return cat;
-    });
-  }
-  function allNonClientHourTypes() {
-    const out = [];
-    nonClientCategoriesActive().forEach(function(cat) {
-      if (cat.directOption && cat.directOption.uursoort) out.push(cat.directOption.uursoort);
-      (cat.options || []).forEach(function(opt) {
-        if (opt.uursoort) out.push(opt.uursoort);
-      });
-    });
-    return out;
-  }
-  function directIndirectLabel(sv) {
-    const m = String(sv == null ? "" : sv).match(/(\d+)\s*%\s*(direct|indirect)/i);
-    if (!m) return "";
-    const pct = Math.max(0, Math.min(100, parseInt(m[1], 10) || 0));
-    const word = m[2].toLowerCase();
-    return pct >= 100 ? word : word === "direct" ? "direct/indirect" : "indirect/direct";
-  }
-  function buildRegistrationChoices() {
-    return effectiveRegistrationForms().map(function(f) {
-      const o = { label: f.vorm };
-      if (f.uursoort) o.hourType = f.uursoort;
-      if (f.eindtijdBeginPlusMin) o.endPlusOneMinute = true;
-      const sv = String(f.startVerdeling || "").match(/(\d+)\s*%\s*(direct|indirect)/i);
-      if (sv) {
-        const pct = Math.max(0, Math.min(100, parseInt(sv[1], 10) || 0));
-        const word = sv[2].toLowerCase();
-        const directPct = word === "indirect" ? 100 - pct : pct;
-        if (directPct === 100) o.directFullDuration = true;
-        else if (directPct === 0) o.indirectFullDuration = true;
-        else o.startSplit = { directPct, indirectPct: 100 - directPct };
-        o.directIndirectLabel = directIndirectLabel(f.startVerdeling);
-      }
-      if (f.vraagDirecteTijd) o.askDirectPortion = true;
-      if (f.vraagIndirecteTijd) o.askIndirectPortion = true;
-      if (f.vraagReistijd) o.addTravelTime = true;
-      if (f.rapportagePrefix) o.reportPrefix = f.rapportagePrefix;
-      return o;
-    });
-  }
-  var REGISTRATION_CHOICES = buildRegistrationChoices();
-
   // src/content/domain/agenda-entries.js
   function mapAgendaEntry(e) {
     if (!e || typeof e !== "object") return null;
@@ -3337,7 +3604,9 @@
     return String(url);
   }
   async function getJson(url) {
-    const response = await fetch(alleenOns(url), { credentials: "same-origin", headers: { Accept: "application/json" } });
+    const pad = alleenOns(url);
+    telVerzoekVanHulp(pad, "GET");
+    const response = await fetch(pad, { credentials: "same-origin", headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error("HTTP " + response.status);
     return response.json();
   }
@@ -3348,6 +3617,7 @@
       "X-Requested-With": "XMLHttpRequest"
     };
     const pad = alleenOns(url);
+    telVerzoekVanHulp(pad, "POST");
     const token = csrfToken();
     if (token) headers["X-CSRF-Token"] = token;
     const response = await fetch(pad, {
@@ -3362,161 +3632,6 @@
   function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     return meta && meta.getAttribute("content") || "";
-  }
-
-  // src/shared/messages.js
-  var MSG = {
-    // CS -> SW
-    BADGE: "badge",
-    // { count }       aantal openstaande dagen op het icoon
-    SUMMARY: "summary",
-    // { openDays, … } momentopname (alleen getallen en datums)
-    FORMS: "forms",
-    // { forms: [] }   registratievormen voor het rechtermuismenu
-    OPEN_SIDE_PANEL: "open-side-panel",
-    //                 randlipje vraagt het zijpaneel te openen
-    SIDEPANEL_QUERY: "sidepanel-query",
-    //  -> { open }    staat het zijpaneel open voor dit tabblad?
-    OPEN_TAB: "open-tab",
-    // { url } -> { ok } https-pagina in een nieuw tabblad (AFAS na verlof)
-    // SW -> CS
-    CTX_REGISTER: "ctx-register",
-    // { vorm }        keuze uit het rechtermuismenu
-    SIDEPANEL_STATE: "sidepanel-state",
-    // { open }        (ook SP -> CS)
-    // PU -> SW
-    REMINDER_GET: "reminder-get",
-    //  -> { settings, snapshot }
-    REMINDER_SETTINGS: "reminder-settings",
-    // { enabled, weekday, hour, minute } -> { ok, settings }
-    REMINDER_TEST: "reminder-test",
-    //  -> { ok }      melding nu tonen (handmatig testen)
-    // CS -> SP (uitgezonden; de service worker negeert ze)
-    AGENDA_STATE: "ag-state",
-    // { state }       toestand van de Agendahulp
-    AGENDA_GONE: "ag-gone",
-    //                 agenda verlaten
-    // SP -> CS (naar het gevolgde tabblad)
-    AGENDA_GET_STATE: "ag-get-state",
-    //  -> { state }
-    AGENDA_TOGGLE_ENABLED: "ag-toggle-enabled",
-    // { value }
-    AGENDA_JUMP_DAY: "ag-jump-day",
-    // { date }
-    AGENDA_JUMP_WEEK: "ag-jump-week",
-    AGENDA_OPEN_OCCURRENCE: "ag-open-occurrence",
-    // { id }
-    AGENDA_REGISTER_ITEM: "ag-register-item",
-    // { id, date } -> { ok, error? }  open registraties: afspraak openen en Registreren klikken
-    AGENDA_OPEN_LEAVE: "ag-open-leave",
-    //                 verlofdialoog openen in de pagina
-    AGENDA_CHECK_RANGE: "ag-check-range",
-    // { from, to } -> { ok, result | error }  open registraties in een periode
-    AGENDA_QUICK_REGISTER: "ag-quick-register",
-    // { date, time, minutes, force } -> { ok, overlap?, error? }
-    AGENDA_NEW_EVENT: "ag-new-event",
-    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
-    AGENDA_FORM_TITLE: "ag-form-title",
-    // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
-    AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
-    // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
-    AGENDA_DAY_ROUTE: "ag-day-route",
-    // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag
-    AGENDA_SLOT_CHECK: "ag-slot-check",
-    // { date, startMin, minutes } -> { ok, status, overlap }  ONS' overlapcontrole
-    AGENDA_EVENT_OPTIONS: "ag-event-options",
-    // { clientIds, medewerker?, locaties? } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown, employeeHourTypes?, locations?: [{ id, name, groep, kan }], locationsError? }
-    AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
-    AGENDA_RELOAD: "ag-reload",
-    //                 agenda verversen (na afspraken maken)
-    AGENDA_CLIENT_SEARCH: "ag-client-search",
-    // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
-    AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
-    // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
-    AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",
-    // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
-    AGENDA_FREE_SLOTS: "ag-free-slots",
-    // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
-    AGENDA_WEEK_RATIO: "ag-week-ratio",
-    // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
-    AGENDA_PRODUCTION: "ag-production",
-    // { from, to } -> { ok, result | error }  cliënttijd per week
-    // CS -> SP (uitgezonden)
-    AGENDA_RANGE_PROGRESS: "ag-range-progress"
-    // { kind: 'open'|'productie', done, total } voortgang
-  };
-  var PAGE_BRIDGE = {
-    MARKER: "__onsah",
-    TO_MAIN: "to-main",
-    FROM_MAIN: "from-main"
-  };
-  var PAGE_EVENT = {
-    DETAILS: "details",
-    // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
-    OVERLAP: "eventOverlap",
-    // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
-    META: "eventMeta",
-    // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
-    CREATED: "eventCreated"
-    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
-  };
-  var PAGE_COMMAND = {
-    SET_LABELS: "zetLabels",
-    // { id, labels: ['JG Huisbezoek', …], toevoegen? } of { id, labels: [], wis: true }  labels van het open afspraakformulier zetten (vervangen of toevoegen) of wissen
-    LABELS_SET: "labelsGezet",
-    // { id, ok, reden? }
-    SET_HOUR_TYPE: "zetUursoort",
-    // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
-    HOUR_TYPE_SET: "uursoortGezet",
-    // { id, ok, reden? }
-    SET_FIELD: "zetVeld",
-    // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
-    FIELD_SET: "veldGezet",
-    // { id, ok, reden? }
-    READ_USER: "leesGebruiker",
-    // { id }  medewerker-id uit onsContext() van de pagina
-    USER_READ: "gebruikerGelezen",
-    // { id, ok, userId }
-    SET_RECURRENCE_NONE: "zetHerhalingNiet",
-    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
-    RECURRENCE_SET: "herhalingGezet",
-    // { id, ok, reden? }
-    READ_FORM: "leesFormulier",
-    // { id }  wat het open afspraakformulier bevat
-    FORM_READ: "formulierGelezen"
-    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
-  };
-
-  // src/content/core/page-bridge.js
-  function onPageEvent(type, fn) {
-    const luister = (ev) => {
-      if (ev.origin !== location.origin || ev.source && ev.source !== window) return;
-      const d = ev.data;
-      if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.FROM_MAIN || d.type !== type) return;
-      fn(d);
-    };
-    window.addEventListener("message", luister);
-    return () => window.removeEventListener("message", luister);
-  }
-  function toMainWorld(type, velden) {
-    window.postMessage({ ...velden, [PAGE_BRIDGE.MARKER]: true, dir: PAGE_BRIDGE.TO_MAIN, type }, location.origin);
-  }
-  var volgnummer = 0;
-  function vraagMainWorld(type, antwoordType, velden, wachtMs) {
-    return new Promise((klaar) => {
-      const id = type + "-" + ++volgnummer + "-" + Date.now();
-      const stop = onPageEvent(antwoordType, (d) => {
-        if (d.id === id) einde(d);
-      });
-      const timer = setTimeout(() => einde(null), wachtMs);
-      function einde(antwoord) {
-        clearTimeout(timer);
-        stop();
-        klaar(antwoord);
-      }
-      toMainWorld(type, { ...velden, id });
-    });
   }
 
   // src/content/services/ons-api/event-details.js
@@ -4346,8 +4461,8 @@
   }
   function calendarUrl(view, date, inviteeId) {
     const ids = currentInviteeIds();
-    const deel = ids.length > 1 ? ids.join(",") : inviteeId;
-    return location.origin + "/invitees/" + deel + "/calendar/" + view + "?date=" + date;
+    const deel2 = ids.length > 1 ? ids.join(",") : inviteeId;
+    return location.origin + "/invitees/" + deel2 + "/calendar/" + view + "?date=" + date;
   }
   function currentCalendarView() {
     const m = location.href.match(/\/calendar\/(\w+)/);
@@ -6052,7 +6167,7 @@
       dots.push(dot);
     }
     let step = 0;
-    const timer = setInterval(() => {
+    const timer2 = setInterval(() => {
       dots.forEach((dot, i) => {
         const active = i === step % 3;
         dot.style.opacity = active ? "1" : ".3";
@@ -6060,7 +6175,7 @@
       });
       step++;
     }, 260);
-    const stopTimer = () => clearInterval(timer);
+    const stopTimer = () => clearInterval(timer2);
     const stopObserver = new MutationObserver(() => {
       if (!wrap.isConnected) {
         stopTimer();
@@ -6522,14 +6637,14 @@
   function scheduleAppointmentEndTime(minutes) {
     appointmentFlow.activeAppointmentDurationMinutes = minutes || appointmentFlow.activeAppointmentDurationMinutes;
     if (!appointmentFlow.activeAppointmentDurationMinutes) return;
-    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
+    appointmentFlow.appointmentTimeGuardTimers.forEach((timer2) => clearTimeout(timer2));
     appointmentFlow.appointmentTimeGuardTimers = [];
     [0, 140, 420].forEach((delay) => {
-      const timer = setTimeout(() => safe(() => {
+      const timer2 = setTimeout(() => safe(() => {
         restoreAppointmentStartTime();
         enforceAppointmentEndTime(appointmentFlow.activeAppointmentDurationMinutes);
       }), delay);
-      appointmentFlow.appointmentTimeGuardTimers.push(timer);
+      appointmentFlow.appointmentTimeGuardTimers.push(timer2);
     });
   }
 
@@ -6587,7 +6702,7 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd4 || ""));
     return m ? m[3] + "-" + m[2] + "-" + m[1] : "";
   }
-  function schrijf(inp, text2) {
+  function schrijf2(inp, text2) {
     typeIntoSearchField(inp, text2);
     inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, composed: true }));
     inp.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
@@ -6632,10 +6747,10 @@
     };
     return wachtTot(() => getDateInput() && getStartTimeInput(), { max: 12e3 }).then((klaarVoor) => {
       if (!klaarVoor) return false;
-      if (datum && !toont(getDateInput, datum)) schrijf(getDateInput(), datum);
+      if (datum && !toont(getDateInput, datum)) schrijf2(getDateInput(), datum);
       return wachtTot(() => !datum || toont(getDateInput, datum), { max: 1500 }).then(() => {
         const s = getStartTimeInput();
-        if (s && inputTextValue(s) !== p.time) schrijf(s, p.time);
+        if (s && inputTextValue(s) !== p.time) schrijf2(s, p.time);
         return wachtTot(() => toont(getStartTimeInput, p.time), { max: 1500 });
       }).then(() => {
         if (p.minutes > 0) {
@@ -8414,9 +8529,9 @@
     if (!stops.length) return [];
     let uit = [], start = schoon(origin);
     for (let i = 0; i < stops.length; i += STOPS_PER_ROUTE) {
-      const deel = stops.slice(i, i + STOPS_PER_ROUTE);
-      const bestemming = deel[deel.length - 1];
-      const tussen = deel.slice(0, -1);
+      const deel2 = stops.slice(i, i + STOPS_PER_ROUTE);
+      const bestemming = deel2[deel2.length - 1];
+      const tussen = deel2.slice(0, -1);
       const q = ["api=1"];
       if (start) q.push("origin=" + encodeURIComponent(start));
       q.push("destination=" + encodeURIComponent(bestemming));
@@ -8810,7 +8925,7 @@
   }
 
   // src/content/features/agenda/preload.js
-  function aan(k) {
+  function aan2(k) {
     return !(APP_CONFIG.features && APP_CONFIG.features[k] === false);
   }
   var TTL = { ratio: 5 * 6e4, plan: 5 * 6e4, open: 10 * 6e4, productie: 30 * 6e4 };
@@ -8903,7 +9018,7 @@
   var _bezig3 = false;
   function preloadPanelData(force) {
     if (_bezig3) return;
-    if (!aan("preload")) return;
+    if (!aan2("preload")) return;
     if (document.visibilityState !== "visible") return;
     const sleutel = idsSleutel() + "|" + currentAgendaDate();
     if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
@@ -8914,7 +9029,7 @@
     const vandaag = agendaYmd(/* @__PURE__ */ new Date());
     const stap = (fn) => () => new Promise((klaar) => setTimeout(klaar, 400)).then(fn).catch(() => {
     });
-    Promise.resolve().then(stap(() => aan("weekRatio") && cachedWeekRatio(currentAgendaDate()))).then(stap(() => aan("planner") && cachedFreeSlots(60, 2, "", false, false, "", null, PLAN_STANDAARD_AANTAL))).then(stap(() => aan("openRegistrations") && cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => aan("production") && cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
+    Promise.resolve().then(stap(() => aan2("weekRatio") && cachedWeekRatio(currentAgendaDate()))).then(stap(() => aan2("planner") && cachedFreeSlots(60, 2, "", false, false, "", null, PLAN_STANDAARD_AANTAL))).then(stap(() => aan2("openRegistrations") && cachedOpenRange(defaultRangeFrom(), vandaag))).then(stap(() => aan2("production") && cachedProduction(defaultProductionFrom(), defaultProductionTo()))).then(() => {
       _bezig3 = false;
     }, () => {
       _bezig3 = false;
@@ -14592,7 +14707,7 @@
     setStatus("Instellingen verwijderen...");
     appointmentFlow.activeAppointmentDurationMinutes = null;
     appointmentFlow.activeAppointmentStartTimeText = "";
-    appointmentFlow.appointmentTimeGuardTimers.forEach((timer) => clearTimeout(timer));
+    appointmentFlow.appointmentTimeGuardTimers.forEach((timer2) => clearTimeout(timer2));
     appointmentFlow.appointmentTimeGuardTimers = [];
     const afterOpen = () => {
       const titleOk = clearTitle();
@@ -18729,6 +18844,7 @@
     PANEL_FEATURES.forEach(function(k) {
       uit[k] = f[k] !== false;
     });
+    uit.meetteller = f.meetteller === true;
     return uit;
   }
   function afspraakTypesVoorPaneel() {
@@ -19419,9 +19535,9 @@
   // src/shared/losgekoppeld.js
   var ELKE_MS = 2e3;
   function bijLosgekoppeld(opruimen) {
-    const timer = setInterval(() => {
+    const timer2 = setInterval(() => {
       if (chrome.runtime && chrome.runtime.id) return;
-      clearInterval(timer);
+      clearInterval(timer2);
       opruimen();
     }, ELKE_MS);
   }
@@ -20056,7 +20172,10 @@
   connectConfigHooks({
     formsChanged: pushRegistrationForms,
     selectorsChanged: seedUiOverridesFromConfig,
-    configApplied: syncWithUrl,
+    configApplied: function() {
+      syncWithUrl();
+      werkMeettellerBij();
+    },
     teamChanged: deactivate
   });
   koppelSchermen({
@@ -20102,6 +20221,7 @@
   installPanelDragListeners();
   installUrlWatch();
   HELPER_CONFIG_READY.then(syncWithUrl);
+  HELPER_CONFIG_READY.then(werkMeettellerBij);
   HELPER_CONFIG_READY.then(function() {
     safe(pushRegistrationForms);
   });

@@ -51,6 +51,7 @@ import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from 
 import { pickClientIdFromSearch } from '../../src/content/services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../src/content/services/ons-api/employee.js';
 import { getJson, postJson } from '../../src/content/services/ons-api/http.js';
+import { werkMeettellerBij } from '../../src/content/services/ons-api/meetteller.js';
 import { buildUnavailability, describeUnavailability } from '../../src/content/domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from '../../src/content/features/leave/leave-request.js';
 import { UI_OVERRIDES } from '../../src/content/ons/selector-overrides.js';
@@ -227,6 +228,7 @@ window.__onsHelperTestApi = {
   getEmployeeIdAsync,
   getJson,
   postJson,
+  werkMeettellerBij,
   buildUnavailability,
   describeUnavailability,
   requestLeave,

@@ -2285,3 +2285,52 @@ test('zijpaneel: meldingen compact - pil bij meerdere agenda\'s, foutstrook met 
   assert.equal(balk.textContent, 'Afspraak ook gemaakt op di 13 okt 09:00.');
   assert.equal(balk.style.background, 'rgb(32, 29, 31)', 'donkere balk');
 });
+
+test('zijpaneel: meetteller onder Info alleen als de beheerder hem aanzet; totalen, per adres, opnieuw beginnen', async () => {
+  // Uit (standaard): geen kaart.
+  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: false } });
+  await tick();
+  uit.document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.equal(uit.document.querySelector('[data-meetteller]'), null);
+  // Aan: de telling uit chrome.storage.local.
+  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, version: '1.6.303', features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true } });
+  const env = _laatsteEnv;
+  const start = new Date(2026, 10, 2, 9, 0).getTime();
+  env.store.local['onsHelper.meetteller'] = { start, bijgewerkt: start + 3600000, patronen: {
+    'GET /calendar/invitee/{n}/entries/week?date=…&layer=events': { ons: 40, hulp: 12 },
+    'GET /calendar/holidays': { ons: 0, hulp: 1 },
+    'POST /calendar/events': { ons: 2, hulp: 0 },
+  } };
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.ok(document.querySelector('[data-meetteller]'), 'kaart Meetteller');
+  assert.equal(document.querySelector('[data-meetteller-ons]').textContent, 'ONS zelf42');
+  assert.equal(document.querySelector('[data-meetteller-hulp]').textContent, 'De hulp erbij13 (31% extra)');
+  assert.deepEqual([...document.querySelectorAll('[data-meetteller-rij]')].map((r) => r.textContent), [
+    'GET /calendar/invitee/{n}/entries/week?date=…&layer=eventsONS 40hulp 12', 'POST /calendar/eventsONS 2hulp 0', 'GET /calendar/holidaysONS 0hulp 1']);
+  assert.match(document.body.textContent, /Meetteller.*sinds ma 2 nov 09:00/);
+  // Werkt de telling zich bij, dan het paneel ook.
+  const nieuw = { ...env.store.local['onsHelper.meetteller'], patronen: { 'GET /calendar/holidays': { ons: 5, hulp: 5 } } };
+  env.listeners['storage.onChanged'].forEach((fn) => fn({ 'onsHelper.meetteller': { newValue: nieuw } }, 'local'));
+  assert.equal(document.querySelector('[data-meetteller-ons]').textContent, 'ONS zelf5');
+  // Kopiëren: de telling als tekst.
+  let gekopieerd = '';
+  Object.defineProperty(dom.window.navigator, 'clipboard', { value: { writeText: (t) => { gekopieerd = t; return Promise.resolve(); } }, configurable: true });
+  document.querySelector('[data-meetteller-kopieer]').click();
+  await tick();
+  assert.match(gekopieerd, /^Meetteller ONS Agendahulp 1\.6\.303\nVan ma 2 nov 09:00 tot ma 2 nov 10:00\nONS zelf: 5 verzoeken\nDe hulp erbij: 5 verzoeken \(100% extra\)/);
+  assert.match(gekopieerd, /5\t5\tGET \/calendar\/holidays/);
+  assert.equal(document.querySelector('[data-meetteller-kopieer]').textContent, 'Gekopieerd');
+  // Opnieuw beginnen: eerst bevestigen.
+  const gevraagd = [];
+  dom.window.confirm = (t) => { gevraagd.push(t); return false; };
+  document.querySelector('[data-meetteller-opnieuw]').click();
+  assert.ok(env.store.local['onsHelper.meetteller'], 'nee: blijft staan');
+  dom.window.confirm = (t) => { gevraagd.push(t); return true; };
+  document.querySelector('[data-meetteller-opnieuw]').click();
+  assert.deepEqual(gevraagd, ['Weet je het zeker?', 'Weet je het zeker?']);
+  assert.equal(env.store.local['onsHelper.meetteller'], undefined);
+  assert.ok(document.querySelector('[data-meetteller-leeg]'), 'weer leeg');
+});

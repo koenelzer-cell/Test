@@ -36,6 +36,7 @@ function routesProxyVoorPaneel() {
 function panelFeatures() {
   const f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
+  uit.meetteller = f.meetteller === true;   // standaard uit
   return uit;
 }
 import { agendaYmd } from '../../core/datetime.js';

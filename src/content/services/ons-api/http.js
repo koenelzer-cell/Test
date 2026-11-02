@@ -4,6 +4,8 @@
 // medewerker gaat mee en er gaat niets naar andere servers. Een antwoord dat
 // niet 'ok' is, wordt een fout ("HTTP 404"), zodat de aanroeper kan terugvallen.
 
+import { telVerzoekVanHulp } from './meetteller.js';
+
 // Alleen naar ONS zelf: het adres moet op deze origin uitkomen. Een ander
 // domein (ook '//domein' of '/\\domein', die de browser zo leest) wordt
 // geweigerd, zodat de sessie en het CSRF-token nooit naar een andere server
@@ -16,7 +18,9 @@ export function alleenOns(url) {
 }
 
 export async function getJson(url) {
-  const response = await fetch(alleenOns(url), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+  const pad = alleenOns(url);
+  telVerzoekVanHulp(pad, 'GET');
+  const response = await fetch(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error('HTTP ' + response.status);
   return response.json();
 }
@@ -32,6 +36,7 @@ export async function postJson(url, body) {
     'X-Requested-With': 'XMLHttpRequest',
   };
   const pad = alleenOns(url);
+  telVerzoekVanHulp(pad, 'POST');
   const token = csrfToken();
   if (token) headers['X-CSRF-Token'] = token;
   const response = await fetch(pad, {

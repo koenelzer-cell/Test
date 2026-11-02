@@ -26,6 +26,7 @@ import { PAGE_BRIDGE, PAGE_COMMAND, PAGE_EVENT } from '../shared/messages.js';
 import { parseEventOverlap } from '../shared/overlap.js';
 import { firstNameFromName } from '../shared/namen.js';
 import { PAGE_SESSION } from '../shared/storage-keys.js';
+import { meetPatroon } from '../shared/meetteller.js';
 
 (function onsAgendahulpMainWorld() {
   if (window.__onsAgendahulpMW) return;
@@ -209,6 +210,18 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     return null;
   }
 
+  /* ---- meetteller ---------------------------------------------------
+     Alleen als het content-script het vraagt (beheer: features.meetteller):
+     van elk verzoek van ONS zelf alleen het soort adres doorgeven (geen
+     getallen, geen waarden; shared/meetteller.js). Verzoeken van de hulp
+     telt het content-script zelf.
+     ---------------------------------------------------------------------- */
+  let meten = false;
+  function meet(url, method) {
+    if (!meten) return;
+    try { const p = meetPatroon(url, method, location.origin); if (p) post(PAGE_EVENT.REQUEST_SEEN, { patroon: p }); } catch (e) {}
+  }
+
   function installDetailsWatcher() {
     try {
       const origFetch = window.fetch;
@@ -217,6 +230,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           const url = (typeof input === 'string') ? input : (input && (input.url || input.href)) || '';
           const method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
           const body = init && init.body;
+          meet(url, method);
           const p = origFetch.apply(this, arguments);
           try {
             if (isNieuwModel(url, method) && klaargezetModel()) {
@@ -255,6 +269,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
         XHR.prototype.send = function (body) {
           try {
             const xhr = this;
+            meet(xhr.__onsahUrl, xhr.__onsahMethod);
             if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
             const melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
             if (melder) {
@@ -540,6 +555,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
       const id = String(d.id || '').slice(0, 60);
       const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
+      if (d.type === PAGE_COMMAND.SET_METER) { meten = d.aan === true; return; }
       if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
       if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
@@ -553,4 +569,6 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       }
     } catch (e) {}
   });
+  // Het content-script kan eerder geladen zijn: laat weten dat we er zijn.
+  post(PAGE_EVENT.MAIN_READY, {});
 })();

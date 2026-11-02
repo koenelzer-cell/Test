@@ -182,6 +182,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   lijst nog te registreren afspraken, met de afspraaktitel zoals ONS die toont
   (die kan een voornaam bevatten). Dit bericht blijft binnen de extensie en
   wordt niet opgeslagen.
+- **Meetteller** (standaard uit; beheer zet hem aan voor een meting): telt
+  per soort adres hoeveel verzoeken ONS zelf en de hulp doen. Van een adres
+  blijft alleen het soort over (getallen worden `{n}`, zoekwaarden
+  weggelaten, alleen vaste keuzes zoals `layer=events` blijven). In
+  `chrome.storage.local` staan alleen die soorten en aantallen; er gaat niets
+  naar buiten, behalve wat de medewerker zelf met Kopiëren doorstuurt.
 - **Bewaartermijn:** een onthouden registratievorm vervalt na 10 minuten.
 - **Logging:** het content-script logt niets naar de console.
 

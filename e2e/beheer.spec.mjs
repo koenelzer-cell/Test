@@ -213,3 +213,15 @@ test('beheer: sleutels afgeschermd, niet in het supportpakket of de storingscont
   expect(weg).toBe('geblokkeerd');
   expect(fouten).toEqual([]);
 });
+
+test('beheer: meetteller staat standaard uit en is aan te zetten bij Functies', async ({ page }) => {
+  const fouten = await open(page);
+  await page.evaluate(() => showSettingsPage('functies'));
+  const schakel = page.locator('[data-feature="meetteller"]');
+  await expect(schakel).not.toBeChecked();
+  expect(await page.evaluate(() => buildConfigFromDOM().features.meetteller)).toBe(false);
+  await schakel.check({ force: true });
+  expect(await page.evaluate(() => buildConfigFromDOM().features.meetteller)).toBe(true);
+  expect(await page.evaluate(() => featureTitel('meetteller'))).toBe('Meetteller');
+  expect(fouten).toEqual([]);
+});

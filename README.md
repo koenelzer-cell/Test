@@ -203,6 +203,32 @@ Wat ze doen:
 Niet ingesteld: alles werkt zoals het team is ingedeeld (van de vroegste
 zone tot de laatste).
 
+### Meetteller (pilot)
+
+Om de extra belasting op ONS te meten zonder DevTools. Standaard uit; de
+beheerder zet hem aan bij Functies, groep *Meten (pilot)*
+(`features.meetteller: true`, ook via het beleid).
+
+Staat hij aan, dan telt de hulp per soort adres:
+- **ONS zelf**: elk verzoek dat de ONS-pagina doet (de main-world kijkt mee
+  met `fetch` en `XMLHttpRequest`, zoals bij de details en de
+  overlapcontrole);
+- **de hulp erbij**: elk verzoek van de hulp zelf (alles gaat via
+  `services/ons-api/http.js`).
+
+Van een adres blijft alleen het soort over: getallen (id's, datums) worden
+`{n}`, van de zoekparameters blijft alleen de naam (`date=…`), met de waarde
+alleen bij een vaste keuze zoals `layer=events`. Een zoekterm of naam gaat dus
+nooit mee. De aantallen tellen elke 10 seconden (en bij het verlaten van de
+pagina) op in `chrome.storage.local`, over alle tabbladen en
+herlaadbeurten heen; hooguit 300 soorten adressen.
+
+In het zijpaneel staat onder **Info** de kaart **Meetteller**: sinds wanneer,
+**ONS zelf** en **De hulp erbij** met het percentage extra, en per soort adres
+de aantallen (de drukste 12). **Kopiëren** zet alles als tekst op het klembord
+om naar de beheerder te sturen; **Opnieuw beginnen** (na 'Weet je het zeker?')
+zet de telling op nul. Zet de meetteller na de meting weer uit.
+
 ### Wekelijkse herinnering
 
 In de popup staat **Wekelijkse herinnering** (standaard uit). Bij het aanzetten

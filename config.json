@@ -778,7 +778,8 @@
     "plannerDirect": true,
     "routeLink": true,
     "preload": true,
-    "formViaModel": true
+    "formViaModel": true,
+    "meetteller": false
   },
   "generalSettings": {
     "durationLabelStyle": "urenMinuten",

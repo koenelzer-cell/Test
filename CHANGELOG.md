@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.303
+
+- **Meetteller** voor de pilot (standaard uit; de beheerder zet hem aan bij
+  Functies). In het zijpaneel bij Info zie je dan hoeveel verzoeken ONS zelf
+  doet en hoeveel de hulp erbij doet, per soort adres, zonder DevTools. Met
+  Kopiëren stuur je de telling naar de beheerder. Er worden geen namen,
+  nummers of datums geteld of opgeslagen.
+
 ## 1.6.302
 
 - Voor medewerkers verandert er niets zichtbaars; dit is een
