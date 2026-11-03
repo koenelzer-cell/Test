@@ -18031,6 +18031,21 @@
     removePopup();
   }
 
+  // src/content/features/registratie-nieuw/index.js
+  var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl"];
+  function opNieuwFormulierHost(host) {
+    const h = String(host == null ? location.hostname : host).toLowerCase();
+    return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
+  }
+  function opNieuwRegistratieFormulier() {
+    return opNieuwFormulierHost() && isRegistrationEditOrNew();
+  }
+  var actief = false;
+  function syncNieuweRegistratiehulp() {
+    actief = opNieuwRegistratieFormulier();
+    return actief;
+  }
+
   // src/content/helper/routing.js
   function domeinPast(host, dom) {
     host = String(host || "").toLowerCase().replace(/\.$/, "");
@@ -18057,7 +18072,9 @@
       return;
     }
     const wantEvents = (HELPER_SCOPE === "all" || HELPER_SCOPE === "events") && RUNTIME_CONFIG.appointmentHelperEnabled;
-    const wantRegistrations = (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
+    const nieuwFormulier = opNieuwFormulierHost();
+    syncNieuweRegistratiehulp();
+    const wantRegistrations = !nieuwFormulier && (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
     const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
     if (!opFormulier) planhulpVoorHref = null;
     if (opFormulier) {

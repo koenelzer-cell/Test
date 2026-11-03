@@ -138,6 +138,7 @@ boven de veldfuncties in `fields.js`; bij de registratie staan ze in
 | een pagina van het zijpaneel | `src/sidepanel/pagina-*.jsx` (Planhulp, Afspraak maken, Open, Snel, Route, Cliënttijd, Verhouding, Info); de schil in `agenda-panel.jsx` |
 | de uursoorten per cliënt | `features/appointment/uursoort-source.js` (API eerst, dan dropdown) en `uursoort-queue.js` (meerdere cliënten) |
 | de registratievorm uit een afspraaklabel | `features/registration/pending.js` + `services/ons-api/event-details.js` + `src/main-world/` |
+| het vernieuwde registratieformulier (impegno-backup-staging) | `features/registratie-nieuw/` (`NIEUW_FORMULIER_HOSTS`; daar start de oude registratiehulp niet, `helper/routing.js`); de opbouw uitlezen met `tools/console/registratie-opbouw.js` |
 | de gekleurde dagindeling | `features/agenda/` (`zones.js`, `painting.js`) |
 | de ongeregistreerde tijd / badge | `features/agenda/unregistered-time.js`, `extension-sync.js` |
 | verlof aanvragen (knop rechtsonder in de agenda) | `features/leave/leave-request.js` (knop, dialoog), `domain/leave.js` (formulier → verzoek zoals ONS het stuurt), `services/ons-api/unavailability.js` (POST) |

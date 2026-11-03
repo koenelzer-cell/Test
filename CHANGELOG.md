@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.308
+
+- Alleen voor het testpakket: op de ONS-testomgeving
+  impegno-backup-staging.onsagenda.nl, waar ONS het registratieformulier
+  vernieuwde, start de oude registratiehulp niet meer. Een nieuwe module
+  herkent dat formulier; wat hij ermee doet, volgt. Voor medewerkers verandert
+  er niets.
+
 ## 1.6.307
 
 - Rustiger voor ONS: de hulp laadt alleen nog vooraf zolang het zijpaneel

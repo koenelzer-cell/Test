@@ -11,6 +11,7 @@ import {
 } from '../features/agenda-overview/registrations-overview.js';
 import { HELPER_SCOPE, helperConfigReady, RUNTIME_CONFIG } from '../config/loader.js';
 import { activate, deactivate } from './lifecycle.js';
+import { opNieuwFormulierHost, syncNieuweRegistratiehulp } from '../features/registratie-nieuw/index.js';
 import { onPageEvent } from '../core/page-bridge.js';
 import { PAGE_EVENT } from '../../shared/messages.js';
 
@@ -46,7 +47,11 @@ export function syncWithUrl() {
     deactivate(); removeRegistrationsOverviewPanel(); return;
   }
   const wantEvents = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'events') && RUNTIME_CONFIG.appointmentHelperEnabled;
-  const wantRegistrations = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
+  // Op een host met het vernieuwde registratieformulier neemt
+  // features/registratie-nieuw/ het formulier over; de oude hulp blijft weg.
+  const nieuwFormulier = opNieuwFormulierHost();
+  syncNieuweRegistratiehulp();
+  const wantRegistrations = !nieuwFormulier && (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
   const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
   if (!opFormulier) planhulpVoorHref = null;
   // De registratiehulp draait alleen op de invul-/edit-/new-pagina, NIET op het

@@ -6,6 +6,7 @@ import '../../src/content/index.js';
 import { DEFAULT_APP_CONFIG } from '../../src/content/config/defaults.js';
 import { RUNTIME_CONFIG } from '../../src/content/config/loader.js';
 import { domeinPast } from '../../src/content/helper/routing.js';
+import { nieuweRegistratiehulpActief, opNieuwFormulierHost } from '../../src/content/features/registratie-nieuw/index.js';
 import { foutLijst, plekUitStack, schoneMelding, _wisFouten } from '../../src/content/core/foutbuffer.js';
 import { safe as _safe } from '../../src/content/screen/status.js';
 import { bouwConfig } from '../../src/content/config/app-config.js';
@@ -183,6 +184,9 @@ window.__onsHelperTestApi = {
   updateRegistrationReportSubmitButton,
   submitRegistrationFromHelper,
   __setHelperPanel: function (o) { try { Object.assign(helperPanel, o); } catch (e) {} },
+  getHelperPanel: function () { return helperPanel; },
+  nieuweRegistratiehulpActief,
+  opNieuwFormulierHost,
   applyHelperConfig,
   effectiveChoices,
   effectiveRegistrationForms,

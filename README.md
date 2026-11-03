@@ -385,6 +385,25 @@ Dezelfde punten staan linksonder op de pagina ('Controleer voor opslaan')
 alleen als het paneel ingeklapt is of een ander scherm toont; staat het
 paneel open op deze lijst, dan staan ze daar niet nog een keer.
 
+### Vernieuwd registratieformulier (in ontwikkeling)
+
+Op `impegno-backup-staging.onsagenda.nl` heeft ONS het registratieformulier
+vernieuwd. De bestaande registratiehulp draait daar niet (die zou klikken in
+een formulier dat anders is opgebouwd); de module
+`src/content/features/registratie-nieuw/` herkent daar het
+registratieformulier (`/registrations/{id}/edit` en `/registrations/new`) en
+neemt het over. Hij doet nog niets op het formulier zelf: dat komt erbij
+zodra de opbouw bekend is. Alleen het testpakket draait op die host; de
+agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
+
+De opbouw uitlezen: open daar een registratieformulier, F12, Console, en plak
+`tools/console/registratie-opbouw.js`. Het resultaat (Vue-componenten, props,
+events en methoden, velden met een koppeling, de vorm van keuzelijsten en van
+het formuliermodel, data-qa's en labels) staat daarna op het klembord. Tekst
+in velden als naam, cliënt of rapportage wordt `tekst(lengte)`, lange
+getallen `getal(n)`, en een label houdt alleen de woorden vóór een woord met
+een hoofdletter.
+
 ### Zijpaneel
 
 Terwijl de agenda en het zijpaneel open staan, laadt de extensie op de
