@@ -15,18 +15,11 @@
     rangeDefaultFrom: plus(maandag, -28), openCount: 3, productionDefaultFrom: plus(maandag, -56), productionDefaultTo: plus(maandag, 28),
     week: { summary: { clientMinutes: 690, nonClientMinutes: 125, totalMinutes: 815, directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, byType: [] },
       opts: { week: 42, date: maandag, scope: 'week', headerHint: 'geregistreerd' }, clientRows: [], overigRows: [] },
-    weekError: '', weekLoading: false, features: { meetteller: true }, routeEnabled: true,
+    weekError: '', weekLoading: false, features: {}, routeEnabled: true,
     // Wachtwoord voor de knop Debug: 'e2e-wachtwoord'.
     debugWachtwoord: '45e9a81951fa98cb477f70f1452f0a2f07303cc9fe14d81661f9b907d62045f2',
     afspraakTypes: [{ label: 'Huisbezoek', etiketten: ['JG Huisbezoek'], clientPresent: true, addTravelTime: true }]
   };
-  // Meetteller (Info): een telling van een uur, met een lang adres.
-  const meetteller = { start: Date.now() - 3600000, bijgewerkt: Date.now(), patronen: {
-    'GET /calendar/invitee/{n}/entries/week?date=…&layer=events': { ons: 64, hulp: 18 },
-    'GET /calendar/invitee/{n}/entries/week?date=…&layer=registrations&sub_layers[]=registrations/created': { ons: 20, hulp: 9 },
-    'GET /calendar/invitee/{n}/events/{n}/details': { ons: 12, hulp: 30 },
-    'POST /calendar/events': { ons: 3, hulp: 1 },
-  } };
   const vrij = function (msg) {
     const start = msg.from || maandag;
     const gaps = [1, 2, 4, 8, 9].map(function (n, i) { return { date: plus(start, n), startMin: 540 + i * 30, endMin: 720 + i * 30, minutes: 180 }; });
@@ -42,6 +35,11 @@
   ];
   const antwoorden = {
     'ag-get-state': function () { return { state: state }; },
+    // Formulier (Info, Debug): wat de hulp via Vue deed, één keer niet gelukt.
+    'ag-formulierlog': function () {
+      return { ok: true, items: [{ tijd: Date.now() - 5000, actie: 'zetLabels', ok: true }, { tijd: Date.now() - 4000, actie: 'zetVeld', veld: 'travel_time_before', ok: true },
+        { tijd: Date.now() - 3000, actie: 'zetHerhalingNiet', ok: false, reden: 'het formulier nam de waarde niet over', opbouw: '{"geprobeerd":["keuze uit het veld: niet overgenomen (in beeld: wekelijks)"]}' }] };
+    },
     'ag-netwerklog': function (msg) { return { ok: true, sessie: 'e2e', items: netwerk.filter(function (it) { return it.id > (msg.sinds || 0); }) }; },
     'ag-free-slots': vrij,
     // ONS meldt overlap aan het begin van het tweede blok (09:30).
@@ -102,7 +100,7 @@
     },
     windows: { getCurrent: function (cb) { cb({ id: 1 }); }, onFocusChanged: on() },
     sidePanel: { close: function () {} },
-    storage: { local: { get: function (k, cb) { cb({ 'onsHelper.meetteller': meetteller }); }, set: function () {}, remove: function () {} }, onChanged: on() },
+    storage: { local: { get: function (k, cb) { cb({}); }, set: function () {}, remove: function () {} }, onChanged: on() },
     permissions: { contains: function (p, cb) { cb(false); }, request: function (p, cb) { cb(false); } }
   };
 })();

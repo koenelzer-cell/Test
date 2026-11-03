@@ -1,28 +1,16 @@
 // Info: legenda, versie en de rondleidingen opnieuw starten. Onderaan een
 // kleine knop Debug (alleen als de beheerder een wachtwoord instelde): met het
 // wachtwoord opent Netwerk (elk verzoek van ONS zelf, de hulp en het
-// zijpaneel, live) en de meetteller.
+// zijpaneel, live) en Formulier (wat de hulp via het ONS-formulier deed, met
+// de reden als dat niet lukte).
 
-import { ChipKnop, HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt, dayLabel, hm, ymdVan } from './ui.jsx';
-import { LOCAL } from '../shared/storage-keys.js';
-import { meettellerOverzicht } from '../shared/meetteller.js';
+import { ChipKnop, HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt } from './ui.jsx';
 import { debugHash } from '../shared/sha256.js';
 import { BEWAARD } from './bewaard.js';
 
 // Legenda, rondleidingen en versie als lijsten, zoals op het startscherm.
 const LIJST_KAART = { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' };
 function regel(eerste) { return { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '0 12px', borderTop: eerste ? '0' : '1px solid ' + T.line, fontSize: '13.5px', color: T.ink }; }
-
-function getal(n) { return Number(n || 0).toLocaleString('nl-NL'); }
-function moment(ms) { const d = new Date(ms); return dayLabel(ymdVan(d)) + ' ' + hm(d.getHours() * 60 + d.getMinutes()); }
-// De telling als tekst, om naar de beheerder te sturen.
-function meettellerTekst(o, versie) {
-  const regels = ['Meetteller ONS Agendahulp ' + (versie || ''), 'Van ' + moment(o.start) + ' tot ' + moment(o.bijgewerkt),
-    'ONS zelf: ' + o.ons + ' verzoeken', 'De hulp erbij: ' + o.hulp + ' verzoeken' + (o.extraProcent != null ? ' (' + o.extraProcent + '% extra)' : ''), '',
-    'Per soort adres (ONS, hulp):'];
-  o.rijen.forEach(function (r) { regels.push(r.ons + '\t' + r.hulp + '\t' + r.patroon); });
-  return regels.join('\n');
-}
 
 /* ── Netwerk ─────────────────────────────────────────────────────────── */
 
@@ -86,15 +74,28 @@ function volgPaneelFetch() {
   window.fetch = ingepakt;
 }
 
+/* ── Formulier ───────────────────────────────────────────────────────── */
+
+const ACTIE_NAAM = { zetLabels: 'Labels', zetUursoort: 'Uursoort', zetVeld: 'Veld', zetHerhalingNiet: 'Herhaling op Niet', leesFormulier: 'Formulier lezen', leesGebruiker: 'Medewerker lezen' };
+function actieNaam(it) { return (ACTIE_NAAM[it.actie] || String(it.actie || '')) + (it.veld ? ' ' + it.veld : ''); }
+// Als tekst, oudste eerst; de opbouw van een veld netjes uitgeschreven.
+export function formulierTekst(items, versie) {
+  const regels = ['Formulier (Vue) ONS Agendahulp ' + (versie || '')];
+  items.forEach(function (it) {
+    regels.push([klok(it.tijd), actieNaam(it), it.ok ? 'gelukt' : 'niet gelukt', it.via ? 'via ' + it.via : '', it.reden || ''].filter(Boolean).join('\t'));
+    if (it.opbouw) { let o = it.opbouw; try { o = JSON.stringify(JSON.parse(it.opbouw), null, 1); } catch (e) {} regels.push(o); }
+  });
+  return regels.join('\n');
+}
+
 export function maakInfo(ctx) {
   const { fAan, naarPagina, renderPagina } = ctx;
-  // Meetteller: de telling uit chrome.storage.local, bijgewerkt zodra die verandert.
-  const meet = { luistert: false, data: null, gekopieerd: false };
   // Debug: dicht, het wachtwoordveld open, of ontgrendeld (tot het zijpaneel
   // sluit). In BEWAARD, zodat een paginawissel in ONS het niet weer op slot zet.
   const debug = BEWAARD.debug;
   const net = BEWAARD.netwerk;
-  let timer = null, vraagt = false;
+  const form = BEWAARD.formulier;
+  let timer = null, vraagt = false, vraagtForm = false;
 
   function voegToe(it) {
     net.nr += 1;
@@ -134,95 +135,39 @@ export function maakInfo(ctx) {
       if (nieuw && ctx.pagina === 'info') renderPagina();
     });
   }
-  function netwerkLoopt() { return debug.stand === 'open' && /^[0-9a-f]{64}$/.test(debugWachtwoord()) && !net.pauze && ctx.pagina === 'info'; }
+  function vraagFormulierlog() {
+    if (vraagtForm || !ctx.actions.onFormulierlog) return;
+    vraagtForm = true;
+    ctx.actions.onFormulierlog(function (r) {
+      vraagtForm = false;
+      if (!timer || !r || !r.ok || !Array.isArray(r.items)) return;
+      const oud = form.items, nieuw = r.items;
+      if (oud.length === nieuw.length && (!nieuw.length || oud[oud.length - 1].tijd === nieuw[nieuw.length - 1].tijd)) return;
+      form.items = nieuw.slice(-30);
+      if (ctx.pagina === 'info') renderPagina();
+    });
+  }
+  function debugLoopt() { return debug.stand === 'open' && /^[0-9a-f]{64}$/.test(debugWachtwoord()) && ctx.pagina === 'info'; }
   function stopNetwerk() {
     if (timer) clearInterval(timer);
     timer = null;
     paneelLuisteraar = null;
   }
-  // Zolang Info met Debug open is en Netwerk niet gepauzeerd: elke seconde
-  // vragen wat er nieuw is. Elke vraag houdt het log in het tabblad 15 s aan.
+  // Zolang Info met Debug open is: elke seconde vragen wat er nieuw is
+  // (Netwerk alleen als het niet gepauzeerd is; elke vraag houdt het log in
+  // het tabblad 15 s aan) en de uitkomsten van het formulier.
   function zorgVoorNetwerk() {
-    if (timer || !netwerkLoopt()) return;
+    if (timer || !debugLoopt()) return;
     volgPaneelFetch();
     paneelLuisteraar = paneelVerzoek;
+    const tik = function () { if (!net.pauze) vraagNetwerk(); vraagFormulierlog(); };
     timer = setInterval(function () {
-      if (!netwerkLoopt()) { stopNetwerk(); return; }
-      vraagNetwerk();
+      if (!debugLoopt()) { stopNetwerk(); return; }
+      tik();
     }, 1000);
-    vraagNetwerk();
+    tik();
   }
   function debugWachtwoord() { return String((ctx.state && ctx.state.debugWachtwoord) || ''); }
-  function meettellerAan() { return !!(ctx.state && ctx.state.features && ctx.state.features.meetteller === true); }
-  function zorgVoorMeetteller() {
-    if (meet.luistert || !meettellerAan() || debug.stand !== 'open') return;
-    meet.luistert = true;
-    try {
-      chrome.storage.local.get([LOCAL.METER], function (r) { meet.data = (r && r[LOCAL.METER]) || null; if (ctx.pagina === 'info') renderPagina(); });
-      chrome.storage.onChanged.addListener(function (wijziging, gebied) {
-        if (gebied !== 'local' || !wijziging[LOCAL.METER]) return;
-        meet.data = wijziging[LOCAL.METER].newValue || null;
-        if (ctx.pagina === 'info') renderPagina();
-      });
-    } catch (e) {}
-  }
-  function meettellerKaart() {
-    if (!meettellerAan()) return null;
-    const o = meettellerOverzicht(meet.data);
-    const leeg = !o.rijen.length;
-    return (
-      <>
-        <SectionHead tekst="Meetteller" sub={leeg ? '' : 'sinds ' + moment(o.start)} />
-        <div data-meetteller="" style={{ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '10px 12px' }}>
-          {leeg ? (
-            <Txt kind="help" data-meetteller-leeg="" style={{ margin: '0' }}>Nog niets geteld. Gebruik ONS zoals altijd; de telling loopt vanzelf.</Txt>
-          ) : (
-            <>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div data-meetteller-ons="" style={{ flex: '1 1 0' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: T.inkSoft }}>ONS zelf</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>{getal(o.ons)}</div>
-                </div>
-                <div data-meetteller-hulp="" style={{ flex: '1 1 0' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: T.inkSoft }}>De hulp erbij</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>{getal(o.hulp)}{o.extraProcent != null ? <span style={{ fontSize: '12px', fontWeight: '600', color: T.inkSoft }}>{' (' + o.extraProcent + '% extra)'}</span> : null}</div>
-                </div>
-              </div>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: T.inkSoft, margin: '12px 0 4px' }}>Per soort adres</div>
-              <div data-meetteller-lijst="">
-                {o.rijen.slice(0, 12).map(function (r) {
-                  return (
-                    <div key={r.patroon} data-meetteller-rij={r.patroon} style={{ display: 'flex', gap: '8px', alignItems: 'baseline', padding: '5px 0', borderTop: '1px solid ' + T.lineSoft }}>
-                      <span style={{ flex: '1 1 auto', minWidth: '0', fontSize: '11.5px', color: T.ink, overflowWrap: 'anywhere' }}>{r.patroon}</span>
-                      <span style={{ flex: '0 0 auto', fontSize: '11.5px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{'ONS ' + getal(r.ons)}</span>
-                      <span style={{ flex: '0 0 auto', fontSize: '11.5px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{'hulp ' + getal(r.hulp)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {o.rijen.length > 12 ? <Txt kind="help" style={{ margin: '4px 0 0' }}>{'En ' + (o.rijen.length - 12) + ' andere adressen; Kopiëren neemt ze allemaal mee.'}</Txt> : null}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <Knop tekst={meet.gekopieerd ? 'Gekopieerd' : 'Kopiëren'} data-meetteller-kopieer="" style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }} onClick={function () {
-                  try {
-                    navigator.clipboard.writeText(meettellerTekst(o, ctx.state && ctx.state.version)).then(function () {
-                      meet.gekopieerd = true; renderPagina();
-                      setTimeout(function () { meet.gekopieerd = false; if (ctx.pagina === 'info') renderPagina(); }, 2000);
-                    }, function () {});
-                  } catch (e) {}
-                }} />
-                <Knop tekst="Opnieuw beginnen" data-meetteller-opnieuw="" style={{ flex: '1 1 auto', whiteSpace: 'nowrap', color: T.bad }} onClick={function () {
-                  if (!window.confirm('Weet je het zeker?')) return;
-                  try { chrome.storage.local.remove(LOCAL.METER); } catch (e) {}
-                  meet.data = null; renderPagina();
-                }} />
-              </div>
-            </>
-          )}
-        </div>
-        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Alleen het soort adres en aantallen, geen namen, nummers of datums. Zet de meetteller uit in het beheerscherm als de meting klaar is.</Txt>
-      </>
-    );
-  }
   function netwerkKaart() {
     const alle = net.items.filter(function (it) { return it.bron !== 'pagina'; });
     const tel = { alles: alle.length, ons: 0, hulp: 0, paneel: 0 };
@@ -249,9 +194,8 @@ export function maakInfo(ctx) {
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
             <Knop tekst={net.pauze ? 'Hervatten' : 'Pauzeren'} data-netwerk-pauze="" style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }} onClick={function () {
               net.pauze = !net.pauze;
-              // Na hervatten alleen wat daarna gebeurt.
-              if (!net.pauze) net.vanaf = Date.now();
-              else stopNetwerk();
+              // Na hervatten alleen wat daarna gebeurt, en meteen weer vragen.
+              if (!net.pauze) { net.vanaf = Date.now(); if (timer) vraagNetwerk(); }
               renderPagina();
             }} />
             <Knop tekst={net.gekopieerd ? 'Gekopieerd' : 'Kopiëren'} data-netwerk-kopieer="" disabled={!alle.length} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }} onClick={function () {
@@ -296,6 +240,42 @@ export function maakInfo(ctx) {
       </>
     );
   }
+  function formulierKaart() {
+    const lijst = form.items.slice().reverse();
+    return (
+      <>
+        <SectionHead tekst="Formulier" sub="via Vue" />
+        <div data-formulier="" style={{ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '10px 12px' }}>
+          {!lijst.length ? (
+            <Txt kind="help" data-formulier-leeg="" style={{ margin: '0' }}>Nog niets. Zodra de hulp iets in een ONS-formulier invult, zie je hier of dat via Vue lukte.</Txt>
+          ) : lijst.map(function (it, i) {
+            return (
+              <div key={it.tijd + '-' + i} data-formulier-rij={it.actie} data-formulier-ok={it.ok ? 'ja' : 'nee'} style={{ padding: '6px 0', borderTop: i ? '1px solid ' + T.lineSoft : '0' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'baseline', fontSize: '11.5px', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ color: T.inkSoft }}>{klok(it.tijd)}</span>
+                  <span style={{ fontWeight: '600', color: T.ink }}>{actieNaam(it)}</span>
+                  <span style={{ fontWeight: '600', color: it.ok ? T.ok : T.bad }}>{it.ok ? 'gelukt' : 'niet gelukt'}</span>
+                </div>
+                {it.via || it.reden ? <div style={{ fontSize: '11.5px', color: T.inkSoft, overflowWrap: 'anywhere', marginTop: '2px' }}>{it.via ? 'via ' + it.via : it.reden}</div> : null}
+                {it.opbouw ? <div data-formulier-opbouw="" style={{ fontSize: '11.5px', color: T.inkSoft, marginTop: '2px' }}>Met de opbouw van het veld (in Kopiëren)</div> : null}
+              </div>
+            );
+          })}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <Knop tekst={form.gekopieerd ? 'Gekopieerd' : 'Kopiëren'} data-formulier-kopieer="" disabled={!lijst.length} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }} onClick={function () {
+              try {
+                navigator.clipboard.writeText(formulierTekst(form.items, ctx.state && ctx.state.version)).then(function () {
+                  form.gekopieerd = true; renderPagina();
+                  setTimeout(function () { form.gekopieerd = false; if (ctx.pagina === 'info') renderPagina(); }, 2000);
+                }, function () {});
+              } catch (e) {}
+            }} />
+          </div>
+        </div>
+        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Wat de hulp via het ONS-formulier deed. Lukte iets niet via Vue, dan klikte de hulp; de reden staat erbij, en bij de herhaling ook hoe het veld is opgebouwd.</Txt>
+      </>
+    );
+  }
   function ontgrendel() {
     if (debugHash(debug.invoer) === debugWachtwoord()) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
     else debug.fout = true;
@@ -327,12 +307,7 @@ export function maakInfo(ctx) {
     return (
       <div data-info-debug-open-deel="">
         {netwerkKaart()}
-        {meettellerAan() ? meettellerKaart() : (
-          <>
-            <SectionHead tekst="Meetteller" />
-            <Txt kind="help" data-meetteller-uit="" style={{ margin: '0 2px' }}>De meetteller staat uit. Zet hem aan in het beheerscherm bij Functies.</Txt>
-          </>
-        )}
+        {formulierKaart()}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
           <button type="button" data-info-debug-dicht="" style={klein} onClick={function () { debug.stand = 'dicht'; stopNetwerk(); renderPagina(); }}>Debug sluiten</button>
         </div>
@@ -378,5 +353,5 @@ export function maakInfo(ctx) {
     );
   }
 
-  return { pageInfo, stopNetwerk, zorgVoorMeetteller, zorgVoorNetwerk };
+  return { pageInfo, stopNetwerk, zorgVoorNetwerk };
 }

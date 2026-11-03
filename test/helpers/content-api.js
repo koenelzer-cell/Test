@@ -24,7 +24,7 @@ import { hasAppointmentDate, hasAppointmentStartTime } from '../../src/content/f
 import { removeLabelChipsByText, selectedAllLabelChipTexts, selectedKnownLabels, setLabelsExclusive } from '../../src/content/features/appointment/labels.js';
 import { enforceAppointmentEndTime, setAppointmentEndTimePlusMinutes, zetEindtijdAsync } from '../../src/content/features/appointment/end-time.js';
 import { clearAppointmentTravelTimes, setAppointmentTravelTotalMinutes, zetReistijdenAsync } from '../../src/content/features/appointment/travel.js';
-import { eerstViaFormulier, zetLabelsViaFormulier, zetUursoortViaFormulier } from '../../src/content/ons/form-model.js';
+import { eerstViaFormulier, formulierLog, leesFormulier, zetLabelsViaFormulier, zetUursoortViaFormulier } from '../../src/content/ons/form-model.js';
 import { wachtTot } from '../../src/content/core/wacht.js';
 import { pollFor } from '../../src/content/ons/dom.js';
 import { nietClientUursoortMetId } from '../../src/content/features/appointment/uursoort-source.js';
@@ -51,7 +51,6 @@ import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from 
 import { pickClientIdFromSearch } from '../../src/content/services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../src/content/services/ons-api/employee.js';
 import { getJson, postJson } from '../../src/content/services/ons-api/http.js';
-import { werkMeettellerBij } from '../../src/content/services/ons-api/meetteller.js';
 import { netwerklogAan, netwerklogSessie, netwerklogSinds } from '../../src/content/services/ons-api/netwerklog.js';
 import { buildUnavailability, describeUnavailability } from '../../src/content/domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from '../../src/content/features/leave/leave-request.js';
@@ -229,7 +228,6 @@ window.__onsHelperTestApi = {
   getEmployeeIdAsync,
   getJson,
   postJson,
-  werkMeettellerBij,
   netwerklogAan,
   netwerklogSessie,
   netwerklogSinds,
@@ -270,6 +268,8 @@ window.__onsHelperTestApi = {
   recurrenceValue,
   recurrenceIsSet,
   setRecurrenceToNiet,
+  formulierLog,
+  leesFormulier,
   doorplannenWarnText,
   doorplannenBlocksSave,
   // Open registraties: periodecontrole, snel registreren.

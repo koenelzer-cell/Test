@@ -1,7 +1,6 @@
 // Ingang van het content-script op de ONS-pagina's. Importeert de onderdelen
 // en start ze in vaste volgorde. Alles wat bij het laden gebeurt, staat hier.
 
-import { werkMeettellerBij } from './services/ons-api/meetteller.js';
 import { listenForMainWorldDetails } from './services/ons-api/event-details.js';
 import { listenForOnsOverlapCalls } from './services/ons-api/event-overlap.js';
 import { listenForCreatedEvents } from './features/appointment/duplicate.js';
@@ -43,7 +42,7 @@ import { showUursoortQueue } from './features/appointment/uursoort-queue.js';
 connectConfigHooks({
   formsChanged: pushRegistrationForms,
   selectorsChanged: seedUiOverridesFromConfig,
-  configApplied: function () { syncWithUrl(); werkMeettellerBij(); },
+  configApplied: syncWithUrl,
   teamChanged: deactivate,
 });
 // De schermen openen elkaar via schermen.showX() (screen/schermen.js).
@@ -72,7 +71,6 @@ installFreeDayTracking();
 installPanelDragListeners();
 installUrlWatch();
 HELPER_CONFIG_READY.then(syncWithUrl);
-HELPER_CONFIG_READY.then(werkMeettellerBij);
 HELPER_CONFIG_READY.then(function () { safe(pushRegistrationForms); });
 installContextMenuTracking();
 listenForContextMenuChoice();

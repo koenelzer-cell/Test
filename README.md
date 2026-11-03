@@ -203,16 +203,17 @@ Wat ze doen:
 Niet ingesteld: alles werkt zoals het team is ingedeeld (van de vroegste
 zone tot de laatste).
 
-### Debug: Netwerk
+### Debug: Netwerk en Formulier
 
 Voor ontwikkeling, in plaats van het tabblad Network van DevTools. Onder
 **Info** staat onderaan een kleine knop **Debug**, alleen als de beheerder een
-wachtwoord instelde (beheerscherm, pagina **Meetteller**; in de configuratie
-staat alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`). Met het juiste
-wachtwoord opent **Netwerk**: elk verzoek, live en het nieuwste boven, met
-tijd (tot op de seconde), van wie het komt, methode, status (rood bij een
-fout of 'mislukt' zonder antwoord), duur, grootte (als de server die meldt)
-en het volledige adres. Daaronder staat de meetteller (zie hieronder).
+wachtwoord instelde (beheerscherm, pagina **Debug** onder Controleren; in de
+configuratie staat alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`).
+Het wachtwoord houdt nieuwsgierigen buiten, het is geen echte beveiliging.
+Met het juiste wachtwoord opent **Netwerk**: elk verzoek, live en het nieuwste
+boven, met tijd (tot op de seconde), van wie het komt, methode, status (rood
+bij een fout of 'mislukt' zonder antwoord), duur, grootte (als de server die
+meldt) en het volledige adres. Daaronder staat **Formulier** (zie verderop).
 
 - **ONS**: verzoeken van de ONS-pagina zelf (de main-world kijkt mee met
   `fetch` en `XMLHttpRequest`);
@@ -240,45 +241,15 @@ een nieuwe pagina geladen is (de eerste paar bij het laden), en die van
 andere tabbladen, staan er niet in. Adressen kunnen cliëntgegevens bevatten
 (een zoekterm, een cliëntnummer): deel een kopie niet zomaar.
 
-### Meetteller (pilot)
-
-Om de extra belasting op ONS te meten zonder DevTools. Standaard uit; de
-beheerder zet hem aan bij Functies, groep *Meten (pilot)*
-(`features.meetteller: true`, ook via het beleid).
-
-Staat hij aan, dan telt de hulp per soort adres:
-- **ONS zelf**: elk verzoek dat de ONS-pagina doet (de main-world kijkt mee
-  met `fetch` en `XMLHttpRequest`, zoals bij de details en de
-  overlapcontrole);
-- **de hulp erbij**: elk verzoek van de hulp zelf (alles gaat via
-  `services/ons-api/http.js`).
-
-Van een adres blijft alleen het soort over: getallen (id's, datums) worden
-`{n}`, van de zoekparameters blijft alleen de naam (`date=…`), met de waarde
-alleen bij een vaste keuze zoals `layer=events`. Een zoekterm of naam gaat dus
-nooit mee. De aantallen tellen elke 10 seconden (en bij het verlaten van de
-pagina) op in `chrome.storage.local`, over alle tabbladen en
-herlaadbeurten heen; hooguit 300 soorten adressen.
-
-De telling staat niet zomaar in beeld. Onder **Info** staat onderaan alleen
-een kleine knop **Debug**, en die alleen als de beheerder een wachtwoord
-instelde (beheerscherm, pagina **Meetteller**; in de configuratie staat
-alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`). Met het juiste
-wachtwoord staat onder **Netwerk** de kaart **Meetteller**: sinds wanneer, **ONS zelf** en **De
-hulp erbij** met het percentage extra, en per soort adres de aantallen (de
-drukste 12). **Kopiëren** zet alles als tekst op het klembord om naar de
-beheerder te sturen; **Opnieuw beginnen** (na 'Weet je het zeker?') zet de
-telling op nul; **Debug sluiten** vergrendelt weer. Het wachtwoord houdt
-nieuwsgierigen buiten, het is geen echte beveiliging.
-
-In het beheerscherm, pagina **Meetteller** (onder Controleren), stel je het
-wachtwoord in en voeg je de tellingen samen: plak de teksten van één of meer
-collega's onder elkaar (of kies tekstbestanden) en kies **Samenvoegen**. Je
-ziet het aantal metingen, ONS zelf, de hulp erbij met het percentage extra,
-per meting de periode en de cijfers, en per soort adres de aantallen (de
-drukste 40). **Overzicht kopiëren** geeft alles als tekst, bijvoorbeeld voor
-Nedap. Dit gebeurt alleen in het beheerscherm; er wordt niets opgeslagen of
-verstuurd. Zet de meetteller na de meting weer uit.
+**Formulier** toont de laatste 30 keer dat de hulp iets via het
+ONS-formulier (Vue) deed: labels, uursoort, een veld (met de naam, zoals
+`end_time`), herhaling op Niet, het formulier of de medewerker lezen. Per keer
+de tijd, *gelukt* of *niet gelukt*, hoe het lukte (bij de herhaling) of de
+reden. Lukte de herhaling niet via Vue, dan staat er ook hoe het herhalingveld
+is opgebouwd (elementen, de props van de Vue-onderdelen erin, uit het
+afspraakmodel alleen de velden over herhaling, en de namen van de methoden
+van het formulier); die komt mee met **Kopiëren**. Wat het formulier bevat
+(namen, nummers) komt er nooit in. Alleen in het geheugen van het tabblad.
 
 ### Wekelijkse herinnering
 
@@ -352,11 +323,23 @@ uursoort maken de velden leeg via dezelfde koppeling, zonder chips aan te
 klikken of de dropdown te openen.
 
 Zet je 'Afspraak doorplannen?' uit, dan zet de hulp de herhaling terug op
-'Niet' via dezelfde koppeling van het herhalingveld (`data-qa=recurrence-type`),
-zonder de keuzelijst te openen. De waarde van 'Niet' komt uit de keuzes van
-dat veld zelf; daarna kijkt hij of het veld hem heeft. Lukt dat niet, dan
-opent hij de keuzelijst en klikt hij 'Niet' zoals vroeger. Daarna klapt hij de
-sectie Herhaling weer in.
+'Niet' zonder de keuzelijst te openen. Hij probeert, op volgorde:
+1. de keuze 'Niet' uit het herhalingveld zelf (`data-qa=recurrence-type`):
+   uit de keuzes in de props van het veld of van een onderdeel erin (een
+   lijst, ook als JSON, als paren of als object), of uit de optie-onderdelen,
+   via de koppeling van het veld (`onUpdate:modelValue`);
+2. vindt hij geen keuzelijst en staat er een bekende herhaling (zoals
+   `weekly`): `single`, zoals ONS een afspraak zonder herhaling teruggeeft;
+3. via het afspraakmodel: `EventDetails.onChange` met `recurrence`
+   (`recurrence_type`).
+
+Na elke poging kijkt hij wat het veld toont. Staat er geen 'Niet', dan zet hij
+terug wat er stond en probeert hij de volgende. Een gok (2 en 3) telt alleen
+als het veld daarna 'Niet' toont. Daarna kijkt het content-script nog een keer
+of de herhaling echt op 'Niet' staat. Lukt het allemaal niet, dan opent hij
+de keuzelijst en klikt hij 'Niet' zoals vroeger, en staat in Debug bij
+Formulier waarom, met de opbouw van het veld. Daarna klapt hij de sectie
+Herhaling weer in.
 
 In het beheerscherm blijft alles op naam staan (afspraaktypes, labels,
 uursoorten): de hulp zoekt de id's zelf op in wat ONS het formulier geeft.

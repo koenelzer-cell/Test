@@ -169,12 +169,15 @@ content ──ag-state/ag-gone──▶ (uitgezonden) ──▶ zijpaneel
 zijpaneel ──ag-*/sidepanel-state──▶ content (gevolgd tabblad)
 zijpaneel ──poort 'agendahulp-sidepanel'──▶ service worker (zolang het zijpaneel open is)
 content ──open-tab {url}──▶ service worker (AFAS in een nieuw tabblad na verlof; alleen https)
-main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated, verzoekGezien, netwerkVerzoek, mainWorldKlaar)──▶ content
-content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, zetHerhalingNiet, leesFormulier, leesGebruiker, meettellerZetten, netwerklogZetten)──▶ main-world ──antwoord met hetzelfde id──▶ content
+main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated, netwerkVerzoek, mainWorldKlaar)──▶ content
+content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, zetHerhalingNiet, leesFormulier, leesGebruiker, netwerklogZetten)──▶ main-world ──antwoord met hetzelfde id──▶ content
    (window.postMessage met {__onsah, dir}, alleen eigen venster en origin; content: core/page-bridge.js)
 zijpaneel ──ag-netwerklog {sinds} (elke seconde, alleen Info met Debug open)──▶ content ──{sessie, items}──▶ zijpaneel
    (Debug, Netwerk: services/ons-api/netwerklog.js; elke vraag houdt het log 15 s aan,
     zet de main-world aan met netwerklogZetten en logt de hulp in http.js; alleen geheugen)
+zijpaneel ──ag-formulierlog (elke seconde, alleen Info met Debug open)──▶ content ──{items}──▶ zijpaneel
+   (Debug, Formulier: ons/form-model.js formulierLog, de laatste 30 uitkomsten van vraagFormulier;
+    bij zetHerhalingNiet die niet lukte ook de opbouw van het veld; alleen geheugen)
 ```
 
 ## Opslag
@@ -184,7 +187,7 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 | Waar | Wat |
 |---|---|
 | `chrome.storage.sync` | gekozen bedrijfsonderdeel en team, eigen werktijden (`shared/work-hours.js`; reist mee naar andere apparaten) |
-| `chrome.storage.local` | lokale testconfig, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen, meetteller (alleen aantallen per soort adres, `services/ons-api/meetteller.js`, `shared/meetteller.js`) |
+| `chrome.storage.local` | lokale testconfig, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen. De oude meetteller (`onsHelper.meetteller`, tot 1.6.305) ruimt de service worker bij installeren of bijwerken op |
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
 | localStorage van de ONS-pagina | aan/uit-schakelaars, geleerde vorm van ONS-verzoeken |
 | sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, het lipje (weg bij sluiten tabblad) |

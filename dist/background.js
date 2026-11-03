@@ -67,6 +67,8 @@
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_FORMLOG: "ag-formulierlog",
+    // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
     AGENDA_NETLOG: "ag-netwerklog",
     // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
@@ -84,6 +86,22 @@
     // { kind: 'open'|'productie', done, total } voortgang
   };
   var SIDEPANEL_PORT = "agendahulp-sidepanel";
+
+  // src/shared/storage-keys.js
+  var LOCAL = {
+    TEST_CONFIG: "onsHelperConfig",
+    // lokale testconfiguratie (beheer); wint van config.json
+    SNAPSHOT: "onsHelper.snapshot",
+    // laatste weekstand (service worker; alleen getallen)
+    REMINDER_SETTINGS: "onsHelper.reminders",
+    // instellingen wekelijkse herinnering
+    REMINDER_HANDLED: "onsHelper.reminderHandled",
+    // tijdstip (ms) van de laatst afgehandelde herinnering
+    FORMS: "onsHelper.forms",
+    // registratievormen voor het rechtermuismenu
+    METER: "onsHelper.meetteller"
+    // oud (meetteller, weg sinds 1.6.306): alleen nog om op te ruimen (background, bij installeren of bijwerken)
+  };
 
   // src/shared/ons-hosts.js
   var ONS_URL_PATTERNS = (function() {
@@ -115,22 +133,6 @@
     } catch (e) {
     }
   }
-
-  // src/shared/storage-keys.js
-  var LOCAL = {
-    TEST_CONFIG: "onsHelperConfig",
-    // lokale testconfiguratie (beheer); wint van config.json
-    SNAPSHOT: "onsHelper.snapshot",
-    // laatste weekstand (service worker; alleen getallen)
-    REMINDER_SETTINGS: "onsHelper.reminders",
-    // instellingen wekelijkse herinnering
-    REMINDER_HANDLED: "onsHelper.reminderHandled",
-    // tijdstip (ms) van de laatst afgehandelde herinnering
-    FORMS: "onsHelper.forms",
-    // registratievormen voor het rechtermuismenu
-    METER: "onsHelper.meetteller"
-    // meetteller: { start, bijgewerkt, patronen: { soort adres: { ons, hulp } } }; alleen aantallen
-  };
 
   // src/shared/chrome-storage.js
   function readStorage(area, keys) {
@@ -638,6 +640,12 @@
   chrome.runtime.onInstalled.addListener(function() {
     rebuildMenuFromStorage();
     catchUpReminder();
+    try {
+      chrome.storage.local.remove(LOCAL.METER, function() {
+        void chrome.runtime.lastError;
+      });
+    } catch (e) {
+    }
   });
   chrome.runtime.onStartup.addListener(function() {
     rebuildMenuFromStorage();

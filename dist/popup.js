@@ -20,7 +20,7 @@
     FORMS: "onsHelper.forms",
     // registratievormen voor het rechtermuismenu
     METER: "onsHelper.meetteller"
-    // meetteller: { start, bijgewerkt, patronen: { soort adres: { ons, hulp } } }; alleen aantallen
+    // oud (meetteller, weg sinds 1.6.306): alleen nog om op te ruimen (background, bij installeren of bijwerken)
   };
 
   // src/shared/chrome-storage.js
@@ -162,6 +162,8 @@
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_FORMLOG: "ag-formulierlog",
+    // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
     AGENDA_NETLOG: "ag-netwerklog",
     // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",

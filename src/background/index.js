@@ -14,6 +14,7 @@
 // worden; dat gebeurt hieronder.
 
 import { MSG } from '../shared/messages.js';
+import { LOCAL } from '../shared/storage-keys.js';
 import { isOnsUrl } from '../shared/ons-hosts.js';
 import { setBadge } from './badge.js';
 import { saveSnapshot, loadSnapshot } from './snapshot.js';
@@ -117,7 +118,12 @@ try {
 } catch (e) {}
 
 // Na installatie én na elke browserstart: menu en wekker terugzetten.
-chrome.runtime.onInstalled.addListener(function () { rebuildMenuFromStorage(); catchUpReminder(); });
+// Bij installeren of bijwerken ook opruimen wat een oudere versie bewaarde
+// (de telling van de meetteller, weg sinds 1.6.306).
+chrome.runtime.onInstalled.addListener(function () {
+  rebuildMenuFromStorage(); catchUpReminder();
+  try { chrome.storage.local.remove(LOCAL.METER, function () { void chrome.runtime.lastError; }); } catch (e) {}
+});
 chrome.runtime.onStartup.addListener(function () { rebuildMenuFromStorage(); catchUpReminder(); });
 // Venster-breed zijpaneel aan (zie side-panel.js).
 resetPanelOptions();

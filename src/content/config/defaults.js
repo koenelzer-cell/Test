@@ -89,7 +89,7 @@ export const DEFAULT_APP_CONFIG = {
     doorplannen_waarschuwing:     { text: "Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color: '#b3261e', bold: true, italic: false, sizePx: 13 },
   },
   compatibility: { schemaVersion: 7, minimumExtensionVersion: '1.6.114' },
-  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true, meetteller: false },
+  features: { appointmentAssistant: true, registrationAssistant: true, dayColoring: true, managedTexts: true, reportGuidelineLink: true, doorplannenToggle: true, leaveRequest: true, routeLink: true, weekRatio: true, production: true, openRegistrations: true, quickRegister: true, planner: true, plannerCopies: true, plannerDistance: true, plannerDirect: true, preload: true, formViaModel: true },
   nonClientCategories: [],
   // Eigen server voor rijtijden over de weg (Google Routes API; zie
   // server/routes-proxy). Leeg = geen rijtijden (geen efficiënter indelen).
@@ -149,7 +149,7 @@ export const DEFAULT_APP_CONFIG = {
   // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
   support: { topdeskUrl: 'https://impegno.topdesk.net/' },
   // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen de SHA-256
-  // van 'onsah-debug:' + wachtwoord (beheer, pagina Meetteller). Leeg = geen knop.
+  // van 'onsah-debug:' + wachtwoord (beheer, pagina Debug). Leeg = geen knop.
   debug: { wachtwoord: '' },
   // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
   // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar

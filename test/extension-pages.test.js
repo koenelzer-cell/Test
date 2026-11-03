@@ -92,6 +92,16 @@ test('service worker: badge-bericht zet het getal op het icoon van dat tabblad',
   assert.equal(calls.badge.at(-1).text, '');
 });
 
+test('service worker: ruimt bij installeren of bijwerken de telling van de oude meetteller op', async () => {
+  const { listeners, store } = loadWorker();
+  store.local['onsHelper.meetteller'] = { start: 1, bijgewerkt: 2, patronen: { 'GET /a': { ons: 1, hulp: 0 } } };
+  store.local['onsHelper.forms'] = [];
+  listeners['runtime.onInstalled'].forEach((fn) => fn({ reason: 'update' }));
+  await tick();
+  assert.equal('onsHelper.meetteller' in store.local, false);
+  assert.ok('onsHelper.forms' in store.local, 'de rest blijft');
+});
+
 test('service worker: momentopname bewaart alleen getallen en datums', async () => {
   const { listeners, store } = loadWorker();
   await send(listeners, { type: 'summary', openDays: 2, openMinutes: 95.4, naam: 'Jan Jansen', days: [{ date: '2026-09-01', client: 30, titel: 'x' }, { date: 'geen datum' }] });
@@ -2286,72 +2296,83 @@ test('zijpaneel: meldingen compact - pil bij meerdere agenda\'s, foutstrook met 
   assert.equal(balk.style.background, 'rgb(32, 29, 31)', 'donkere balk');
 });
 
-test('zijpaneel: meetteller onder Info achter de knop Debug met wachtwoord; totalen, per adres, opnieuw beginnen', async () => {
+test('zijpaneel: knop Debug onder Info alleen met een wachtwoord in de configuratie; fout wachtwoord, Enter, Debug sluiten', async () => {
   const { createHash } = await import('node:crypto');
   const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
-  // Zonder wachtwoord in de configuratie: geen knop Debug en geen meetteller, ook als hij telt.
-  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true }, debugWachtwoord: '' });
+  // Zonder wachtwoord in de configuratie: geen knop Debug.
+  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, debugWachtwoord: '' });
   await tick();
   uit.document.querySelector('[aria-label="Legenda en versie"]').click();
   await tick();
   assert.equal(uit.document.querySelector('[data-info-debug]'), null);
-  assert.equal(uit.document.querySelector('[data-meetteller]'), null);
-  // Aan: de telling uit chrome.storage.local.
-  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, version: '1.6.303', features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true }, debugWachtwoord: HASH });
-  const env = _laatsteEnv;
-  const start = new Date(2026, 10, 2, 9, 0).getTime();
-  env.store.local['onsHelper.meetteller'] = { start, bijgewerkt: start + 3600000, patronen: {
-    'GET /calendar/invitee/{n}/entries/week?date=…&layer=events': { ons: 40, hulp: 12 },
-    'GET /calendar/holidays': { ons: 0, hulp: 1 },
-    'POST /calendar/events': { ons: 2, hulp: 0 },
-  } };
+  // Een kapotte waarde telt ook als geen wachtwoord.
+  const kapot = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, debugWachtwoord: 'geheim123' });
+  await tick();
+  kapot.document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.equal(kapot.document.querySelector('[data-info-debug]'), null);
+  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, debugWachtwoord: HASH });
   await tick();
   document.querySelector('[aria-label="Legenda en versie"]').click();
   await tick();
-  assert.equal(document.querySelector('[data-meetteller]'), null, 'eerst dicht');
   assert.equal(document.querySelector('[data-info-debug]').textContent, 'Debug', 'alleen een kleine knop');
+  assert.equal(document.querySelector('[data-info-debug-open-deel]'), null, 'eerst dicht');
   document.querySelector('[data-info-debug]').click();
   const veld = () => document.querySelector('[data-info-debug-wachtwoord]');
   assert.equal(veld().getAttribute('type'), 'password');
   typ(veld(), 'fout');
   document.querySelector('[data-info-debug-open]').click();
   assert.equal(document.querySelector('[data-info-debug-fout]').textContent, 'Onjuist wachtwoord');
-  assert.equal(document.querySelector('[data-meetteller]'), null);
+  assert.equal(document.querySelector('[data-info-debug-open-deel]'), null);
   typ(veld(), 'geheim123');
   veld().dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   await tick();
-  assert.ok(document.querySelector('[data-meetteller]'), 'kaart Meetteller na het juiste wachtwoord');
-  assert.equal(document.querySelector('[data-meetteller-ons]').textContent, 'ONS zelf42');
-  assert.equal(document.querySelector('[data-meetteller-hulp]').textContent, 'De hulp erbij13 (31% extra)');
-  assert.deepEqual([...document.querySelectorAll('[data-meetteller-rij]')].map((r) => r.textContent), [
-    'GET /calendar/invitee/{n}/entries/week?date=…&layer=eventsONS 40hulp 12', 'POST /calendar/eventsONS 2hulp 0', 'GET /calendar/holidaysONS 0hulp 1']);
-  assert.match(document.body.textContent, /Meetteller.*sinds ma 2 nov 09:00/);
-  // Werkt de telling zich bij, dan het paneel ook.
-  const nieuw = { ...env.store.local['onsHelper.meetteller'], patronen: { 'GET /calendar/holidays': { ons: 5, hulp: 5 } } };
-  env.listeners['storage.onChanged'].forEach((fn) => fn({ 'onsHelper.meetteller': { newValue: nieuw } }, 'local'));
-  assert.equal(document.querySelector('[data-meetteller-ons]').textContent, 'ONS zelf5');
-  // Kopiëren: de telling als tekst.
-  let gekopieerd = '';
-  Object.defineProperty(dom.window.navigator, 'clipboard', { value: { writeText: (t) => { gekopieerd = t; return Promise.resolve(); } }, configurable: true });
-  document.querySelector('[data-meetteller-kopieer]').click();
-  await tick();
-  assert.match(gekopieerd, /^Meetteller ONS Agendahulp 1\.6\.303\nVan ma 2 nov 09:00 tot ma 2 nov 10:00\nONS zelf: 5 verzoeken\nDe hulp erbij: 5 verzoeken \(100% extra\)/);
-  assert.match(gekopieerd, /5\t5\tGET \/calendar\/holidays/);
-  assert.equal(document.querySelector('[data-meetteller-kopieer]').textContent, 'Gekopieerd');
-  // Opnieuw beginnen: eerst bevestigen.
-  const gevraagd = [];
-  dom.window.confirm = (t) => { gevraagd.push(t); return false; };
-  document.querySelector('[data-meetteller-opnieuw]').click();
-  assert.ok(env.store.local['onsHelper.meetteller'], 'nee: blijft staan');
-  dom.window.confirm = (t) => { gevraagd.push(t); return true; };
-  document.querySelector('[data-meetteller-opnieuw]').click();
-  assert.deepEqual(gevraagd, ['Weet je het zeker?', 'Weet je het zeker?']);
-  assert.equal(env.store.local['onsHelper.meetteller'], undefined);
-  assert.ok(document.querySelector('[data-meetteller-leeg]'), 'weer leeg');
+  assert.ok(document.querySelector('[data-info-debug-open-deel]'), 'open na het juiste wachtwoord');
+  assert.equal(document.querySelector('[data-meetteller]'), null, 'geen meetteller meer');
   // Debug sluiten: weer alleen de knop.
   document.querySelector('[data-info-debug-dicht]').click();
-  assert.equal(document.querySelector('[data-meetteller]'), null);
+  assert.equal(document.querySelector('[data-info-debug-open-deel]'), null);
   assert.ok(document.querySelector('[data-info-debug]'));
+});
+
+test('zijpaneel: Formulier onder Debug toont wat de hulp via Vue deed, met reden en de opbouw in Kopiëren', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  const t = new Date(2026, 10, 3, 10, 4, 5).getTime();
+  let items = [];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-formulierlog': (msg, cb) => cb({ ok: true, items }),
+    'ag-netwerklog': (msg, cb) => cb({ ok: true, sessie: 'a', items: [] }),
+  }, { ...AGENDA_STATE_TOOLS, version: '1.6.306', debugWachtwoord: HASH });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  await tick();
+  assert.ok(document.querySelector('[data-formulier-leeg]'), 'eerst leeg');
+  assert.equal(document.querySelector('[data-formulier-kopieer]').disabled, true);
+  items = [
+    { tijd: t, actie: 'zetLabels', ok: true },
+    { tijd: t + 1000, actie: 'zetVeld', veld: 'end_time', ok: true },
+    { tijd: t + 2000, actie: 'zetHerhalingNiet', ok: false, reden: 'keuze Niet niet gevonden', opbouw: JSON.stringify({ geprobeerd: [], elementen: ['uc-form-field recurrence-type'] }) },
+  ];
+  await new Promise((r) => setTimeout(r, 1100));
+  const rijen = [...document.querySelectorAll('[data-formulier-rij]')];
+  assert.deepEqual(rijen.map((r) => [r.getAttribute('data-formulier-rij'), r.getAttribute('data-formulier-ok')]), [['zetHerhalingNiet', 'nee'], ['zetVeld', 'ja'], ['zetLabels', 'ja']], 'nieuwste boven');
+  assert.equal(rijen[0].textContent, '10:04:07Herhaling op Nietniet gelukt' + 'keuze Niet niet gevonden' + 'Met de opbouw van het veld (in Kopiëren)');
+  assert.equal(rijen[1].textContent, '10:04:06Veld end_timegelukt');
+  let gekopieerd = '';
+  Object.defineProperty(dom.window.navigator, 'clipboard', { value: { writeText: (x) => { gekopieerd = x; return Promise.resolve(); } }, configurable: true });
+  document.querySelector('[data-formulier-kopieer]').click();
+  await tick();
+  const regels = gekopieerd.split('\n');
+  assert.equal(regels[0], 'Formulier (Vue) ONS Agendahulp 1.6.306');
+  assert.equal(regels[1], '10:04:05\tLabels\tgelukt');
+  assert.equal(regels[3], '10:04:07\tHerhaling op Niet\tniet gelukt\tkeuze Niet niet gevonden');
+  assert.deepEqual(JSON.parse(regels.slice(4).join('\n')).elementen, ['uc-form-field recurrence-type'], 'de opbouw netjes erbij');
+  assert.equal(document.querySelector('[data-formulier-kopieer]').textContent, 'Gekopieerd');
 });
 
 test('zijpaneel: Netwerk onder Debug toont live de verzoeken van ONS, de hulp en het zijpaneel, met filter, pauze, kopiëren en wissen', async () => {

@@ -81,7 +81,7 @@ export function zetVeldViaFormulier(veld, waarde, wachtMs) {
 // De herhaling van het open afspraakformulier op 'Niet' (Afspraak doorplannen
 // uit), met de keuze uit het eigen keuzeveld van ONS. -> Promise<boolean>
 export function zetHerhalingNietViaFormulier(wachtMs) {
-  return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs);
+  return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs || 3000);
 }
 
 // Wat het open formulier bevat (main-world, uit het Vue-model):
@@ -91,11 +91,33 @@ export function leesFormulier(wachtMs) {
   return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
 }
 
+// Debug, Formulier: de laatste uitkomsten van de route via het formulier,
+// alleen in het geheugen. Alleen de soort opdracht, het veld, ok, via en de
+// reden; bij de herhaling ook de opbouw van het veld (geen cliëntgegevens,
+// zie de main-world). Nooit wat het formulier bevat (namen bij leesFormulier).
+const LOG_MAX = 30;
+let formulierUitkomsten = [];
+function onthoudUitkomst(type, velden, d) {
+  const tekst = (x, n) => (typeof x === 'string' ? x.slice(0, n) : undefined);
+  const item = { tijd: Date.now(), actie: type, ok: !!d && d.ok === true };
+  if (type === PAGE_COMMAND.SET_FIELD) item.veld = tekst(velden.veld, 40);
+  if (d && tekst(d.via, 60)) item.via = tekst(d.via, 60);
+  if (!d) item.reden = formulierViaModelAan() ? 'geen antwoord van de pagina' : 'uitgezet (formViaModel)';
+  else if (tekst(d.reden, 200)) item.reden = tekst(d.reden, 200);
+  if (d && type === PAGE_COMMAND.SET_RECURRENCE_NONE && d.opbouw && typeof d.opbouw === 'object') {
+    try { item.opbouw = JSON.stringify(d.opbouw).slice(0, 20000); } catch (e) {}
+  }
+  formulierUitkomsten.push(item);
+  if (formulierUitkomsten.length > LOG_MAX) formulierUitkomsten = formulierUitkomsten.slice(-LOG_MAX);
+}
+export function formulierLog() { return formulierUitkomsten.slice(); }
+
 // volledig: het hele antwoord teruggeven (of null) in plaats van true/false.
 function vraagFormulier(type, antwoordType, velden, wachtMs, volledig) {
-  if (!formulierViaModelAan()) return Promise.resolve(volledig ? null : false);
+  if (!formulierViaModelAan()) { onthoudUitkomst(type, velden, null); return Promise.resolve(volledig ? null : false); }
   return vraagMainWorld(type, antwoordType, velden, wachtMs || 1500).then((d) => {
     const ok = !!d && d.ok === true;
+    onthoudUitkomst(type, velden, d);
     return volledig ? (ok ? d : null) : ok;
   });
 }

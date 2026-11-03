@@ -2,6 +2,18 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.306
+
+- 'Afspraak doorplannen?' uitzetten: de hulp zet de herhaling op een paar
+  nieuwe manieren via het ONS-formulier op 'Niet', zonder de keuzelijst te
+  openen, en kijkt daarna of er echt 'Niet' staat. Lukt het toch niet, dan
+  klikt hij zoals vroeger.
+- De meetteller is weg, ook bij Functies en in het beheerscherm. Een oude
+  telling wordt bij het bijwerken opgeruimd.
+- Voor de ontwikkelaar: onder Debug staat nu ook **Formulier**: wat de hulp
+  via het ONS-formulier deed, en waarom iets niet lukte. Het wachtwoord voor
+  Debug stel je in op de pagina **Debug** in het beheerscherm.
+
 ## 1.6.305
 
 - Voor de ontwikkelaar: achter de knop **Debug** (Info) staat nu **Netwerk**,

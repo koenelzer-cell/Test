@@ -49,6 +49,7 @@ export const MSG = {
   AGENDA_CREATE_EVENTS: 'ag-create-events', // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
   AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+  AGENDA_FORMLOG: 'ag-formulierlog', // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
   AGENDA_NETLOG: 'ag-netwerklog',   // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
   AGENDA_EMPLOYEE_SEARCH: 'ag-employee-search', // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
   AGENDA_COLLEAGUE_CHECK: 'ag-colleague-check', // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
@@ -78,7 +79,6 @@ export const PAGE_EVENT = {
   OVERLAP: 'eventOverlap',      // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
   META: 'eventMeta',            // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
   CREATED: 'eventCreated',      // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
-  REQUEST_SEEN: 'verzoekGezien', // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
   MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
   NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
 };
@@ -89,14 +89,13 @@ export const PAGE_COMMAND = {
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
   SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
-  SET_METER: 'meettellerZetten', // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
   SET_NETLOG: 'netwerklogZetten', // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
   SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina
   USER_READ: 'gebruikerGelezen', // { id, ok, userId }
-  SET_RECURRENCE_NONE: 'zetHerhalingNiet', // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
-  RECURRENCE_SET: 'herhalingGezet', // { id, ok, reden? }
+  SET_RECURRENCE_NONE: 'zetHerhalingNiet', // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
+  RECURRENCE_SET: 'herhalingGezet', // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
 };

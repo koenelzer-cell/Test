@@ -381,7 +381,7 @@
     <button class="menu-item" type="button" data-menu-target="controle" onclick="showSettingsPage('controle')">Controle <span id="menuControle" class="menu-extra"></span></button>
     <button class="menu-item" type="button" data-menu-target="simulator" onclick="showSettingsPage('simulator')">Uitproberen</button>
     <button class="menu-item" type="button" data-menu-target="storingen" onclick="showSettingsPage('storingen')">Storingen</button>
-    <button class="menu-item" type="button" data-menu-target="meetteller" onclick="showSettingsPage('meetteller')">Meetteller</button>
+    <button class="menu-item" type="button" data-menu-target="debug" onclick="showSettingsPage('debug')">Debug</button>
   </div>
   <div class="menu-groep"><span class="menu-groep-kop">Uitrollen</span>
     <button class="menu-item" type="button" data-menu-target="publiceren" onclick="showSettingsPage('publiceren')">Publiceren <span id="menuPubliceren" class="menu-teller" hidden></span></button>
@@ -816,26 +816,15 @@
     </div>
   </section>
 
-  <!-- ===== Meetteller ===== -->
-  <section id="meetteller" data-settings-page hidden>
-    <div class="pagina-kop"><div><h1>Meetteller</h1><p>Hoeveel verzoeken ONS zelf doet en hoeveel de hulp erbij doet, per soort adres. Zet de meetteller aan bij Functies. Collega's openen hun telling in het zijpaneel onder Info met de knop Debug en het wachtwoord hieronder, en sturen je de tekst van Kopiëren.</p></div></div>
+  <!-- ===== Debug ===== -->
+  <section id="debug" data-settings-page hidden>
+    <div class="pagina-kop"><div><h1>Debug</h1><p>Onder Info in het zijpaneel staat een kleine knop Debug. Met het wachtwoord hieronder opent Netwerk: elk verzoek van ONS zelf, de hulp en het zijpaneel, live, voor ontwikkeling en storingen.</p></div></div>
     <div class="kaart">
       <h2>Wachtwoord voor de knop Debug</h2>
       <label class="beheer-veld" style="margin-top:10px;max-width:360px"><span>Nieuw wachtwoord</span><input id="debugWachtwoord" type="password" autocomplete="new-password" spellcheck="false" oninput="zetDebugWachtwoord(event)"></label>
       <p class="veld-uitleg" id="debugWachtwoordStand"></p>
       <div class="acties-rij"><button class="knop klein rood" type="button" id="debugWachtwoordWeg" onclick="wisDebugWachtwoord()">Wachtwoord weghalen</button></div>
       <p class="veld-uitleg">Alleen een versleutelde vorm (hash) gaat mee naar de extensie, niet het wachtwoord zelf. Het houdt nieuwsgierigen buiten; echte beveiliging is het niet. Zonder wachtwoord staat er geen knop Debug.</p>
-    </div>
-    <div class="kaart">
-      <h2>Tellingen samenvoegen</h2>
-      <p class="uitleg">Plak hier de tekst van één of meer collega's (uit Kopiëren), onder elkaar, of kies tekstbestanden. Alles blijft in dit scherm: er wordt niets opgeslagen of verstuurd.</p>
-      <textarea id="meettellerInvoer" spellcheck="false" placeholder="Meetteller ONS Agendahulp …"></textarea>
-      <div class="acties-rij" style="margin-top:8px">
-        <button class="knop primair" type="button" onclick="meettellerSamenvoegen()">Samenvoegen</button>
-        <label class="knop"><input type="file" accept=".txt,text/plain" multiple hidden onchange="meettellerBestanden(event)">Bestanden kiezen</label>
-        <button class="knop" type="button" id="meettellerKopieerKnop" onclick="meettellerKopieer()" disabled>Overzicht kopiëren</button>
-      </div>
-      <div id="meettellerUitslag" style="margin-top:12px"></div>
     </div>
   </section>
 
@@ -1173,7 +1162,7 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true, meetteller:false },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
   routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
@@ -1256,7 +1245,7 @@ const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 // De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
-const MANAGER_VERSION = '1.6.305';
+const MANAGER_VERSION = '1.6.306';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -1290,7 +1279,7 @@ const PAGINA_TITEL = {
   overzicht:'Overzicht', afspraaktypes:'Inrichting, Afspraaktypes', registratievormen:'Inrichting, Registratievormen', duurtijden:'Inrichting, Duur en tijden',
   tellen:'Inrichting, Tellen en declarabiliteit', tekstbeheer:'Inrichting, Teksten', teams:'Organisatie, Teams en dagindeling', palet:'Organisatie, Kleuren',
   kantoren:'Organisatie, Kantoren', functies:'Functies en koppelingen, Functies', googlemaps:'Functies en koppelingen, Google Maps',
-  onskoppeling:'Functies en koppelingen, ONS-koppeling', controle:'Controleren, Controle', simulator:'Controleren, Uitproberen', storingen:'Controleren, Storingen', meetteller:'Controleren, Meetteller',
+  onskoppeling:'Functies en koppelingen, ONS-koppeling', controle:'Controleren, Controle', simulator:'Controleren, Uitproberen', storingen:'Controleren, Storingen', debug:'Controleren, Debug',
   publiceren:'Uitrollen, Publiceren', historie:'Uitrollen, Historie', geavanceerd:'Uitrollen, Geavanceerd',
 };
 function huidigePagina() { const p = document.querySelector('[data-settings-page]:not([hidden])'); return p ? p.id : ''; }
@@ -2821,9 +2810,6 @@ const FEATURE_GROEPEN = [
     ['routeLink', 'Route van de dag', 'De route langs de afspraken van vandaag, via Google Maps'],
     ['preload', 'Gegevens vooraf laden', 'Haalt gegevens alvast op, zodat het zijpaneel sneller is'],
   ] },
-  { titel:'Meten (pilot)', items:[
-    ['meetteller', 'Meetteller', 'Telt hoeveel verzoeken ONS zelf doet en hoeveel de hulp erbij doet, per soort adres. Te zien in het zijpaneel onder Info. Standaard uit.'],
-  ] },
 ];
 const FEATURE_NOOD = 'formViaModel';
 function renderFeatures(value) {
@@ -2897,7 +2883,7 @@ function zonderGeheimen(cfg) {
   if (kopie.debug && kopie.debug.wachtwoord) kopie.debug.wachtwoord = '[verborgen, ingevuld]';
   return kopie;
 }
-// ===== Meetteller =====
+// ===== Debug =====
 // Wachtwoord voor de knop Debug in het zijpaneel: alleen de SHA-256-hash van
 // 'onsah-debug:' + wachtwoord gaat mee (debug.wachtwoord); het zijpaneel rekent
 // hetzelfde uit (src/shared/sha256.js).
@@ -2926,66 +2912,6 @@ async function zetDebugWachtwoord(ev) {
 function wisDebugWachtwoord() {
   debugHash = ''; const el = $('#debugWachtwoord'); if (el) el.value = '';
   toonDebugStand(); markDirty();
-}
-
-// Tellingen samenvoegen: de tekst die collega's met Kopiëren sturen
-// (zijpaneel, Info, Debug). Alleen in dit scherm; niets opgeslagen.
-const MEET_PATROON = /^[A-Z]{3,7} [\w.\-/{}…?&=[\]:]*$/;
-function leesMeetingen(tekst) {
-  return String(tekst || '').split(/(?=^Meetteller ONS Agendahulp)/m).filter((b) => /^Meetteller ONS Agendahulp/.test(b)).map((b) => {
-    const regels = b.split(/\r?\n/), rijen = {};
-    regels.forEach((r) => {
-      const m = r.trim().match(/^(\d+)\s+(\d+)\s+([A-Z]{3,7} \S+)$/);
-      if (m && MEET_PATROON.test(m[3]) && m[3].length <= 300) rijen[m[3]] = { ons: +m[1], hulp: +m[2] };
-    });
-    const periode = (regels.find((r) => /^Van /.test(r)) || '').replace(/^Van /, '').trim().slice(0, 80);
-    const versie = ((regels[0] || '').match(/Agendahulp\s+([\w.]+)/) || [])[1] || '';
-    return { versie, periode, rijen };
-  }).filter((m) => Object.keys(m.rijen).length);
-}
-function telOp(rijen) { return Object.values(rijen).reduce((t, r) => ({ ons: t.ons + r.ons, hulp: t.hulp + r.hulp }), { ons: 0, hulp: 0 }); }
-const procentExtra = (t) => t.ons ? Math.round(t.hulp / t.ons * 100) + '%' : 'onbekend';
-const getalNl = (n) => Number(n || 0).toLocaleString('nl-NL');
-let meetOverzicht = null;
-function meettellerSamenvoegen() {
-  const metingen = leesMeetingen($('#meettellerInvoer').value);
-  const uit = $('#meettellerUitslag'); uit.innerHTML = '';
-  if (!metingen.length) { meetOverzicht = null; $('#meettellerKopieerKnop').disabled = true; uit.append(maak('div', { class: 'regel let', html: ICOON_LET }, [maak('span', { text: 'Geen telling gevonden. Plak de tekst zoals Kopiëren hem geeft, te beginnen met "Meetteller ONS Agendahulp".' })])); return; }
-  const samen = {};
-  metingen.forEach((m) => Object.entries(m.rijen).forEach(([p, r]) => { const s = samen[p] || (samen[p] = { ons: 0, hulp: 0 }); s.ons += r.ons; s.hulp += r.hulp; }));
-  const totaal = telOp(samen);
-  const tegel = (titel, waarde, extra) => maak('div', { class: 'kaart status-kaart' }, [maak('span', { class: 'klein-grijs', text: titel }), maak('span', { class: 'status-waarde', text: waarde }), extra ? maak('span', { class: 'klein-grijs', text: extra }) : null].filter(Boolean));
-  uit.append(maak('div', { class: 'status-raster', 'data-meet-totaal': '1' }, [
-    tegel('Metingen', String(metingen.length)), tegel('ONS zelf', getalNl(totaal.ons), 'verzoeken'), tegel('De hulp erbij', getalNl(totaal.hulp), procentExtra(totaal) + ' extra'),
-  ]));
-  const tabel = (kop, rijen) => maak('div', { class: 'tabelbox', style: 'margin-top:12px' }, [maak('table', {}, [
-    maak('thead', {}, [maak('tr', {}, kop.map((k) => maak('th', { text: k })))]),
-    maak('tbody', {}, rijen.map((r) => maak('tr', {}, r.map((c) => maak('td', { text: String(c) }))))),
-  ])]);
-  uit.append(tabel(['Meting', 'Periode', 'ONS zelf', 'De hulp erbij', 'Extra'], metingen.map((m, i) => { const t = telOp(m.rijen); return ['Meting ' + (i + 1) + (m.versie ? ' (' + m.versie + ')' : ''), m.periode || 'onbekend', getalNl(t.ons), getalNl(t.hulp), procentExtra(t)]; })));
-  const perAdres = Object.entries(samen).sort((a, b) => (b[1].ons + b[1].hulp) - (a[1].ons + a[1].hulp));
-  uit.append(tabel(['Soort adres', 'ONS zelf', 'De hulp erbij'], perAdres.slice(0, 40).map(([p, r]) => [p, getalNl(r.ons), getalNl(r.hulp)])));
-  if (perAdres.length > 40) uit.append(maak('p', { class: 'veld-uitleg', text: 'En ' + (perAdres.length - 40) + ' andere adressen; Overzicht kopiëren neemt ze allemaal mee.' }));
-  meetOverzicht = { metingen, totaal, perAdres };
-  $('#meettellerKopieerKnop').disabled = false;
-}
-function meettellerBestanden(ev) {
-  const files = [...(ev.target.files || [])]; if (!files.length) return;
-  Promise.all(files.map((f) => f.text())).then((teksten) => {
-    const veld = $('#meettellerInvoer');
-    veld.value = (veld.value.trim() ? veld.value.trim() + '\n\n' : '') + teksten.join('\n\n');
-    ev.target.value = '';
-    meettellerSamenvoegen();
-  });
-}
-function meettellerKopieer() {
-  if (!meetOverzicht) return;
-  const o = meetOverzicht, regels = ['Meetteller ONS Agendahulp, samengevoegd uit ' + o.metingen.length + ' metingen',
-    'ONS zelf: ' + o.totaal.ons + ' verzoeken', 'De hulp erbij: ' + o.totaal.hulp + ' verzoeken (' + procentExtra(o.totaal) + ' extra)', '', 'Per meting (periode, ONS, hulp):'];
-  o.metingen.forEach((m, i) => { const t = telOp(m.rijen); regels.push('Meting ' + (i + 1) + '\t' + (m.periode || 'onbekend') + '\t' + t.ons + '\t' + t.hulp); });
-  regels.push('', 'Per soort adres (ONS, hulp):');
-  o.perAdres.forEach(([p, r]) => regels.push(r.ons + '\t' + r.hulp + '\t' + p));
-  navigator.clipboard.writeText(regels.join('\n')).then(() => melding('Overzicht gekopieerd.', true), () => melding('Kopiëren lukte niet.', false));
 }
 
 // ===== Kantoren (planhulp) =====
@@ -3173,7 +3099,6 @@ function configAudit(cfg) {
   if(rp.routesKey)add('waarschuwing','Google Maps','De Routes-sleutel staat in de extensie en is daar voor iedereen te zien. Beperk hem in Google Cloud tot alleen de Routes API met een dagmaximum, of gebruik de eigen server.',false);
   if(rp.embedKey)add('waarschuwing','Google Maps','De kaartsleutel staat in de extensie en in het adres van de kaart. Beperk hem in Google Cloud tot alleen de Maps Embed API.',false);
   if(rp.embedKey&&rp.routesKey&&rp.embedKey===rp.routesKey)add('fout','Google Maps','De kaartsleutel is dezelfde als de Routes-sleutel. Gebruik voor de kaart een aparte sleutel met alleen de Maps Embed API.',false);
-  if(cfg.features&&cfg.features.meetteller===true&&!(cfg.debug&&cfg.debug.wachtwoord))add('waarschuwing','Meetteller','De meetteller staat aan, maar er is geen wachtwoord voor de knop Debug. Zonder wachtwoord kunnen collega\'s hun telling niet openen en kopiëren (pagina Meetteller).',false);
   return issues;
 }
 let auditTimer=null;
@@ -3297,7 +3222,7 @@ const PAGE_CANCEL_KEYS = {
   afspraaktypes:['choices','nonClientCategories','extraKnownLabels'], registratievormen:['registrationForms'],
   duurtijden:GS_DUUR.map((k) => 'generalSettings.' + k), tellen:GS_TELLEN.map((k) => 'generalSettings.' + k).concat(['declarabiliteitRules']),
   tekstbeheer:['texts'], teams:['zoneProfiles','profileSectors'], palet:['palette'], kantoren:['offices'], functies:['features'], googlemaps:['routesProxy'],
-  onskoppeling:['apiEndpoints','activation','uursoortList','labelList'], storingen:['uiSelectors','support'], meetteller:['debug'], publiceren:['compatibility'],
+  onskoppeling:['apiEndpoints','activation','uursoortList','labelList'], storingen:['uiSelectors','support'], debug:['debug'], publiceren:['compatibility'],
 };
 function cancelPageChanges() {
   const id=huidigePagina();
@@ -3361,7 +3286,7 @@ const PLEK_VAN = {
   registrationForms:['registratievormen','Registratievormen'], declarabiliteitRules:['tellen','Tellen en declarabiliteit'], texts:['tekstbeheer','Teksten'],
   palette:['palet','Kleuren'], zoneProfiles:['teams','Teams en dagindeling'], profileSectors:['teams','Teams en dagindeling'], offices:['kantoren','Kantoren'],
   features:['functies','Functies'], routesProxy:['googlemaps','Google Maps'], apiEndpoints:['onskoppeling','ONS-koppeling'], activation:['onskoppeling','ONS-koppeling'],
-  uursoortList:['onskoppeling','ONS-koppeling'], labelList:['onskoppeling','ONS-koppeling'], uiSelectors:['storingen','Storingen'], support:['storingen','Storingen'], debug:['meetteller','Meetteller'],
+  uursoortList:['onskoppeling','ONS-koppeling'], labelList:['onskoppeling','ONS-koppeling'], uiSelectors:['storingen','Storingen'], support:['storingen','Storingen'], debug:['debug','Debug'],
   compatibility:['publiceren','Publiceren'],
 };
 const ALGEMEEN_NAAM = {

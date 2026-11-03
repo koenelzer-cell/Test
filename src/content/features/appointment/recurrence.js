@@ -6,6 +6,7 @@ import { clean, deepQueryAll, isOwnPopup, pollFor, visible } from '../../ons/dom
 import { clickElementCenter, clickOption, clickUiButton } from '../../ons/form-controls.js';
 import { findRecurrenceField, findRecurrenceHeader } from '../../ons/appointment-form.js';
 import { eerstViaFormulier, zetHerhalingNietViaFormulier } from '../../ons/form-model.js';
+import { wachtTot } from '../../core/wacht.js';
 import { appointmentFlow } from '../../state.js';
 import { highlightField } from '../../ui/highlight.js';
 
@@ -71,10 +72,14 @@ function herhalingNietViaScherm() {
   });
 }
 // Zet de herhaling terug op 'Niet': eerst via het formulier (Vue, zonder de
-// keuzelijst te openen), anders via het scherm.
+// keuzelijst te openen), en alleen als het veld daarna echt 'Niet' toont;
+// anders via het scherm.
+function herhalingNietViaFormulier() {
+  return zetHerhalingNietViaFormulier().then((ok) => (ok ? wachtTot(() => !recurrenceIsSet(), { max: 600 }).then(Boolean) : false));
+}
 export function setRecurrenceToNiet(done) {
   if (!recurrenceIsSet()) { if (done) done(true); return; }
-  eerstViaFormulier(() => zetHerhalingNietViaFormulier(), herhalingNietViaScherm)
+  eerstViaFormulier(herhalingNietViaFormulier, herhalingNietViaScherm)
     .then((ok) => { if (done) done(!!ok); }, () => { if (done) done(false); });
 }
 // Toggle 'uit': eerst de herhaling terug op 'Niet' zetten en dán de sectie

@@ -53,7 +53,9 @@ export const BEWAARD = {
   // in ONS. Netwerk: de verzoeken (alleen hier in het geheugen), het filter en
   // pauze; sinds en sessie: tot waar het content-script al gevraagd is.
   debug: { stand: 'dicht', invoer: '', fout: false },
-  netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0 }
+  netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0 },
+  // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier (Vue).
+  formulier: { items: [], gekopieerd: false }
 };
 export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };

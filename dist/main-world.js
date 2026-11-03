@@ -14,8 +14,6 @@
     // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
     CREATED: "eventCreated",
     // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
-    REQUEST_SEEN: "verzoekGezien",
-    // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
     MAIN_READY: "mainWorldKlaar",
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
     NET_REQUEST: "netwerkVerzoek"
@@ -30,8 +28,6 @@
     // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
     HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
-    SET_METER: "meettellerZetten",
-    // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
     SET_NETLOG: "netwerklogZetten",
     // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
     SET_FIELD: "zetVeld",
@@ -43,9 +39,9 @@
     USER_READ: "gebruikerGelezen",
     // { id, ok, userId }
     SET_RECURRENCE_NONE: "zetHerhalingNiet",
-    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld)
+    // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
     RECURRENCE_SET: "herhalingGezet",
-    // { id, ok, reden? }
+    // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -110,41 +106,6 @@
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };
-
-  // src/shared/meetteller.js
-  var OPEN_WAARDEN = ["layer", "sub_layers[]", "usage"];
-  function deel(d) {
-    if (!d) return d;
-    if (/^[\d,]+$/.test(d) || /^\d{4}-\d{2}-\d{2}$/.test(d) || /^[0-9a-f-]{16,}$/i.test(d) || d.length > 40) return "{n}";
-    return d.replace(/\d+/g, "{n}");
-  }
-  function meetPatroon(url, methode, origin) {
-    let u;
-    try {
-      u = new URL(String(url == null ? "" : url), origin);
-    } catch (e) {
-      return "";
-    }
-    if (!/^https?:$/.test(u.protocol)) return "";
-    const pad = u.pathname.split("/").map(function(d) {
-      let x = d;
-      try {
-        x = decodeURIComponent(d);
-      } catch (e) {
-      }
-      return deel(x);
-    }).join("/");
-    const namen = [];
-    u.searchParams.forEach(function(w, k) {
-      const sleutel = String(k).slice(0, 40).replace(/[^\w[\]]/g, "");
-      if (!sleutel) return;
-      const stuk = OPEN_WAARDEN.indexOf(sleutel) >= 0 && /^[a-z_/]{1,40}$/i.test(w) ? sleutel + "=" + w : sleutel + "=…";
-      if (namen.indexOf(stuk) < 0) namen.push(stuk);
-    });
-    const host = u.origin === origin ? "" : u.host;
-    const m = String(methode || "GET").toUpperCase();
-    return (m === "GET" ? "GET " : (/^[A-Z]{3,7}$/.test(m) ? m : "GET") + " ") + host + pad + (namen.length ? "?" + namen.join("&") : "");
-  }
 
   // src/main-world/index.js
   (function onsAgendahulpMainWorld() {
@@ -315,15 +276,6 @@
       }
       return null;
     }
-    let meten = false;
-    function meet(url, method) {
-      if (!meten) return;
-      try {
-        const p = meetPatroon(url, method, location.origin);
-        if (p) post(PAGE_EVENT.REQUEST_SEEN, { patroon: p });
-      } catch (e) {
-      }
-    }
     let netlog = false;
     function logNet(method, url, t0, status, grootte) {
       try {
@@ -345,7 +297,6 @@
             const url = typeof input === "string" ? input : input && (input.url || input.href) || "";
             const method = init && init.method || input && typeof input === "object" && input.method || "GET";
             const body = init && init.body;
-            meet(url, method);
             const t0 = netlog ? performance.now() : 0;
             const p = origFetch.apply(this, arguments);
             if (netlog) {
@@ -413,7 +364,6 @@
           XHR.prototype.send = function(body) {
             try {
               const xhr = this;
-              meet(xhr.__onsahUrl, xhr.__onsahMethod);
               if (netlog) {
                 const t0 = performance.now();
                 xhr.addEventListener("loadend", function() {
@@ -493,7 +443,7 @@
       let h = anker;
       while (h && !h.__vue_app__) h = omhoog(h);
       if (!h || !h._vnode) return null;
-      let perEl = /* @__PURE__ */ new Map(), velden = [], details = null;
+      let perEl = /* @__PURE__ */ new Map(), velden = [], details = null, alle = [];
       let stapel = [h._vnode], gezien = /* @__PURE__ */ new WeakSet(), n = 0;
       while (stapel.length && n < 2e5) {
         const v = stapel.pop();
@@ -504,6 +454,7 @@
           perEl.set(v.el, v);
           velden.push(v);
         }
+        if (v.el && v.el.nodeType === 1) alle.push(v);
         const c = v.component;
         if (c) {
           if (!details && c.props && c.props.event && typeof c.props.event === "object" && c.type && (c.type.name || c.type.__name) === "EventDetails") details = c;
@@ -512,9 +463,18 @@
         if (Array.isArray(v.children)) for (let i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
         if (Array.isArray(v.dynamicChildren)) for (let i = 0; i < v.dynamicChildren.length; i++) stapel.push(v.dynamicChildren[i]);
       }
-      return { veld: function(el) {
-        return perEl.get(el) || null;
-      }, velden, details };
+      return {
+        veld: function(el) {
+          return perEl.get(el) || null;
+        },
+        velden,
+        details,
+        binnen: function(el) {
+          return alle.filter(function(v) {
+            return v.el === el || el && el.contains(v.el);
+          });
+        }
+      };
     }
     function zetEnControleer(doe, controleer, klaar) {
       try {
@@ -671,74 +631,345 @@
         return soort === "getal" ? Number(nu) === w : String(nu == null ? "" : nu) === w;
       }, klaar);
     }
-    const KEUZE_TEKST = ["label", "name", "description", "text", "title"], KEUZE_WAARDE = ["value", "id", "key"];
-    function herhalingVeld(boom, el) {
-      if (!boom || !el) return null;
-      return boom.veld(el) || boom.velden.filter(function(v) {
-        return v.el && v.el !== el && el.contains(v.el);
-      })[0] || null;
+    const KEUZE_TEKST = ["label", "name", "description", "text", "title", "caption", "translation", "display", "displayName", "omschrijving", "naam"];
+    const KEUZE_WAARDE = ["value", "id", "key", "code", "type", "recurrence_type", "recurrenceType"];
+    const MODEL_SLEUTELS = ["model-value", "modelValue", "value", "selected"];
+    const BEKENDE_HERHALING = /^(daily|weekly|monthly|yearly|weekdays|workdays|biweekly|dagelijks|wekelijks|maandelijks|jaarlijks)$/i;
+    function isNiet(t) {
+      return typeof t === "string" && norm(t) === "niet";
+    }
+    function keuzeUit(o) {
+      if (typeof o === "string") return isNiet(o) ? { waarde: o, tekst: o } : null;
+      if (Array.isArray(o)) {
+        if (o.length !== 2) return null;
+        if (isNiet(o[0]) && typeof o[1] !== "object") return { waarde: o[1], tekst: o[0] };
+        if (isNiet(o[1]) && typeof o[0] !== "object") return { waarde: o[0], tekst: o[1] };
+        return null;
+      }
+      if (!o || typeof o !== "object") return null;
+      let t = KEUZE_TEKST.map(function(k) {
+        return o[k];
+      }).filter(isNiet)[0];
+      if (t == null) {
+        for (const k in o) {
+          const x = o[k];
+          if (isNiet(x)) {
+            t = x;
+            break;
+          }
+          if (x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).length <= 6 && Object.keys(x).some(function(y) {
+            return isNiet(x[y]);
+          })) {
+            t = "Niet";
+            break;
+          }
+        }
+      }
+      if (t == null) return null;
+      const w = KEUZE_WAARDE.filter(function(k) {
+        return k in o && (o[k] == null || typeof o[k] !== "object");
+      })[0];
+      return { waarde: w ? o[w] : o, tekst: String(t).trim() };
+    }
+    function keuzeInWaarde(x, diepte) {
+      if (typeof x === "string" && /^\s*[[{]/.test(x) && x.length < 2e4) {
+        try {
+          x = JSON.parse(x);
+        } catch (e) {
+          return null;
+        }
+      }
+      if (Array.isArray(x)) {
+        for (let i = 0; i < x.length && i < 200; i++) {
+          const k = keuzeUit(x[i]);
+          if (k) return k;
+        }
+        if (diepte < 2) {
+          for (let i = 0; i < x.length && i < 50; i++) {
+            const o = x[i];
+            if (!o || typeof o !== "object") continue;
+            for (const s2 of ["options", "items", "children", "choices"]) {
+              if (Array.isArray(o[s2])) {
+                const r = keuzeInWaarde(o[s2], diepte + 1);
+                if (r) return r;
+              }
+            }
+          }
+        }
+        return null;
+      }
+      if (x && typeof x === "object" && diepte < 1 && Object.keys(x).length <= 20) {
+        for (const k in x) if (isNiet(x[k])) return { waarde: k, tekst: String(x[k]).trim() };
+      }
+      return null;
     }
     function tekstVan(v) {
       if (typeof v.children === "string") return v.children;
       return v.el && v.el.textContent != null ? v.el.textContent : "";
     }
-    function nietKeuze(v) {
-      const props = v.props || {};
-      for (const k in props) {
-        const lijst = props[k];
-        if (!Array.isArray(lijst)) continue;
-        for (let i = 0; i < lijst.length; i++) {
-          const o = lijst[i];
-          if (!o || typeof o !== "object") continue;
-          const t = KEUZE_TEKST.map(function(x) {
-            return o[x];
-          }).filter(function(x) {
-            return typeof x === "string";
-          })[0];
-          const w = KEUZE_WAARDE.filter(function(x) {
-            return x in o;
-          })[0];
-          if (t != null && w && norm(t) === "niet") return { waarde: o[w], tekst: t };
+    function nietKeuze(vnodes) {
+      for (let i = 0; i < vnodes.length; i++) {
+        const v = vnodes[i], props = v.props || {};
+        for (const k in props) {
+          if (typeof props[k] === "function") continue;
+          const r = keuzeInWaarde(props[k], 0);
+          if (r) return r;
+        }
+        const c = v.component;
+        if (c && c.setupState) {
+          try {
+            for (const k in c.setupState) {
+              const x = c.setupState[k];
+              if (typeof x === "function") continue;
+              const r = keuzeInWaarde(x, 0);
+              if (r) return r;
+            }
+          } catch (e) {
+          }
         }
       }
-      let stapel = [v.component ? v.component.subTree : null].concat(Array.isArray(v.children) ? v.children : []), n = 0;
+      let stapel = vnodes.slice(), n = 0;
+      const gezien = /* @__PURE__ */ new WeakSet();
       while (stapel.length && n < 5e3) {
         const x = stapel.pop();
         n++;
-        if (!x || typeof x !== "object") continue;
-        if (x.props && "value" in x.props && norm(tekstVan(x)) === "niet") return { waarde: x.props.value, tekst: "Niet" };
+        if (!x || typeof x !== "object" || gezien.has(x)) continue;
+        gezien.add(x);
+        if (x.props && "value" in x.props && isNiet(tekstVan(x))) return { waarde: x.props.value, tekst: "Niet" };
         if (x.component) stapel.push(x.component.subTree);
         if (Array.isArray(x.children)) stapel = stapel.concat(x.children);
       }
       return null;
     }
     function zelfdeKeuze(nu, w) {
-      if (nu && typeof nu === "object") nu = KEUZE_WAARDE.map(function(x) {
+      if (nu && typeof nu === "object" && (w == null || typeof w !== "object")) nu = KEUZE_WAARDE.map(function(x) {
         return nu[x];
       }).filter(function(x) {
         return x !== void 0;
       })[0];
+      if (nu && typeof nu === "object") return nu === w;
       return nu == null ? w == null : String(nu) === String(w);
+    }
+    function modelWaarde(v) {
+      for (let i = 0; i < MODEL_SLEUTELS.length; i++) {
+        const x = v.props && v.props[MODEL_SLEUTELS[i]];
+        if (x !== void 0) return x;
+      }
+      return void 0;
+    }
+    function diepIn(el, sel) {
+      if (!el) return null;
+      const r = diepZoek(el, sel);
+      return r || (el.shadowRoot ? diepZoek(el.shadowRoot, sel) : null);
+    }
+    function herhalingInBeeld(ruw) {
+      const el = diepZoek(document, '[data-qa="recurrence-type"]');
+      const combo = diepIn(el, '[role="combobox"]');
+      if (!combo) return null;
+      const t = String(combo.getAttribute("aria-description") || combo.textContent || "").trim();
+      return (ruw ? t.slice(0, 60) : norm(t)) || null;
+    }
+    function herhalingKandidaten(boom, el) {
+      const uit = [];
+      const voeg = function(v) {
+        if (v && uit.indexOf(v) < 0 && typeof modelWaarde(v) !== "boolean") uit.push(v);
+      };
+      voeg(boom.veld(el));
+      boom.velden.forEach(function(v) {
+        if (v.el && v.el !== el && el.contains(v.el)) voeg(v);
+      });
+      let p = omhoog(el);
+      for (let i = 0; p && i < 2 && !uit.length; i++, p = omhoog(p)) voeg(boom.veld(p));
+      return uit;
+    }
+    function herhalingPogingen(boom, el) {
+      const pogingen = [], kandidaten = herhalingKandidaten(boom, el);
+      const keuze = nietKeuze(boom.binnen(el).concat(kandidaten));
+      const tekstNu = herhalingInBeeld(true) || "";
+      kandidaten.forEach(function(v) {
+        const oud = modelWaarde(v), zet = v.props["onUpdate:modelValue"], veldEl = v.el;
+        const terug = function() {
+          zet(oud, tekstNu);
+        };
+        if (keuze) {
+          pogingen.push({
+            naam: "keuze uit het veld",
+            doe: function() {
+              zet(keuze.waarde, keuze.tekst);
+            },
+            terug,
+            model: function(b) {
+              const na = b && b.veld(veldEl);
+              return !!na && zelfdeKeuze(modelWaarde(na), keuze.waarde);
+            }
+          });
+        } else if (typeof oud === "string" && BEKENDE_HERHALING.test(oud)) {
+          pogingen.push({ naam: "single op het veld", doe: function() {
+            zet("single", "Niet");
+          }, terug, model: null });
+        }
+      });
+      const c = boom.details, ev = c && c.props && c.props.event;
+      if (ev && c.proxy && typeof c.proxy.onChange === "function") {
+        const w = keuze && typeof keuze.waarde === "string" ? keuze.waarde : "single";
+        if (ev.recurrence && typeof ev.recurrence === "object" && "recurrence_type" in ev.recurrence) {
+          const oud = Object.assign({}, ev.recurrence);
+          pogingen.push({
+            naam: "model recurrence",
+            doe: function() {
+              c.proxy.onChange(Object.assign({}, oud, { recurrence_type: w, recurring: false }), "recurrence");
+            },
+            terug: function() {
+              c.proxy.onChange(oud, "recurrence");
+            },
+            model: null
+          });
+        } else if ("recurrence_type" in ev) {
+          const oud = ev.recurrence_type;
+          pogingen.push({
+            naam: "model recurrence_type",
+            doe: function() {
+              c.proxy.onChange(w, "recurrence_type");
+            },
+            terug: function() {
+              c.proxy.onChange(oud, "recurrence_type");
+            },
+            model: null
+          });
+        }
+      }
+      return { pogingen, keuze };
+    }
+    function herhalingGelukt(poging) {
+      const inBeeld = herhalingInBeeld();
+      if (inBeeld != null) return inBeeld === "niet";
+      if (!poging.model) return false;
+      try {
+        return !!poging.model(formulierBoom(diepZoek(document, '[data-qa="recurrence-type"]')));
+      } catch (e) {
+        return false;
+      }
     }
     function zetHerhalingNiet(klaar) {
       const el = diepZoek(document, '[data-qa="recurrence-type"]');
-      const boom = el ? formulierBoom(el) : null, v = herhalingVeld(boom, el);
-      if (!v) {
-        klaar({ ok: false, reden: "geen herhalingveld" });
+      if (!el) {
+        klaar({ ok: false, reden: "geen herhalingveld in beeld" });
         return;
       }
-      const keuze = nietKeuze(v);
-      if (!keuze) {
-        klaar({ ok: false, reden: "keuze Niet niet gevonden" });
+      if (herhalingInBeeld() === "niet") {
+        klaar({ ok: true });
         return;
       }
-      const veld = v.el;
-      zetEnControleer(function() {
-        v.props["onUpdate:modelValue"](keuze.waarde, keuze.tekst);
-      }, function() {
-        const b = formulierBoom(veld), na = b && b.veld(veld);
-        return !!na && zelfdeKeuze(propVan(na, "model-value", "modelValue"), keuze.waarde);
-      }, klaar);
+      const boom = formulierBoom(el);
+      if (!boom) {
+        klaar({ ok: false, reden: "geen Vue-app bij het herhalingveld", opbouw: herhalingOpbouw(el, null, []) });
+        return;
+      }
+      const p = herhalingPogingen(boom, el), geprobeerd = [];
+      let n = 0;
+      const volgende = function() {
+        if (n >= p.pogingen.length) {
+          klaar({
+            ok: false,
+            reden: p.pogingen.length ? "het formulier nam de waarde niet over" : p.keuze ? "geen Vue-koppeling bij het herhalingveld" : "keuze Niet niet gevonden",
+            opbouw: herhalingOpbouw(el, boom, geprobeerd)
+          });
+          return;
+        }
+        const poging = p.pogingen[n++];
+        try {
+          poging.doe();
+        } catch (e) {
+          geprobeerd.push(poging.naam + ": fout");
+          volgende();
+          return;
+        }
+        setTimeout(function() {
+          if (herhalingGelukt(poging)) {
+            klaar({ ok: true, via: poging.naam });
+            return;
+          }
+          geprobeerd.push(poging.naam + ": niet overgenomen (in beeld: " + (herhalingInBeeld() || "niets") + ")");
+          try {
+            poging.terug();
+          } catch (e) {
+          }
+          setTimeout(volgende, 80);
+        }, 80);
+      };
+      volgende();
+    }
+    function kort(w, d) {
+      if (typeof w === "function") return "functie";
+      if (typeof w === "string") return w.length > 80 ? w.slice(0, 80) + "…" : w;
+      if (w == null || typeof w !== "object") return w;
+      if (w.nodeType) return "<" + String(w.nodeName || "").toLowerCase() + ">";
+      if (d > 2) return Array.isArray(w) ? "lijst van " + w.length : "object";
+      if (Array.isArray(w)) return w.slice(0, 6).map(function(x) {
+        return kort(x, d + 1);
+      }).concat(w.length > 6 ? ["en " + (w.length - 6) + " meer"] : []);
+      const o = {};
+      Object.keys(w).slice(0, 20).forEach(function(k) {
+        try {
+          o[k] = kort(w[k], d + 1);
+        } catch (e) {
+          o[k] = "?";
+        }
+      });
+      return o;
+    }
+    function herhalingOpbouw(el, boom, geprobeerd) {
+      const uit = { geprobeerd, inBeeld: herhalingInBeeld(), elementen: [], vnodes: [], model: null, methoden: [] };
+      try {
+        const els = [el].concat(diepZoekAlle(el, "*").slice(0, 30));
+        uit.elementen = els.slice(0, 30).map(function(e) {
+          return [String(e.tagName || "").toLowerCase(), e.getAttribute("role"), e.getAttribute("data-qa"), e.getAttribute("aria-label")].filter(function(x) {
+            return x;
+          }).join(" ");
+        });
+      } catch (e) {
+      }
+      if (!boom) return uit;
+      try {
+        boom.binnen(el).slice(0, 15).forEach(function(v) {
+          uit.vnodes.push({
+            tag: v.el && v.el.tagName ? v.el.tagName.toLowerCase() : "",
+            component: v.type && typeof v.type === "object" ? v.type.name || v.type.__name || "naamloos" : "",
+            props: v.props ? kort(v.props, 0) : null,
+            state: v.component && v.component.setupState ? kort(Object.assign({}, v.component.setupState), 1) : null,
+            children: Array.isArray(v.children) ? "lijst van " + v.children.length : v.children && typeof v.children === "object" ? "slots: " + Object.keys(v.children).join(", ") : typeof v.children === "string" ? v.children.slice(0, 40) : null
+          });
+        });
+        let p = omhoog(el);
+        for (let i = 0; p && i < 2; i++, p = omhoog(p)) {
+          const v = boom.veld(p);
+          if (v) uit.vnodes.push({ boven: i + 1, tag: String(p.tagName || "").toLowerCase(), props: kort(v.props, 0) });
+        }
+      } catch (e) {
+      }
+      try {
+        const c = boom.details;
+        if (c && c.props && c.props.event) {
+          const ev = c.props.event, m = {};
+          Object.keys(ev).filter(function(k) {
+            return /recur|cycle|frequen|interval|valid_to|repeat|herhal/i.test(k);
+          }).forEach(function(k) {
+            m[k] = kort(ev[k], 1);
+          });
+          uit.model = m;
+          const st = c.setupState || {};
+          uit.methoden = Object.keys(st).filter(function(k) {
+            try {
+              return typeof st[k] === "function";
+            } catch (e) {
+              return false;
+            }
+          }).slice(0, 60);
+          if (c.proxy && typeof c.proxy.onChange === "function") uit.methoden.push("proxy.onChange");
+        }
+      } catch (e) {
+      }
+      return uit;
     }
     function leesFormulier() {
       const boom = formulierBoom(), c = boom && boom.details;
@@ -788,10 +1019,6 @@
             post(type, Object.assign({ id }, r));
           };
         };
-        if (d.type === PAGE_COMMAND.SET_METER) {
-          meten = d.aan === true;
-          return;
-        }
         if (d.type === PAGE_COMMAND.SET_NETLOG) {
           netlog = d.aan === true;
           return;

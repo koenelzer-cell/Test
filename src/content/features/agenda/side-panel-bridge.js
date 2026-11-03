@@ -18,6 +18,7 @@ import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, de
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { netwerklogSessie, netwerklogSinds } from '../../services/ons-api/netwerklog.js';
+import { formulierLog } from '../../ons/form-model.js';
 import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
 import { checkColleagues, checkSlotWithOns } from './free-slots.js';
@@ -37,7 +38,6 @@ function routesProxyVoorPaneel() {
 function panelFeatures() {
   const f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
-  uit.meetteller = f.meetteller === true;   // standaard uit
   return uit;
 }
 import { agendaYmd } from '../../core/datetime.js';
@@ -252,6 +252,9 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
           });
           return true;
+        case MSG.AGENDA_FORMLOG:
+          try { sendResponse({ ok: true, items: formulierLog() }); } catch (e) {}
+          return;
         case MSG.AGENDA_NETLOG:
           try { sendResponse({ ok: true, sessie: netwerklogSessie(), items: netwerklogSinds(msg.sinds) }); } catch (e) {}
           return;

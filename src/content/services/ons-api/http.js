@@ -4,7 +4,6 @@
 // medewerker gaat mee en er gaat niets naar andere servers. Een antwoord dat
 // niet 'ok' is, wordt een fout ("HTTP 404"), zodat de aanroeper kan terugvallen.
 
-import { telVerzoekVanHulp } from './meetteller.js';
 import { logVerzoek, netwerklogAan } from './netwerklog.js';
 
 // Een verzoek van de hulp, met het netwerklog (Debug) als dat aan staat.
@@ -34,7 +33,6 @@ export function alleenOns(url) {
 
 export async function getJson(url) {
   const pad = alleenOns(url);
-  telVerzoekVanHulp(pad, 'GET');
   const response = await haal(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error('HTTP ' + response.status);
   return response.json();
@@ -51,7 +49,6 @@ export async function postJson(url, body) {
     'X-Requested-With': 'XMLHttpRequest',
   };
   const pad = alleenOns(url);
-  telVerzoekVanHulp(pad, 'POST');
   const token = csrfToken();
   if (token) headers['X-CSRF-Token'] = token;
   const response = await haal(pad, {

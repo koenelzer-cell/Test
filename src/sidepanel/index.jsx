@@ -86,6 +86,8 @@ const agendaActies = {
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
   // Debug, Netwerk: de verzoeken van het tabblad na 'sinds' (houdt het log aan).
   onNetwerklog: function (sinds, cb) { vraagAanTab({ type: MSG.AGENDA_NETLOG, sinds: sinds }, cb); },
+  // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier.
+  onFormulierlog: function (cb) { vraagAanTab({ type: MSG.AGENDA_FORMLOG }, cb); },
 };
 
 // De eerste keer bouwt het paneel op; daarna is het een gewone update, zodat
