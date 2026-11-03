@@ -7,6 +7,7 @@
 import { ChipKnop, HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt } from './ui.jsx';
 import { debugHash } from '../shared/sha256.js';
 import { BEWAARD } from './bewaard.js';
+import { maskeerZoek } from '../shared/netwerk-masker.js';
 
 // Legenda, rondleidingen en versie als lijsten, zoals op het startscherm.
 const LIJST_KAART = { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' };
@@ -49,7 +50,7 @@ export function netwerkTekst(items, versie) {
 // Netwerk loopt.
 let paneelLuisteraar = null;
 function paneelAdres(url) {
-  try { const u = new URL(String(url), location.href); return (u.origin + u.pathname + u.search).slice(0, 2000); } catch (e) { return String(url).slice(0, 2000); }
+  try { const u = new URL(String(url), location.href); return (u.origin + u.pathname + maskeerZoek(u.search)).slice(0, 2000); } catch (e) { return String(url).split('?')[0].slice(0, 2000); }
 }
 function volgPaneelFetch() {
   if (typeof window === 'undefined' || typeof window.fetch !== 'function' || window.fetch.__onsahNet) return;
@@ -94,8 +95,8 @@ export function maakInfo(ctx) {
   // sluit). In BEWAARD, zodat een paginawissel in ONS het niet weer op slot zet.
   const debug = BEWAARD.debug;
   const net = BEWAARD.netwerk;
-  const form = BEWAARD.formulier;
-  let timer = null, vraagt = false, vraagtForm = false;
+  const form = BEWAARD.formulier, fout = BEWAARD.fouten;
+  let timer = null, vraagt = false, vraagtForm = false, vraagtFout = false;
 
   function voegToe(it) {
     net.nr += 1;
@@ -147,6 +148,18 @@ export function maakInfo(ctx) {
       if (ctx.pagina === 'info') renderPagina();
     });
   }
+  function vraagFoutlog() {
+    if (vraagtFout || !ctx.actions.onFoutlog) return;
+    vraagtFout = true;
+    ctx.actions.onFoutlog(function (r) {
+      vraagtFout = false;
+      if (!timer || !r || !r.ok || !Array.isArray(r.items)) return;
+      const oud = fout.items, nieuw = r.items;
+      if (oud.length === nieuw.length && (!nieuw.length || oud[oud.length - 1].tijd === nieuw[nieuw.length - 1].tijd)) return;
+      fout.items = nieuw.slice(-100);
+      if (ctx.pagina === 'info') renderPagina();
+    });
+  }
   function debugLoopt() { return debug.stand === 'open' && /^[0-9a-f]{64}$/.test(debugWachtwoord()) && ctx.pagina === 'info'; }
   function stopNetwerk() {
     if (timer) clearInterval(timer);
@@ -160,7 +173,7 @@ export function maakInfo(ctx) {
     if (timer || !debugLoopt()) return;
     volgPaneelFetch();
     paneelLuisteraar = paneelVerzoek;
-    const tik = function () { if (!net.pauze) vraagNetwerk(); vraagFormulierlog(); };
+    const tik = function () { if (!net.pauze) vraagNetwerk(); vraagFormulierlog(); vraagFoutlog(); };
     timer = setInterval(function () {
       if (!debugLoopt()) { stopNetwerk(); return; }
       tik();
@@ -236,7 +249,7 @@ export function maakInfo(ctx) {
           </div>
           {lijst.length > zichtbaar.length ? <Txt kind="help" style={{ margin: '4px 0 0' }}>{'En ' + (lijst.length - zichtbaar.length) + ' oudere; Kopiëren neemt ze allemaal mee.'}</Txt> : null}
         </div>
-        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Alleen in het geheugen, weg als je het zijpaneel sluit. Adressen kunnen cliëntgegevens bevatten (zoektermen, nummers): deel een kopie niet zomaar.</Txt>
+        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Alleen in het geheugen, weg als je het zijpaneel sluit. Zoekwaarden staan er als …; nummers in het adres zelf blijven staan, dus deel een kopie niet zomaar.</Txt>
       </>
     );
   }
@@ -276,6 +289,42 @@ export function maakInfo(ctx) {
       </>
     );
   }
+  function foutenKaart() {
+    const lijst = fout.items.slice().reverse();
+    return (
+      <>
+        <SectionHead tekst="Fouten" sub={lijst.length ? String(lijst.length) : ''} />
+        <div data-fouten="" style={{ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '10px 12px' }}>
+          {!lijst.length ? (
+            <Txt kind="help" data-fouten-leeg="" style={{ margin: '0' }}>Geen fouten opgevangen in dit tabblad.</Txt>
+          ) : lijst.slice(0, 50).map(function (it, i) {
+            return (
+              <div key={it.tijd + '-' + i} data-fout-rij="" style={{ padding: '6px 0', borderTop: i ? '1px solid ' + T.lineSoft : '0', fontSize: '11.5px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 8px', alignItems: 'baseline', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ color: T.inkSoft }}>{klok(it.tijd)}</span>
+                  <span style={{ fontWeight: '600', color: T.ink, overflowWrap: 'anywhere' }}>{it.plek}</span>
+                </div>
+                <div style={{ color: T.bad, overflowWrap: 'anywhere', marginTop: '2px' }}>{it.melding}</div>
+              </div>
+            );
+          })}
+          {lijst.length > 50 ? <Txt kind="help" style={{ margin: '4px 0 0' }}>{'En ' + (lijst.length - 50) + ' oudere; Kopiëren neemt ze allemaal mee.'}</Txt> : null}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <Knop tekst={fout.gekopieerd ? 'Gekopieerd' : 'Kopiëren'} data-fouten-kopieer="" disabled={!lijst.length} style={{ flex: '1 1 auto', whiteSpace: 'nowrap' }} onClick={function () {
+              try {
+                const tekst = ['Fouten ONS Agendahulp ' + ((ctx.state && ctx.state.version) || '')].concat(fout.items.map(function (it) { return [klok(it.tijd), it.plek, it.melding].join('\t'); })).join('\n');
+                navigator.clipboard.writeText(tekst).then(function () {
+                  fout.gekopieerd = true; renderPagina();
+                  setTimeout(function () { fout.gekopieerd = false; if (ctx.pagina === 'info') renderPagina(); }, 2000);
+                }, function () {});
+              } catch (e) {}
+            }} />
+          </div>
+        </div>
+        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Wat de hulp stil opving: de plek in het pakket en de melding, zonder gegevens. Alleen in het geheugen van het tabblad.</Txt>
+      </>
+    );
+  }
   function ontgrendel() {
     if (debugHash(debug.invoer) === debugWachtwoord()) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
     else debug.fout = true;
@@ -308,6 +357,7 @@ export function maakInfo(ctx) {
       <div data-info-debug-open-deel="">
         {netwerkKaart()}
         {formulierKaart()}
+        {foutenKaart()}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
           <button type="button" data-info-debug-dicht="" style={klein} onClick={function () { debug.stand = 'dicht'; stopNetwerk(); renderPagina(); }}>Debug sluiten</button>
         </div>

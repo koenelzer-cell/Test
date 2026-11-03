@@ -3,8 +3,18 @@
 // Altijd een relatief pad (same-origin): de sessiecookie van de ingelogde
 // medewerker gaat mee en er gaat niets naar andere servers. Een antwoord dat
 // niet 'ok' is, wordt een fout ("HTTP 404"), zodat de aanroeper kan terugvallen.
+//
+// Rustig voor ONS: een GET die mislukt door een netwerkfout of 500/502/504
+// probeert de hulp hooguit twee keer opnieuw, steeds later en met wat
+// toeval (backoff met jitter). Zegt ONS dat het te druk is (429 of 503), dan
+// niet opnieuw, en stopt het vooraf laden tot de tijd uit Retry-After (of
+// een minuut) voorbij is (onsTeDruk). Een POST nooit opnieuw.
 
 import { logVerzoek, netwerklogAan } from './netwerklog.js';
+import { meldFout } from '../../core/foutbuffer.js';
+
+// Het soort adres voor de foutbuffer: zonder zoekdeel en zonder nummers.
+function soortAdres(pad) { return String(pad).split('?')[0].replace(/\d+/g, '{n}').slice(0, 70); }
 
 // Een verzoek van de hulp, met het netwerklog (Debug) als dat aan staat.
 async function haal(pad, init) {
@@ -31,11 +41,38 @@ export function alleenOns(url) {
   return String(url);
 }
 
+let pauzeTot = 0;
+export function onsTeDruk() { return Date.now() < pauzeTot; }
+export function _wisTeDruk() { pauzeTot = 0; }
+// Hoe lang wachten na een 429 of 503: Retry-After (seconden of een datum),
+// anders een minuut; tussen 10 seconden en 10 minuten.
+export function pauzeNa(r) {
+  const ra = r && r.headers && r.headers.get ? r.headers.get('retry-after') : null;
+  let s = Number(ra);
+  if (!(s > 0) && ra) { const t = Date.parse(ra); s = t ? (t - Date.now()) / 1000 : 0; }
+  return Math.min(Math.max(s > 0 ? s : 60, 10), 600) * 1000;
+}
+const OPNIEUW = [500, 502, 504], MAX_OPNIEUW = 2;
+let wachtBasis = 400;
+export function _zetWachtBasis(ms) { wachtBasis = ms; }
+function wacht(poging) { return new Promise(function (r) { setTimeout(r, wachtBasis * Math.pow(2, poging) + Math.random() * wachtBasis * 0.75); }); }
+
 export async function getJson(url) {
   const pad = alleenOns(url);
-  const response = await haal(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error('HTTP ' + response.status);
-  return response.json();
+  for (let poging = 0; ; poging++) {
+    let response = null, fout = null;
+    try { response = await haal(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } }); } catch (e) { fout = e; }
+    if (response && (response.status === 429 || response.status === 503)) {
+      pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
+      meldFout('GET ' + soortAdres(pad), new Error('HTTP ' + response.status + ', ONS is druk: even geen vooraf laden'));
+      throw new Error('HTTP ' + response.status);
+    }
+    const nogEens = !!fout || (!!response && OPNIEUW.indexOf(response.status) >= 0);
+    if (nogEens && poging < MAX_OPNIEUW && !onsTeDruk()) { await wacht(poging); continue; }
+    if (fout) { meldFout('GET ' + soortAdres(pad), fout); throw fout; }
+    if (!response.ok) { if (response.status !== 404) meldFout('GET ' + soortAdres(pad), new Error('HTTP ' + response.status)); throw new Error('HTTP ' + response.status); }
+    return response.json();
+  }
 }
 
 // Iets vastleggen in ONS (POST met JSON). Net als getJson alleen naar een
@@ -54,7 +91,8 @@ export async function postJson(url, body) {
   const response = await haal(pad, {
     method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error('HTTP ' + response.status);
+  if (response.status === 429 || response.status === 503) pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
+  if (!response.ok) { meldFout('POST ' + soortAdres(pad), new Error('HTTP ' + response.status)); throw new Error('HTTP ' + response.status); }
   return response;
 }
 

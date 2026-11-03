@@ -190,9 +190,11 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     try {
       const abs = new URL(u, location.href);
       if (abs.origin !== location.origin || abs.pathname.replace(/\/$/, '') !== CREATE_PATH) return null;
-      // De klaargezette momenten gaan mee zoals ze bij het VERSTUREN stonden:
-      // ONS kan na het opslaan al doorschakelen naar de agenda.
+      // Alleen als de planhulp kopieën klaarzette. Het content-script legt bij
+      // het VERSTUREN zelf vast wat er klaarstaat (ONS kan na het opslaan al
+      // doorschakelen naar de agenda); de momenten gaan niet via dit bericht.
       const klaar = kopieenKlaar();
+      if (klaar) post(PAGE_EVENT.CREATING, {});
       return function (url2, text, body) {
         if (typeof body !== 'string' || !body) return;
         try {
@@ -203,7 +205,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           });
           post(PAGE_EVENT.META, { meta: kaal });
         } catch (e) {}
-        try { if (klaar) post(PAGE_EVENT.CREATED, { body: body, pending: klaar }); } catch (e) {}
+        try { if (klaar) post(PAGE_EVENT.CREATED, { body: body }); } catch (e) {}
       };
     } catch (e) {}
     return null;
@@ -248,7 +250,12 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
                 if (!res || !res.ok || !res.clone) return res;
                 return res.clone().text().then(function (t) {
                   const n = vulTekst(t);
-                  return n === t ? res : new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                  if (n === t) return res;
+                  // Een nieuwe Response kent url, redirected en type niet; neem
+                  // die van het origineel over, voor wie ze leest.
+                  const nieuw = new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                  try { ['url', 'redirected', 'type'].forEach(function (k) { Object.defineProperty(nieuw, k, { value: res[k], enumerable: true }); }); } catch (e) {}
+                  return nieuw;
                 }, function () { return res; });
               });
             }
@@ -301,6 +308,24 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     } catch (e) {}
   }
   installDetailsWatcher();
+
+  /* ---- adreswijzigingen ------------------------------------------------
+     ONS is een single-page app: het adres verandert via history.pushState en
+     replaceState van de pagina zelf. Die ziet alleen deze wereld; het
+     content-script hoort het zo meteen, in plaats van pas bij zijn eigen
+     (trage) controle. Alleen een seintje, geen adres.
+     ---------------------------------------------------------------------- */
+  try {
+    ['pushState', 'replaceState'].forEach(function (m) {
+      const orig = history[m];
+      if (typeof orig !== 'function') return;
+      history[m] = function () {
+        const r = orig.apply(this, arguments);
+        post(PAGE_EVENT.URL_CHANGED, {});
+        return r;
+      };
+    });
+  } catch (e) {}
 
   /* ---- het afspraakformulier via Vue ---------------------------------
      Het afspraakformulier van ONS is een Vue-app met uc-*-webcomponenten.

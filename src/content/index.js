@@ -1,6 +1,7 @@
 // Ingang van het content-script op de ONS-pagina's. Importeert de onderdelen
 // en start ze in vaste volgorde. Alles wat bij het laden gebeurt, staat hier.
 
+import { meldFout } from './core/foutbuffer.js';
 import { listenForMainWorldDetails } from './services/ons-api/event-details.js';
 import { listenForOnsOverlapCalls } from './services/ons-api/event-overlap.js';
 import { listenForCreatedEvents } from './features/appointment/duplicate.js';
@@ -71,6 +72,13 @@ installFreeDayTracking();
 installPanelDragListeners();
 installUrlWatch();
 HELPER_CONFIG_READY.then(syncWithUrl);
+// Fouten die niemand opving, alleen die van de hulp zelf (de stack wijst naar
+// het pakket): in de foutbuffer voor Debug, Fouten.
+try {
+  const vanHulp = (x) => /chrome-extension:\/\/|\/dist\/|\/test\/build\//.test(String((x && x.stack) || ''));
+  window.addEventListener('error', function (ev) { if (ev && ev.error && vanHulp(ev.error)) meldFout('', ev.error); });
+  window.addEventListener('unhandledrejection', function (ev) { if (ev && ev.reason && vanHulp(ev.reason)) meldFout('', ev.reason); });
+} catch (e) {}
 HELPER_CONFIG_READY.then(function () { safe(pushRegistrationForms); });
 installContextMenuTracking();
 listenForContextMenuChoice();

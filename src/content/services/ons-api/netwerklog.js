@@ -3,11 +3,13 @@
 // (http.js), met methode, adres, status, duur en grootte. Alleen zolang het
 // zijpaneel erom vraagt: elke vraag (MSG.AGENDA_NETLOG) houdt het 15 seconden
 // aan. De laatste 300 staan alleen in het geheugen van dit tabblad en gaan weg
-// zodra het log uit gaat; niets wordt opgeslagen. Adressen kunnen
-// cliëntgegevens bevatten (zoektermen, id's).
+// zodra het log uit gaat; niets wordt opgeslagen. Zoekwaarden worden
+// gemaskeerd (shared/netwerk-masker.js: een zoekterm kan een cliëntnaam zijn);
+// id's in het pad blijven staan.
 
 import { onPageEvent, toMainWorld } from '../../core/page-bridge.js';
 import { PAGE_COMMAND, PAGE_EVENT } from '../../../shared/messages.js';
+import { maskeerZoek } from '../../../shared/netwerk-masker.js';
 
 const BEWAAR = 300, AAN_MS = 15000;
 // Per geladen pagina een eigen sessie: na een herlaad of een ander tabblad
@@ -17,12 +19,13 @@ let tot = 0, volgnummer = 0, items = [], stoppen = [], controle = null;
 
 export function netwerklogAan() { return Date.now() < tot; }
 
-// Een adres zoals het log het toont: op deze origin het pad, anders volledig.
+// Een adres zoals het log het toont: op deze origin het pad, anders volledig;
+// de zoekwaarden gemaskeerd (maskeerZoek).
 export function logAdres(url) {
   try {
     const u = new URL(String(url == null ? '' : url), location.href);
-    return (u.origin === location.origin ? u.pathname + u.search : u.origin + u.pathname + u.search).slice(0, 2000);
-  } catch (e) { return String(url == null ? '' : url).slice(0, 2000); }
+    return ((u.origin === location.origin ? u.pathname : u.origin + u.pathname) + maskeerZoek(u.search)).slice(0, 2000);
+  } catch (e) { return String(url == null ? '' : url).split('?')[0].slice(0, 2000); }
 }
 export function logVerzoek(bron, v) {
   if (!netwerklogAan()) return;

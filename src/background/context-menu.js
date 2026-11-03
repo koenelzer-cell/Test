@@ -14,7 +14,10 @@ import { readLocal, writeLocal } from '../shared/chrome-storage.js';
 
 const MENU_ROOT = 'onsHelper.register';
 const MENU_PANEL = 'onsHelper.panel';
-const MAX_FORMS = 25;
+// Hooguit zoveel vormen bewaren (een vangnet tegen een overvolle lijst) en
+// tonen; staan er meer, dan zegt de laatste regel hoeveel er niet in passen.
+const MAX_FORMS = 100, MAX_IN_MENU = 40;
+const MENU_MEER = 'onsHelper.register.meer';
 
 // Eén opbouw tegelijk. removeAll en create zijn asynchroon; een installatie en
 // een tabblad dat net zijn vormen stuurt, bouwen anders door elkaar heen en
@@ -35,12 +38,19 @@ function bouwMenu(forms) {
             id: MENU_ROOT, title: 'Registreren als…', contexts: ['all'],
             documentUrlPatterns: ONS_URL_PATTERNS,
           });
-          list.slice(0, MAX_FORMS).forEach(function (vorm, i) {
+          list.slice(0, MAX_IN_MENU).forEach(function (vorm, i) {
             chrome.contextMenus.create({
               id: MENU_ROOT + '.' + i, parentId: MENU_ROOT, title: vorm,
               contexts: ['all'], documentUrlPatterns: ONS_URL_PATTERNS,
             });
           });
+          if (list.length > MAX_IN_MENU) {
+            chrome.contextMenus.create({
+              id: MENU_MEER, parentId: MENU_ROOT, enabled: false,
+              title: 'En nog ' + (list.length - MAX_IN_MENU) + ': kies die in de registratiehulp',
+              contexts: ['all'], documentUrlPatterns: ONS_URL_PATTERNS,
+            });
+          }
         }
         // Klaar zodra het laatste item er staat; create werkt op volgorde.
         chrome.contextMenus.create({

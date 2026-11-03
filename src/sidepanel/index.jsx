@@ -13,6 +13,7 @@ import { MSG, SIDEPANEL_PORT } from '../shared/messages.js';
 import { ONS_URL_PATTERNS, isOnsUrl } from '../shared/ons-hosts.js';
 import { create as createAgendaPanel } from './agenda-panel.jsx';
 import { formulierTitel } from './bewaard.js';
+import { kaartSleutel, routesUitLagen, routesVoorPaneel } from '../shared/routes-config.js';
 
 const NIETS_KOP = 'Niets om te tonen';
 const NIETS_TEKST = 'Ga in ONS naar de agenda; het paneel vult zich dan vanzelf.';
@@ -88,7 +89,33 @@ const agendaActies = {
   onNetwerklog: function (sinds, cb) { vraagAanTab({ type: MSG.AGENDA_NETLOG, sinds: sinds }, cb); },
   // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier.
   onFormulierlog: function (cb) { vraagAanTab({ type: MSG.AGENDA_FORMLOG }, cb); },
+  // Debug, Fouten: wat de hulp in dit tabblad stil opving.
+  onFoutlog: function (cb) { vraagAanTab({ type: MSG.AGENDA_ERRLOG }, cb); },
 };
+
+/* ── Rijtijden en kaart: alleen uit de extensie zelf en het beleid ────────── */
+
+// Waar rijtijden heen gaan (eigen server of de Routes-sleutel) en de
+// kaartsleutel leest het zijpaneel zelf: uit config.json in het pakket en het
+// beleid, nooit uit de toestand van de ONS-pagina (shared/routes-config.js).
+let routes = { routesProxy: null, mapsEmbedKey: '' };
+let laatsteToestand = null;
+function leesRoutes() {
+  let bundled = null, managed = null;
+  const bundel = fetch(chrome.runtime.getURL('config.json')).then(function (r) { return r && r.ok ? r.json() : null; })
+    .then(function (j) { bundled = j; }, function () {});
+  const beleid = new Promise(function (klaar) {
+    try { chrome.storage.managed.get(null, function (r) { void chrome.runtime.lastError; managed = r || null; klaar(); }); } catch (e) { klaar(); }
+  });
+  return Promise.all([bundel, beleid]).then(function () {
+    const rp = routesUitLagen(bundled, managed);
+    routes = { routesProxy: routesVoorPaneel(rp), mapsEmbedKey: kaartSleutel(rp) };
+    if (huidig && laatsteToestand) huidig.paneel.update(metRoutes(laatsteToestand));
+  });
+}
+function metRoutes(state) { return Object.assign({}, state, routes); }
+try { leesRoutes(); } catch (e) {}
+try { chrome.storage.onChanged.addListener(function (w, gebied) { if (gebied === 'managed') leesRoutes(); }); } catch (e) {}
 
 // De eerste keer bouwt het paneel op; daarna is het een gewone update, zodat
 // in/uitklappen en scrollpositie blijven staan.
@@ -99,7 +126,8 @@ function toon(soort, state) {
     const tekenen = function (inhoud) { root.render(<Fragment key={nr}>{inhoud}</Fragment>); };
     huidig = { soort: soort, paneel: createAgendaPanel(tekenen, agendaActies) };
   }
-  huidig.paneel.update(state);
+  laatsteToestand = state;
+  huidig.paneel.update(metRoutes(state));
 }
 
 /* ── De juiste tab vinden en om de eerste toestand vragen ──────────────── */

@@ -43,9 +43,3 @@ export function veiligeHtml(html, linkKleur) {
   return frag;
 }
 
-// Een stuk HTML dat de hulp zelf opbouwt (met getallen en labels) veilig in
-// een element zetten: DOMPurify met zijn standaardinstellingen.
-export function zetHtml(el, html) {
-  el.innerHTML = DOMPurify.sanitize(String(html == null ? '' : html));
-  return el;
-}

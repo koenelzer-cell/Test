@@ -546,8 +546,11 @@ test('planhulp: na opslaan kopieën maken en het volgende moment met eigen inste
   window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
   const body = JSON.stringify({ event: { valid_from: '2026-10-27', start_time: '2026-10-27T17:20:00+01:00', end_time: '2026-10-27T18:20:00+01:00', employee_ids: [42479], client_ids: [1] } });
   const pending = JSON.stringify({ moments: [{ date: '2026-10-29', startMin: 540 }], eigen: [{ date: '2026-11-03', startMin: 600 }, { date: '2026-11-05', startMin: 600 }], ts: Date.now() });
-  // Zoals de main-world het meldt (jsdom zet bij postMessage geen origin; daarom direct).
-  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body, pending }, origin: window.location.origin, source: window }));
+  // Zoals de main-world het meldt (jsdom zet bij postMessage geen origin; daarom direct):
+  // eerst het seintje bij het versturen (de hulp leest dan zelf wat er klaarstaat), dan het opslaan.
+  window.sessionStorage.setItem('onsHelper.pendingDuplicates', pending);
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'afspraakVersturen' }, origin: window.location.origin, source: window }));
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body }, origin: window.location.origin, source: window }));
   await new Promise((r) => setTimeout(r, 1500));
   assert.deepEqual(gepost, [['/calendar/events', 'POST', '2026-10-29T09:00:00+01:00']], 'kopie alleen voor het moment met dezelfde instellingen');
   assert.deepEqual(JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')), { ...JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment')), date: '2026-11-03', time: '10:00' });
@@ -573,7 +576,8 @@ test('meerdere afspraken plannen: elk een eigen formulier met eigen duur (eindti
   const geklikt = [];
   window.HTMLAnchorElement.prototype.click = function () { geklikt.push(this.getAttribute('href')); };
   const body = JSON.stringify({ event: { valid_from: '2026-11-02', start_time: '2026-11-02T09:00:00+01:00', end_time: '2026-11-02T10:00:00+01:00', employee_ids: [42479], client_ids: [1] } });
-  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body, pending: JSON.stringify(klaar) }, origin: window.location.origin, source: window }));
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'afspraakVersturen' }, origin: window.location.origin, source: window }));
+  window.dispatchEvent(new window.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'eventCreated', body }, origin: window.location.origin, source: window }));
   await new Promise((r) => setTimeout(r, 50));
   const volgende = JSON.parse(window.sessionStorage.getItem('onsHelper.pendingAppointment'));
   assert.equal(volgende.date, '2026-11-02');

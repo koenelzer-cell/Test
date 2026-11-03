@@ -4,6 +4,11 @@
 
 import '../../src/content/index.js';
 import { DEFAULT_APP_CONFIG } from '../../src/content/config/defaults.js';
+import { RUNTIME_CONFIG } from '../../src/content/config/loader.js';
+import { domeinPast } from '../../src/content/helper/routing.js';
+import { foutLijst, plekUitStack, schoneMelding, _wisFouten } from '../../src/content/core/foutbuffer.js';
+import { safe as _safe } from '../../src/content/screen/status.js';
+import { bouwConfig } from '../../src/content/config/app-config.js';
 import { allKnownLabels, APP_CONFIG, applyHelperConfig, choiceLabels, CONFIG, effectiveChoices, effectiveRegistrationForms, helperNeedsTeamChoice, nonClientCategoriesActive, REGISTRATION_CHOICES, setActiveProfileForTest } from '../../src/content/config/app-config.js';
 import { currentAgendaDate, isRegistrationEditOrNew, isRegistrationOverviewPage, parseInviteeIdFromPath, resolveInviteeId, setInviteeIdOverride } from '../../src/content/ons/agenda-location.js';
 import { _agFmtMin, agendaWeekNumber, agendaYmd } from '../../src/content/core/datetime.js';
@@ -50,7 +55,9 @@ import { capturePendingRegistrationLabel, loadPendingRegistrationLabel, matchReg
 import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from '../../src/content/features/registration/context-menu.js';
 import { pickClientIdFromSearch } from '../../src/content/services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../src/content/services/ons-api/employee.js';
-import { getJson, postJson } from '../../src/content/services/ons-api/http.js';
+import { getJson, postJson, onsTeDruk, _wisTeDruk, _zetWachtBasis, pauzeNa } from '../../src/content/services/ons-api/http.js';
+import { preloadPanelData } from '../../src/content/features/agenda/preload.js';
+import { agendaPage as _agendaPage } from '../../src/content/features/agenda/state.js';
 import { netwerklogAan, netwerklogSessie, netwerklogSinds } from '../../src/content/services/ons-api/netwerklog.js';
 import { buildUnavailability, describeUnavailability } from '../../src/content/domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from '../../src/content/features/leave/leave-request.js';
@@ -227,6 +234,12 @@ window.__onsHelperTestApi = {
   fetchProductList,
   getEmployeeIdAsync,
   getJson,
+  onsTeDruk,
+  _wisTeDruk,
+  _zetWachtBasis,
+  pauzeNa,
+  preloadPanelData,
+  _agendaPage,
   postJson,
   netwerklogAan,
   netwerklogSessie,
@@ -245,6 +258,14 @@ window.__onsHelperTestApi = {
   appointmentEndGuardState: function () { try { return { helperEndText: appointmentFlow.helperEndText, userOwned: appointmentFlow.appointmentEndTimeUserOwned }; } catch (e) { return null; } },
   resetAppointmentEndGuard: function () { try { appointmentFlow.helperEndText = ''; appointmentFlow.appointmentEndTimeUserOwned = false; } catch (e) {} },
   getAppConfig: function () { try { return APP_CONFIG; } catch (e) { return null; } },
+  getRuntimeConfig: function () { return RUNTIME_CONFIG; },
+  bouwConfig,
+  domeinPast,
+  foutLijst,
+  plekUitStack,
+  schoneMelding,
+  _wisFouten,
+  _safe,
   getDefaultConfig: function () { try { return DEFAULT_APP_CONFIG; } catch (e) { return null; } },
   getRegistrationChoices: function () { try { return REGISTRATION_CHOICES; } catch (e) { return null; } },
   resolveText,

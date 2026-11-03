@@ -73,14 +73,16 @@ export function momentLabel(m) {
   return DAGEN[d.getDay()] + ' ' + d.getDate() + ' ' + MAANDEN[d.getMonth()] + ' ' + hm;
 }
 
-// Korte melding linksonder op de ONS-pagina (het zijpaneel zit rechts).
-function toonMelding(tekst, goed, metVerversen) {
+// Korte melding linksonder op de ONS-pagina (het zijpaneel zit rechts). Is
+// er iets mislukt, dan een alert die blijft staan tot je hem sluit, met
+// opnieuw (een functie) als knop 'Mislukte opnieuw proberen'.
+function toonMelding(tekst, goed, metVerversen, opnieuw) {
   try {
     const oud = document.getElementById('onsah-kopie-melding');
     if (oud) oud.remove();
     const box = document.createElement('div');
     box.id = 'onsah-kopie-melding';
-    box.setAttribute('role', 'status');
+    box.setAttribute('role', goed ? 'status' : 'alert');
     Object.assign(box.style, {
       position: 'fixed', left: '16px', bottom: '16px', zIndex: '2147483000', maxWidth: '360px',
       padding: '12px 14px', borderRadius: '12px', background: '#fff', color: '#201d1f',
@@ -102,11 +104,13 @@ function toonMelding(tekst, goed, metVerversen) {
       b.addEventListener('click', fn);
       rij.appendChild(b);
     };
-    if (metVerversen) knop('Agenda verversen', true, () => location.reload());
+    if (opnieuw) knop('Mislukte opnieuw proberen', true, () => { box.remove(); opnieuw(); });
+    if (metVerversen) knop('Agenda verversen', !opnieuw, () => location.reload());
     knop('Sluiten', false, () => box.remove());
     box.appendChild(rij);
     document.body.appendChild(box);
-    setTimeout(() => { try { box.remove(); } catch (e) {} }, 20000);
+    // Een goede melding verdwijnt vanzelf; een fout blijft staan.
+    if (goed) setTimeout(() => { try { box.remove(); } catch (e) {} }, 20000);
   } catch (e) {}
 }
 
@@ -156,6 +160,18 @@ function volgendeEigen(eigen, bodyText) {
   return true;
 }
 
+// Opnieuw proberen voor de momenten die mislukten. Het opslaan-verzoek blijft
+// daarvoor in het geheugen van deze functie zolang de melding staat; sluiten
+// of opnieuw proberen laat het los.
+function opnieuwVoor(bodyText, mislukt) {
+  if (!mislukt || !mislukt.length) return null;
+  return async function () {
+    const r = await makeDuplicates(bodyText, mislukt);
+    if (!r.failed.length) toonMelding('Nu wel gemaakt op ' + r.made.map(momentLabel).join(', ') + '.', true, true);
+    else toonMelding((r.made.length ? r.made.length + ' nu wel gemaakt. ' : '') + 'Nog niet gelukt: ' + r.failed.map(momentLabel).join(', ') + '. Probeer het later opnieuw of maak ze zelf aan in ONS.', false, r.made.length > 0, opnieuwVoor(bodyText, r.failed));
+    meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: null, left: 0 });
+  };
+}
 async function bijOpgeslagen(bodyText, pendingText) {
   if (_bezig) return;
   const p = takePending(pendingText);
@@ -180,12 +196,25 @@ async function bijOpgeslagen(bodyText, pendingText) {
     } else if (!r.failed.length) {
       toonMelding('Afspraak ook gemaakt op ' + r.made.length + (r.made.length === 1 ? ' ander moment: ' : ' andere momenten: ') + r.made.map(momentLabel).join(', ') + '.' + verder, true, !p.eigen.length);
     } else {
-      toonMelding(r.made.length + ' van ' + totaal + ' kopieën gemaakt. Niet gelukt: ' + r.failed.map(momentLabel).join(', ') + '. Maak die zelf aan in ONS.' + verder, false, r.made.length > 0 && !p.eigen.length);
+      toonMelding(r.made.length + ' van ' + totaal + ' kopieën gemaakt. Niet gelukt: ' + r.failed.map(momentLabel).join(', ') + '.' + verder, false, r.made.length > 0 && !p.eigen.length,
+        opnieuwVoor(bodyText, r.failed));
     }
     meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: p.eigen[0] || null, left: p.eigen.length });
   } finally { _bezig = false; }
 }
 
+// Wat er klaarstond toen de pagina de afspraak verstuurde, uit de eigen
+// sessionStorage van dit tabblad (niet uit het bericht: dat kan elk script op
+// de pagina sturen). Geldt twee minuten, en maar één keer.
+let _klaarBijVersturen = null;
 export function listenForCreatedEvents() {
-  onPageEvent(PAGE_EVENT.CREATED, function (d) { bijOpgeslagen(d.body, d.pending); });
+  onPageEvent(PAGE_EVENT.CREATING, function () {
+    try { _klaarBijVersturen = { tekst: sessionStorage.getItem(KEY) || '', ts: Date.now() }; } catch (e) { _klaarBijVersturen = null; }
+  });
+  onPageEvent(PAGE_EVENT.CREATED, function (d) {
+    const k = _klaarBijVersturen;
+    _klaarBijVersturen = null;
+    if (!k || !k.tekst || Date.now() - k.ts > 120000) return;
+    bijOpgeslagen(d.body, k.tekst);
+  });
 }

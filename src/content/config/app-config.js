@@ -50,37 +50,60 @@ export function refreshEffectiveConfig() {
   // er een, dan moet het menu meelopen.
   runConfigHook('formsChanged');
 }
-// Pas een 'helperConfig'-override toe (per sectie volledige vervanging).
-export function applyHelperConfig(hc) {
-  if (!hc || typeof hc !== 'object') return;
-  if (Array.isArray(hc.choices)) APP_CONFIG.choices = hc.choices;
-  if (Array.isArray(hc.extraKnownLabels)) APP_CONFIG.extraKnownLabels = hc.extraKnownLabels;
-  if (Array.isArray(hc.registrationForms)) APP_CONFIG.registrationForms = hc.registrationForms;
-  if (hc.zoneProfiles && typeof hc.zoneProfiles === 'object') APP_CONFIG.zoneProfiles = hc.zoneProfiles;
-  if (hc.profileSectors && typeof hc.profileSectors === 'object') APP_CONFIG.profileSectors = hc.profileSectors;
-  if (hc.palette && typeof hc.palette === 'object') APP_CONFIG.palette = hc.palette;
-  if (hc.texts && typeof hc.texts === 'object') APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
-  if (hc.compatibility && typeof hc.compatibility === 'object') APP_CONFIG.compatibility = hc.compatibility;
-  if (hc.features && typeof hc.features === 'object') APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
-  if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
-  if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
-  if (hc.routesProxy && typeof hc.routesProxy === 'object') APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
-  if (hc.generalSettings && typeof hc.generalSettings === 'object') APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
-  if (hc.apiEndpoints && typeof hc.apiEndpoints === 'object') APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
-  if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
-  if (hc.support && typeof hc.support === 'object') APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
-  if (hc.debug && typeof hc.debug === 'object') APP_CONFIG.debug = Object.assign({}, APP_CONFIG.debug, hc.debug);
-  if (hc.leaveRequest && typeof hc.leaveRequest === 'object') APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
-  if (hc.activation && typeof hc.activation === 'object') {
-    APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
-    if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
-    if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
-  }
-  if (hc.uiSelectors && typeof hc.uiSelectors === 'object') { APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors); runConfigHook('selectorsChanged'); }
-  // Afgeleide lijst (tabel 3) opnieuw opbouwen.
+// Eén laag (config.json, testconfig of beleid) op een configuratie leggen.
+// Puur: alleen `doel` verandert, geen haken. Een lijst of een hele sectie
+// vervangt wat er stond; texts, features en de objecten met losse sleutels
+// (routesProxy, generalSettings …) vullen aan.
+export function legLaag(doel, hc) {
+  if (!doel || !hc || typeof hc !== 'object') return doel;
+  if (Array.isArray(hc.choices)) doel.choices = hc.choices;
+  if (Array.isArray(hc.extraKnownLabels)) doel.extraKnownLabels = hc.extraKnownLabels;
+  if (Array.isArray(hc.registrationForms)) doel.registrationForms = hc.registrationForms;
+  if (hc.zoneProfiles && typeof hc.zoneProfiles === 'object') doel.zoneProfiles = hc.zoneProfiles;
+  if (hc.profileSectors && typeof hc.profileSectors === 'object') doel.profileSectors = hc.profileSectors;
+  if (hc.palette && typeof hc.palette === 'object') doel.palette = hc.palette;
+  if (hc.texts && typeof hc.texts === 'object') doel.texts = Object.assign({}, doel.texts, hc.texts);
+  if (hc.compatibility && typeof hc.compatibility === 'object') doel.compatibility = hc.compatibility;
+  if (hc.features && typeof hc.features === 'object') doel.features = Object.assign({}, doel.features, hc.features);
+  if (Array.isArray(hc.nonClientCategories)) doel.nonClientCategories = hc.nonClientCategories;
+  if (Array.isArray(hc.offices) && hc.offices.length) doel.offices = hc.offices;
+  ['routesProxy', 'generalSettings', 'apiEndpoints', 'support', 'debug', 'leaveRequest', 'activation', 'uiSelectors'].forEach(function (k) {
+    if (hc[k] && typeof hc[k] === 'object' && !Array.isArray(hc[k])) doel[k] = Object.assign({}, doel[k], hc[k]);
+  });
+  if (Array.isArray(hc.declarabiliteitRules)) doel.declarabiliteitRules = hc.declarabiliteitRules;
+  return doel;
+}
+// De hele configuratie vanaf de standaard opbouwen, laag na laag (oplopend in
+// voorrang). Puur: zo werkt een sleutel die een beheerder uit het beleid
+// haalt meteen niet meer, en blijft er niets van een vorige ronde hangen.
+export function bouwConfig(lagen) {
+  const c = _cloneConfig(DEFAULT_APP_CONFIG);
+  (lagen || []).forEach(function (l) { legLaag(c, _cloneConfig(l)); });
+  return c;
+}
+function naConfigWijziging(selectorsOok) {
+  const a = APP_CONFIG.activation || {};
+  CONFIG.urlNeedle = a.appointmentNeedle || '/events/new';
+  CONFIG.registrationNeedle = a.registrationNeedle || '/registrations';
+  if (selectorsOok) runConfigHook('selectorsChanged');
+  // Afgeleide lijsten opnieuw (en het rechtermuismenu via formsChanged).
   refreshEffectiveConfig();
   runConfigHook('configApplied');
   try { if (typeof onHelperConfigChanged === 'function') onHelperConfigChanged(); } catch (e) {}
+}
+// Een opgebouwde configuratie actief maken: APP_CONFIG in zijn geheel
+// vervangen (hetzelfde object, want iedereen houdt het vast) en daarna de
+// haken één keer.
+export function zetConfig(nieuw) {
+  Object.keys(APP_CONFIG).forEach(function (k) { delete APP_CONFIG[k]; });
+  Object.assign(APP_CONFIG, nieuw);
+  naConfigWijziging(true);
+}
+// Eén laag bovenop de huidige configuratie (tests en de simulator).
+export function applyHelperConfig(hc) {
+  if (!hc || typeof hc !== 'object') return;
+  legLaag(APP_CONFIG, hc);
+  naConfigWijziging(!!(hc.uiSelectors && typeof hc.uiSelectors === 'object'));
 }
 // Instelbaar meldkanaal (TOPdesk) uit de config; met veilige fallback.
 export function supportTopdeskUrl() {

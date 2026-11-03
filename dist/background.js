@@ -69,6 +69,8 @@
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FORMLOG: "ag-formulierlog",
     // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+    AGENDA_ERRLOG: "ag-foutlog",
+    // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",
     // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
@@ -102,6 +104,18 @@
     METER: "onsHelper.meetteller"
     // oud (meetteller, weg sinds 1.6.306): alleen nog om op te ruimen (background, bij installeren of bijwerken)
   };
+
+  // src/shared/verlof.js
+  var STANDAARD_VERLOF_URL = "https://login.afasonline.com/83031/Apps";
+  function httpsHost(url) {
+    const m = /^https:\/\/([^/?#:@]+)(?::\d+)?(?:[/?#]|$)/i.exec(String(url || "").trim());
+    return m ? m[1].toLowerCase() : "";
+  }
+  function verlofUrlUit(cfg) {
+    if (!cfg || typeof cfg !== "object") return "";
+    const h = cfg.helperConfig && typeof cfg.helperConfig === "object" ? cfg.helperConfig : cfg;
+    return h.leaveRequest && typeof h.leaveRequest.redirectUrl === "string" ? h.leaveRequest.redirectUrl : "";
+  }
 
   // src/shared/ons-hosts.js
   var ONS_URL_PATTERNS = (function() {
@@ -336,7 +350,9 @@
   // src/background/context-menu.js
   var MENU_ROOT = "onsHelper.register";
   var MENU_PANEL = "onsHelper.panel";
-  var MAX_FORMS = 25;
+  var MAX_FORMS = 100;
+  var MAX_IN_MENU = 40;
+  var MENU_MEER = "onsHelper.register.meer";
   var opbouw = Promise.resolve();
   function buildMenu(forms) {
     opbouw = opbouw.then(function() {
@@ -358,7 +374,7 @@
               contexts: ["all"],
               documentUrlPatterns: ONS_URL_PATTERNS
             });
-            list.slice(0, MAX_FORMS).forEach(function(vorm, i) {
+            list.slice(0, MAX_IN_MENU).forEach(function(vorm, i) {
               chrome.contextMenus.create({
                 id: MENU_ROOT + "." + i,
                 parentId: MENU_ROOT,
@@ -367,6 +383,16 @@
                 documentUrlPatterns: ONS_URL_PATTERNS
               });
             });
+            if (list.length > MAX_IN_MENU) {
+              chrome.contextMenus.create({
+                id: MENU_MEER,
+                parentId: MENU_ROOT,
+                enabled: false,
+                title: "En nog " + (list.length - MAX_IN_MENU) + ": kies die in de registratiehulp",
+                contexts: ["all"],
+                documentUrlPatterns: ONS_URL_PATTERNS
+              });
+            }
           }
           chrome.contextMenus.create({
             id: MENU_PANEL,
@@ -587,14 +613,52 @@
         return;
     }
   }
+  function toegestaneHosts() {
+    const bundel = (typeof fetch === "function" ? fetch(chrome.runtime.getURL("config.json")).then(function(r) {
+      return r && r.ok ? r.json() : null;
+    }) : Promise.resolve(null)).catch(function() {
+      return null;
+    });
+    const beleid = new Promise(function(klaar) {
+      try {
+        chrome.storage.managed.get(null, function(r) {
+          void chrome.runtime.lastError;
+          klaar(r || null);
+        });
+      } catch (e) {
+        klaar(null);
+      }
+    });
+    return Promise.all([bundel, beleid]).then(function(lagen) {
+      return [STANDAARD_VERLOF_URL, verlofUrlUit(lagen[0]), verlofUrlUit(lagen[1])].map(httpsHost).filter(Boolean);
+    });
+  }
   function openTab(url, fromTab, sendResponse) {
-    if (typeof url !== "string" || !/^https:\/\//i.test(url)) {
+    const host = httpsHost(url);
+    if (typeof url !== "string" || !host) {
       try {
         sendResponse({ ok: false });
       } catch (e) {
       }
       return;
     }
+    toegestaneHosts().then(function(hosts) {
+      if (hosts.indexOf(host) < 0) {
+        try {
+          sendResponse({ ok: false });
+        } catch (e) {
+        }
+        return;
+      }
+      openTabNu(url, fromTab, sendResponse);
+    }, function() {
+      try {
+        sendResponse({ ok: false });
+      } catch (e) {
+      }
+    });
+  }
+  function openTabNu(url, fromTab, sendResponse) {
     const opts = { url, active: true };
     if (fromTab && typeof fromTab.index === "number") opts.index = fromTab.index + 1;
     if (fromTab && fromTab.windowId != null) opts.windowId = fromTab.windowId;

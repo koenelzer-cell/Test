@@ -1,4 +1,30 @@
 (() => {
+  // src/content/core/foutbuffer.js
+  var MAX = 100;
+  var fouten = [];
+  function plekUitStack(stack) {
+    const regels = String(stack || "").split("\n");
+    for (let i = 0; i < regels.length; i++) {
+      const m = /\/(?:dist|test\/build)\/([\w.-]+\.js):(\d+):(\d+)/.exec(regels[i]);
+      if (m) return m[1] + ":" + m[2] + ":" + m[3];
+    }
+    return "";
+  }
+  function schoneMelding(e) {
+    const t = e && typeof e === "object" ? (e.name && e.name !== "Error" ? e.name + ": " : "") + String(e.message || "") : String(e);
+    return t.replace(/\d{5,}/g, "…").slice(0, 200) || "onbekende fout";
+  }
+  function meldFout(plek, e) {
+    try {
+      fouten.push({ tijd: Date.now(), plek: String(plek || plekUitStack(e && e.stack) || "onbekend").slice(0, 80), melding: schoneMelding(e) });
+      if (fouten.length > MAX) fouten = fouten.slice(-MAX);
+    } catch (x) {
+    }
+  }
+  function foutLijst() {
+    return fouten.slice();
+  }
+
   // node_modules/date-fns/constants.js
   var daysInYear = 365.2425;
   var maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
@@ -2658,6 +2684,9 @@
     return /\/registrations\/?$/.test(path != null ? path : location.pathname || "");
   }
 
+  // src/shared/verlof.js
+  var STANDAARD_VERLOF_URL = "https://login.afasonline.com/83031/Apps";
+
   // src/content/config/defaults.js
   var DEFAULT_APP_CONFIG = {
     // Tabel 1: keuze in de helper -> ONS-label + gedrag.
@@ -2806,7 +2835,7 @@
     // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
     // aan te vragen. maxDays: hoe lang een herhaling hooguit mag lopen.
     // recurrenceTypes: de waarden van recurrence_type in ONS (mocht ONS die wijzigen).
-    leaveRequest: { description: "Verlof", redirectUrl: "https://login.afasonline.com/83031/Apps", maxDays: 366, recurrenceTypes: { daily: "daily", weekly: "weekly" } },
+    leaveRequest: { description: "Verlof", redirectUrl: STANDAARD_VERLOF_URL, maxDays: 366, recurrenceTypes: { daily: "daily", weekly: "weekly" } },
     // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
     // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
     activation: { appointmentNeedle: "/events/new", registrationNeedle: "/registrations", domains: [] },
@@ -2949,41 +2978,50 @@
     }
     runConfigHook("formsChanged");
   }
-  function applyHelperConfig(hc) {
-    if (!hc || typeof hc !== "object") return;
-    if (Array.isArray(hc.choices)) APP_CONFIG.choices = hc.choices;
-    if (Array.isArray(hc.extraKnownLabels)) APP_CONFIG.extraKnownLabels = hc.extraKnownLabels;
-    if (Array.isArray(hc.registrationForms)) APP_CONFIG.registrationForms = hc.registrationForms;
-    if (hc.zoneProfiles && typeof hc.zoneProfiles === "object") APP_CONFIG.zoneProfiles = hc.zoneProfiles;
-    if (hc.profileSectors && typeof hc.profileSectors === "object") APP_CONFIG.profileSectors = hc.profileSectors;
-    if (hc.palette && typeof hc.palette === "object") APP_CONFIG.palette = hc.palette;
-    if (hc.texts && typeof hc.texts === "object") APP_CONFIG.texts = Object.assign({}, APP_CONFIG.texts, hc.texts);
-    if (hc.compatibility && typeof hc.compatibility === "object") APP_CONFIG.compatibility = hc.compatibility;
-    if (hc.features && typeof hc.features === "object") APP_CONFIG.features = Object.assign({}, APP_CONFIG.features, hc.features);
-    if (Array.isArray(hc.nonClientCategories)) APP_CONFIG.nonClientCategories = hc.nonClientCategories;
-    if (Array.isArray(hc.offices) && hc.offices.length) APP_CONFIG.offices = hc.offices;
-    if (hc.routesProxy && typeof hc.routesProxy === "object") APP_CONFIG.routesProxy = Object.assign({}, APP_CONFIG.routesProxy, hc.routesProxy);
-    if (hc.generalSettings && typeof hc.generalSettings === "object") APP_CONFIG.generalSettings = Object.assign({}, APP_CONFIG.generalSettings, hc.generalSettings);
-    if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
-    if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
-    if (hc.support && typeof hc.support === "object") APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
-    if (hc.debug && typeof hc.debug === "object") APP_CONFIG.debug = Object.assign({}, APP_CONFIG.debug, hc.debug);
-    if (hc.leaveRequest && typeof hc.leaveRequest === "object") APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
-    if (hc.activation && typeof hc.activation === "object") {
-      APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
-      if (APP_CONFIG.activation.appointmentNeedle) CONFIG.urlNeedle = APP_CONFIG.activation.appointmentNeedle;
-      if (APP_CONFIG.activation.registrationNeedle) CONFIG.registrationNeedle = APP_CONFIG.activation.registrationNeedle;
-    }
-    if (hc.uiSelectors && typeof hc.uiSelectors === "object") {
-      APP_CONFIG.uiSelectors = Object.assign({}, APP_CONFIG.uiSelectors, hc.uiSelectors);
-      runConfigHook("selectorsChanged");
-    }
+  function legLaag(doel, hc) {
+    if (!doel || !hc || typeof hc !== "object") return doel;
+    if (Array.isArray(hc.choices)) doel.choices = hc.choices;
+    if (Array.isArray(hc.extraKnownLabels)) doel.extraKnownLabels = hc.extraKnownLabels;
+    if (Array.isArray(hc.registrationForms)) doel.registrationForms = hc.registrationForms;
+    if (hc.zoneProfiles && typeof hc.zoneProfiles === "object") doel.zoneProfiles = hc.zoneProfiles;
+    if (hc.profileSectors && typeof hc.profileSectors === "object") doel.profileSectors = hc.profileSectors;
+    if (hc.palette && typeof hc.palette === "object") doel.palette = hc.palette;
+    if (hc.texts && typeof hc.texts === "object") doel.texts = Object.assign({}, doel.texts, hc.texts);
+    if (hc.compatibility && typeof hc.compatibility === "object") doel.compatibility = hc.compatibility;
+    if (hc.features && typeof hc.features === "object") doel.features = Object.assign({}, doel.features, hc.features);
+    if (Array.isArray(hc.nonClientCategories)) doel.nonClientCategories = hc.nonClientCategories;
+    if (Array.isArray(hc.offices) && hc.offices.length) doel.offices = hc.offices;
+    ["routesProxy", "generalSettings", "apiEndpoints", "support", "debug", "leaveRequest", "activation", "uiSelectors"].forEach(function(k) {
+      if (hc[k] && typeof hc[k] === "object" && !Array.isArray(hc[k])) doel[k] = Object.assign({}, doel[k], hc[k]);
+    });
+    if (Array.isArray(hc.declarabiliteitRules)) doel.declarabiliteitRules = hc.declarabiliteitRules;
+    return doel;
+  }
+  function bouwConfig(lagen) {
+    const c = _cloneConfig(DEFAULT_APP_CONFIG);
+    (lagen || []).forEach(function(l) {
+      legLaag(c, _cloneConfig(l));
+    });
+    return c;
+  }
+  function naConfigWijziging(selectorsOok) {
+    const a = APP_CONFIG.activation || {};
+    CONFIG.urlNeedle = a.appointmentNeedle || "/events/new";
+    CONFIG.registrationNeedle = a.registrationNeedle || "/registrations";
+    if (selectorsOok) runConfigHook("selectorsChanged");
     refreshEffectiveConfig();
     runConfigHook("configApplied");
     try {
       if (typeof onHelperConfigChanged === "function") onHelperConfigChanged();
     } catch (e) {
     }
+  }
+  function zetConfig(nieuw) {
+    Object.keys(APP_CONFIG).forEach(function(k) {
+      delete APP_CONFIG[k];
+    });
+    Object.assign(APP_CONFIG, nieuw);
+    naConfigWijziging(true);
   }
   function supportTopdeskUrl() {
     try {
@@ -3401,6 +3439,8 @@
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FORMLOG: "ag-formulierlog",
     // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+    AGENDA_ERRLOG: "ag-foutlog",
+    // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",
     // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
@@ -3429,10 +3469,14 @@
     // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
     META: "eventMeta",
     // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+    CREATING: "afspraakVersturen",
+    // {}  de pagina verstuurt een nieuwe afspraak en de planhulp zette kopieën klaar: het content-script legt nu zelf vast wat er klaarstaat
     CREATED: "eventCreated",
-    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+    // { body }  opslaan-verzoek van ONS (na het antwoord), alleen als de planhulp kopieën klaarzette
     MAIN_READY: "mainWorldKlaar",
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+    URL_CHANGED: "urlGewijzigd",
+    // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
     NET_REQUEST: "netwerkVerzoek"
     // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
   };
@@ -3496,6 +3540,23 @@
     });
   }
 
+  // src/shared/netwerk-masker.js
+  var LEESBAAR = ["layer", "sub_layers[]", "date", "from", "to", "start", "end", "start_date", "end_date", "page", "per_page", "usage", "view", "out_of_care", "redirect_to_calendar", "include_inactive", "scope", "type"];
+  function maskeerZoek(search) {
+    const s = String(search || "").replace(/^\?/, "");
+    if (!s) return "";
+    return "?" + s.split("&").map(function(deel) {
+      const i = deel.indexOf("=");
+      if (i < 0) return deel;
+      let naam = deel.slice(0, i);
+      try {
+        naam = decodeURIComponent(naam);
+      } catch (e) {
+      }
+      return deel.slice(0, i) + "=" + (LEESBAAR.indexOf(naam) >= 0 ? deel.slice(i + 1) : "…");
+    }).join("&");
+  }
+
   // src/content/services/ons-api/netwerklog.js
   var BEWAAR = 300;
   var AAN_MS = 15e3;
@@ -3511,9 +3572,9 @@
   function logAdres(url) {
     try {
       const u = new URL(String(url == null ? "" : url), location.href);
-      return (u.origin === location.origin ? u.pathname + u.search : u.origin + u.pathname + u.search).slice(0, 2e3);
+      return ((u.origin === location.origin ? u.pathname : u.origin + u.pathname) + maskeerZoek(u.search)).slice(0, 2e3);
     } catch (e) {
-      return String(url == null ? "" : url).slice(0, 2e3);
+      return String(url == null ? "" : url).split("?")[0].slice(0, 2e3);
     }
   }
   function logVerzoek(bron, v) {
@@ -3568,6 +3629,9 @@
   }
 
   // src/content/services/ons-api/http.js
+  function soortAdres(pad) {
+    return String(pad).split("?")[0].replace(/\d+/g, "{n}").slice(0, 70);
+  }
   async function haal(pad, init) {
     if (!netwerklogAan()) return fetch(pad, init);
     const t0 = performance.now(), methode = init.method || "GET";
@@ -3590,11 +3654,56 @@
     if (!u || u.origin !== location.origin) throw new Error("Alleen een adres binnen ONS");
     return String(url);
   }
+  var pauzeTot = 0;
+  function onsTeDruk() {
+    return Date.now() < pauzeTot;
+  }
+  function pauzeNa(r) {
+    const ra = r && r.headers && r.headers.get ? r.headers.get("retry-after") : null;
+    let s = Number(ra);
+    if (!(s > 0) && ra) {
+      const t = Date.parse(ra);
+      s = t ? (t - Date.now()) / 1e3 : 0;
+    }
+    return Math.min(Math.max(s > 0 ? s : 60, 10), 600) * 1e3;
+  }
+  var OPNIEUW = [500, 502, 504];
+  var MAX_OPNIEUW = 2;
+  var wachtBasis = 400;
+  function wacht(poging) {
+    return new Promise(function(r) {
+      setTimeout(r, wachtBasis * Math.pow(2, poging) + Math.random() * wachtBasis * 0.75);
+    });
+  }
   async function getJson(url) {
     const pad = alleenOns(url);
-    const response = await haal(pad, { credentials: "same-origin", headers: { Accept: "application/json" } });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    return response.json();
+    for (let poging = 0; ; poging++) {
+      let response = null, fout = null;
+      try {
+        response = await haal(pad, { credentials: "same-origin", headers: { Accept: "application/json" } });
+      } catch (e) {
+        fout = e;
+      }
+      if (response && (response.status === 429 || response.status === 503)) {
+        pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
+        meldFout("GET " + soortAdres(pad), new Error("HTTP " + response.status + ", ONS is druk: even geen vooraf laden"));
+        throw new Error("HTTP " + response.status);
+      }
+      const nogEens = !!fout || !!response && OPNIEUW.indexOf(response.status) >= 0;
+      if (nogEens && poging < MAX_OPNIEUW && !onsTeDruk()) {
+        await wacht(poging);
+        continue;
+      }
+      if (fout) {
+        meldFout("GET " + soortAdres(pad), fout);
+        throw fout;
+      }
+      if (!response.ok) {
+        if (response.status !== 404) meldFout("GET " + soortAdres(pad), new Error("HTTP " + response.status));
+        throw new Error("HTTP " + response.status);
+      }
+      return response.json();
+    }
   }
   async function postJson(url, body) {
     const headers = {
@@ -3611,7 +3720,11 @@
       headers,
       body: JSON.stringify(body)
     });
-    if (!response.ok) throw new Error("HTTP " + response.status);
+    if (response.status === 429 || response.status === 503) pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
+    if (!response.ok) {
+      meldFout("POST " + soortAdres(pad), new Error("HTTP " + response.status));
+      throw new Error("HTTP " + response.status);
+    }
     return response;
   }
   function csrfToken() {
@@ -6224,10 +6337,11 @@
     body.appendChild(sub);
     setStatus("Uitgeschakeld", false);
   }
-  function safe(fn) {
+  function safe(fn, plek) {
     try {
       fn();
     } catch (e) {
+      meldFout(plek, e);
       setStatus("Er ging iets mis", false);
     }
   }
@@ -6840,13 +6954,13 @@
     const hm2 = ("0" + Math.floor(m.startMin / 60)).slice(-2) + ":" + ("0" + m.startMin % 60).slice(-2);
     return DAGEN[d.getDay()] + " " + d.getDate() + " " + MAANDEN[d.getMonth()] + " " + hm2;
   }
-  function toonMelding(tekst, goed, metVerversen) {
+  function toonMelding(tekst, goed, metVerversen, opnieuw) {
     try {
       const oud = document.getElementById("onsah-kopie-melding");
       if (oud) oud.remove();
       const box = document.createElement("div");
       box.id = "onsah-kopie-melding";
-      box.setAttribute("role", "status");
+      box.setAttribute("role", goed ? "status" : "alert");
       Object.assign(box.style, {
         position: "fixed",
         left: "16px",
@@ -6884,11 +6998,15 @@
         b.addEventListener("click", fn);
         rij.appendChild(b);
       };
-      if (metVerversen) knop("Agenda verversen", true, () => location.reload());
+      if (opnieuw) knop("Mislukte opnieuw proberen", true, () => {
+        box.remove();
+        opnieuw();
+      });
+      if (metVerversen) knop("Agenda verversen", !opnieuw, () => location.reload());
       knop("Sluiten", false, () => box.remove());
       box.appendChild(rij);
       document.body.appendChild(box);
-      setTimeout(() => {
+      if (goed) setTimeout(() => {
         try {
           box.remove();
         } catch (e) {
@@ -6952,6 +7070,15 @@
     }, 1200);
     return true;
   }
+  function opnieuwVoor(bodyText, mislukt) {
+    if (!mislukt || !mislukt.length) return null;
+    return async function() {
+      const r = await makeDuplicates(bodyText, mislukt);
+      if (!r.failed.length) toonMelding("Nu wel gemaakt op " + r.made.map(momentLabel).join(", ") + ".", true, true);
+      else toonMelding((r.made.length ? r.made.length + " nu wel gemaakt. " : "") + "Nog niet gelukt: " + r.failed.map(momentLabel).join(", ") + ". Probeer het later opnieuw of maak ze zelf aan in ONS.", false, r.made.length > 0, opnieuwVoor(bodyText, r.failed));
+      meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: null, left: 0 });
+    };
+  }
   async function bijOpgeslagen(bodyText, pendingText) {
     if (_bezig2) return;
     const p = takePending(pendingText);
@@ -6976,16 +7103,32 @@
       } else if (!r.failed.length) {
         toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + "." + verder, true, !p.eigen.length);
       } else {
-        toonMelding(r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + ". Maak die zelf aan in ONS." + verder, false, r.made.length > 0 && !p.eigen.length);
+        toonMelding(
+          r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + "." + verder,
+          false,
+          r.made.length > 0 && !p.eigen.length,
+          opnieuwVoor(bodyText, r.failed)
+        );
       }
       meldPaneel({ made: r.made, failed: r.failed, reason: r.reason, next: p.eigen[0] || null, left: p.eigen.length });
     } finally {
       _bezig2 = false;
     }
   }
+  var _klaarBijVersturen = null;
   function listenForCreatedEvents() {
+    onPageEvent(PAGE_EVENT.CREATING, function() {
+      try {
+        _klaarBijVersturen = { tekst: sessionStorage.getItem(KEY3) || "", ts: Date.now() };
+      } catch (e) {
+        _klaarBijVersturen = null;
+      }
+    });
     onPageEvent(PAGE_EVENT.CREATED, function(d) {
-      bijOpgeslagen(d.body, d.pending);
+      const k = _klaarBijVersturen;
+      _klaarBijVersturen = null;
+      if (!k || !k.tekst || Date.now() - k.ts > 12e4) return;
+      bijOpgeslagen(d.body, k.tekst);
     });
   }
 
@@ -7438,7 +7581,72 @@
     return uit;
   }
 
+  // src/shared/version.js
+  function extensionVersion() {
+    return chrome.runtime.getManifest().version;
+  }
+  function isTestpakket() {
+    try {
+      return /\(test\)\s*$/.test(String(chrome.runtime.getManifest().name || ""));
+    } catch (e) {
+      return false;
+    }
+  }
+
   // src/content/config/loader.js
+  var LAGEN = { bundled: null, test: null, managed: null, team: null };
+  var NIET_UIT_TEST = ["routesProxy", "apiEndpoints", "activation"];
+  function helperDeel(cfg) {
+    if (!cfg || typeof cfg !== "object") return null;
+    return cfg.helperConfig && typeof cfg.helperConfig === "object" ? cfg.helperConfig : cfg;
+  }
+  function testLaag(cfg) {
+    const h = helperDeel(cfg);
+    if (!h) return null;
+    const uit = Object.assign({}, h);
+    NIET_UIT_TEST.forEach(function(k) {
+      delete uit[k];
+    });
+    return uit;
+  }
+  function bouwRuntime(bundled, test, managed) {
+    const r = { enabled: true, appointmentHelperEnabled: true, registrationHelperEnabled: true };
+    let deadline = null;
+    [[bundled, false], [test, true], [managed, true]].forEach(function(paar) {
+      const cfg = paar[0];
+      if (!cfg || typeof cfg !== "object") return;
+      if (paar[1]) {
+        if (typeof cfg.enabled === "boolean") r.enabled = cfg.enabled;
+        if (typeof cfg.appointmentHelperEnabled === "boolean") r.appointmentHelperEnabled = cfg.appointmentHelperEnabled;
+        if (typeof cfg.registrationHelperEnabled === "boolean") r.registrationHelperEnabled = cfg.registrationHelperEnabled;
+        if (typeof cfg.presenceDeadlineOverride === "string") deadline = cfg.presenceDeadlineOverride || null;
+      }
+      const f = (helperDeel(cfg) || {}).features || {};
+      if (typeof f.appointmentAssistant === "boolean") r.appointmentHelperEnabled = f.appointmentAssistant;
+      if (typeof f.registrationAssistant === "boolean") r.registrationHelperEnabled = f.registrationAssistant;
+    });
+    return { runtime: r, deadline };
+  }
+  function herbouw() {
+    const test = isTestpakket() ? LAGEN.test : null;
+    const nieuw = bouwConfig([helperDeel(LAGEN.bundled), testLaag(test), helperDeel(LAGEN.managed)].filter(Boolean));
+    const rt = bouwRuntime(LAGEN.bundled, test, LAGEN.managed);
+    Object.assign(RUNTIME_CONFIG, rt.runtime);
+    _presenceDeadlineOverride = rt.deadline;
+    const profiel = LAGEN.team;
+    const vorige = ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE;
+    setActiveTeam(
+      profiel && profiel.colorProfile || null,
+      profiel && (profiel.sector || (nieuw.profileSectors || {})[profiel.colorProfile]) || null
+    );
+    if (vorige !== ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE) {
+      try {
+        runConfigHook("teamChanged");
+      } catch (e) {
+      }
+    }
+    zetConfig(nieuw);
+  }
   function loadBundledConfig() {
     try {
       if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.getURL) return Promise.resolve();
@@ -7446,13 +7654,7 @@
       return fetch(url).then(function(r) {
         return r && r.ok ? r.json() : null;
       }).then(function(obj) {
-        if (obj) {
-          const cfg = obj.helperConfig ? obj.helperConfig : obj;
-          applyHelperConfig(cfg);
-          const features = cfg.features || {};
-          if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
-          if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-        }
+        if (obj && typeof obj === "object") LAGEN.bundled = obj;
       }).catch(function() {
       });
     } catch (e) {
@@ -7462,78 +7664,43 @@
   var HELPER_SCOPE = "all";
   var RUNTIME_CONFIG = { enabled: true, appointmentHelperEnabled: true, registrationHelperEnabled: true };
   var _presenceDeadlineOverride = null;
-  function applyRuntimeConfig(cfg) {
-    if (!cfg || typeof cfg !== "object") return;
-    if (typeof cfg.enabled === "boolean") RUNTIME_CONFIG.enabled = cfg.enabled;
-    if (typeof cfg.appointmentHelperEnabled === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = cfg.appointmentHelperEnabled;
-    if (typeof cfg.registrationHelperEnabled === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = cfg.registrationHelperEnabled;
-    if (typeof cfg.presenceDeadlineOverride === "string") _presenceDeadlineOverride = cfg.presenceDeadlineOverride || null;
-    if (cfg.helperConfig && typeof cfg.helperConfig === "object") {
+  function readStorage(area2, keys) {
+    return new Promise(function(resolve) {
       try {
-        applyHelperConfig(cfg.helperConfig);
-      } catch (e) {
-      }
-    } else {
-      try {
-        applyHelperConfig(cfg);
-      } catch (e) {
-      }
-    }
-    const features = cfg.helperConfig && cfg.helperConfig.features || cfg.features || {};
-    if (typeof features.appointmentAssistant === "boolean") RUNTIME_CONFIG.appointmentHelperEnabled = features.appointmentAssistant;
-    if (typeof features.registrationAssistant === "boolean") RUNTIME_CONFIG.registrationHelperEnabled = features.registrationAssistant;
-  }
-  function loadManagedConfig() {
-    function readStorage(area2, keys) {
-      return new Promise(function(resolve) {
-        try {
-          if (!area2 || typeof area2.get !== "function") {
-            resolve(null);
-            return;
-          }
-          area2.get(keys, function(result) {
-            try {
-              if (chrome.runtime && chrome.runtime.lastError) {
-                resolve(null);
-                return;
-              }
-            } catch (e) {
-            }
-            resolve(result || null);
-          });
-        } catch (e) {
+        if (!area2 || typeof area2.get !== "function") {
           resolve(null);
+          return;
         }
-      });
-    }
-    try {
-      if (typeof chrome === "undefined" || !chrome.storage) return Promise.resolve();
-      return readStorage(chrome.storage.sync || chrome.storage.local, [SYNC.SECTOR, SYNC.COLOR_PROFILE]).then(function(profile) {
-        const previousSelection = ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE;
-        setActiveTeam(
-          profile && profile.colorProfile || null,
-          profile && (profile.sector || (APP_CONFIG.profileSectors || {})[profile.colorProfile]) || null
-        );
-        refreshEffectiveConfig();
-        if (previousSelection !== ACTIVE_SECTOR + "\n" + ACTIVE_PROFILE) {
+        area2.get(keys, function(result) {
           try {
-            runConfigHook("teamChanged");
+            if (chrome.runtime && chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
           } catch (e) {
           }
-        }
-        return readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
+          resolve(result || null);
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+  function loadManagedConfig() {
+    try {
+      if (typeof chrome === "undefined" || !chrome.storage) {
+        herbouw();
+        return Promise.resolve();
+      }
+      return readStorage(chrome.storage.sync || chrome.storage.local, [SYNC.SECTOR, SYNC.COLOR_PROFILE]).then(function(profile) {
+        LAGEN.team = profile || null;
+        return isTestpakket() ? readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]) : null;
       }).then(function(res) {
-        try {
-          if (res && res[LOCAL.TEST_CONFIG]) applyRuntimeConfig(res[LOCAL.TEST_CONFIG]);
-        } catch (e) {
-        }
+        LAGEN.test = res && res[LOCAL.TEST_CONFIG] || null;
         return readStorage(chrome.storage.managed, null);
       }).then(function(cfg) {
-        try {
-          if (cfg) applyRuntimeConfig(cfg);
-        } catch (e) {
-        }
-        runConfigHook("configApplied");
+        LAGEN.managed = cfg && Object.keys(cfg).length ? cfg : null;
+        herbouw();
       });
     } catch (e) {
       return Promise.resolve();
@@ -7541,7 +7708,7 @@
   }
   function watchConfigChanges() {
     chrome.storage.onChanged.addListener((changes, area2) => {
-      if (area2 === "managed" || area2 === "local" && changes[LOCAL.TEST_CONFIG] || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
+      if (area2 === "managed" || area2 === "local" && changes[LOCAL.TEST_CONFIG] && isTestpakket() || area2 === "sync" && (changes[SYNC.SECTOR] || changes[SYNC.COLOR_PROFILE])) loadManagedConfig();
     });
   }
   var helperConfigReady = false;
@@ -7605,10 +7772,15 @@
     const promise = getJson(_apiUrl("detectOverlap", { date: ymd4, startTime, endTime, hourTypeId: hourTypeId || "" })).then(parseDetectOverlap).catch(function() {
       return null;
     }).then(function(v) {
-      _overlapCache[key].value = v;
+      const e = _overlapCache[key];
+      if (e) e.value = v;
       return v;
     });
-    _overlapCache[key] = { ts: Date.now(), promise, value: void 0 };
+    const nu = Date.now();
+    Object.keys(_overlapCache).forEach(function(k) {
+      if (nu - _overlapCache[k].ts >= OVERLAP_TTL_MS) delete _overlapCache[k];
+    });
+    _overlapCache[key] = { ts: nu, promise, value: void 0 };
     return promise;
   }
   function knownOnsOverlap(ymd4, startMin, endMin, hourTypeId) {
@@ -9026,12 +9198,16 @@
   var _laatstVooraf = 0;
   var _voorafSleutel = "";
   var _bezig3 = false;
+  var _jitter = 0;
   function preloadPanelData(force) {
     if (_bezig3) return;
     if (!aan("preload")) return;
+    if (!agendaPage.sidePanelOpen && !force) return;
+    if (onsTeDruk()) return;
     if (document.visibilityState !== "visible") return;
     const sleutel = idsSleutel() + "|" + currentAgendaDate();
-    if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL) return;
+    if (!force && sleutel === _voorafSleutel && Date.now() - _laatstVooraf < VOORAF_INTERVAL + _jitter) return;
+    _jitter = Math.round(Math.random() * 6e4);
     if (!idsSleutel()) return;
     _bezig3 = true;
     _voorafSleutel = sleutel;
@@ -12142,10 +12318,6 @@
     });
     return frag;
   }
-  function zetHtml(el, html2) {
-    el.innerHTML = purify_default.sanitize(String(html2 == null ? "" : html2));
-    return el;
-  }
 
   // src/content/ui/managed-text.js
   function effectiveTextConfig(key) {
@@ -13805,7 +13977,8 @@
   }
   function listenForContextMenuChoice() {
     try {
-      chrome.runtime.onMessage.addListener(function(msg) {
+      chrome.runtime.onMessage.addListener(function(msg, sender) {
+        if (!sender || sender.id !== chrome.runtime.id) return;
         if (!msg || msg.type !== MSG.CTX_REGISTER) return;
         safe(function() {
           startRegistrationWithForm(msg.vorm);
@@ -15897,11 +16070,6 @@
     else if (!hasAppointmentPrereqs() && !prereqScreen) showAppointmentNeedsPrereqs();
   }
 
-  // src/shared/version.js
-  function extensionVersion() {
-    return chrome.runtime.getManifest().version;
-  }
-
   // src/content/helper/info-panel.js
   function closeInfoPanel() {
     if (!helperPanel._infoPanelRestore) return;
@@ -17588,17 +17756,24 @@
   }
 
   // src/content/features/agenda-overview/registrations-overview.js
+  function _span(tekst, css) {
+    const s = document.createElement("span");
+    if (css) s.style.cssText = css;
+    s.textContent = tekst;
+    return s;
+  }
   function _agChip(label, value, bg, fg) {
     const c = document.createElement("span");
     c.style.cssText = "display:inline-flex;align-items:baseline;gap:4px;background:" + bg + ";color:" + fg + ";border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap";
-    zetHtml(c, '<span style="font-weight:600;opacity:.8">' + label + "</span> " + value);
+    c.append(_span(label, "font-weight:600;opacity:.8"), " " + value);
     return c;
   }
   function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
     const wrap = document.createElement("div");
     wrap.style.cssText = "margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px";
     const h = document.createElement("div");
-    zetHtml(h, "Afgerond en geregistreerd" + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">' + dateLabel + "</span>" : ""));
+    h.append("Afgerond en geregistreerd");
+    if (dateLabel) h.append(" ", _span(dateLabel, "font-weight:400;color:#999;font-size:10px"));
     h.style.cssText = "font-weight:700;font-size:11px;color:" + ONSAH_TOKENS.brand + ";margin-bottom:5px";
     wrap.appendChild(h);
     if (!rs || !rs.count) {
@@ -17607,7 +17782,9 @@
     }
     const dec = declarabiliteitPct(rs, profile);
     const hero = document.createElement("div");
-    zetHtml(hero, '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span> <span style="font-size:10px;color:#999">' + dec.baseLabel + "</span>");
+    const groot = _span(_agFmtMin(dec.declarabelMinutes) + " ", "font-size:18px;font-weight:800;color:#166a37");
+    groot.appendChild(_span("declarabel", "font-size:11px;font-weight:700;color:#777"));
+    hero.append(groot, " ", _span(dec.baseLabel, "font-size:10px;color:#999"));
     hero.style.cssText = "margin-bottom:5px";
     wrap.appendChild(hero);
     const chips = document.createElement("div");
@@ -17855,15 +18032,16 @@
   }
 
   // src/content/helper/routing.js
+  function domeinPast(host, dom) {
+    host = String(host || "").toLowerCase().replace(/\.$/, "");
+    dom = String(dom || "").trim().toLowerCase().replace(/^\*?\./, "").replace(/\.$/, "");
+    return !!dom && (host === dom || host.endsWith("." + dom));
+  }
   function activationDomainsOk() {
     try {
       const d = APP_CONFIG.activation && APP_CONFIG.activation.domains || [];
       if (!Array.isArray(d) || !d.length) return true;
-      const host = (location.hostname || "").toLowerCase();
-      return d.some((dom) => {
-        dom = String(dom || "").trim().toLowerCase();
-        return dom && host.indexOf(dom) !== -1;
-      });
+      return d.some((dom) => domeinPast(location.hostname, dom));
     } catch (e) {
       return true;
     }
@@ -17899,6 +18077,7 @@
     _lastHref = location.href;
     window.dispatchEvent(new Event("locationchange"));
   }
+  var _stopUrlSein = null;
   function installUrlWatch() {
     for (const m of ["pushState", "replaceState"]) {
       const orig = history[m];
@@ -17909,11 +18088,17 @@
       };
     }
     window.addEventListener("popstate", meldUrlWijziging);
+    window.addEventListener("hashchange", meldUrlWijziging);
     window.addEventListener("locationchange", syncWithUrl);
-    _urlTimer = setInterval(meldUrlWijziging, 250);
+    if (!_stopUrlSein) _stopUrlSein = onPageEvent(PAGE_EVENT.URL_CHANGED, meldUrlWijziging);
+    _urlTimer = setInterval(meldUrlWijziging, 1e3);
   }
   function stopUrlWatch() {
     clearInterval(_urlTimer);
+    if (_stopUrlSein) {
+      _stopUrlSein();
+      _stopUrlSein = null;
+    }
     window.removeEventListener("locationchange", syncWithUrl);
   }
 
@@ -18845,13 +19030,6 @@
 
   // src/content/features/agenda/side-panel-bridge.js
   var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerDirect", "routeLink"];
-  function routesProxyVoorPaneel() {
-    const p = APP_CONFIG.routesProxy || {};
-    const url = String(p.url || "").trim().replace(/\/+$/, "");
-    if (/^https:\/\/[^/]+/.test(url) && p.token) return { url, token: String(p.token) };
-    const key = String(p.routesKey || "").trim();
-    return /^[A-Za-z0-9_-]{20,60}$/.test(key) ? { key } : null;
-  }
   function panelFeatures() {
     const f = APP_CONFIG.features || {}, uit = {};
     PANEL_FEATURES.forEach(function(k) {
@@ -18928,10 +19106,8 @@
       // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
       debugWachtwoord: /^[0-9a-f]{64}$/.test(String(APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord || "")) ? APP_CONFIG.debug.wachtwoord : "",
       afspraakTypes: afspraakTypesVoorPaneel(),
-      // Rijtijden-server (alleen https); leeg = niet ingesteld.
-      routesProxy: routesProxyVoorPaneel(),
-      // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
-      mapsEmbedKey: String(APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey || "").trim(),
+      // Rijtijden en kaart (routesProxy) leest het zijpaneel zelf uit config.json
+      // en het beleid (shared/routes-config.js), niet uit deze toestand.
       today: agendaYmd(/* @__PURE__ */ new Date())
     };
   }
@@ -18951,6 +19127,7 @@
     agendaPage.sidePanelOpen = !!open;
     if (agendaPage.sidePanelOpen) {
       agendaPage._agStateSig = "";
+      agendaPage.totalsDirty = true;
       safe(function() {
         pushPanelState(true);
       });
@@ -18959,6 +19136,7 @@
   function listenForSidePanelMessages() {
     try {
       chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+        if (!sender || sender.id !== chrome.runtime.id) return;
         if (!msg || typeof msg.type !== "string") return;
         switch (msg.type) {
           case MSG.SIDEPANEL_STATE:
@@ -19122,6 +19300,12 @@
               }
             });
             return true;
+          case MSG.AGENDA_ERRLOG:
+            try {
+              sendResponse({ ok: true, items: foutLijst() });
+            } catch (e) {
+            }
+            return;
           case MSG.AGENDA_FORMLOG:
             try {
               sendResponse({ ok: true, items: formulierLog() });
@@ -19480,15 +19664,24 @@
         const t = m.target;
         return t && t.classList && t.classList.contains(CLASS);
       });
-      if (!own) schedulePaint();
+      if (!own) {
+        agendaPage.totalsDirty = true;
+        schedulePaint();
+      }
     });
     agendaPage.observer.observe(document.documentElement, { childList: true, subtree: true });
     window.addEventListener("resize", schedulePaint);
+    window.addEventListener("scroll", schedulePaint, { capture: true, passive: true });
     if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function() {
       if (paginaActief()) schedulePaint();
-    }, 250);
+    }, 1e3);
+    agendaPage.totalsDirty = true;
+    let laatsteTotals = 0;
     if (!agendaPage.totalsTimer) agendaPage.totalsTimer = setInterval(function() {
       if (!paginaActief()) return;
+      if (!agendaPage.totalsDirty && Date.now() - laatsteTotals < 2e3) return;
+      agendaPage.totalsDirty = false;
+      laatsteTotals = Date.now();
       try {
         const res = computeTotals();
         const cnt = Object.keys(res.past).filter((d) => res.past[d].client + res.past[d].overig > 0).length;
@@ -19498,7 +19691,7 @@
         if (agendaPage._agWeekLoaded && !agendaPage._agWeekBusy) preloadPanelData();
       } catch (e) {
       }
-    }, 300);
+    }, 500);
   }
   function deactivateAgendaPage() {
     if (!agendaPage.active) return;
@@ -19522,6 +19715,7 @@
     } catch (e) {
     }
     window.removeEventListener("resize", schedulePaint);
+    window.removeEventListener("scroll", schedulePaint, { capture: true });
     removeAll();
   }
   function helperScreenActive() {
@@ -20244,6 +20438,16 @@
   installPanelDragListeners();
   installUrlWatch();
   HELPER_CONFIG_READY.then(syncWithUrl);
+  try {
+    const vanHulp = (x) => /chrome-extension:\/\/|\/dist\/|\/test\/build\//.test(String(x && x.stack || ""));
+    window.addEventListener("error", function(ev) {
+      if (ev && ev.error && vanHulp(ev.error)) meldFout("", ev.error);
+    });
+    window.addEventListener("unhandledrejection", function(ev) {
+      if (ev && ev.reason && vanHulp(ev.reason)) meldFout("", ev.reason);
+    });
+  } catch (e) {
+  }
   HELPER_CONFIG_READY.then(function() {
     safe(pushRegistrationForms);
   });

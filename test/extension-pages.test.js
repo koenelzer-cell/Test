@@ -122,6 +122,18 @@ test('service worker: registratievormen worden het rechtermuismenu', async () =>
   assert.deepEqual(titels, ['Registreren als…', 'Huisbezoek', 'MDO', 'Agendahulp in zijpaneel']);
 });
 
+test('service worker: meer dan 40 registratievormen: de rest staat als uitleg onderaan, niet stil weg', async () => {
+  const { listeners, calls } = loadWorker();
+  const vormen = Array.from({ length: 45 }, (_, i) => 'Vorm ' + (i + 1));
+  await send(listeners, { type: 'forms', forms: vormen });
+  await tick();
+  const titels = calls.menus.map((m) => m.title);
+  assert.equal(titels.filter((t) => /^Vorm /.test(t)).length, 40);
+  const meer = calls.menus.find((m) => /^En nog/.test(m.title));
+  assert.equal(meer.title, 'En nog 5: kies die in de registratiehulp');
+  assert.equal(meer.enabled, false);
+});
+
 test('service worker: herinnering staat standaard uit en is aan te zetten', async () => {
   const { listeners, store, calls } = loadWorker();
   const start = await send(listeners, { type: 'reminder-get' }, POPUP);
@@ -409,6 +421,18 @@ test('service worker: opent alleen https-adressen in een nieuw tabblad naast het
   assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'https://login.afasonline.com/83031/Apps' }, sender)) }, { ok: true });
   assert.deepEqual({ ...gemaakt[0] }, { url: 'https://login.afasonline.com/83031/Apps', active: true, index: 4, windowId: 2 });
   assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'javascript:alert(1)' }, sender)) }, { ok: false });
+  assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'https://kwaad.example/afas' }, sender)) }, { ok: false }, 'alleen de host van de verlof-link');
+  assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'https://login.afasonline.com.kwaad.example/' }, sender)) }, { ok: false });
+  assert.equal(gemaakt.length, 1);
+});
+
+test('service worker: een verlof-link uit het beleid mag ook', async () => {
+  const { listeners, chrome, store } = loadWorker();
+  store.managed = { helperConfig: { leaveRequest: { redirectUrl: 'https://eigen.afas.example/Apps' } } };
+  const gemaakt = [];
+  chrome.tabs.create = (o, cb) => { gemaakt.push(o); cb({}); };
+  const sender = { ...ONS_TAB, tab: { ...ONS_TAB.tab, index: 3, windowId: 2 } };
+  assert.deepEqual({ ...(await send(listeners, { type: 'open-tab', url: 'https://eigen.afas.example/Apps' }, sender)) }, { ok: true });
   assert.equal(gemaakt.length, 1);
 });
 
@@ -426,7 +450,11 @@ function env_update(document, state) {
 
 function zijpaneelMetTools(antwoord, state = AGENDA_STATE_TOOLS) {
   const verzonden = [];
+  // Rijtijden en kaart leest het zijpaneel uit het beleid (niet uit de toestand
+  // van de pagina): wat een test in de toestand meegeeft, gaat daarom het beleid in.
+  const rp = state && state.routesProxy, ek = state && state.mapsEmbedKey;
   const r = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env) => {
+    if (rp || ek) env.store.managed = { helperConfig: { routesProxy: { ...(rp && rp.url ? { url: rp.url, token: rp.token } : {}), ...(rp && rp.key ? { routesKey: rp.key } : {}), ...(ek ? { embedKey: ek } : {}) } } };
     env.chrome.tabs.query = (q, cb) => cb([{ id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/invitees/1' }]);
     env.chrome.tabs.sendMessage = (id, msg, cb) => {
       verzonden.push(msg);
@@ -877,6 +905,27 @@ test('zijpaneel: planhulp zonder kopieën (beheer): één moment tegelijk', asyn
   document.querySelector('[data-start="10:30"]').click();
   document.querySelector('[data-start="11:00"]').click();
   assert.equal(document.querySelector('[data-selectie]').getAttribute('data-selectie'), '1', 'kopieën uit: één moment tegelijk');
+});
+
+test('zijpaneel: een routes-server of sleutel in de toestand van de ONS-pagina telt niet; alleen config.json en het beleid', async () => {
+  const proxy = [];
+  const r = loadPage('pages/sidepanel.html', 'dist/sidepanel.js', (env) => {
+    env.chrome.tabs.query = (q, cb) => cb([{ id: 5, active: true, windowId: 1, url: 'https://impegno.onsagenda.nl/invitees/1' }]);
+    env.chrome.tabs.sendMessage = (id, msg, cb) => {
+      if (msg.type === 'ag-get-state') cb({ state: { ...AGENDA_STATE_TOOLS, viewDate: '2026-10-12', mapsEmbedKey: 'KWAAD_embed_1234567890', routesProxy: { url: 'https://kwaad.example', token: 'x' } } });
+      else if (msg.type === 'ag-day-route') cb({ ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 0,
+        stops: [{ start: '09:00', address: 'Teststraat 1, 2611EB, Delft' }, { start: '11:00', address: 'Laan 5, 2613RR, Delft' }], urls: ['https://www.google.com/maps/dir/?api=1&destination=x'] }] } });
+      else if (cb) cb(null);
+    };
+    env.chrome.windows.getCurrent = (cb) => cb({ id: 1 });
+  });
+  r.dom.window.fetch = (url, init) => { proxy.push(url); return Promise.resolve({ ok: true, json: () => Promise.resolve({}) }); };
+  await tick();
+  navKnop(r.document, 'Route van de dag').click();
+  await tick();
+  assert.doesNotMatch(r.document.body.textContent, /kortste volgorde/i, 'geen routes-server: geen kortste volgorde');
+  assert.equal([...r.document.querySelectorAll('button')].some((b) => b.textContent === 'Kaart tonen'), false, 'geen kaartsleutel: geen kaart');
+  assert.deepEqual(proxy.filter((u) => /kwaad/.test(u)), []);
 });
 
 test('zijpaneel: route van de dag - kaart pas na een klik, QR-code op dezelfde plek, kortste volgorde via de eigen server', async () => {
@@ -2373,6 +2422,29 @@ test('zijpaneel: Formulier onder Debug toont wat de hulp via Vue deed, met reden
   assert.equal(regels[3], '10:04:07\tHerhaling op Niet\tniet gelukt\tkeuze Niet niet gevonden');
   assert.deepEqual(JSON.parse(regels.slice(4).join('\n')).elementen, ['uc-form-field recurrence-type'], 'de opbouw netjes erbij');
   assert.equal(document.querySelector('[data-formulier-kopieer]').textContent, 'Gekopieerd');
+});
+
+test('zijpaneel: Fouten onder Debug toont wat de hulp stil opving, met Kopiëren', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  const t = new Date(2026, 10, 3, 11, 0, 1).getTime();
+  const { document, dom } = zijpaneelMetTools({
+    'ag-foutlog': (msg, cb) => cb({ ok: true, items: [{ tijd: t, plek: 'content.js:1:2345', melding: 'TypeError: x is undefined' }, { tijd: t + 1000, plek: 'GET /calendar/holidays', melding: 'HTTP 500' }] }),
+  }, { ...AGENDA_STATE_TOOLS, version: '1.6.307', debugWachtwoord: HASH });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  await tick();
+  const rijen = [...document.querySelectorAll('[data-fout-rij]')].map((r) => r.textContent);
+  assert.deepEqual(rijen, ['11:00:02GET /calendar/holidaysHTTP 500', '11:00:01content.js:1:2345TypeError: x is undefined'], 'nieuwste boven');
+  let gekopieerd = '';
+  Object.defineProperty(dom.window.navigator, 'clipboard', { value: { writeText: (x) => { gekopieerd = x; return Promise.resolve(); } }, configurable: true });
+  document.querySelector('[data-fouten-kopieer]').click();
+  await tick();
+  assert.equal(gekopieerd, 'Fouten ONS Agendahulp 1.6.307\n11:00:01\tcontent.js:1:2345\tTypeError: x is undefined\n11:00:02\tGET /calendar/holidays\tHTTP 500');
 });
 
 test('zijpaneel: Netwerk onder Debug toont live de verzoeken van ONS, de hulp en het zijpaneel, met filter, pauze, kopiëren en wissen', async () => {

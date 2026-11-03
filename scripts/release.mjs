@@ -49,6 +49,9 @@ function run(cmd, argv, cwd = ROOT) {
 const INHOUD = ['manifest.json', 'managed_schema.json', 'config.json', 'dist', 'pages', 'icons', 'assets'];
 const BEHEER = 'tools/beheer';
 const TESTOMGEVING = 'https://impegno-staging-staging.ons-dossier.nl/*';
+// Het gewone pakket draait alleen op impegno.onsagenda.nl; het testpakket ook
+// op andere subdomeinen van onsagenda.nl (een testomgeving van de agenda).
+const TESTAGENDA = 'https://*.onsagenda.nl/*';
 // Wat nooit in een pakket mag: het hoort bij ontwikkelen en testen.
 const VERBODEN = [
   [/sourceMappingURL=/, 'een verwijzing naar een sourcemap'],
@@ -70,7 +73,8 @@ function volgendeVersie(huidig) {
 // productie-dossier staat.
 function testManifest(manifest) {
   const m = structuredClone(manifest);
-  const metTest = (lijst) => (lijst.includes('https://impegno.ons-dossier.nl/*') ? [...lijst, TESTOMGEVING] : lijst);
+  const metTest = (lijst) => (lijst.includes('https://impegno.ons-dossier.nl/*') ? [...lijst, TESTOMGEVING]
+    .concat(lijst.includes('https://impegno.onsagenda.nl/*') ? [TESTAGENDA] : []) : lijst);
   m.name += ' (test)';
   m.host_permissions = metTest(m.host_permissions);
   m.content_scripts.forEach((c) => { c.matches = metTest(c.matches); });
@@ -177,7 +181,7 @@ function release() {
       mappen.push(stelSamen(m));
       controleerPakket(mappen.at(-1), m);
     }
-    if (JSON.stringify(manifest).includes(TESTOMGEVING)) throw new Error('De testomgeving hoort alleen in het testpakket.');
+    if (JSON.stringify(manifest).includes(TESTOMGEVING) || JSON.stringify(manifest).includes(TESTAGENDA)) throw new Error('De testomgeving hoort alleen in het testpakket.');
 
     if (dry) {
       console.log(`\n${groen('Proefdraai klaar.')} Niets opgehoogd of ingepakt.`);

@@ -19,6 +19,7 @@ import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { netwerklogSessie, netwerklogSinds } from '../../services/ons-api/netwerklog.js';
 import { formulierLog } from '../../ons/form-model.js';
+import { foutLijst } from '../../core/foutbuffer.js';
 import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
 import { checkColleagues, checkSlotWithOns } from './free-slots.js';
@@ -26,15 +27,6 @@ import { dayRoute, routeEnabled } from './route.js';
 import { APP_CONFIG, choiceLabels, effectiveChoices } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
-// Rijtijden: eigen server (url + token) gaat voor; anders direct met de
-// Routes-sleutel; anders niets (dan geen rijtijden).
-function routesProxyVoorPaneel() {
-  const p = APP_CONFIG.routesProxy || {};
-  const url = String(p.url || '').trim().replace(/\/+$/, '');
-  if (/^https:\/\/[^/]+/.test(url) && p.token) return { url: url, token: String(p.token) };
-  const key = String(p.routesKey || '').trim();
-  return /^[A-Za-z0-9_-]{20,60}$/.test(key) ? { key: key } : null;
-}
 function panelFeatures() {
   const f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
@@ -126,10 +118,8 @@ function agPanelState() {
     // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
     debugWachtwoord: /^[0-9a-f]{64}$/.test(String((APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord) || '')) ? APP_CONFIG.debug.wachtwoord : '',
     afspraakTypes: afspraakTypesVoorPaneel(),
-    // Rijtijden-server (alleen https); leeg = niet ingesteld.
-    routesProxy: routesProxyVoorPaneel(),
-    // Sleutel voor de kaart (alleen Maps Embed API); leeg = geen kaart.
-    mapsEmbedKey: String((APP_CONFIG.routesProxy && APP_CONFIG.routesProxy.embedKey) || '').trim(),
+    // Rijtijden en kaart (routesProxy) leest het zijpaneel zelf uit config.json
+    // en het beleid (shared/routes-config.js), niet uit deze toestand.
     today: agendaYmd(new Date())
   };
 }
@@ -150,13 +140,15 @@ export function pushPanelState(force) {
 function setSidePanelOpen(open) {
   if (agendaPage.sidePanelOpen === !!open) return;
   agendaPage.sidePanelOpen = !!open;
-  if (agendaPage.sidePanelOpen) { agendaPage._agStateSig = ''; safe(function () { pushPanelState(true); }); }
+  if (agendaPage.sidePanelOpen) { agendaPage._agStateSig = ''; agendaPage.totalsDirty = true; safe(function () { pushPanelState(true); }); }
 }
 // Acties vanuit het zijpaneel + de vraag om de huidige toestand.
 // Opstarten: acties vanuit het zijpaneel + de vraag om de huidige toestand.
 export function listenForSidePanelMessages() {
   try {
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+      // Alleen van deze extensie zelf (zijpaneel, service worker).
+      if (!sender || sender.id !== chrome.runtime.id) return;
       if (!msg || typeof msg.type !== 'string') return;
       switch (msg.type) {
         case MSG.SIDEPANEL_STATE:
@@ -252,6 +244,9 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
           });
           return true;
+        case MSG.AGENDA_ERRLOG:
+          try { sendResponse({ ok: true, items: foutLijst() }); } catch (e) {}
+          return;
         case MSG.AGENDA_FORMLOG:
           try { sendResponse({ ok: true, items: formulierLog() }); } catch (e) {}
           return;

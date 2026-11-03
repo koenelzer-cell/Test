@@ -17,7 +17,9 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const AGENDA = 'https://impegno.onsagenda.nl/calendar/invitee/123/day?date=2026-10-21';
 const FORMULIER = 'https://impegno.onsagenda.nl/events/new?date=2026-10-21';
 const DOSSIER = 'https://impegno.ons-dossier.nl/clients/1';
-const LEGE_PAGINA = '<!doctype html><html lang="nl"><head><title>ONS</title></head><body><div id="app"></div></body></html>';
+// Het script in de kop is de eerste code van de pagina zelf: draait de main-world
+// al (document_start), dan ziet het die en een ingepakte fetch.
+const LEGE_PAGINA = '<!doctype html><html lang="nl"><head><title>ONS</title><script>window.__mwVroeg = window.__onsAgendahulpMW === true; window.__fetchVroeg = String(window.fetch).indexOf("[native code]") < 0;</script></head><body><div id="app"></div></body></html>';
 const FORMULIER_HTML = fs.readFileSync(path.join(ROOT, 'test/fixtures/afspraak-twee-clienten.html'), 'utf8');
 
 // Zonder eigen Chromium (PW_CHROMIUM) het volledige Chromium-kanaal: de
@@ -105,6 +107,8 @@ test('laadt zonder fouten op ONS Agenda en ONS Dossier', async () => {
     const agenda = context.pages().find((p) => p.url().startsWith(AGENDA.replace(/\?.*/, '')));
     await expect(agenda.locator('#onsah-edge-tab')).toHaveCount(1);
     expect(await agenda.evaluate(() => window.__onsAgendahulpMW === true)).toBe(true);
+    // De main-world draait vóór de eerste code van de pagina (document_start), met fetch al ingepakt.
+    expect(await agenda.evaluate(() => [window.__mwVroeg, window.__fetchVroeg])).toEqual([true, true]);
     expect(fouten).toEqual({ [AGENDA]: [], [FORMULIER]: [], [DOSSIER]: [] });
     expect(ext.status.fouten).toEqual([]);
   } finally {

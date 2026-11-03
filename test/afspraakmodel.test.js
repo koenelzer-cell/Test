@@ -42,13 +42,13 @@ test('eigen formulieren (meerdere afspraken plannen) houden hun eigen type', () 
   assert.deepEqual(klaar.eigen[0].label, { id: 47, name: 'Face to face' });
 });
 
-async function mainWorld() {
+async function mainWorld(eigenFetch) {
   const { JSDOM } = await import('jsdom');
   const dom = new JSDOM('<!doctype html><body></body>', { url: 'https://impegno.onsagenda.nl/events/new?invitee_ids%5B%5D=42479', runScripts: 'outside-only' });
   const w = dom.window;
   w.Response = Response;
   let antwoord = JSON.stringify(LEEG());
-  w.fetch = () => Promise.resolve(new Response(antwoord, { status: 200, headers: { 'content-type': 'application/json' } }));
+  w.fetch = eigenFetch || (() => Promise.resolve(new Response(antwoord, { status: 200, headers: { 'content-type': 'application/json' } })));
   // Een nep-XHR met de getters op het prototype, zoals in de browser.
   class NepXHR {
     open() {}
@@ -93,6 +93,20 @@ test('main-world vult het lege afspraakmodel aan (fetch), alleen als de planhulp
   zetAntwoord(LEEG());
   zet(MODEL, 3 * 60 * 1000);
   assert.deepEqual(await haal('/calendar/events/new'), LEEG());
+});
+
+test('main-world: het aangevulde antwoord houdt url, redirected en type van het origineel', async () => {
+  const { w, zet } = await mainWorld(() => {
+    const r = new Response(JSON.stringify(LEEG()), { status: 200, headers: { 'content-type': 'application/json' } });
+    Object.defineProperty(r, 'url', { value: 'https://impegno.onsagenda.nl/calendar/events/new?x=1' });
+    Object.defineProperty(r, 'redirected', { value: true });
+    return Promise.resolve(r);
+  });
+  zet(MODEL);
+  const res = await w.fetch('/calendar/events/new');
+  assert.equal((await res.clone().json()).valid_from, '2026-10-20', 'aangevuld');
+  assert.equal(res.url, 'https://impegno.onsagenda.nl/calendar/events/new?x=1');
+  assert.equal(res.redirected, true);
 });
 
 test('main-world vult het lege afspraakmodel ook aan als ONS het met XHR ophaalt', async () => {

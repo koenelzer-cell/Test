@@ -11,16 +11,25 @@ import {
 } from '../features/agenda-overview/registrations-overview.js';
 import { HELPER_SCOPE, helperConfigReady, RUNTIME_CONFIG } from '../config/loader.js';
 import { activate, deactivate } from './lifecycle.js';
+import { onPageEvent } from '../core/page-bridge.js';
+import { PAGE_EVENT } from '../../shared/messages.js';
 
 // Optionele domein-allowlist uit de config. Leeg = actief op elk domein dat
 // het manifest toelaat. Gevuld = alleen actief op deze domeinen (kan de
 // manifest-scope wel beperken, niet uitbreiden).
+// Past de host bij een domein uit activation.domains? Precies die host, of
+// een subdomein ervan ('onsagenda.nl' past bij 'impegno.onsagenda.nl'), nooit
+// een stukje ('onsagenda' of 'onsagenda.nl.ander.nl' past niet).
+export function domeinPast(host, dom) {
+  host = String(host || '').toLowerCase().replace(/\.$/, '');
+  dom = String(dom || '').trim().toLowerCase().replace(/^\*?\./, '').replace(/\.$/, '');
+  return !!dom && (host === dom || host.endsWith('.' + dom));
+}
 function activationDomainsOk() {
   try {
     const d = (APP_CONFIG.activation && APP_CONFIG.activation.domains) || [];
     if (!Array.isArray(d) || !d.length) return true;
-    const host = (location.hostname || '').toLowerCase();
-    return d.some((dom) => { dom = String(dom || '').trim().toLowerCase(); return dom && host.indexOf(dom) !== -1; });
+    return d.some((dom) => domeinPast(location.hostname, dom));
   } catch (e) { return true; }
 }
 // Het afspraakformulier waarvoor de planhulp-voortzetting al gestart is. Een
@@ -59,19 +68,24 @@ function meldUrlWijziging() {
   _lastHref = location.href;
   window.dispatchEvent(new Event('locationchange'));
 }
+let _stopUrlSein = null;
 export function installUrlWatch() {
-  // Het patchen van history ziet alleen de navigaties van de extensie zelf (de
-  // pagina heeft in de geïsoleerde wereld een eigen history-object); die van
-  // ONS vangt het nakijken elke 250 ms.
+  // Het patchen van history hier ziet alleen de navigaties van de extensie
+  // zelf (de geïsoleerde wereld heeft een eigen history-object). Die van ONS
+  // meldt de main-world (PAGE_EVENT.URL_CHANGED); terug en vooruit geven
+  // popstate. Elke seconde nakijken is alleen nog een vangnet.
   for (const m of ['pushState', 'replaceState']) {
     const orig = history[m];
     history[m] = function () { const r = orig.apply(this, arguments); meldUrlWijziging(); return r; };
   }
   window.addEventListener('popstate', meldUrlWijziging);
+  window.addEventListener('hashchange', meldUrlWijziging);
   window.addEventListener('locationchange', syncWithUrl);
-  _urlTimer = setInterval(meldUrlWijziging, 250);
+  if (!_stopUrlSein) _stopUrlSein = onPageEvent(PAGE_EVENT.URL_CHANGED, meldUrlWijziging);
+  _urlTimer = setInterval(meldUrlWijziging, 1000);
 }
 export function stopUrlWatch() {
   clearInterval(_urlTimer);
+  if (_stopUrlSein) { _stopUrlSein(); _stopUrlSein = null; }
   window.removeEventListener('locationchange', syncWithUrl);
 }

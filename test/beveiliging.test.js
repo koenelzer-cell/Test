@@ -44,7 +44,9 @@ test('verzoeken gaan alleen naar ONS zelf; het CSRF-token nooit naar een ander d
 test('manifest: strikte CSP voor de extensiepagina\'s en geen host-rechten buiten ONS', () => {
   const m = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
   assert.equal(m.content_security_policy.extension_pages, "script-src 'self'; object-src 'none'; base-uri 'none'");
-  assert.deepEqual(m.host_permissions, ['https://impegno.ons-dossier.nl/*', 'https://*.onsagenda.nl/*']);
+  assert.deepEqual(m.host_permissions, ['https://impegno.ons-dossier.nl/*', 'https://impegno.onsagenda.nl/*'], 'alleen de hosts van Impegno, geen jokers');
+  const scripts = m.content_scripts.filter((c) => c.js.some((j) => /content|main-world|edge-tab/.test(j)));
+  assert.ok(scripts.every((c) => c.matches.every((u) => !u.includes('*.'))), 'de ONS-scripts zonder jokerdomein');
   assert.ok([...m.host_permissions, ...m.optional_host_permissions].every((h) => h.startsWith('https://')), 'alleen https');
   assert.equal(m.externally_connectable, undefined, 'geen berichten van websites of andere extensies');
   assert.ok(m.web_accessible_resources.every((w) => w.use_dynamic_url === true && w.resources.join() === 'config.json'), 'alleen config.json, met wisselend adres');

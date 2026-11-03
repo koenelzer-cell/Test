@@ -79,7 +79,8 @@ export function startRegistrationWithForm(vorm) {
 // Opstarten: menukeuze van de service worker afhandelen.
 export function listenForContextMenuChoice() {
   try {
-    chrome.runtime.onMessage.addListener(function (msg) {
+    chrome.runtime.onMessage.addListener(function (msg, sender) {
+      if (!sender || sender.id !== chrome.runtime.id) return;
       if (!msg || msg.type !== MSG.CTX_REGISTER) return;
       safe(function () { startRegistrationWithForm(msg.vorm); });
     });

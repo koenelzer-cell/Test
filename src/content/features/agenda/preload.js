@@ -1,12 +1,14 @@
-// Vooraf laden: wat het zijpaneel nodig heeft, wordt al opgehaald zodra de
-// agenda open is, zodat een pagina in het zijpaneel meteen gevuld is.
+// Vooraf laden: wat het zijpaneel nodig heeft, wordt al opgehaald zolang de
+// agenda en het zijpaneel open zijn, zodat een pagina in het zijpaneel meteen
+// gevuld is. Wie het zijpaneel niet opent, kost ONS niets extra.
 //
 // - Elke berekening wordt even onthouden (per collega's + periode). Vraagt het
 //   zijpaneel hetzelfde op terwijl het vooraf laden nog bezig is, dan wacht het
 //   op diezelfde berekening (en krijgt het de voortgang) in plaats van alles
 //   opnieuw te doen.
 // - Vooraf laden gebeurt rustig na elkaar, alleen als het tabblad zichtbaar is,
-//   en hooguit eens per paar minuten.
+//   hooguit eens per vijf à zes minuten (met toeval), en niet als ONS net
+//   meldde dat het te druk is (429/503, services/ons-api/http.js).
 // - 'vers' (bijv. de afwerklijst bijwerken) slaat het onthouden over.
 
 import { viewedInviteeIds } from './navigation.js';
@@ -15,6 +17,8 @@ import { computeProduction, defaultProductionFrom } from './production.js';
 import { fetchWeekRatio } from './week-ratio.js';
 import { findFreeSlots, weekdagen } from './free-slots.js';
 import { vergeetWeken } from '../../services/ons-api/week-cache.js';
+import { onsTeDruk } from '../../services/ons-api/http.js';
+import { agendaPage } from './state.js';
 import { resolveInviteeId, currentAgendaDate } from '../../ons/agenda-location.js';
 import { agendaYmd } from '../../core/datetime.js';
 import { APP_CONFIG } from '../../config/app-config.js';
@@ -97,14 +101,20 @@ export function defaultProductionTo() {
   return agendaYmd(d);
 }
 
-let _laatstVooraf = 0, _voorafSleutel = '', _bezig = false;
-// Rustig na elkaar: eerst wat het snelst klaar is.
+let _laatstVooraf = 0, _voorafSleutel = '', _bezig = false, _jitter = 0;
+// Rustig na elkaar: eerst wat het snelst klaar is. Alleen als het zijpaneel
+// open is (wie het nooit opent, kost ONS niets extra), niet als ONS net
+// meldde dat het te druk is, en met wat toeval in de tijd tussen twee
+// rondes, zodat honderden tabbladen niet tegelijk vragen.
 export function preloadPanelData(force) {
   if (_bezig) return;
   if (!aan('preload')) return;
+  if (!agendaPage.sidePanelOpen && !force) return;
+  if (onsTeDruk()) return;
   if (document.visibilityState !== 'visible') return;
   const sleutel = idsSleutel() + '|' + currentAgendaDate();
-  if (!force && sleutel === _voorafSleutel && (Date.now() - _laatstVooraf) < VOORAF_INTERVAL) return;
+  if (!force && sleutel === _voorafSleutel && (Date.now() - _laatstVooraf) < VOORAF_INTERVAL + _jitter) return;
+  _jitter = Math.round(Math.random() * 60000);
   if (!idsSleutel()) return;
   _bezig = true; _voorafSleutel = sleutel; _laatstVooraf = Date.now();
   const vandaag = agendaYmd(new Date());
@@ -123,4 +133,4 @@ export function preloadPanelData(force) {
 // opnieuw ophalen (ook de onthouden weken).
 export function forgetFreeSlots() { Object.keys(_cache).forEach((k) => { if (k.indexOf('plan|') === 0) delete _cache[k]; }); vergeetWeken(); }
 // Alleen voor de tests.
-export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); vergeetWeken(); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; }
+export function _clearPreloadCache() { Object.keys(_cache).forEach((k) => delete _cache[k]); vergeetWeken(); _laatstVooraf = 0; _voorafSleutel = ''; _bezig = false; _jitter = 0; }

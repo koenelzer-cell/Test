@@ -9,13 +9,14 @@ import { RUNTIME_CONFIG } from '../../config/loader.js';
 import { ONSAH_TOKENS, onsahFocusRing } from '../../ui/theme.js';
 import { onsahEmptyState } from '../../ui/controls.js';
 import { svgCloseIcon } from '../../ui/icons.js';
-import { zetHtml } from '../../../shared/veilige-html.js';
+// Een span met tekst en opmaak (DOM-nodes, geen HTML uit strings).
+function _span(tekst, css) { const s = document.createElement('span'); if (css) s.style.cssText = css; s.textContent = tekst; return s; }
 
 // Kleine gekleurde chip (label + waarde).
 function _agChip(label, value, bg, fg) {
   const c = document.createElement('span');
   c.style.cssText = 'display:inline-flex;align-items:baseline;gap:4px;background:' + bg + ';color:' + fg + ';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap';
-  zetHtml(c, '<span style="font-weight:600;opacity:.8">' + label + '</span> ' + value);
+  c.append(_span(label, 'font-weight:600;opacity:.8'), ' ' + value);
   return c;
 }
 // Sectie 'Afgerond (geregistreerd)' — de ECHTE directe/indirecte/reistijd uit de
@@ -23,7 +24,8 @@ function _agChip(label, value, bg, fg) {
 export function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
   const wrap = document.createElement('div'); wrap.style.cssText = 'margin-top:10px;border-top:2px solid #f0e0ea;padding-top:8px';
   const h = document.createElement('div');
-  zetHtml(h, 'Afgerond en geregistreerd' + (dateLabel ? ' <span style="font-weight:400;color:#999;font-size:10px">' + dateLabel + '</span>' : ''));
+  h.append('Afgerond en geregistreerd');
+  if (dateLabel) h.append(' ', _span(dateLabel, 'font-weight:400;color:#999;font-size:10px'));
   h.style.cssText = 'font-weight:700;font-size:11px;color:' + ONSAH_TOKENS.brand + ';margin-bottom:5px';
   wrap.appendChild(h);
   if (!rs || !rs.count) {
@@ -33,8 +35,9 @@ export function agendaRegistrationsSectionEl(rs, dateLabel, profile) {
   // Declarabiliteit uit de ECHTE geregistreerde tijd (profielafhankelijk), in u:m.
   const dec = declarabiliteitPct(rs, profile);
   const hero = document.createElement('div');
-  zetHtml(hero, '<span style="font-size:18px;font-weight:800;color:#166a37">' + _agFmtMin(dec.declarabelMinutes) + ' <span style="font-size:11px;font-weight:700;color:#777">declarabel</span></span>' +
-    ' <span style="font-size:10px;color:#999">' + dec.baseLabel + '</span>');
+  const groot = _span(_agFmtMin(dec.declarabelMinutes) + ' ', 'font-size:18px;font-weight:800;color:#166a37');
+  groot.appendChild(_span('declarabel', 'font-size:11px;font-weight:700;color:#777'));
+  hero.append(groot, ' ', _span(dec.baseLabel, 'font-size:10px;color:#999'));
   hero.style.cssText = 'margin-bottom:5px'; wrap.appendChild(hero);
   const chips = document.createElement('div'); chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px';
   chips.append(

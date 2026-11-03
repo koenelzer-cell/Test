@@ -12,10 +12,14 @@
     // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
     META: "eventMeta",
     // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
+    CREATING: "afspraakVersturen",
+    // {}  de pagina verstuurt een nieuwe afspraak en de planhulp zette kopieën klaar: het content-script legt nu zelf vast wat er klaarstaat
     CREATED: "eventCreated",
-    // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+    // { body }  opslaan-verzoek van ONS (na het antwoord), alleen als de planhulp kopieën klaarzette
     MAIN_READY: "mainWorldKlaar",
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+    URL_CHANGED: "urlGewijzigd",
+    // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
     NET_REQUEST: "netwerkVerzoek"
     // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
   };
@@ -256,6 +260,7 @@
         const abs = new URL(u, location.href);
         if (abs.origin !== location.origin || abs.pathname.replace(/\/$/, "") !== CREATE_PATH) return null;
         const klaar = kopieenKlaar();
+        if (klaar) post(PAGE_EVENT.CREATING, {});
         return function(url2, text, body) {
           if (typeof body !== "string" || !body) return;
           try {
@@ -268,7 +273,7 @@
           } catch (e) {
           }
           try {
-            if (klaar) post(PAGE_EVENT.CREATED, { body, pending: klaar });
+            if (klaar) post(PAGE_EVENT.CREATED, { body });
           } catch (e) {
           }
         };
@@ -318,7 +323,15 @@
                   if (!res || !res.ok || !res.clone) return res;
                   return res.clone().text().then(function(t) {
                     const n = vulTekst(t);
-                    return n === t ? res : new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                    if (n === t) return res;
+                    const nieuw = new Response(n, { status: res.status, statusText: res.statusText, headers: res.headers });
+                    try {
+                      ["url", "redirected", "type"].forEach(function(k) {
+                        Object.defineProperty(nieuw, k, { value: res[k], enumerable: true });
+                      });
+                    } catch (e) {
+                    }
+                    return nieuw;
                   }, function() {
                     return res;
                   });
@@ -394,6 +407,18 @@
       }
     }
     installDetailsWatcher();
+    try {
+      ["pushState", "replaceState"].forEach(function(m) {
+        const orig = history[m];
+        if (typeof orig !== "function") return;
+        history[m] = function() {
+          const r = orig.apply(this, arguments);
+          post(PAGE_EVENT.URL_CHANGED, {});
+          return r;
+        };
+      });
+    } catch (e) {
+    }
     function diepZoekAlle(root, sel, uit) {
       uit = uit || [];
       root.querySelectorAll(sel).forEach(function(e) {

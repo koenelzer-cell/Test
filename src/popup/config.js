@@ -1,8 +1,10 @@
 // Welke bedrijfsonderdelen en teams zijn er? Dezelfde lagen als het
-// content-script: config.json < lokale testconfig < beleid (managed).
+// content-script: config.json < lokale testconfig (alleen het testpakket) <
+// beleid (managed).
 
 import { LOCAL } from '../shared/storage-keys.js';
 import { readStorage } from '../shared/chrome-storage.js';
+import { isTestpakket } from '../shared/version.js';
 
 const DEFAULT_TOPDESK_URL = 'https://impegno.topdesk.net/';
 
@@ -26,8 +28,10 @@ export async function loadPopupConfig() {
     const cfg = response.ok ? await response.json() : null;
     if (cfg) applyPopupConfig(cfg);
   } catch (e) {}
-  const local = await readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
-  if (local[LOCAL.TEST_CONFIG]) applyPopupConfig(local[LOCAL.TEST_CONFIG]);
+  if (isTestpakket()) {
+    const local = await readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
+    if (local[LOCAL.TEST_CONFIG]) applyPopupConfig(local[LOCAL.TEST_CONFIG]);
+  }
   const managed = await readStorage(chrome.storage.managed, null);
   if (managed && Object.keys(managed).length) applyPopupConfig(managed);
 }

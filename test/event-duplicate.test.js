@@ -76,30 +76,69 @@ test('main-world geeft het opslaan-verzoek alleen door als er momenten klaarstaa
   const w = dom.window;
   w.fetch = () => Promise.resolve({ ok: true, clone() { return { text: () => Promise.resolve('{}') }; } });
   w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
-  const gezien = [];
-  w.addEventListener('message', (e) => { if (e.data && e.data.type === 'eventCreated') gezien.push(e.data); });
+  const gezien = [], versturen = [];
+  w.addEventListener('message', (e) => { if (e.data && e.data.type === 'eventCreated') gezien.push(e.data); if (e.data && e.data.type === 'afspraakVersturen') versturen.push(e.data); });
   const body = JSON.stringify(VOORBEELD());
   w.fetch('/calendar/events', { method: 'POST', body });
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(gezien.length, 0, 'niets klaargezet: niet doorgeven');
+  assert.equal(versturen.length, 0);
   const klaar = JSON.stringify({ moments: [{ date: '2026-10-29', startMin: 540 }], ts: Date.now() });
   w.sessionStorage.setItem('onsHelper.pendingDuplicates', klaar);
   w.fetch('/calendar/events', { method: 'GET' });
   w.fetch('/calendar/events', { method: 'POST', body });
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(gezien.length, 1);
+  assert.equal(versturen.length, 1, 'bij het versturen een seintje (zonder momenten)');
   assert.equal(gezien[0].body, body);
-  assert.equal(gezien[0].pending, klaar);
+  assert.equal(gezien[0].pending, undefined, 'de momenten gaan niet via het bericht');
 });
 
-test('een nagemaakt opslaan-bericht maakt hooguit 19 kopieën', async () => {
+test('een nagemaakt opslaan-bericht: zonder klaargezette momenten in dit tabblad niets; momenten in het bericht tellen niet; hooguit 19 kopieën', async () => {
   const { bootHelper } = await import('./helpers/harness.mjs');
   const { window } = bootHelper({ url: 'https://impegno.onsagenda.nl/events/new' });
   let gepost = 0;
   window.fetch = () => { gepost++; return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}), text: () => Promise.resolve('{}') }); };
   const moments = Array.from({ length: 50 }, (_, i) => ({ date: '2026-11-' + String(1 + (i % 28)).padStart(2, '0'), startMin: 480 + i }));
-  window.dispatchEvent(new window.MessageEvent('message', { origin: window.location.origin, source: window, data: { __onsah: true, dir: 'from-main', type: 'eventCreated',
-    body: JSON.stringify(VOORBEELD()), pending: JSON.stringify({ moments, ts: Date.now() }) } }));
+  const stuur = (type, extra) => window.dispatchEvent(new window.MessageEvent('message', { origin: window.location.origin, source: window, data: { __onsah: true, dir: 'from-main', type, ...extra } }));
+  // Momenten alleen in het bericht: genegeerd.
+  stuur('afspraakVersturen', {});
+  stuur('eventCreated', { body: JSON.stringify(VOORBEELD()), pending: JSON.stringify({ moments, ts: Date.now() }) });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(gepost, 0, 'niets klaargezet in dit tabblad: geen kopieën');
+  // Zonder seintje bij het versturen: ook niets.
+  window.sessionStorage.setItem('onsHelper.pendingDuplicates', JSON.stringify({ moments, ts: Date.now() }));
+  stuur('eventCreated', { body: JSON.stringify(VOORBEELD()) });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(gepost, 0, 'geen seintje bij het versturen: niets');
+  // Met beide: hooguit 19.
+  stuur('afspraakVersturen', {});
+  stuur('eventCreated', { body: JSON.stringify(VOORBEELD()) });
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(gepost, 19);
+});
+
+test('kopieën deels mislukt: een melding die blijft (alert), met Mislukte opnieuw proberen', async () => {
+  const { bootHelper } = await import('./helpers/harness.mjs');
+  const { window } = bootHelper({ url: 'https://impegno.onsagenda.nl/events/new' });
+  let lukt = false, gepost = 0;
+  window.fetch = (u, init) => { if (init && init.method === 'POST') gepost++; return Promise.resolve(lukt ? { ok: true, status: 200, json: () => Promise.resolve({}) } : { ok: false, status: 500, json: () => Promise.resolve({}) }); };
+  const moments = [{ date: '2026-11-04', startMin: 540 }, { date: '2026-11-05', startMin: 540 }];
+  window.sessionStorage.setItem('onsHelper.pendingDuplicates', JSON.stringify({ moments, ts: Date.now() }));
+  const stuur = (type, extra) => window.dispatchEvent(new window.MessageEvent('message', { origin: window.location.origin, source: window, data: { __onsah: true, dir: 'from-main', type, ...extra } }));
+  stuur('afspraakVersturen', {});
+  stuur('eventCreated', { body: JSON.stringify(VOORBEELD()) });
+  await new Promise((r) => setTimeout(r, 150));
+  const melding = () => window.document.getElementById('onsah-kopie-melding');
+  assert.equal(melding().getAttribute('role'), 'alert');
+  assert.match(melding().textContent, /0 van 2 kopieën gemaakt\. Niet gelukt: /);
+  const knop = [...melding().querySelectorAll('button')].find((b) => b.textContent === 'Mislukte opnieuw proberen');
+  assert.ok(knop, 'knop om opnieuw te proberen');
+  const voor = gepost;
+  lukt = true;
+  knop.click();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(gepost - voor, 2, 'alleen de mislukte opnieuw');
+  assert.equal(melding().getAttribute('role'), 'status');
+  assert.match(melding().textContent, /^Nu wel gemaakt op /);
 });

@@ -39,6 +39,7 @@ Single test file or test: build first (tests load `dist/`), then
 - **No `var`:** `const`, or `let` when the binding is reassigned (a `var` in a loop shared by async callbacks once dropped registrations from the week figures).
 - **Inline styles only** (`element.style`), no injected class stylesheets: ONS's CSS/CSP ignores them. Keyframes go in the single small style block in `zorgVoorStijl()` (side panel) or the edge tab.
 - **New message type or storage key:** add it to `src/shared/messages.js` / `src/shared/storage-keys.js` first.
+- **Config is rebuilt from scratch on every change** (`bouwConfig` in `config/app-config.js`: defaults < config.json < test config (test package only) < policy); a new top-level section must also be handled in `legLaag`. The side panel reads `routesProxy` itself from config.json and policy (`shared/routes-config.js`), never from the page state.
 - **New config setting:** add it to `src/content/config/defaults.js`, `config.json`, and the admin page `tools/beheer/beheer.html` (its `DEFAULTS`, read and write functions, the page it belongs on, `PAGE_CANCEL_KEYS`, and a readable name in `beschrijfWijzigingen` if needed). The admin page's `troubleValidateConfigWiring` checks that config keys appear in `dist/content.js`. `e2e/beheer.spec.mjs` runs every admin page in Chromium; keep the round trip of `config.json` identical.
 
 ## Side panel (most active area)

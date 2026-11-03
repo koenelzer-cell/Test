@@ -50,6 +50,7 @@ export const MSG = {
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
   AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
   AGENDA_FORMLOG: 'ag-formulierlog', // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+  AGENDA_ERRLOG: 'ag-foutlog',      // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
   AGENDA_NETLOG: 'ag-netwerklog',   // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
   AGENDA_EMPLOYEE_SEARCH: 'ag-employee-search', // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
   AGENDA_COLLEAGUE_CHECK: 'ag-colleague-check', // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
@@ -78,8 +79,10 @@ export const PAGE_EVENT = {
   DETAILS: 'details',           // { url, labels: ['JG Huisbezoek', …] }  details-respons van een afspraak: alleen de labelnamen
   OVERLAP: 'eventOverlap',      // { url, leesbaar }  ONS' overlapcontrole voor afspraken: adres, en of het antwoord te lezen is
   META: 'eventMeta',            // { meta }  instellingen (ja/nee en getallen) van een afspraak die ONS opslaat
-  CREATED: 'eventCreated',      // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
+  CREATING: 'afspraakVersturen', // {}  de pagina verstuurt een nieuwe afspraak en de planhulp zette kopieën klaar: het content-script legt nu zelf vast wat er klaarstaat
+  CREATED: 'eventCreated',      // { body }  opslaan-verzoek van ONS (na het antwoord), alleen als de planhulp kopieën klaarzette
   MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+  URL_CHANGED: 'urlGewijzigd',  // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
   NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
 };
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het

@@ -15,6 +15,7 @@
 
 import { MSG } from '../shared/messages.js';
 import { LOCAL } from '../shared/storage-keys.js';
+import { STANDAARD_VERLOF_URL, httpsHost, verlofUrlUit } from '../shared/verlof.js';
 import { isOnsUrl } from '../shared/ons-hosts.js';
 import { setBadge } from './badge.js';
 import { saveSnapshot, loadSnapshot } from './snapshot.js';
@@ -81,8 +82,28 @@ function onMessage(msg, sender, sendResponse) {
 // Een nieuw tabblad naast het ONS-tabblad. Vanuit de worker, omdat de pagina
 // zelf na een API-aanroep geen tabblad meer mag openen (pop-upblokkering).
 // Alleen https-adressen.
+// Waar een nieuw tabblad heen mag: alleen de host van de verlof-link (de
+// standaard, config.json in het pakket en het beleid). Een ander adres van de
+// pagina opent niets.
+function toegestaneHosts() {
+  const bundel = (typeof fetch === 'function' ? fetch(chrome.runtime.getURL('config.json')).then(function (r) { return r && r.ok ? r.json() : null; }) : Promise.resolve(null))
+    .catch(function () { return null; });
+  const beleid = new Promise(function (klaar) {
+    try { chrome.storage.managed.get(null, function (r) { void chrome.runtime.lastError; klaar(r || null); }); } catch (e) { klaar(null); }
+  });
+  return Promise.all([bundel, beleid]).then(function (lagen) {
+    return [STANDAARD_VERLOF_URL, verlofUrlUit(lagen[0]), verlofUrlUit(lagen[1])].map(httpsHost).filter(Boolean);
+  });
+}
 function openTab(url, fromTab, sendResponse) {
-  if (typeof url !== 'string' || !/^https:\/\//i.test(url)) { try { sendResponse({ ok: false }); } catch (e) {} return; }
+  const host = httpsHost(url);
+  if (typeof url !== 'string' || !host) { try { sendResponse({ ok: false }); } catch (e) {} return; }
+  toegestaneHosts().then(function (hosts) {
+    if (hosts.indexOf(host) < 0) { try { sendResponse({ ok: false }); } catch (e) {} return; }
+    openTabNu(url, fromTab, sendResponse);
+  }, function () { try { sendResponse({ ok: false }); } catch (e) {} });
+}
+function openTabNu(url, fromTab, sendResponse) {
   const opts = { url: url, active: true };
   if (fromTab && typeof fromTab.index === 'number') opts.index = fromTab.index + 1;
   if (fromTab && fromTab.windowId != null) opts.windowId = fromTab.windowId;

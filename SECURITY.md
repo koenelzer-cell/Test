@@ -34,18 +34,23 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - `contextMenus` — het rechtermuismenu "Registreren als…" en "Agendahulp in
   zijpaneel" op ONS-pagina's.
 - `sidePanel` — het zijpaneel.
-- `host_permissions` — beperkt tot de ONS-hosts van Impegno:
+- `host_permissions` — beperkt tot de ONS-hosts van Impegno, zonder
+  jokerdomein (sinds 1.6.307; daarvoor `https://*.onsagenda.nl/*`, alle
+  ONS-klanten):
   - `https://impegno.ons-dossier.nl/*`
-  - `https://*.onsagenda.nl/*`
+  - `https://impegno.onsagenda.nl/*`
 
   Alleen het testpakket (`ONSAgendahulp-x.y.z-test.zip`, in de browser
   "ONS Agendahulp (test)") heeft daarnaast de testomgeving
-  `https://impegno-staging-staging.ons-dossier.nl/*`. Dat pakket gaat niet
+  `https://impegno-staging-staging.ons-dossier.nl/*` en alle subdomeinen van
+  `onsagenda.nl` (voor een testomgeving van de agenda). Dat pakket gaat niet
   naar medewerkers.
 
   Daarnaast draait één klein content-script op `https://*.ioservice.net/*` dat
   op de IO-planning de knop "toevoegen" uitschakelt; het leest of verstuurt
-  niets.
+  niets. Let op: dat is alleen het verbergen van een knop in de browser, geen
+  autorisatie. Wie het écht niet mag, moet dat ook in IO zelf (server-side)
+  niet kunnen; leg dat bij de beheerder van IO neer.
 
 > Controleer vóór uitrol of alle medewerkers dezelfde tenant-subdomeinen
 > gebruiken. Gebruikt een deel een ander subdomein dan `impegno.`, voeg dat dan
@@ -187,10 +192,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   het supportpakket en de storingscontrole tonen ook die niet. Het houdt
   nieuwsgierigen buiten, het is geen echte beveiliging.
 - **Netwerk** (Info, Debug): voor ontwikkeling
-  elk verzoek van ONS zelf, de hulp en het zijpaneel met methode, volledig
-  adres, status, duur en grootte. Geen headers (dus geen sleutel of token) en
-  geen inhoud van verzoek of antwoord. Adressen kunnen cliëntgegevens
-  bevatten (zoektermen, cliëntnummers); daarom alleen in het geheugen (het
+  elk verzoek van ONS zelf, de hulp en het zijpaneel met methode, adres,
+  status, duur en grootte. Zoekwaarden in het adres worden `…` (een zoekterm
+  kan een cliëntnaam zijn), behalve een vaste lijst die zegt wat er gevraagd
+  wordt (`layer`, `date`, `page` en dergelijke). Geen headers (dus geen
+  sleutel of token) en geen inhoud van verzoek of antwoord. Nummers in het
+  pad (zoals een cliënt-id) blijven staan; daarom alleen in het geheugen (het
   ONS-tabblad en het zijpaneel houden de laatste 300 bij), alleen zolang het
   zijpaneel elke seconde vraagt (daarna na 15 seconden uit en weggegooid),
   niets in opslag en niets naar buiten, behalve wat iemand zelf met Kopiëren
@@ -200,6 +207,10 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   mislukte herhaling ook de opbouw van het herhalingveld (elementen, props,
   uit het afspraakmodel alleen de velden over herhaling). Nooit wat het
   formulier bevat; alleen in het geheugen van het tabblad.
+- **Fouten** (Info, Debug): de laatste 100 stil opgevangen fouten, met tijd,
+  plek (een stap, een soort adres zonder nummers, of bestand, regel en kolom
+  in het pakket) en melding, waarin lange getallen `…` worden. Alleen in het
+  geheugen van het tabblad.
 - **Meetteller** (tot 1.6.305): weg. Een oude telling in
   `chrome.storage.local` (alleen soorten adressen en aantallen) ruimt de
   extensie bij het bijwerken op.
@@ -219,9 +230,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   medewerker: één `POST /calendar/unavailabilities` met dezelfde velden als ONS
   zelf stuurt (medewerker-id, omschrijving, datum, tijden en eventueel de
   herhaling), same-origin met het CSRF-token van de pagina. Daarna opent de
-  service worker AFAS in een nieuw tabblad (`config.leaveRequest.redirectUrl`;
-  de worker opent alleen `https://`-adressen). Dat is een gewone pagina: de
-  extensie stuurt zelf geen gegevens naar AFAS.
+  service worker AFAS in een nieuw tabblad (`config.leaveRequest.redirectUrl`).
+  De worker opent alleen `https://`-adressen op de host van die link (de
+  standaard, config.json in het pakket of het beleid); een ander adres dat
+  de pagina vraagt, opent niets. Dat is een gewone pagina: de extensie stuurt
+  zelf geen gegevens naar AFAS.
 - Endpoints zijn via de beheerconfig aan te passen, maar alleen naar paden die
   met één `/` beginnen: een externe URL wordt geweigerd, ook `//domein` en
   `/\domein` (die de browser als ander domein leest). Daarnaast controleert
@@ -244,11 +257,41 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   IP-adres, nooit het token, de sleutel of de inhoud. De Google-sleutel staat
   alleen in een omgevingsvariabele (bij Cloud Run als secret).
 
+## Vertrouwensgrenzen (sinds 1.6.307)
+- **Lokale testconfig** (`chrome.storage.local` onder `onsHelperConfig`):
+  telt alleen in het testpakket (naam eindigt op "(test)"). Ook daar nooit
+  `routesProxy`, `apiEndpoints` of `activation`: waar verzoeken heen gaan en
+  waar de hulp draait, komt alleen uit `config.json` in het pakket of het
+  beleid. In het gewone pakket wordt die opslag niet eens gelezen.
+- **Rijtijden en kaart:** het zijpaneel leest de routes-server, het token en
+  de sleutels zelf uit `config.json` en het beleid
+  (`src/shared/routes-config.js`), niet uit wat de ONS-pagina doorgeeft. Een
+  script op die pagina kan postcodes dus niet naar een andere server laten
+  gaan.
+- **Berichten van de pagina:** alles wat de main-world meldt, kan elk script
+  op de ONS-pagina ook sturen. Het content-script vertrouwt daarom geen
+  inhoud die ertoe doet: bij 'afspraak opgeslagen' leest het zelf in de
+  sessionStorage van het tabblad welke kopieën de planhulp klaarzette (op het
+  moment van versturen), niet uit het bericht, en zonder klaargezette
+  momenten gebeurt er niets (hooguit 19 kopieën). Een eigen kanaal
+  (MessageChannel) tussen main-world en content-script zou een script op de
+  pagina niet buitensluiten (het draait in dezelfde origin), dus dat is niet
+  gebouwd.
+- **Berichten van de extensie:** het content-script neemt alleen berichten
+  aan van deze extensie zelf (`sender.id`).
+- **Configuratie:** bij elke wijziging opnieuw opgebouwd vanaf de standaard
+  (`bouwConfig`), zodat een beheerder iets uit het beleid kan halen en het
+  dan ook meteen weg is.
+- **Belasting op ONS:** zie README (Zijpaneel): vooraf laden alleen met het
+  zijpaneel open, hooguit twee keer opnieuw met backoff, en een pauze na 429
+  of 503.
+
 ## Code-eigenschappen (security)
 - Extensiepagina's (zijpaneel, popup) draaien met de CSP `script-src 'self';
   object-src 'none'; base-uri 'none'`: geen inline- of externe scripts.
-  HTML van buiten gaat door DOMPurify (`src/shared/veilige-html.js`), de rest
-  via React of `textContent`.
+  HTML van buiten (beheerbare teksten) gaat door DOMPurify
+  (`src/shared/veilige-html.js`); de hulp zelf bouwt geen HTML uit strings
+  meer, alleen DOM-nodes, React of `textContent`.
 - Manifest V3, content-scripts in de geïsoleerde wereld; een klein main-world
   script (`src/main-world/`) geeft de afspraaklabels uit ONS' eigen
   details-aanroep door, en van ONS' overlapcontrole alleen het adres en of
@@ -352,9 +395,12 @@ beheerscherm kan zo uit via `helperConfig.features.<naam>`; zie
 ## Bekende risico's / aandachtspunten
 - **Afhankelijkheid van de ONS-DOM:** een ONS-release kan selectors breken.
   Beperk impact met de beheerschakelaars hierboven en een snel patch-proces.
-- **Prestaties:** de extensie observeert de DOM en pollt periodiek (URL 250 ms,
-  agenda-totalen 300 ms alleen met focus); meet dit
-  eenmalig op een gemiddelde werkplek. Overzicht in `docs/ARCHITECTURE.md`.
+- **Prestaties:** de extensie observeert de DOM. Adreswijzigingen meldt de
+  main-world meteen (nakijken elke seconde is alleen een vangnet); de
+  agenda-totalen worden alleen herrekend na een wijziging in de pagina
+  (hooguit twee keer per seconde, anders elke 2 s) en alleen met focus of
+  een open zijpaneel. Meet dit eenmalig op een gemiddelde werkplek.
+  Overzicht in `docs/ARCHITECTURE.md`.
 - **Leverancier:** informeer ONS/Nedap over het gebruik, omdat de extensie de
   UI van hun product aanvult.
 

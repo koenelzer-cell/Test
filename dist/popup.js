@@ -50,6 +50,15 @@
     return chrome.storage && chrome.storage.sync || chrome.storage && chrome.storage.local;
   }
 
+  // src/shared/version.js
+  function isTestpakket() {
+    try {
+      return /\(test\)\s*$/.test(String(chrome.runtime.getManifest().name || ""));
+    } catch (e) {
+      return false;
+    }
+  }
+
   // src/popup/config.js
   var DEFAULT_TOPDESK_URL = "https://impegno.topdesk.net/";
   var popupConfig = {
@@ -71,8 +80,10 @@
       if (cfg) applyPopupConfig(cfg);
     } catch (e) {
     }
-    const local = await readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
-    if (local[LOCAL.TEST_CONFIG]) applyPopupConfig(local[LOCAL.TEST_CONFIG]);
+    if (isTestpakket()) {
+      const local = await readStorage(chrome.storage.local, [LOCAL.TEST_CONFIG]);
+      if (local[LOCAL.TEST_CONFIG]) applyPopupConfig(local[LOCAL.TEST_CONFIG]);
+    }
     const managed = await readStorage(chrome.storage.managed, null);
     if (managed && Object.keys(managed).length) applyPopupConfig(managed);
   }
@@ -164,6 +175,8 @@
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FORMLOG: "ag-formulierlog",
     // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+    AGENDA_ERRLOG: "ag-foutlog",
+    // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",
     // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",

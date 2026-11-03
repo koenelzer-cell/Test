@@ -80,8 +80,8 @@ test('het afspraakformulier uit de planhulp blijft wachten op een cliënt als de
   assert.equal(gelezen.length, voor, 'geen nieuwe configuratieronde');
   assert.equal(api.getPlanhulpVerder(), verder);
 
-  // Een echte configuratiewijziging laadt opnieuw, maar start het formulier niet opnieuw.
-  storageChange({ onsHelperConfig: { newValue: {} } });
+  // Een echte configuratiewijziging (het beleid) laadt opnieuw, maar start het formulier niet opnieuw.
+  storageChange({ helperConfig: { newValue: {} } }, 'managed');
   await tick();
   assert.ok(gelezen.length > voor, 'de configuratie is opnieuw gelezen');
   assert.equal(api.getPlanhulpVerder(), verder);

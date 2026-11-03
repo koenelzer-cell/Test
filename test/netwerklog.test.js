@@ -23,6 +23,7 @@ const kaal = (x) => JSON.parse(JSON.stringify(x));
 
 test('content: uit tot het zijpaneel vraagt; dan ONS en de hulp met methode, adres, status, duur en grootte', async () => {
   const { api, window, naarMain, vanMain } = opzet();
+  api._zetWachtBasis(1);
   await api.getJson('/calendar/holidays');
   vanMain({ type: 'netwerkVerzoek', methode: 'GET', url: '/x', status: 200, ms: 5 });
   assert.equal(api.netwerklogAan(), false);
@@ -42,21 +43,27 @@ test('content: uit tot het zijpaneel vraagt; dan ONS en de hulp met methode, adr
     { bron: 'hulp', methode: 'GET', url: '/calendar/invitee/42479/entries/week?date=2026-11-02&layer=events', status: 200, ms: items[0].ms, grootte: 1234 },
     { bron: 'hulp', methode: 'POST', url: '/calendar/events', status: 200, ms: items[1].ms, grootte: 1234 },
     { bron: 'hulp', methode: 'GET', url: '/kapot', status: 500, ms: items[2].ms, grootte: 1234 },
-    { bron: 'ons', methode: 'GET', url: '/calendar/holidays?year=2026', status: 304, ms: 13, grootte: null },
-    { bron: 'ons', methode: 'GET', url: 'https://impegno.ons-samen.nl/wapi/widget?tag=a', status: 0, ms: 3, grootte: 10 },
+    { bron: 'hulp', methode: 'GET', url: '/kapot', status: 500, ms: items[3].ms, grootte: 1234 },
+    { bron: 'hulp', methode: 'GET', url: '/kapot', status: 500, ms: items[4].ms, grootte: 1234 },
+    { bron: 'ons', methode: 'GET', url: '/calendar/holidays?year=…', status: 304, ms: 13, grootte: null },
+    { bron: 'ons', methode: 'GET', url: 'https://impegno.ons-samen.nl/wapi/widget?tag=…', status: 0, ms: 3, grootte: 10 },
   ]);
   assert.doesNotMatch(JSON.stringify(items), /Tamara/, 'geen inhoud');
   const alle = api.netwerklogSinds(0);
-  assert.equal(kaal(api.netwerklogSinds(alle[2].id)).length, 2, 'alleen wat na sinds kwam');
+  assert.equal(kaal(api.netwerklogSinds(alle[4].id)).length, 2, 'alleen wat na sinds kwam');
   assert.equal(typeof api.netwerklogSessie(), 'string');
+  // Zoekwaarden gemaskeerd, behalve wat zegt wat er gevraagd wordt.
+  vanMain({ type: 'netwerkVerzoek', methode: 'GET', url: '/search_panel/clients?term=Tamara%20Test&usage=event&page=1&client_number=106839', status: 200, ms: 5 });
+  assert.equal(kaal(api.netwerklogSinds(0)).at(-1).url, '/search_panel/clients?term=…&usage=event&page=1&client_number=…');
   // Vraagt het zijpaneel 15 seconden niet meer, dan logt het niet meer.
+  const laatste = api.netwerklogSinds(0).at(-1).id;
   const echt = window.Date.now;
   try {
     window.Date.now = () => echt() + 16000;
     assert.equal(api.netwerklogAan(), false);
     await api.getJson('/calendar/holidays');
     window.Date.now = echt;
-    assert.equal(kaal(api.netwerklogSinds(alle.at(-1).id)).length, 0, 'na het verlopen niets meer gelogd');
+    assert.equal(kaal(api.netwerklogSinds(laatste)).length, 0, 'na het verlopen niets meer gelogd');
   } finally { window.Date.now = echt; }
 });
 

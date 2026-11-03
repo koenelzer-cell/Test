@@ -22,7 +22,7 @@ export function fixture(name) {
 }
 
 // sync (optioneel): wat er al in chrome.storage.sync staat (teamkeuze, werktijden).
-export function bootHelper({ html = '<!doctype html><html><body></body></html>', url, sync } = {}) {
+export function bootHelper({ html = '<!doctype html><html><body></body></html>', url, sync, managed, lokaal, naam, bundled } = {}) {
   const dom = new JSDOM(html, {
     url: url || 'https://impegno.ons-dossier.nl/calendar/invitee/123/day?date=2026-08-30',
     runScripts: 'outside-only',
@@ -41,14 +41,14 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     runtime: {
       id: 'test',
       lastError: undefined,
-      getManifest: () => ({ ...MANIFEST, version: '1.6.181' }),
+      getManifest: () => ({ ...MANIFEST, version: '1.6.181', ...(naam ? { name: naam } : {}) }),
       getURL: (p) => 'chrome-extension://test/' + p,
       onMessage: { addListener: (fn) => listeners.push(fn) },
       sendMessage: (msg, cb) => { sent.push(msg); if (typeof cb === 'function') cb(undefined); },
     },
     storage: {
-      local: { get: (k, cb) => { gelezen.push(k); if (cb) cb({}); }, set: (_v, cb) => cb && cb() },
-      managed: { get: (_k, cb) => cb && cb({}) },
+      local: { get: (k, cb) => { gelezen.push(k); if (cb) cb(lokaal ? { ...lokaal } : {}); }, set: (_v, cb) => cb && cb() },
+      managed: { get: (_k, cb) => cb && cb(managed ? JSON.parse(JSON.stringify(managed)) : {}) },
       onChanged: { addListener: (fn) => storageListeners.push(fn) },
     },
   };
@@ -63,7 +63,9 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     };
   }
   // Geen echte netwerkcalls in tests.
-  w.fetch = () => Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null), text: () => Promise.resolve('') });
+  // Alleen config.json kan een test meegeven (bundled).
+  w.fetch = (u) => (bundled && /config\.json$/.test(String(u)) ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(JSON.stringify(bundled))) })
+    : Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null), text: () => Promise.resolve('') }));
 
   // (2) zichtbaarheid + geometrie
   const El = w.Element.prototype;

@@ -7,6 +7,7 @@
 // (managed door IT, of local voor test) onder de sleutel 'helperConfig' worden
 // gezet; die vervangt per sectie de standaard hieronder. Zo is aanpassen
 // mogelijk zonder in de code te graven.
+import { STANDAARD_VERLOF_URL } from '../../shared/verlof.js';
 export const DEFAULT_APP_CONFIG = {
   // Tabel 1: keuze in de helper -> ONS-label + gedrag.
   choices: [
@@ -155,7 +156,7 @@ export const DEFAULT_APP_CONFIG = {
   // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
   // aan te vragen. maxDays: hoe lang een herhaling hooguit mag lopen.
   // recurrenceTypes: de waarden van recurrence_type in ONS (mocht ONS die wijzigen).
-  leaveRequest: { description: 'Verlof', redirectUrl: 'https://login.afasonline.com/83031/Apps', maxDays: 366, recurrenceTypes: { daily: 'daily', weekly: 'weekly' } },
+  leaveRequest: { description: 'Verlof', redirectUrl: STANDAARD_VERLOF_URL, maxDays: 366, recurrenceTypes: { daily: 'daily', weekly: 'weekly' } },
   // Activatie: welke URL-delen de afspraak-/registratiehulp aanzetten.
   // Instelbaar zodat een ONS-URL-wijziging niet meer een code-update vereist.
   activation: { appointmentNeedle: '/events/new', registrationNeedle: '/registrations', domains: [] },

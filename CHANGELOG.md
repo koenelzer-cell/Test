@@ -2,6 +2,24 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.307
+
+- Rustiger voor ONS: de hulp laadt alleen nog vooraf zolang het zijpaneel
+  open is. Lukt een opvraging niet, dan probeert hij het hooguit twee keer
+  opnieuw, en meldt ONS dat het te druk is, dan wacht hij even.
+- Lukken niet alle kopieën vanuit de planhulp, dan blijft de melding staan
+  met de knop **Mislukte opnieuw proberen**.
+- Haalt de beheerder iets uit het beleid, dan werkt dat meteen, zonder de
+  pagina te herladen.
+- De agendakleuring en de totalen rekenen minder vaak (alleen als er iets
+  veranderde); dat spaart de computer.
+- Voor de beheerder: de extensie draait alleen nog op impegno.onsagenda.nl en
+  impegno.ons-dossier.nl (niet meer op alle ONS-adressen), de lokale
+  testinstellingen tellen alleen in het testpakket, en het zijpaneel haalt de
+  routes-server en sleutels alleen uit config.json of het beleid.
+- Voor de ontwikkelaar: onder Debug staat **Fouten** (wat de hulp stil
+  opving), en Netwerk toont zoekwaarden als `…`.
+
 ## 1.6.306
 
 - 'Afspraak doorplannen?' uitzetten: de hulp zet de herhaling op een paar

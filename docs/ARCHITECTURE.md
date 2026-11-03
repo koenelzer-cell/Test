@@ -42,7 +42,7 @@ bundel trekken. `npm run check` bewaakt dit (`scripts/check-imports.mjs`).
 | `background/` | service worker | badge, momentopname, wekelijkse herinnering, rechtermuismenu, zijpaneel open/dicht |
 | `popup/` | extensiepopup | bedrijfsonderdeel en team kiezen, eigen werktijden, herinnering aan/uit, meldlink |
 | `sidepanel/` | zijpaneel | toont de Agendahulp van het actieve ONS-tabblad; sluit zichzelf als je in dat venster naar een pagina gaat zonder agenda |
-| `main-world/` | pagina-context van ONS | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, en het medewerker-id uit `onsContext()` lezen |
+| `main-world/` | pagina-context van ONS, vanaf `document_start` (vóór de eerste code van ONS, zodat fetch en XHR al zijn ingepakt) | de afspraaklabels uit ONS' eigen details-call doorgeven; het adres van ONS' overlapcontrole doorgeven; het lege afspraakmodel aanvullen met wat de planhulp klaarzette; op verzoek het formulier lezen en zetten via Vue, het medewerker-id uit `onsContext()` lezen; adreswijzigingen van ONS (pushState/replaceState) meteen melden |
 | `edge-tab/` | ONS-pagina's | het roze lipje aan de rechterrand dat het zijpaneel opent |
 | `io-planning-block/` | ioservice.net | blokkeert de knop "toevoegen" op de IO-planning |
 | `react/` | apart script vóór `content` | de schermen van de wizard (React), via `window.__onsahReact` |
@@ -169,13 +169,15 @@ content ──ag-state/ag-gone──▶ (uitgezonden) ──▶ zijpaneel
 zijpaneel ──ag-*/sidepanel-state──▶ content (gevolgd tabblad)
 zijpaneel ──poort 'agendahulp-sidepanel'──▶ service worker (zolang het zijpaneel open is)
 content ──open-tab {url}──▶ service worker (AFAS in een nieuw tabblad na verlof; alleen https)
-main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated, netwerkVerzoek, mainWorldKlaar)──▶ content
+main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, afspraakVersturen, eventCreated, urlGewijzigd, netwerkVerzoek, mainWorldKlaar)──▶ content
 content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, zetHerhalingNiet, leesFormulier, leesGebruiker, netwerklogZetten)──▶ main-world ──antwoord met hetzelfde id──▶ content
    (window.postMessage met {__onsah, dir}, alleen eigen venster en origin; content: core/page-bridge.js)
 zijpaneel ──ag-netwerklog {sinds} (elke seconde, alleen Info met Debug open)──▶ content ──{sessie, items}──▶ zijpaneel
    (Debug, Netwerk: services/ons-api/netwerklog.js; elke vraag houdt het log 15 s aan,
     zet de main-world aan met netwerklogZetten en logt de hulp in http.js; alleen geheugen)
-zijpaneel ──ag-formulierlog (elke seconde, alleen Info met Debug open)──▶ content ──{items}──▶ zijpaneel
+zijpaneel ──ag-formulierlog, ag-foutlog (elke seconde, alleen Info met Debug open)──▶ content ──{items}──▶ zijpaneel
+   (ag-foutlog: core/foutbuffer.js, de laatste 100 stil opgevangen fouten: safe(), mislukte
+    ONS-verzoeken, onverwachte fouten in de hulp; alleen geheugen)
    (Debug, Formulier: ons/form-model.js formulierLog, de laatste 30 uitkomsten van vraagFormulier;
     bij zetHerhalingNiet die niet lukte ook de opbouw van het veld; alleen geheugen)
 ```
@@ -203,10 +205,21 @@ Lagen, oplopend in voorrang (content-script en popup gelijk):
 1. `config/defaults.js` — de standaard in de code
 2. `config.json` — gebundeld, gemaakt met het beheerscherm
 3. gekozen bedrijfsonderdeel/team (popup) — filtert afspraaktypes en vormen
-4. `chrome.storage.local` → `onsHelperConfig` — lokale testconfig
+4. `chrome.storage.local` → `onsHelperConfig` — lokale testconfig, alleen in
+   het testpakket (`isTestpakket()`), zonder `routesProxy`, `apiEndpoints` en
+   `activation`
 5. `chrome.storage.managed` — bedrijfsbeleid, **wint altijd**
 
 Herstelde UI-selectors komen alleen uit `config.json` (`uiSelectors`).
+
+Bij elke wijziging (beleid, testconfig, team) bouwt `config/loader.js` alles
+opnieuw op: `bouwConfig([config.json, testconfig, beleid])` in
+`config/app-config.js` is puur (begint bij de standaard, `legLaag` per laag),
+`zetConfig` vervangt APP_CONFIG in zijn geheel en roept de haken één keer
+aan; `bouwRuntime` doet hetzelfde voor `RUNTIME_CONFIG` (enabled, de twee
+hulpen). `applyHelperConfig` (één laag erbovenop) is er alleen nog voor tests.
+Het zijpaneel leest `routesProxy` zelf uit `config.json` en het beleid
+(`shared/routes-config.js`), niet uit de toestand van de pagina.
 
 ### Het beheerscherm
 
@@ -342,12 +355,12 @@ Deze keuzes zien er vreemd uit maar hebben een reden. Ze staan ook bij de code.
 | Workaround | Waarom | Waar |
 |---|---|---|
 | Alle opmaak inline (`element.style`), geen `<style>`-tags met classes | de CSS/CSP van ONS negeerde geïnjecteerde stylesheets: kale knoppen, enorme iconen | `ui/theme.js` |
-| URL elke 250 ms vergelijken | `history.pushState` patchen in de geïsoleerde wereld ziet de navigatie van ONS zelf niet | `helper/routing.js` |
+| Adreswijzigingen via de main-world (`PAGE_EVENT.URL_CHANGED`), plus elke seconde vergelijken als vangnet | `history.pushState` patchen in de geïsoleerde wereld ziet de navigatie van ONS zelf niet; de main-world (vanaf `document_start`) wel | `helper/routing.js`, `src/main-world/` |
 | Afspraaklabels uit de details-API (via `main-world`) i.p.v. uit de popup-opmaak | ONS herbouwt de popup regelmatig; het API-veld is stabiel | `src/main-world/`, `services/ons-api/event-details.js` |
 | Shadow-DOM-bewust zoeken met 500 ms cache | ONS-componenten (`uc-*`) gebruiken open shadow roots | `ons/dom.js` |
 | Vertragingen en pogingen bij dropdowns | ONS bouwt opties asynchroon op | `ons/form-controls.js`, `features/appointment/uursoort-source.js` |
 | Eén patroon voor formuliervelden | Elke zetter of wisser: `eerstViaFormulier(viaFormulier, viaScherm)`, eerst ONS' Vue-koppeling met controle, anders één keer klikken of typen. Main-world: `formulierBoom()` (één wandeling: velden per element en `EventDetails`) en `zetEnControleer()`. Wachten op toestand: `wachtTot()` (MutationObserver plus vangnet-interval) | `ons/form-model.js`, `core/wacht.js`, `src/main-world/` |
-| Labels zetten via de Vue-koppeling van het formulier i.p.v. de dropdown | Het afspraakformulier is Vue 3 met `uc-*`-webcomponenten (Lit). Het labelveld (`uc-combo-box[data-qa=label_select]`) heeft in zijn vnode `model-value`, `available-labels` en `onUpdate:modelValue` (→ `onChange(t, 'label_ids')`). Alleen de main-world kan daarbij: hij zoekt de vnode vanaf de app-houder (`__vue_app__`, `_vnode`) en roept de functie aan met de id's; het content-script vraagt het via `PAGE_COMMAND.SET_LABELS` en klikt als het mislukt. Uursoort per cliënt idem: `uc-select[data-qa=hour_type_select]`, `onUpdate:modelValue(id, omschrijving)` (→ `update:invitation`), het veld van de juiste cliënt even gemarkeerd met `data-onsah-doel`, het id uit de productlijst (`fetchProductOptions`); niet cliëntgebonden: het veld op afspraakniveau (ook `aria-label="Uursoort"`), id uit `fetchEmployeeProductOptions`. Vanuit de planhulp vindt de main-world het veld aan `client-ids` in de vnode. Wissen: labels `[]`, uursoort `(null, '')` (`wis: true`). Herhaling op 'Niet' (`PAGE_COMMAND.SET_RECURRENCE_NONE`, Afspraak doorplannen uit): het veld in `uc-form-field[data-qa=recurrence-type]`, `onUpdate:modelValue(waarde, 'Niet')` met de waarde van de keuze 'Niet' uit het veld zelf (een lijst in de props of de optie-vnodes eronder), nagekeken aan `model-value`; anders klikt `features/appointment/recurrence.js` de keuzelijst open. Eén veld zetten (`PAGE_COMMAND.SET_FIELD`): `EventDetails.onChange(waarde, veld)`, alleen `name`, `comment`, `start_time`, `end_time`, `travel_time_before`/`after`, met controle in het model (noodschakelaar `features.formViaModel: false`: `formulierViaModelAan()` in `ons/form-model.js`, dan gaat er niets naar de main-world); gebruikt voor de titel (`features/appointment/title.js`, `zetTitelAsync`), de eindtijd (`features/appointment/end-time.js`, `zetEindtijdAsync`; de eindtijd-guard negeert de oude tijd zolang die loopt) en de reistijd heen en terug (`features/appointment/travel.js`, `zetReistijdenAsync`, ook op 0 zetten). Lezen (`PAGE_COMMAND.READ_FORM`): het model staat in de component `EventDetails` als `props.event` (`clients`, `client_ids`, `label_ids`, `name`, tijden als `"14:00"`); terug gaan alleen cliënt-id en voornaam, de uursoort per cliënt (uit de velden) en de label-id's | `src/main-world/`, `ons/form-model.js`, `features/appointment/labels.js`, `features/appointment/uursoort-field.js`, `title.js`, `end-time.js`, `travel.js` |
+| Labels zetten via de Vue-koppeling van het formulier i.p.v. de dropdown | Het afspraakformulier is Vue 3 met `uc-*`-webcomponenten (Lit). Het labelveld (`uc-combo-box[data-qa=label_select]`) heeft in zijn vnode `model-value`, `available-labels` en `onUpdate:modelValue` (→ `onChange(t, 'label_ids')`). Alleen de main-world kan daarbij: hij zoekt de vnode vanaf de app-houder (`__vue_app__`, `_vnode`) en roept de functie aan met de id's; het content-script vraagt het via `PAGE_COMMAND.SET_LABELS` en klikt als het mislukt. Uursoort per cliënt idem: `uc-select[data-qa=hour_type_select]`, `onUpdate:modelValue(id, omschrijving)` (→ `update:invitation`), het veld van de juiste cliënt even gemarkeerd met `data-onsah-doel`, het id uit de productlijst (`fetchProductOptions`); niet cliëntgebonden: het veld op afspraakniveau (ook `aria-label="Uursoort"`), id uit `fetchEmployeeProductOptions`. Vanuit de planhulp vindt de main-world het veld aan `client-ids` in de vnode. Wissen: labels `[]`, uursoort `(null, '')` (`wis: true`). Herhaling op 'Niet' (`PAGE_COMMAND.SET_RECURRENCE_NONE`, Afspraak doorplannen uit): pogingen op volgorde, elk nagekeken aan wat het veld toont (de combobox) en anders teruggezet: de keuze 'Niet' uit het veld (`uc-form-field[data-qa=recurrence-type]`; lijsten in de props of de toestand van onderdelen erin, ook JSON, paren of een object, of optie-vnodes) via `onUpdate:modelValue`; bij een bekende herhaling zonder keuzelijst `'single'`; dan `EventDetails.onChange` met `recurrence`. Lukt niets, dan het antwoord met de opbouw van het veld (Debug, Formulier) en klikt `features/appointment/recurrence.js` de keuzelijst open; ook als het content-script daarna toch nog een herhaling ziet. Eén veld zetten (`PAGE_COMMAND.SET_FIELD`): `EventDetails.onChange(waarde, veld)`, alleen `name`, `comment`, `start_time`, `end_time`, `travel_time_before`/`after`, met controle in het model (noodschakelaar `features.formViaModel: false`: `formulierViaModelAan()` in `ons/form-model.js`, dan gaat er niets naar de main-world); gebruikt voor de titel (`features/appointment/title.js`, `zetTitelAsync`), de eindtijd (`features/appointment/end-time.js`, `zetEindtijdAsync`; de eindtijd-guard negeert de oude tijd zolang die loopt) en de reistijd heen en terug (`features/appointment/travel.js`, `zetReistijdenAsync`, ook op 0 zetten). Lezen (`PAGE_COMMAND.READ_FORM`): het model staat in de component `EventDetails` als `props.event` (`clients`, `client_ids`, `label_ids`, `name`, tijden als `"14:00"`); terug gaan alleen cliënt-id en voornaam, de uursoort per cliënt (uit de velden) en de label-id's | `src/main-world/`, `ons/form-model.js`, `features/appointment/labels.js`, `features/appointment/uursoort-field.js`, `title.js`, `end-time.js`, `travel.js` |
 | "+ Toevoegen"-bewaking | een synthetische klik (dropdown sluiten) opende soms de zoek-genodigden-modal | `features/appointment/invitee-guard.js` |
 | Popover / top layer voor meldingen | anders vallen ze achter de ONS-modal | `platform/module-host.js` |
 | Wachten tot de pagina "rustig" is voor herstel na refresh | het registratieformulier laadt in stappen | `features/registration/prereqs.js` |

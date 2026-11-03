@@ -124,8 +124,19 @@ Lagen, oplopend in voorrang:
 1. de standaard in de code (`src/content/config/defaults.js`)
 2. `config.json` in de extensie (gemaakt met het beheerscherm)
 3. het gekozen bedrijfsonderdeel/team in de popup
-4. `chrome.storage.local` onder `onsHelperConfig` (voor tests)
+4. `chrome.storage.local` onder `onsHelperConfig` (voor tests; alleen in het
+   testpakket, en nooit `routesProxy`, `apiEndpoints` of `activation`)
 5. bedrijfsbeleid via `chrome.storage.managed` — **wint altijd**
+
+Bij elke wijziging (beleid, testconfig, teamkeuze) bouwt de hulp de hele
+configuratie opnieuw op vanaf laag 1 (`bouwConfig` in
+`src/content/config/app-config.js`). Haalt een beheerder iets uit het beleid,
+dan werkt het meteen niet meer, ook zonder de pagina te herladen; dat geldt
+ook voor `enabled: false`.
+
+De rijtijden-server, de Routes-sleutel en de kaartsleutel (`routesProxy`)
+leest het zijpaneel zelf uit laag 2 en 5, nooit uit wat de ONS-pagina
+doorgeeft (`src/shared/routes-config.js`).
 
 De sleutels van laag 5 staan in `managed_schema.json`.
 
@@ -203,7 +214,7 @@ Wat ze doen:
 Niet ingesteld: alles werkt zoals het team is ingedeeld (van de vroegste
 zone tot de laatste).
 
-### Debug: Netwerk en Formulier
+### Debug: Netwerk, Formulier en Fouten
 
 Voor ontwikkeling, in plaats van het tabblad Network van DevTools. Onder
 **Info** staat onderaan een kleine knop **Debug**, alleen als de beheerder een
@@ -213,7 +224,10 @@ Het wachtwoord houdt nieuwsgierigen buiten, het is geen echte beveiliging.
 Met het juiste wachtwoord opent **Netwerk**: elk verzoek, live en het nieuwste
 boven, met tijd (tot op de seconde), van wie het komt, methode, status (rood
 bij een fout of 'mislukt' zonder antwoord), duur, grootte (als de server die
-meldt) en het volledige adres. Daaronder staat **Formulier** (zie verderop).
+meldt) en het adres. Zoekwaarden staan er als `…` (een zoekterm kan een
+cliëntnaam zijn); alleen waarden die zeggen wat er gevraagd wordt (`layer`,
+`date`, `page`, `usage` en dergelijke) blijven staan. Daaronder staan
+**Formulier** en **Fouten** (zie verderop).
 
 - **ONS**: verzoeken van de ONS-pagina zelf (de main-world kijkt mee met
   `fetch` en `XMLHttpRequest`);
@@ -250,6 +264,14 @@ is opgebouwd (elementen, de props van de Vue-onderdelen erin, uit het
 afspraakmodel alleen de velden over herhaling, en de namen van de methoden
 van het formulier); die komt mee met **Kopiëren**. Wat het formulier bevat
 (namen, nummers) komt er nooit in. Alleen in het geheugen van het tabblad.
+
+**Fouten** toont wat de hulp stil opving: fouten in een stap (`safe()`),
+mislukte verzoeken aan ONS (niet een 404) en onverwachte fouten in de hulp
+zelf. De laatste 100, nieuwste boven, met tijd, plek en melding. De plek is
+een stap of een soort adres (`GET /calendar/invitee/{n}/entries/week`), of
+bestand, regel en kolom in het pakket (`content.js:1:23456`; het pakket is
+verkleind, dus zoek die kolom op in `dist/content.js` van dezelfde versie).
+Lange getallen in een melding worden `…`. **Kopiëren** geeft alles als tekst.
 
 ### Wekelijkse herinnering
 
@@ -365,12 +387,24 @@ paneel open op deze lijst, dan staan ze daar niet nog een keer.
 
 ### Zijpaneel
 
-Terwijl de agenda open staat, laadt de extensie op de achtergrond al wat het
-zijpaneel nodig heeft (verhouding van de bekeken week, planhulp, open
-registraties en productieverloop met de standaardinstellingen), rustig na
-elkaar en hooguit eens per vijf minuten. Open je daarna een pagina, dan staat
-het resultaat er meteen; die pagina's starten ook vanzelf. Open registraties
-uit het geheugen worden direct daarna vers bijgewerkt.
+Terwijl de agenda en het zijpaneel open staan, laadt de extensie op de
+achtergrond al wat het zijpaneel nodig heeft (verhouding van de bekeken week,
+planhulp, open registraties en productieverloop met de standaardinstellingen),
+rustig na elkaar en hooguit eens per vijf à zes minuten (met wat toeval, zodat
+niet alle tabbladen tegelijk vragen). Wie het zijpaneel niet open heeft, kost
+ONS zo niets extra. Open je daarna een pagina, dan staat het resultaat er
+meteen; die pagina's starten ook vanzelf. Open registraties uit het geheugen
+worden direct daarna vers bijgewerkt.
+
+Rustig voor ONS (`services/ons-api/http.js`): een opvraging die mislukt door
+een netwerkfout of een 500, 502 of 504 probeert de hulp hooguit twee keer
+opnieuw, steeds later en met wat toeval. Zegt ONS dat het te druk is (429 of
+503), dan niet opnieuw, en stopt het vooraf laden tot de tijd uit
+`Retry-After` voorbij is (anders een minuut; tussen 10 seconden en 10
+minuten). Opslaan (POST) nooit opnieuw.
+
+Lukken niet alle kopieën van de planhulp, dan blijft de melding linksonder
+staan (tot je hem sluit), met de knop **Mislukte opnieuw proberen**.
 
 Staan er meerdere agenda's naast elkaar open (/invitees/13970,45267/...), dan
 rekent het zijpaneel alles per collega: het weekoverzicht en de opbouw van de

@@ -40,6 +40,7 @@
       return { ok: true, items: [{ tijd: Date.now() - 5000, actie: 'zetLabels', ok: true }, { tijd: Date.now() - 4000, actie: 'zetVeld', veld: 'travel_time_before', ok: true },
         { tijd: Date.now() - 3000, actie: 'zetHerhalingNiet', ok: false, reden: 'het formulier nam de waarde niet over', opbouw: '{"geprobeerd":["keuze uit het veld: niet overgenomen (in beeld: wekelijks)"]}' }] };
     },
+    'ag-foutlog': function () { return { ok: true, items: [{ tijd: Date.now() - 2000, plek: 'GET /calendar/invitee/{n}/entries/week', melding: 'HTTP 500' }] }; },
     'ag-netwerklog': function (msg) { return { ok: true, sessie: 'e2e', items: netwerk.filter(function (it) { return it.id > (msg.sinds || 0); }) }; },
     'ag-free-slots': vrij,
     // ONS meldt overlap aan het begin van het tweede blok (09:30).

@@ -7,6 +7,7 @@ import { appointmentFlow, helperPanel, registrationFlow } from '../state.js';
 import { ONSAH_TOKENS } from '../ui/theme.js';
 import { svgSpineCheck, svgSpinePause } from '../ui/icons.js';
 import { resetBody } from './screen-state.js';
+import { meldFout } from '../core/foutbuffer.js';
 
 export const $body = () => helperPanel.popupEl && helperPanel.popupEl.querySelector('[data-body]');
 // Stippenrij op de spine: een grove indruk van de voortgang (kiezen ->
@@ -107,4 +108,6 @@ export function showDisabledState() {
   body.appendChild(sub);
   setStatus('Uitgeschakeld', false);
 }
-export function safe(fn) { try { fn(); } catch (e) { setStatus('Er ging iets mis', false); } }
+// Een stap die niet mag crashen: lukt hij niet, dan een korte status en de
+// fout in de foutbuffer (Debug, Fouten). plek: optioneel, anders uit de stack.
+export function safe(fn, plek) { try { fn(); } catch (e) { meldFout(plek, e); setStatus('Er ging iets mis', false); } }

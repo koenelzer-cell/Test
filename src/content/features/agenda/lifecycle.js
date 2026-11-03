@@ -36,18 +36,24 @@ function activateAgendaPage() {
       const t = m.target;
       return t && t.classList && t.classList.contains(CLASS);
     });
-    if (!own) schedulePaint();
+    if (!own) { agendaPage.totalsDirty = true; schedulePaint(); }
   });
   agendaPage.observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('resize', schedulePaint);
-  // De MutationObserver hierboven vangt vrijwel alle wijzigingen op; een
-  // rustige 250ms-fallback dekt gevallen die geen DOM-mutatie geven
-  // (bijv. layout-only). 20×/sec verven is niet nodig.
-  if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function () { if (paginaActief()) schedulePaint(); }, 250);
-  // Elke 300 ms de ongeregistreerde tijd per dag herberekenen (+ badge,
-  // ook als de popup is ingeklapt).
+  window.addEventListener('scroll', schedulePaint, { capture: true, passive: true });
+  // De MutationObserver hierboven vangt vrijwel alle wijzigingen op, scroll en
+  // resize de rest; elke seconde nog eens kijken is alleen een vangnet.
+  if (!agendaPage.pollTimer) agendaPage.pollTimer = setInterval(function () { if (paginaActief()) schedulePaint(); }, 1000);
+  // De ongeregistreerde tijd per dag (+ badge en zijpaneel) opnieuw rekenen
+  // als de pagina veranderde (hooguit twee keer per seconde), en anders elke
+  // 2 seconden als vangnet (bijv. weekgegevens die binnenkwamen).
+  agendaPage.totalsDirty = true;
+  let laatsteTotals = 0;
   if (!agendaPage.totalsTimer) agendaPage.totalsTimer = setInterval(function () {
     if (!paginaActief()) return; // niets doen als het tabblad niet actief is (zijpaneel open telt als actief)
+    if (!agendaPage.totalsDirty && Date.now() - laatsteTotals < 2000) return;
+    agendaPage.totalsDirty = false;
+    laatsteTotals = Date.now();
     try {
       // Eén berekening per tik: badge en totalen delen dezelfde uitkomst.
       const res = computeTotals();
@@ -58,7 +64,7 @@ function activateAgendaPage() {
       // Daarna rustig vooraf laden voor het zijpaneel (hooguit eens per 2 min).
       if (agendaPage._agWeekLoaded && !agendaPage._agWeekBusy) preloadPanelData();
     } catch (e) {}
-  }, 300);
+  }, 500);
 }
 export function deactivateAgendaPage() {
   if (!agendaPage.active) return;
@@ -71,6 +77,7 @@ export function deactivateAgendaPage() {
   // net verlaten hebben.
   try { agendaPage._agStateSig = ''; if (agendaPage.sidePanelOpen) chrome.runtime.sendMessage({ type: MSG.AGENDA_GONE }); } catch (e) {}
   window.removeEventListener('resize', schedulePaint);
+  window.removeEventListener('scroll', schedulePaint, { capture: true });
   removeAll();
 }
 function helperScreenActive() {

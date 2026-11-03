@@ -29,8 +29,11 @@ export function fetchOnsOverlap(ymd, startMin, endMin, hourTypeId) {
   const promise = getJson(_apiUrl('detectOverlap', { date: ymd, startTime: startTime, endTime: endTime, hourTypeId: hourTypeId || '' }))
     .then(parseDetectOverlap)
     .catch(function () { return null; })
-    .then(function (v) { _overlapCache[key].value = v; return v; });
-  _overlapCache[key] = { ts: Date.now(), promise: promise, value: undefined };
+    .then(function (v) { const e = _overlapCache[key]; if (e) e.value = v; return v; });
+  // Verlopen antwoorden opruimen, zodat de lijst niet blijft groeien.
+  const nu = Date.now();
+  Object.keys(_overlapCache).forEach(function (k) { if (nu - _overlapCache[k].ts >= OVERLAP_TTL_MS) delete _overlapCache[k]; });
+  _overlapCache[key] = { ts: nu, promise: promise, value: undefined };
   return promise;
 }
 // Wat ONS al geantwoord heeft (synchroon): true/false/null, of undefined als
