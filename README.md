@@ -408,6 +408,15 @@ Tekst onder sleutels als naam, cliënt, rapportage of identificatie wordt
 tekst `{n}`, en een label stopt bij het eerste woord met een hoofdletter dat
 geen formulierwoord is (`Verwijder …`).
 
+Hoe elk onderdeel een wijziging doorgeeft: `tools/console/registratie-luister.js`
+in de console plakken, de velden één voor één veranderen en
+`onsahLuister.kopieer()` typen. Het pakt de luisteraars in die een ouder aan
+een onderdeel meegeeft (`onUpdate:registration`, `onUpdate:hourType` …) en
+noteert per keer het onderdeel, de gebeurtenis en de vorm van wat er
+meegaat, plus wat de `uc-*`-velden zelf melden (`change`, `input`). Alles
+gaat ongewijzigd door naar ONS; na 10 minuten stopt het vanzelf. Dezelfde
+regels voor gegevens als hierboven.
+
 ### Zijpaneel
 
 Terwijl de agenda en het zijpaneel open staan, laadt de extensie op de
