@@ -93,10 +93,11 @@ for (const breedte of [340, 420]) {
       await expect(page.locator('[data-info-debug]')).toBeVisible();
       await expect(page.locator('[data-meetteller]')).toHaveCount(0);
       await controleer(page, testInfo, 'info');
-      // Debug: met het wachtwoord de meetteller.
+      // Debug: met het wachtwoord Netwerk (live verzoeken) en de meetteller.
       await page.locator('[data-info-debug]').click();
       await page.locator('[data-info-debug-wachtwoord]').fill('e2e-wachtwoord');
       await page.locator('[data-info-debug-open]').click();
+      await expect(page.locator('[data-netwerk-rij]')).toHaveCount(4);
       await expect(page.locator('[data-meetteller]')).toBeVisible();
       await controleer(page, testInfo, 'info-debug');
     });

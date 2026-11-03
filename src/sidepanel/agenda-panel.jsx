@@ -365,7 +365,7 @@ export function create(render, actions) {
     vulStandaarden();
     if (ctx.pagina === 'plan' && ctx.plan.weergave === 'raster') ctx.zorgVoorRaster();
     if (ctx.pagina === 'maken') ctx.zorgVoorMaken();
-    if (ctx.pagina === 'info') ctx.zorgVoorMeetteller();
+    if (ctx.pagina === 'info') { ctx.zorgVoorMeetteller(); ctx.zorgVoorNetwerk(); }
   }
 
   // Schakelaar uit het beheerscherm (state.features; ontbreekt = aan).
@@ -496,6 +496,7 @@ export function create(render, actions) {
       weg = true;
       sluitRondleiding();
       ctx.stopOpen();
+      ctx.stopNetwerk();
     }
   };
 }

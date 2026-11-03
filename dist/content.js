@@ -495,6 +495,8 @@
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_NETLOG: "ag-netwerklog",
+    // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
     // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
     AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",
@@ -525,8 +527,10 @@
     // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
     REQUEST_SEEN: "verzoekGezien",
     // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
-    MAIN_READY: "mainWorldKlaar"
+    MAIN_READY: "mainWorldKlaar",
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+    NET_REQUEST: "netwerkVerzoek"
+    // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
@@ -539,6 +543,8 @@
     // { id, ok, reden? }
     SET_METER: "meettellerZetten",
     // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
+    SET_NETLOG: "netwerklogZetten",
+    // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
     SET_FIELD: "zetVeld",
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
@@ -2929,8 +2935,8 @@
     const d = uitYmd(s);
     return d ? ymd(addDays(d, n)) : null;
   }
-  function maandagenTussen(van, tot) {
-    const a = uitYmd(van), b = uitYmd(tot);
+  function maandagenTussen(van, tot2) {
+    const a = uitYmd(van), b = uitYmd(tot2);
     if (!a || !b || a > b) return [];
     return eachWeekOfInterval({ start: a, end: b }, { weekStartsOn: 1 }).map(ymd);
   }
@@ -3596,7 +3602,90 @@
     });
   }
 
+  // src/content/services/ons-api/netwerklog.js
+  var BEWAAR = 300;
+  var AAN_MS = 15e3;
+  var SESSIE = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  var tot = 0;
+  var volgnummer2 = 0;
+  var items = [];
+  var stoppen2 = [];
+  var controle = null;
+  function netwerklogAan() {
+    return Date.now() < tot;
+  }
+  function logAdres(url) {
+    try {
+      const u = new URL(String(url == null ? "" : url), location.href);
+      return (u.origin === location.origin ? u.pathname + u.search : u.origin + u.pathname + u.search).slice(0, 2e3);
+    } catch (e) {
+      return String(url == null ? "" : url).slice(0, 2e3);
+    }
+  }
+  function logVerzoek(bron, v) {
+    if (!netwerklogAan()) return;
+    items.push({
+      id: ++volgnummer2,
+      tijd: Date.now(),
+      bron,
+      methode: String(v.methode || "GET").toUpperCase().slice(0, 10),
+      url: logAdres(v.url),
+      status: Number(v.status) || 0,
+      ms: Math.max(0, Math.round(Number(v.ms) || 0)),
+      grootte: Number(v.grootte) >= 0 && v.grootte !== "" && v.grootte != null ? Number(v.grootte) : null
+    });
+    if (items.length > BEWAAR) items = items.slice(-BEWAAR);
+  }
+  function zetUit() {
+    tot = 0;
+    items = [];
+    clearInterval(controle);
+    controle = null;
+    stoppen2.forEach(function(s) {
+      s();
+    });
+    stoppen2 = [];
+    toMainWorld(PAGE_COMMAND.SET_NETLOG, { aan: false });
+  }
+  function netwerklogSessie() {
+    return SESSIE;
+  }
+  function netwerklogSinds(sinds) {
+    const was = netwerklogAan();
+    tot = Date.now() + AAN_MS;
+    if (!was) {
+      toMainWorld(PAGE_COMMAND.SET_NETLOG, { aan: true });
+      if (!stoppen2.length) {
+        stoppen2.push(onPageEvent(PAGE_EVENT.NET_REQUEST, function(d) {
+          logVerzoek("ons", d);
+        }));
+        stoppen2.push(onPageEvent(PAGE_EVENT.MAIN_READY, function() {
+          if (netwerklogAan()) toMainWorld(PAGE_COMMAND.SET_NETLOG, { aan: true });
+        }));
+      }
+      if (!controle) controle = setInterval(function() {
+        if (!netwerklogAan()) zetUit();
+      }, 5e3);
+    }
+    const n = Number(sinds) || 0;
+    return items.filter(function(it) {
+      return it.id > n;
+    });
+  }
+
   // src/content/services/ons-api/http.js
+  async function haal(pad, init) {
+    if (!netwerklogAan()) return fetch(pad, init);
+    const t0 = performance.now(), methode = init.method || "GET";
+    try {
+      const r = await fetch(pad, init);
+      logVerzoek("hulp", { methode, url: pad, status: r.status, ms: performance.now() - t0, grootte: r.headers && r.headers.get ? r.headers.get("content-length") : null });
+      return r;
+    } catch (e) {
+      logVerzoek("hulp", { methode, url: pad, status: 0, ms: performance.now() - t0 });
+      throw e;
+    }
+  }
   function alleenOns(url) {
     let u = null;
     try {
@@ -3610,7 +3699,7 @@
   async function getJson(url) {
     const pad = alleenOns(url);
     telVerzoekVanHulp(pad, "GET");
-    const response = await fetch(pad, { credentials: "same-origin", headers: { Accept: "application/json" } });
+    const response = await haal(pad, { credentials: "same-origin", headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error("HTTP " + response.status);
     return response.json();
   }
@@ -3624,7 +3713,7 @@
     telVerzoekVanHulp(pad, "POST");
     const token = csrfToken();
     if (token) headers["X-CSRF-Token"] = token;
-    const response = await fetch(pad, {
+    const response = await haal(pad, {
       method: "POST",
       credentials: "same-origin",
       headers,
@@ -3731,8 +3820,8 @@
     return [];
   }
   function _regFlattenLogs(json) {
-    const items = _regUnwrap(json), logs = [];
-    items.forEach(function(it) {
+    const items2 = _regUnwrap(json), logs = [];
+    items2.forEach(function(it) {
       if (it && Array.isArray(it.presenceLogs)) {
         it.presenceLogs.forEach(function(l) {
           if (l) logs.push(l);
@@ -4376,14 +4465,14 @@
     const start = moment.startMin, eind = start + info.minutes;
     if (!(start >= 0) || eind > 24 * 60) return null;
     const van = isoLocalWithOffset(moment.date, start);
-    const tot = eind === 24 * 60 ? null : isoLocalWithOffset(moment.date, eind);
-    if (!van || !tot) return null;
+    const tot2 = eind === 24 * 60 ? null : isoLocalWithOffset(moment.date, eind);
+    if (!van || !tot2) return null;
     const kopie2 = JSON.parse(JSON.stringify(payload));
     const ev = kopie2.event;
     delete ev.id;
     delete ev.occurrence_id;
     ev.start_time = van;
-    ev.end_time = tot;
+    ev.end_time = tot2;
     ev.valid_from = moment.date;
     return kopie2;
   }
@@ -5660,7 +5749,7 @@
   function formulierViaModelAan() {
     return !(APP_CONFIG.features && APP_CONFIG.features.formViaModel === false);
   }
-  var volgnummer2 = 0;
+  var volgnummer3 = 0;
   function eerstViaFormulier(viaFormulier, viaScherm) {
     return Promise.resolve().then(viaFormulier).then((ok) => ok ? true : viaScherm(), () => viaScherm());
   }
@@ -5675,7 +5764,7 @@
   }
   function zetUursoortViaFormulier(veld, hourTypeId, beschrijving, wachtMs) {
     if (!veld || !veld.setAttribute || !(Number(hourTypeId) > 0)) return Promise.resolve(false);
-    const doel = "u" + ++volgnummer2 + "-" + Date.now();
+    const doel = "u" + ++volgnummer3 + "-" + Date.now();
     try {
       veld.setAttribute("data-onsah-doel", doel);
     } catch (e) {
@@ -5696,7 +5785,7 @@
   }
   function wisUursoortViaFormulier(veld, wachtMs) {
     if (!veld || !veld.setAttribute) return Promise.resolve(false);
-    const doel = "w" + ++volgnummer2 + "-" + Date.now();
+    const doel = "w" + ++volgnummer3 + "-" + Date.now();
     try {
       veld.setAttribute("data-onsah-doel", doel);
     } catch (e) {
@@ -7799,9 +7888,9 @@
     const c = geheugen[k];
     if (!o.vers && c && nu - c.ts < WEEK_TTL) return c.belofte.then(kopie);
     for (const x of Object.keys(geheugen)) if (nu - geheugen[x].ts >= WEEK_TTL) delete geheugen[x];
-    const haal = () => getJson(_apiUrl(sjabloon, { inviteeId, date: maandag }));
+    const haal2 = () => getJson(_apiUrl(sjabloon, { inviteeId, date: maandag }));
     const nieuw = { ts: nu, belofte: null };
-    nieuw.belofte = (o.wachtrij ? o.wachtrij(haal) : haal()).then(weekEntries);
+    nieuw.belofte = (o.wachtrij ? o.wachtrij(haal2) : haal2()).then(weekEntries);
     nieuw.belofte.catch(() => {
       if (geheugen[k] === nieuw) delete geheugen[k];
     });
@@ -7832,19 +7921,19 @@
       return summarizeRegistrations(rows);
     });
   }
-  function _mapPool(items, limit, worker) {
+  function _mapPool(items2, limit, worker) {
     return new Promise(function(resolve) {
-      let results = new Array(items.length), i = 0, active = 0, done = 0;
-      if (!items.length) {
+      let results = new Array(items2.length), i = 0, active = 0, done = 0;
+      if (!items2.length) {
         resolve(results);
         return;
       }
       function next() {
-        while (active < limit && i < items.length) {
+        while (active < limit && i < items2.length) {
           const idx = i++;
           active++;
           Promise.resolve().then(function() {
-            return worker(items[idx]);
+            return worker(items2[idx]);
           }).then(function(r) {
             results[idx] = r;
           }, function() {
@@ -7852,7 +7941,7 @@
           }).then(function() {
             active--;
             done++;
-            if (done === items.length) resolve(results);
+            if (done === items2.length) resolve(results);
             else next();
           });
         }
@@ -8370,9 +8459,9 @@
         return a[0] - b[0];
       });
       let cur = vanaf;
-      const leeg = function(tot) {
+      const leeg = function(tot2) {
         const b = Math.ceil(cur / stap) * stap;
-        if (tot - b >= min && uit.length < max) uit.push({ date: key, startMin: b, endMin: tot, minutes: tot - b });
+        if (tot2 - b >= min && uit.length < max) uit.push({ date: key, startMin: b, endMin: tot2, minutes: tot2 - b });
       };
       for (let j = 0; j < bezig.length; j++) {
         if (bezig[j][0] > cur) leeg(Math.min(bezig[j][0], dE));
@@ -8813,7 +8902,7 @@
       return uit;
     });
   }
-  function findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
+  function findFreeSlots(minutes, weeks, tot2, metBezoeken, veel, van, dagen, limiet) {
     const ids = agendaIds();
     if (!ids.length) return Promise.reject(new Error("Open eerst je agenda in ONS."));
     minutes = parseInt(minutes, 10);
@@ -8822,7 +8911,7 @@
     const nu = /* @__PURE__ */ new Date();
     let vandaag = nu;
     let aantalDagen = weeks * 7;
-    const totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot || "")) ? String(tot) : "";
+    const totDatum = /^\d{4}-\d{2}-\d{2}$/.test(String(tot2 || "")) ? String(tot2) : "";
     const vanDatum = totDatum && /^\d{4}-\d{2}-\d{2}$/.test(String(van || "")) ? String(van) : "";
     if (vanDatum) {
       const pv = vanDatum.split("-");
@@ -9006,10 +9095,10 @@
       return fetchWeekRatio(date);
     });
   }
-  function cachedFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, dagen, limiet) {
+  function cachedFreeSlots(minutes, weeks, tot2, metBezoeken, veel, van, dagen, limiet) {
     const d = weekdagen(dagen), l = parseInt(limiet, 10) > 0 ? Math.min(400, parseInt(limiet, 10)) : 0;
-    return onthouden("plan", minutes + "|" + weeks + "|" + (tot || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : "") + (d ? "|d" + d.join("") : "") + (l ? "|l" + l : ""), function() {
-      return findFreeSlots(minutes, weeks, tot, metBezoeken, veel, van, d, l);
+    return onthouden("plan", minutes + "|" + weeks + "|" + (tot2 || "") + "|" + (metBezoeken ? "b" : "") + (veel ? "v" : "") + (van ? "|" + van : "") + (d ? "|d" + d.join("") : "") + (l ? "|l" + l : ""), function() {
+      return findFreeSlots(minutes, weeks, tot2, metBezoeken, veel, van, d, l);
     });
   }
   function defaultProductionTo() {
@@ -9643,8 +9732,8 @@
     const out = [], seen = /* @__PURE__ */ new Set();
     json.basic_list.forEach(function(group) {
       if (!Array.isArray(group) || cats.indexOf(group[0]) === -1) return;
-      const items = Array.isArray(group[1]) ? group[1] : [];
-      items.forEach(function(item) {
+      const items2 = Array.isArray(group[1]) ? group[1] : [];
+      items2.forEach(function(item) {
         const name = Array.isArray(item) ? String(item[0] == null ? "" : item[0]).trim() : "";
         if (!name) return;
         const key = clean(name);
@@ -14281,8 +14370,8 @@
     }
   }
   function renderMessages() {
-    const items = currentMessages();
-    if (!items.length) {
+    const items2 = currentMessages();
+    if (!items2.length) {
       if (barEl) {
         try {
           barEl.remove();
@@ -14300,7 +14389,7 @@
     }
     ensureBarOnTop();
     barEl.textContent = "";
-    items.forEach(function(item) {
+    items2.forEach(function(item) {
       const card = document.createElement("div");
       card.className = "onsah-melding";
       card.setAttribute("data-melding", item.id);
@@ -18581,10 +18670,10 @@
   }
   function wachtOp(vind, ms, stap) {
     return new Promise(function(klaar) {
-      const tot = Date.now() + ms;
+      const tot2 = Date.now() + ms;
       (function kijk() {
         const r = vind();
-        if (r || Date.now() >= tot) {
+        if (r || Date.now() >= tot2) {
           klaar(r || null);
           return;
         }
@@ -18606,9 +18695,9 @@
     if (!/^[\w-]+$/.test(occ)) return Promise.resolve(null);
     const inv = /^\d+$/.test(String(opts.inviteeId || "")) ? String(opts.inviteeId) : resolveInviteeId();
     if (inv == null) return Promise.resolve(null);
-    const haal = opts.haal || getJson;
+    const haal2 = opts.haal || getJson;
     return Promise.resolve().then(function() {
-      return haal(_apiUrl("eventDetails", { inviteeId: inv, occurrenceId: occ }));
+      return haal2(_apiUrl("eventDetails", { inviteeId: inv, occurrenceId: occ }));
     }).then(declareUrlUitDetails, function() {
       return null;
     });
@@ -19114,6 +19203,12 @@
               }
             });
             return true;
+          case MSG.AGENDA_NETLOG:
+            try {
+              sendResponse({ ok: true, sessie: netwerklogSessie(), items: netwerklogSinds(msg.sinds) });
+            } catch (e) {
+            }
+            return;
           case MSG.AGENDA_EMPLOYEE_SEARCH:
             searchEmployeesForPlan(msg.term).then(function(employees) {
               try {
@@ -19377,7 +19472,7 @@
       });
       return { clientRows, overigRows };
     };
-    const haal = function(inv, eerste) {
+    const haal2 = function(inv, eerste) {
       if (!toekomst) {
         if (eerste) {
           fetchInviteeWeek(inv, date).then(function(entries2) {
@@ -19415,7 +19510,7 @@
       }
     };
     Promise.all(ids.map(function(inv, i) {
-      return haal(inv, i === 0);
+      return haal2(inv, i === 0);
     })).then(function(summaries) {
       if (agendaPage._agWeekKey !== key) return;
       const o = basisOpts();

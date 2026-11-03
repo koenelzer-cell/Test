@@ -48,7 +48,12 @@ export const BEWAARD = {
   balkOpen: false,
   // Route van de dag (geen cache van adressen buiten dit paneel).
   route: { date: '', busy: false, result: null, error: '' },
-  inviteeId: null
+  inviteeId: null,
+  // Info, Debug: ontgrendeld tot het zijpaneel sluit, ook na een paginawissel
+  // in ONS. Netwerk: de verzoeken (alleen hier in het geheugen), het filter en
+  // pauze; sinds en sessie: tot waar het content-script al gevraagd is.
+  debug: { stand: 'dicht', invoer: '', fout: false },
+  netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0 }
 };
 export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };

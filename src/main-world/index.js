@@ -222,6 +222,23 @@ import { meetPatroon } from '../shared/meetteller.js';
     try { const p = meetPatroon(url, method, location.origin); if (p) post(PAGE_EVENT.REQUEST_SEEN, { patroon: p }); } catch (e) {}
   }
 
+  /* ---- netwerklog (Debug, Netwerk) -------------------------------------
+     Alleen zolang het content-script het vraagt (het zijpaneel staat op
+     Info, Debug): van elk verzoek van ONS zelf methode, adres, status, duur
+     en grootte. Geen inhoud, geen headers. Het content-script houdt het in
+     het geheugen en geeft het alleen aan het zijpaneel.
+     ---------------------------------------------------------------------- */
+  let netlog = false;
+  function logNet(method, url, t0, status, grootte) {
+    try {
+      post(PAGE_EVENT.NET_REQUEST, {
+        methode: String(method || 'GET'), url: String(url == null ? '' : url).slice(0, 2000),
+        status: Number(status) || 0, ms: Math.round(performance.now() - t0),
+        grootte: grootte == null || grootte === '' ? null : Number(grootte),
+      });
+    } catch (e) {}
+  }
+
   function installDetailsWatcher() {
     try {
       const origFetch = window.fetch;
@@ -231,7 +248,14 @@ import { meetPatroon } from '../shared/meetteller.js';
           const method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
           const body = init && init.body;
           meet(url, method);
+          const t0 = netlog ? performance.now() : 0;
           const p = origFetch.apply(this, arguments);
+          if (netlog) {
+            try {
+              p.then(function (res) { logNet(method, url, t0, res && res.status, res && res.headers && res.headers.get ? res.headers.get('content-length') : null); },
+                function () { logNet(method, url, t0, 0, null); });
+            } catch (e) {}
+          }
           try {
             if (isNieuwModel(url, method) && klaargezetModel()) {
               return p.then(function (res) {
@@ -270,6 +294,14 @@ import { meetPatroon } from '../shared/meetteller.js';
           try {
             const xhr = this;
             meet(xhr.__onsahUrl, xhr.__onsahMethod);
+            if (netlog) {
+              const t0 = performance.now();
+              xhr.addEventListener('loadend', function () {
+                let grootte = null;
+                try { grootte = xhr.getResponseHeader('content-length'); } catch (e) {}
+                logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte);
+              });
+            }
             if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
             const melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
             if (melder) {
@@ -556,6 +588,7 @@ import { meetPatroon } from '../shared/meetteller.js';
       const id = String(d.id || '').slice(0, 60);
       const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
       if (d.type === PAGE_COMMAND.SET_METER) { meten = d.aan === true; return; }
+      if (d.type === PAGE_COMMAND.SET_NETLOG) { netlog = d.aan === true; return; }
       if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
       if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }

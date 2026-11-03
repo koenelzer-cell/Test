@@ -2353,3 +2353,104 @@ test('zijpaneel: meetteller onder Info achter de knop Debug met wachtwoord; tota
   assert.equal(document.querySelector('[data-meetteller]'), null);
   assert.ok(document.querySelector('[data-info-debug]'));
 });
+
+test('zijpaneel: Netwerk onder Debug toont live de verzoeken van ONS, de hulp en het zijpaneel, met filter, pauze, kopiëren en wissen', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  const t = new Date(2026, 10, 2, 9, 15, 7).getTime();
+  let sessie = 'tab-a';
+  let lijst = [
+    { id: 1, tijd: t, bron: 'ons', methode: 'GET', url: '/calendar/invitee/42479/entries/week?date=2026-11-02&layer=events', status: 200, ms: 182, grootte: 48213 },
+    { id: 2, tijd: t + 1000, bron: 'hulp', methode: 'GET', url: '/calendar/holidays', status: 200, ms: 40, grootte: null },
+    { id: 3, tijd: t + 2000, bron: 'ons', methode: 'POST', url: '/calendar/events', status: 422, ms: 95, grootte: 120 },
+  ];
+  const vragen = [];
+  const { document, dom } = zijpaneelMetTools({
+    'ag-netwerklog': (msg, cb) => { vragen.push(msg.sinds); cb({ ok: true, sessie, items: lijst.filter((it) => it.id > msg.sinds) }); },
+  }, { ...AGENDA_STATE_TOOLS, version: '1.6.305', debugWachtwoord: HASH });
+  // Verzoeken van het zijpaneel zelf (Google Routes): alleen het adres.
+  const paneelFetch = [];
+  dom.window.fetch = (url, init) => { paneelFetch.push(url); return Promise.resolve({ ok: true, status: 200, headers: { get: (h) => (h === 'content-length' ? '512' : null) } }); };
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-netwerk]'), null, 'dicht zonder wachtwoord');
+  assert.deepEqual(vragen, [], 'en het log staat niet aan');
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  await tick();
+  assert.ok(document.querySelector('[data-netwerk]'), 'Netwerk na het juiste wachtwoord');
+  assert.equal(vragen[0], 0, 'meteen gevraagd, vanaf het begin');
+  const rijen = () => [...document.querySelectorAll('[data-netwerk-rij]')];
+  assert.deepEqual(rijen().map((r) => r.getAttribute('data-netwerk-rij')), ['ons', 'hulp', 'ons'], 'nieuwste boven');
+  assert.equal(rijen()[0].textContent, '09:15:09ONSPOST42295 ms120 B/calendar/events');
+  assert.equal(rijen()[2].textContent, '09:15:07ONSGET200182 ms47,1 kB/calendar/invitee/42479/entries/week?date=2026-11-02&layer=events');
+  assert.equal(rijen()[0].querySelector('[data-netwerk-code]').style.color, 'rgb(163, 36, 31)', 'een fout in rood');
+  assert.deepEqual([...document.querySelectorAll('[data-netwerk-bron]')].map((b) => b.textContent), ['Alles 3', 'ONS 2', 'Hulp 1', 'Zijpaneel 0']);
+  // Elke seconde: alleen wat er nieuw is.
+  lijst = lijst.concat([{ id: 4, tijd: t + 3000, bron: 'hulp', methode: 'GET', url: '/search_panel/clients?term=Tamara', status: 0, ms: 3001, grootte: null }]);
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(vragen.at(-1), 3, 'vraagt na het laatste id');
+  assert.equal(rijen().length, 4);
+  assert.match(rijen()[0].textContent, /^09:15:10HulpGETmislukt3001 ms\/search_panel/);
+  // Het zijpaneel zelf.
+  await dom.window.fetch('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', { method: 'POST', headers: { 'X-Goog-Api-Key': 'geheim' } });
+  await tick();
+  assert.equal(rijen()[0].getAttribute('data-netwerk-rij'), 'paneel');
+  assert.match(rijen()[0].textContent, /ZijpaneelPOST200\d+ ms512 Bhttps:\/\/routes\.googleapis\.com\/distanceMatrix\/v2:computeRouteMatrix$/);
+  assert.doesNotMatch(document.querySelector('[data-netwerk]').textContent, /geheim/, 'geen headers');
+  // Filter op bron en op adres.
+  document.querySelector('[data-netwerk-bron="hulp"]').click();
+  assert.deepEqual(rijen().map((r) => r.getAttribute('data-netwerk-rij')), ['hulp', 'hulp']);
+  document.querySelector('[data-netwerk-bron="alles"]').click();
+  typ(document.querySelector('[data-netwerk-filter]'), 'calendar/');
+  assert.equal(rijen().length, 3);
+  typ(document.querySelector('[data-netwerk-filter]'), '422');
+  assert.deepEqual(rijen().map((r) => r.getAttribute('data-netwerk-status')), ['422'], 'ook op status');
+  typ(document.querySelector('[data-netwerk-filter]'), 'bestaat niet');
+  assert.equal(document.querySelector('[data-netwerk-leeg]').textContent, 'Niets dat bij het filter past.');
+  typ(document.querySelector('[data-netwerk-filter]'), '');
+  // Kopiëren: tab gescheiden, oudste eerst.
+  let gekopieerd = '';
+  Object.defineProperty(dom.window.navigator, 'clipboard', { value: { writeText: (x) => { gekopieerd = x; return Promise.resolve(); } }, configurable: true });
+  document.querySelector('[data-netwerk-kopieer]').click();
+  await tick();
+  const regels = gekopieerd.split('\n');
+  assert.equal(regels[0], 'Netwerk ONS Agendahulp 1.6.305');
+  assert.equal(regels[1], 'tijd\tbron\tmethode\tstatus\tms\tgrootte\tadres');
+  assert.equal(regels[2], '09:15:07\tONS\tGET\t200\t182\t48213\t/calendar/invitee/42479/entries/week?date=2026-11-02&layer=events');
+  assert.equal(regels.length, 7);
+  // Pauzeren: niet meer vragen en het zijpaneel niet meer volgen.
+  document.querySelector('[data-netwerk-pauze]').click();
+  assert.equal(document.querySelector('[data-netwerk-pauze]').textContent, 'Hervatten');
+  const aantal = vragen.length;
+  await dom.window.fetch('https://routes.googleapis.com/x');
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(vragen.length, aantal, 'gepauzeerd: geen vragen');
+  assert.equal(rijen().length, 5, 'en geen nieuwe regels');
+  // Hervatten; de pagina in ONS is intussen herladen (andere sessie): een scheiding en weer vanaf het begin.
+  sessie = 'tab-b';
+  lijst = [{ id: 1, tijd: Date.now() + 5, bron: 'ons', methode: 'GET', url: '/calendar/holidays', status: 304, ms: 12, grootte: null }];
+  document.querySelector('[data-netwerk-pauze]').click();
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.ok(document.querySelector('[data-netwerk-pagina]'), 'Nieuwe pagina in ONS');
+  assert.equal(vragen.at(-1), 0);
+  assert.equal(rijen()[0].getAttribute('data-netwerk-status'), '304');
+  // Wissen: eerst bevestigen.
+  const gevraagd = [];
+  dom.window.confirm = (x) => { gevraagd.push(x); return false; };
+  document.querySelector('[data-netwerk-wis]').click();
+  assert.equal(rijen().length, 6);
+  dom.window.confirm = (x) => { gevraagd.push(x); return true; };
+  document.querySelector('[data-netwerk-wis]').click();
+  assert.deepEqual(gevraagd, ['Weet je het zeker?', 'Weet je het zeker?']);
+  assert.equal(rijen().length, 0);
+  assert.ok(document.querySelector('[data-netwerk-leeg]'));
+  // Naar een andere pagina: stoppen met vragen.
+  document.querySelector('[data-info-debug-dicht]').click();
+  const na = vragen.length;
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.equal(vragen.length, na, 'Debug dicht: het log gaat vanzelf uit');
+  assert.equal(document.querySelector('[data-netwerk]'), null);
+});

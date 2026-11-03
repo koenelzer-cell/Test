@@ -49,6 +49,7 @@ export const MSG = {
   AGENDA_CREATE_EVENTS: 'ag-create-events', // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
   AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+  AGENDA_NETLOG: 'ag-netwerklog',   // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
   AGENDA_EMPLOYEE_SEARCH: 'ag-employee-search', // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
   AGENDA_COLLEAGUE_CHECK: 'ag-colleague-check', // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
   AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
@@ -79,6 +80,7 @@ export const PAGE_EVENT = {
   CREATED: 'eventCreated',      // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
   REQUEST_SEEN: 'verzoekGezien', // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
   MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+  NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
 };
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
 // antwoord (dir FROM_MAIN, met hetzelfde id).
@@ -88,6 +90,7 @@ export const PAGE_COMMAND = {
   SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
   SET_METER: 'meettellerZetten', // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
+  SET_NETLOG: 'netwerklogZetten', // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
   SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina

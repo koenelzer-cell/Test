@@ -33,8 +33,16 @@
     return { ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, to: msg.to || '', lastDate: msg.to || plus(start, 13), windowStart: 480, windowEnd: 1020, gaps: gaps, holidays: [], onsCheck: 'ready' } };
   };
   const item = function (k, d, uur, min, client, uursoort) { const s = Date.parse(d + 'T' + uur + ':00'); return { key: (100 + k) + '|' + d + '|' + s, occurrenceId: 'occ' + k, start: s, minutes: min, client: client, late: true, uursoort: uursoort }; };
+  // Netwerk (Info, Debug): een paar verzoeken van ONS en de hulp, met een lang adres en een fout.
+  const netwerk = [
+    { id: 1, tijd: Date.now() - 4000, bron: 'ons', methode: 'GET', url: '/calendar/invitee/42479/entries/week?date=' + maandag + '&layer=registrations&sub_layers[]=registrations/created&sub_layers[]=registrations/approved', status: 200, ms: 182, grootte: 48213 },
+    { id: 2, tijd: Date.now() - 3000, bron: 'hulp', methode: 'GET', url: '/calendar/holidays', status: 200, ms: 40, grootte: null },
+    { id: 3, tijd: Date.now() - 2000, bron: 'ons', methode: 'POST', url: '/calendar/events', status: 422, ms: 95, grootte: 120 },
+    { id: 4, tijd: Date.now() - 1000, bron: 'hulp', methode: 'GET', url: '/search_panel/employees?term=ver&page=1', status: 0, ms: 3001, grootte: null }
+  ];
   const antwoorden = {
     'ag-get-state': function () { return { state: state }; },
+    'ag-netwerklog': function (msg) { return { ok: true, sessie: 'e2e', items: netwerk.filter(function (it) { return it.id > (msg.sinds || 0); }) }; },
     'ag-free-slots': vrij,
     // ONS meldt overlap aan het begin van het tweede blok (09:30).
     'ag-slot-check': function (msg) { return { ok: true, status: 'ready', overlap: msg.startMin === 570 && !msg.clientIds }; },

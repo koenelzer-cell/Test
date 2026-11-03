@@ -203,6 +203,43 @@ Wat ze doen:
 Niet ingesteld: alles werkt zoals het team is ingedeeld (van de vroegste
 zone tot de laatste).
 
+### Debug: Netwerk
+
+Voor ontwikkeling, in plaats van het tabblad Network van DevTools. Onder
+**Info** staat onderaan een kleine knop **Debug**, alleen als de beheerder een
+wachtwoord instelde (beheerscherm, pagina **Meetteller**; in de configuratie
+staat alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`). Met het juiste
+wachtwoord opent **Netwerk**: elk verzoek, live en het nieuwste boven, met
+tijd (tot op de seconde), van wie het komt, methode, status (rood bij een
+fout of 'mislukt' zonder antwoord), duur, grootte (als de server die meldt)
+en het volledige adres. Daaronder staat de meetteller (zie hieronder).
+
+- **ONS**: verzoeken van de ONS-pagina zelf (de main-world kijkt mee met
+  `fetch` en `XMLHttpRequest`);
+- **Hulp**: verzoeken van de hulp (`services/ons-api/http.js`);
+- **Zijpaneel**: verzoeken van het zijpaneel zelf (Google Routes of de eigen
+  routes-server). Alleen het adres; de sleutel en het token staan in de
+  headers en die worden niet gelogd.
+
+Met de knoppen bovenaan filter je op bron (met het aantal erbij), het veld
+filtert op een stukje adres, een methode of een status (`422`). **Pauzeren**
+stopt het opnemen (na **Hervatten** alleen wat daarna gebeurt), **Kopiëren**
+zet wat het filter toont als tabelletje (tab gescheiden, oudste eerst) op het
+klembord, **Wissen** (na 'Weet je het zeker?') maakt de lijst leeg. Herlaadt
+of wisselt de ONS-pagina, dan staat er een regel *Nieuwe pagina in ONS* en
+loopt het log op die pagina verder.
+
+Het log staat alleen aan zolang Netwerk open is: het zijpaneel vraagt elke
+seconde wat er nieuw is, en het ONS-tabblad houdt het na elke vraag 15
+seconden aan. Daarna meldt de main-world niets meer en gooit het tabblad de
+lijst weg. Het tabblad houdt de laatste 300 verzoeken bij, het zijpaneel ook;
+alles alleen in het geheugen, niets wordt opgeslagen of verstuurd. Debug
+blijft open tot je **Debug sluiten** kiest of het zijpaneel sluit, ook als je
+in ONS naar een andere pagina gaat. Verzoeken die ONS doet voordat de hulp op
+een nieuwe pagina geladen is (de eerste paar bij het laden), en die van
+andere tabbladen, staan er niet in. Adressen kunnen cliëntgegevens bevatten
+(een zoekterm, een cliëntnummer): deel een kopie niet zomaar.
+
 ### Meetteller (pilot)
 
 Om de extra belasting op ONS te meten zonder DevTools. Standaard uit; de
@@ -227,7 +264,7 @@ De telling staat niet zomaar in beeld. Onder **Info** staat onderaan alleen
 een kleine knop **Debug**, en die alleen als de beheerder een wachtwoord
 instelde (beheerscherm, pagina **Meetteller**; in de configuratie staat
 alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`). Met het juiste
-wachtwoord opent de kaart **Meetteller**: sinds wanneer, **ONS zelf** en **De
+wachtwoord staat onder **Netwerk** de kaart **Meetteller**: sinds wanneer, **ONS zelf** en **De
 hulp erbij** met het percentage extra, en per soort adres de aantallen (de
 drukste 12). **Kopiëren** zet alles als tekst op het klembord om naar de
 beheerder te sturen; **Opnieuw beginnen** (na 'Weet je het zeker?') zet de

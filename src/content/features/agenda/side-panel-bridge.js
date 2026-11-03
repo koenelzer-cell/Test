@@ -17,6 +17,7 @@ import { defaultProductionFrom } from './production.js';
 import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, defaultProductionTo, forgetFreeSlots, isCached, openAantal } from './preload.js';
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
+import { netwerklogSessie, netwerklogSinds } from '../../services/ons-api/netwerklog.js';
 import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
 import { checkColleagues, checkSlotWithOns } from './free-slots.js';
@@ -251,6 +252,9 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
           });
           return true;
+        case MSG.AGENDA_NETLOG:
+          try { sendResponse({ ok: true, sessie: netwerklogSessie(), items: netwerklogSinds(msg.sinds) }); } catch (e) {}
+          return;
         case MSG.AGENDA_EMPLOYEE_SEARCH:
           searchEmployeesForPlan(msg.term).then(function (employees) {
             try { sendResponse({ ok: true, employees: employees }); } catch (e) {}

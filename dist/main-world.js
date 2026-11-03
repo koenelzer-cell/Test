@@ -16,8 +16,10 @@
     // { body, pending }  opslaan-verzoek van ONS, alleen als de planhulp kopieën klaarzette
     REQUEST_SEEN: "verzoekGezien",
     // { patroon }  meetteller: een verzoek van ONS zelf, alleen het soort adres (shared/meetteller.js)
-    MAIN_READY: "mainWorldKlaar"
+    MAIN_READY: "mainWorldKlaar",
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
+    NET_REQUEST: "netwerkVerzoek"
+    // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
@@ -30,6 +32,8 @@
     // { id, ok, reden? }
     SET_METER: "meettellerZetten",
     // { aan }  meetteller: verzoeken van ONS zelf melden (REQUEST_SEEN) of niet; geen antwoord
+    SET_NETLOG: "netwerklogZetten",
+    // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
     SET_FIELD: "zetVeld",
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
@@ -320,6 +324,19 @@
       } catch (e) {
       }
     }
+    let netlog = false;
+    function logNet(method, url, t0, status, grootte) {
+      try {
+        post(PAGE_EVENT.NET_REQUEST, {
+          methode: String(method || "GET"),
+          url: String(url == null ? "" : url).slice(0, 2e3),
+          status: Number(status) || 0,
+          ms: Math.round(performance.now() - t0),
+          grootte: grootte == null || grootte === "" ? null : Number(grootte)
+        });
+      } catch (e) {
+      }
+    }
     function installDetailsWatcher() {
       try {
         const origFetch = window.fetch;
@@ -329,7 +346,21 @@
             const method = init && init.method || input && typeof input === "object" && input.method || "GET";
             const body = init && init.body;
             meet(url, method);
+            const t0 = netlog ? performance.now() : 0;
             const p = origFetch.apply(this, arguments);
+            if (netlog) {
+              try {
+                p.then(
+                  function(res) {
+                    logNet(method, url, t0, res && res.status, res && res.headers && res.headers.get ? res.headers.get("content-length") : null);
+                  },
+                  function() {
+                    logNet(method, url, t0, 0, null);
+                  }
+                );
+              } catch (e) {
+              }
+            }
             try {
               if (isNieuwModel(url, method) && klaargezetModel()) {
                 return p.then(function(res) {
@@ -383,6 +414,17 @@
             try {
               const xhr = this;
               meet(xhr.__onsahUrl, xhr.__onsahMethod);
+              if (netlog) {
+                const t0 = performance.now();
+                xhr.addEventListener("loadend", function() {
+                  let grootte = null;
+                  try {
+                    grootte = xhr.getResponseHeader("content-length");
+                  } catch (e) {
+                  }
+                  logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte);
+                });
+              }
               if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
               const melder = melderVoor(xhr.__onsahUrl, xhr.__onsahMethod);
               if (melder) {
@@ -748,6 +790,10 @@
         };
         if (d.type === PAGE_COMMAND.SET_METER) {
           meten = d.aan === true;
+          return;
+        }
+        if (d.type === PAGE_COMMAND.SET_NETLOG) {
+          netlog = d.aan === true;
           return;
         }
         if (d.type === PAGE_COMMAND.READ_FORM) {

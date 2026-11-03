@@ -52,6 +52,7 @@ import { pickClientIdFromSearch } from '../../src/content/services/ons-api/clien
 import { getEmployeeIdAsync } from '../../src/content/services/ons-api/employee.js';
 import { getJson, postJson } from '../../src/content/services/ons-api/http.js';
 import { werkMeettellerBij } from '../../src/content/services/ons-api/meetteller.js';
+import { netwerklogAan, netwerklogSessie, netwerklogSinds } from '../../src/content/services/ons-api/netwerklog.js';
 import { buildUnavailability, describeUnavailability } from '../../src/content/domain/leave.js';
 import { leaveRequestEnabled, openInNewTab, openLeaveDialog, requestLeave } from '../../src/content/features/leave/leave-request.js';
 import { UI_OVERRIDES } from '../../src/content/ons/selector-overrides.js';
@@ -229,6 +230,9 @@ window.__onsHelperTestApi = {
   getJson,
   postJson,
   werkMeettellerBij,
+  netwerklogAan,
+  netwerklogSessie,
+  netwerklogSinds,
   buildUnavailability,
   describeUnavailability,
   requestLeave,

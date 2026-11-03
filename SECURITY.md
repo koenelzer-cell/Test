@@ -192,6 +192,15 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   alleen de SHA-256 daarvan (`debug.wachtwoord`), en het supportpakket en de
   storingscontrole tonen ook die niet. Het samenvoegen in het beheerscherm
   gebeurt lokaal, zonder opslag of netwerk.
+- **Netwerk** (Info, Debug, achter hetzelfde wachtwoord): voor ontwikkeling
+  elk verzoek van ONS zelf, de hulp en het zijpaneel met methode, volledig
+  adres, status, duur en grootte. Geen headers (dus geen sleutel of token) en
+  geen inhoud van verzoek of antwoord. Adressen kunnen cliëntgegevens
+  bevatten (zoektermen, cliëntnummers); daarom alleen in het geheugen (het
+  ONS-tabblad en het zijpaneel houden de laatste 300 bij), alleen zolang het
+  zijpaneel elke seconde vraagt (daarna na 15 seconden uit en weggegooid),
+  niets in opslag en niets naar buiten, behalve wat iemand zelf met Kopiëren
+  doorgeeft.
 - **Bewaartermijn:** een onthouden registratievorm vervalt na 10 minuten.
 - **Logging:** het content-script logt niets naar de console.
 

@@ -5,6 +5,21 @@
 // niet 'ok' is, wordt een fout ("HTTP 404"), zodat de aanroeper kan terugvallen.
 
 import { telVerzoekVanHulp } from './meetteller.js';
+import { logVerzoek, netwerklogAan } from './netwerklog.js';
+
+// Een verzoek van de hulp, met het netwerklog (Debug) als dat aan staat.
+async function haal(pad, init) {
+  if (!netwerklogAan()) return fetch(pad, init);
+  const t0 = performance.now(), methode = init.method || 'GET';
+  try {
+    const r = await fetch(pad, init);
+    logVerzoek('hulp', { methode, url: pad, status: r.status, ms: performance.now() - t0, grootte: r.headers && r.headers.get ? r.headers.get('content-length') : null });
+    return r;
+  } catch (e) {
+    logVerzoek('hulp', { methode, url: pad, status: 0, ms: performance.now() - t0 });
+    throw e;
+  }
+}
 
 // Alleen naar ONS zelf: het adres moet op deze origin uitkomen. Een ander
 // domein (ook '//domein' of '/\\domein', die de browser zo leest) wordt
@@ -20,7 +35,7 @@ export function alleenOns(url) {
 export async function getJson(url) {
   const pad = alleenOns(url);
   telVerzoekVanHulp(pad, 'GET');
-  const response = await fetch(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+  const response = await haal(pad, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
   if (!response.ok) throw new Error('HTTP ' + response.status);
   return response.json();
 }
@@ -39,7 +54,7 @@ export async function postJson(url, body) {
   telVerzoekVanHulp(pad, 'POST');
   const token = csrfToken();
   if (token) headers['X-CSRF-Token'] = token;
-  const response = await fetch(pad, {
+  const response = await haal(pad, {
     method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error('HTTP ' + response.status);

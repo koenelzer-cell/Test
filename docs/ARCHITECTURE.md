@@ -169,9 +169,12 @@ content ──ag-state/ag-gone──▶ (uitgezonden) ──▶ zijpaneel
 zijpaneel ──ag-*/sidepanel-state──▶ content (gevolgd tabblad)
 zijpaneel ──poort 'agendahulp-sidepanel'──▶ service worker (zolang het zijpaneel open is)
 content ──open-tab {url}──▶ service worker (AFAS in een nieuw tabblad na verlof; alleen https)
-main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated, verzoekGezien, mainWorldKlaar)──▶ content
-content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, zetHerhalingNiet, leesFormulier, leesGebruiker, meettellerZetten)──▶ main-world ──antwoord met hetzelfde id──▶ content
+main-world ──PAGE_EVENT (details, eventOverlap, eventMeta, eventCreated, verzoekGezien, netwerkVerzoek, mainWorldKlaar)──▶ content
+content ──PAGE_COMMAND (zetLabels, zetUursoort, zetVeld, zetHerhalingNiet, leesFormulier, leesGebruiker, meettellerZetten, netwerklogZetten)──▶ main-world ──antwoord met hetzelfde id──▶ content
    (window.postMessage met {__onsah, dir}, alleen eigen venster en origin; content: core/page-bridge.js)
+zijpaneel ──ag-netwerklog {sinds} (elke seconde, alleen Info met Debug open)──▶ content ──{sessie, items}──▶ zijpaneel
+   (Debug, Netwerk: services/ons-api/netwerklog.js; elke vraag houdt het log 15 s aan,
+    zet de main-world aan met netwerklogZetten en logt de hulp in http.js; alleen geheugen)
 ```
 
 ## Opslag

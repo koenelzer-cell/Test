@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.305
+
+- Voor de ontwikkelaar: achter de knop **Debug** (Info) staat nu **Netwerk**,
+  in plaats van het tabblad Network van DevTools. Je ziet live elk verzoek
+  van ONS zelf, van de hulp en van het zijpaneel: tijd, methode, status,
+  duur, grootte en het adres. Met filter, Pauzeren, Kopiëren en Wissen.
+  Alleen in het geheugen; niets wordt opgeslagen.
+- Debug blijft nu open als je in ONS naar een andere pagina gaat (tot je het
+  zijpaneel sluit of Debug sluiten kiest).
+
 ## 1.6.304
 
 - De meetteller staat in het zijpaneel niet meer zomaar in beeld: onder Info

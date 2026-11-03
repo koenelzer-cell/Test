@@ -67,6 +67,8 @@
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
+    AGENDA_NETLOG: "ag-netwerklog",
+    // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
     // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
     AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",
