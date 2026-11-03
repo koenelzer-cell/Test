@@ -90,7 +90,15 @@ for (const breedte of [340, 420]) {
         await terug(page);
       }
       await page.locator('[aria-label="Legenda en versie"]').click();
+      await expect(page.locator('[data-info-debug]')).toBeVisible();
+      await expect(page.locator('[data-meetteller]')).toHaveCount(0);
       await controleer(page, testInfo, 'info');
+      // Debug: met het wachtwoord de meetteller.
+      await page.locator('[data-info-debug]').click();
+      await page.locator('[data-info-debug-wachtwoord]').fill('e2e-wachtwoord');
+      await page.locator('[data-info-debug-open]').click();
+      await expect(page.locator('[data-meetteller]')).toBeVisible();
+      await controleer(page, testInfo, 'info-debug');
     });
 
     test('planhulp: lijst, weekplanning en instellingen', async ({ page }, testInfo) => {

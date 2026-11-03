@@ -122,6 +122,8 @@ function agPanelState() {
     routeEnabled: routeEnabled(),
     // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
     features: panelFeatures(),
+    // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
+    debugWachtwoord: /^[0-9a-f]{64}$/.test(String((APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord) || '')) ? APP_CONFIG.debug.wachtwoord : '',
     afspraakTypes: afspraakTypesVoorPaneel(),
     // Rijtijden-server (alleen https); leeg = niet ingesteld.
     routesProxy: routesProxyVoorPaneel(),

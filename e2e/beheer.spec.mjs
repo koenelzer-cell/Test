@@ -225,3 +225,39 @@ test('beheer: meetteller staat standaard uit en is aan te zetten bij Functies', 
   expect(await page.evaluate(() => featureTitel('meetteller'))).toBe('Meetteller');
   expect(fouten).toEqual([]);
 });
+
+test('beheer: pagina Meetteller, wachtwoord voor Debug (alleen de hash) en tellingen samenvoegen', async ({ page }) => {
+  const fouten = await open(page);
+  await page.evaluate(() => showSettingsPage('meetteller'));
+  expect(await pagina(page)).toBe('meetteller');
+  await expect(page.locator('#debugWachtwoordStand')).toContainText('Nog geen wachtwoord');
+  // Meetteller aan zonder wachtwoord: de controle waarschuwt.
+  await page.evaluate(() => { document.querySelector('[data-feature="meetteller"]').checked = true; });
+  expect((await page.evaluate(() => configAudit(buildConfigFromDOM()).filter((x) => x.onderdeel === 'Meetteller').length))).toBe(1);
+  await page.locator('#debugWachtwoord').fill('geheim123');
+  await expect(page.locator('#debugWachtwoordStand')).toContainText('Er is een wachtwoord ingesteld');
+  const cfg = await page.evaluate(() => buildConfigFromDOM());
+  expect(cfg.debug.wachtwoord).toMatch(/^[0-9a-f]{64}$/);
+  expect(JSON.stringify(cfg)).not.toContain('geheim123');
+  const { createHash } = await import('node:crypto');
+  expect(cfg.debug.wachtwoord).toBe(createHash('sha256').update('onsah-debug:geheim123').digest('hex'));
+  expect(await page.evaluate(() => configAudit(buildConfigFromDOM()).filter((x) => x.onderdeel === 'Meetteller').length)).toBe(0);
+  expect(await page.evaluate(() => zonderGeheimen(buildConfigFromDOM()).debug.wachtwoord)).toBe('[verborgen, ingevuld]');
+  // Weghalen.
+  await page.locator('#debugWachtwoordWeg').click();
+  expect(await page.evaluate(() => buildConfigFromDOM().debug.wachtwoord)).toBe('');
+  // Twee tellingen samenvoegen (de tweede met spaties in plaats van tabs, zoals na plakken uit een mail).
+  const T1 = 'Meetteller ONS Agendahulp 1.6.304\nVan ma 2 nov 09:00 tot ma 2 nov 17:00\nONS zelf: 50 verzoeken\nDe hulp erbij: 10 verzoeken (20% extra)\n\nPer soort adres (ONS, hulp):\n40\t8\tGET /calendar/invitee/{n}/entries/week?date=…&layer=events\n10\t2\tPOST /calendar/events';
+  const T2 = 'Meetteller ONS Agendahulp 1.6.304\nVan di 3 nov 09:00 tot di 3 nov 12:00\nONS zelf: 30 verzoeken\nDe hulp erbij: 30 verzoeken (100% extra)\n\nPer soort adres (ONS, hulp):\n30 20 GET /calendar/invitee/{n}/entries/week?date=…&layer=events\n0 10 GET /calendar/holidays\n5 5 <script>alert(1)</script>';
+  await expect(page.locator('#meettellerKopieerKnop')).toBeDisabled();
+  await page.locator('#meettellerInvoer').fill(T1 + '\n\n' + T2);
+  await page.locator('button:has-text("Samenvoegen")').click();
+  const tegels = await page.locator('[data-meet-totaal] .status-kaart').allInnerTexts();
+  expect(tegels.map((t) => t.replace(/\s+/g, ' ').trim())).toEqual(['Metingen 2', 'ONS zelf 80 verzoeken', 'De hulp erbij 40 50% extra']);
+  const rijen = await page.locator('#meettellerUitslag table').nth(1).locator('tbody tr').allInnerTexts();
+  expect(rijen.map((r) => r.replace(/\s+/g, ' ').trim())).toEqual([
+    'GET /calendar/invitee/{n}/entries/week?date=…&layer=events 70 28', 'POST /calendar/events 10 2', 'GET /calendar/holidays 0 10']);
+  expect(await page.locator('#meettellerUitslag').innerText()).not.toContain('script');
+  await expect(page.locator('#meettellerKopieerKnop')).toBeEnabled();
+  expect(fouten).toEqual([]);
+});

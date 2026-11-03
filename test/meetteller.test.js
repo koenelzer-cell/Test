@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { isPatroon, meetPatroon, meettellerOverzicht, voegTellingToe, MAX_PATRONEN } from '../src/shared/meetteller.js';
 import { bootHelper } from './helpers/harness.mjs';
+import { createHash } from 'node:crypto';
+import { debugHash, sha256Hex } from '../src/shared/sha256.js';
 
 const ONS = 'https://impegno.onsagenda.nl';
 
@@ -97,4 +99,9 @@ test('main-world: meldt verzoeken van ONS zelf alleen als de meetteller aan staa
   w.fetch('/calendar/holidays');
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(gezien, ['klaar', 'GET /calendar/invitee/{n}/entries/week?date=…&layer=events', 'GET /search_panel/clients?term=…&page=…']);
+});
+
+test('SHA-256 voor het debugwachtwoord: gelijk aan de standaard (en dus aan crypto.subtle in het beheerscherm)', () => {
+  for (const t of ['', 'abc', 'geheim123', 'é€', 'x'.repeat(200)]) assert.equal(sha256Hex(t), createHash('sha256').update(t, 'utf8').digest('hex'), JSON.stringify(t));
+  assert.equal(debugHash('geheim123'), createHash('sha256').update('onsah-debug:geheim123').digest('hex'));
 });

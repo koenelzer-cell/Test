@@ -1,9 +1,11 @@
-// Info: legenda, versie en de rondleidingen opnieuw starten; met de
-// meetteller aan (beheer) ook wat ONS zelf en de hulp aan verzoeken doen.
+// Info: legenda, versie en de rondleidingen opnieuw starten. Onderaan een
+// kleine knop Debug (alleen als de beheerder een wachtwoord instelde): met het
+// wachtwoord opent de meetteller, wat ONS zelf en de hulp aan verzoeken doen.
 
-import { HulpRij, ICON_HELP, ICON_PLAN, Knop, SectionHead, T, Txt, dayLabel, hm, ymdVan } from './ui.jsx';
+import { HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt, dayLabel, hm, ymdVan } from './ui.jsx';
 import { LOCAL } from '../shared/storage-keys.js';
 import { meettellerOverzicht } from '../shared/meetteller.js';
+import { debugHash } from '../shared/sha256.js';
 
 // Legenda, rondleidingen en versie als lijsten, zoals op het startscherm.
 const LIJST_KAART = { border: '1px solid ' + T.line, borderRadius: '12px', overflow: 'hidden', background: '#fff' };
@@ -24,9 +26,12 @@ export function maakInfo(ctx) {
   const { fAan, naarPagina, renderPagina } = ctx;
   // Meetteller: de telling uit chrome.storage.local, bijgewerkt zodra die verandert.
   const meet = { luistert: false, data: null, gekopieerd: false };
+  // Debug: dicht, het wachtwoordveld open, of ontgrendeld (tot het zijpaneel sluit).
+  const debug = { stand: 'dicht', invoer: '', fout: false };
+  function debugWachtwoord() { return String((ctx.state && ctx.state.debugWachtwoord) || ''); }
   function meettellerAan() { return !!(ctx.state && ctx.state.features && ctx.state.features.meetteller === true); }
   function zorgVoorMeetteller() {
-    if (meet.luistert || !meettellerAan()) return;
+    if (meet.luistert || !meettellerAan() || debug.stand !== 'open') return;
     meet.luistert = true;
     try {
       chrome.storage.local.get([LOCAL.METER], function (r) { meet.data = (r && r[LOCAL.METER]) || null; if (ctx.pagina === 'info') renderPagina(); });
@@ -94,6 +99,48 @@ export function maakInfo(ctx) {
       </>
     );
   }
+  function ontgrendel() {
+    if (debugHash(debug.invoer) === debugWachtwoord()) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
+    else debug.fout = true;
+    renderPagina();
+  }
+  function debugDeel() {
+    if (!/^[0-9a-f]{64}$/.test(debugWachtwoord())) return null;
+    const klein = { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '12px', padding: '4px 2px' };
+    if (debug.stand === 'dicht') {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+          <button type="button" data-info-debug="" style={klein} onClick={function () { debug.stand = 'vraag'; debug.fout = false; renderPagina(); }}>Debug</button>
+        </div>
+      );
+    }
+    if (debug.stand === 'vraag') {
+      return (
+        <div data-info-debug-vraag="" style={{ marginTop: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Invoer type="password" waarde={debug.invoer} placeholder="Wachtwoord" aria-label="Wachtwoord voor Debug" data-info-debug-wachtwoord="" autoComplete="off" autoFocus
+              onWaarde={function (v) { debug.invoer = v; debug.fout = false; }}
+              onKeyDown={function (e) { if (e.key === 'Enter') { e.preventDefault(); ontgrendel(); } if (e.key === 'Escape') { debug.stand = 'dicht'; debug.invoer = ''; renderPagina(); } }} />
+            <Knop tekst="Openen" data-info-debug-open="" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }} onClick={ontgrendel} />
+          </div>
+          {debug.fout ? <Regel toon="let" tekst="Onjuist wachtwoord" data-info-debug-fout="" /> : null}
+        </div>
+      );
+    }
+    return (
+      <div data-info-debug-open-deel="">
+        {meettellerAan() ? meettellerKaart() : (
+          <>
+            <SectionHead tekst="Meetteller" />
+            <Txt kind="help" data-meetteller-uit="" style={{ margin: '0 2px' }}>De meetteller staat uit. Zet hem aan in het beheerscherm bij Functies.</Txt>
+          </>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+          <button type="button" data-info-debug-dicht="" style={klein} onClick={function () { debug.stand = 'dicht'; renderPagina(); }}>Debug sluiten</button>
+        </div>
+      </div>
+    );
+  }
 
   function pageInfo() {
     const legenda = (ctx.state && ctx.state.legend) || [];
@@ -121,7 +168,6 @@ export function maakInfo(ctx) {
           <HulpRij soort="info" icoon={ICON_HELP} titel="Rondleiding zijpaneel" eerste data-info-rondleiding="zijpaneel" onClick={function () { ctx.startHoofdRondleiding(); }} />
           {fAan('planner') ? <HulpRij soort="plan" icoon={ICON_PLAN} titel="Rondleiding Planhulp" data-info-rondleiding="planhulp" onClick={function () { naarPagina('plan'); ctx.startPlanRondleiding(); }} /> : null}
         </div>
-        {meettellerKaart()}
         <SectionHead tekst="Over" />
         <div style={LIJST_KAART}>
           <div style={regel(true)}>
@@ -129,6 +175,7 @@ export function maakInfo(ctx) {
             <span style={{ color: T.inkSoft, fontVariantNumeric: 'tabular-nums' }}>{(ctx.state && ctx.state.version) || ''}</span>
           </div>
         </div>
+        {debugDeel()}
       </div>
     );
   }

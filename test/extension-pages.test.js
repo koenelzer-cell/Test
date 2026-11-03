@@ -2286,15 +2286,18 @@ test('zijpaneel: meldingen compact - pil bij meerdere agenda\'s, foutstrook met 
   assert.equal(balk.style.background, 'rgb(32, 29, 31)', 'donkere balk');
 });
 
-test('zijpaneel: meetteller onder Info alleen als de beheerder hem aanzet; totalen, per adres, opnieuw beginnen', async () => {
-  // Uit (standaard): geen kaart.
-  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: false } });
+test('zijpaneel: meetteller onder Info achter de knop Debug met wachtwoord; totalen, per adres, opnieuw beginnen', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  // Zonder wachtwoord in de configuratie: geen knop Debug en geen meetteller, ook als hij telt.
+  const uit = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true }, debugWachtwoord: '' });
   await tick();
   uit.document.querySelector('[aria-label="Legenda en versie"]').click();
   await tick();
+  assert.equal(uit.document.querySelector('[data-info-debug]'), null);
   assert.equal(uit.document.querySelector('[data-meetteller]'), null);
   // Aan: de telling uit chrome.storage.local.
-  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, version: '1.6.303', features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true } });
+  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, version: '1.6.303', features: { ...(AGENDA_STATE_TOOLS.features || {}), meetteller: true }, debugWachtwoord: HASH });
   const env = _laatsteEnv;
   const start = new Date(2026, 10, 2, 9, 0).getTime();
   env.store.local['onsHelper.meetteller'] = { start, bijgewerkt: start + 3600000, patronen: {
@@ -2305,7 +2308,19 @@ test('zijpaneel: meetteller onder Info alleen als de beheerder hem aanzet; total
   await tick();
   document.querySelector('[aria-label="Legenda en versie"]').click();
   await tick();
-  assert.ok(document.querySelector('[data-meetteller]'), 'kaart Meetteller');
+  assert.equal(document.querySelector('[data-meetteller]'), null, 'eerst dicht');
+  assert.equal(document.querySelector('[data-info-debug]').textContent, 'Debug', 'alleen een kleine knop');
+  document.querySelector('[data-info-debug]').click();
+  const veld = () => document.querySelector('[data-info-debug-wachtwoord]');
+  assert.equal(veld().getAttribute('type'), 'password');
+  typ(veld(), 'fout');
+  document.querySelector('[data-info-debug-open]').click();
+  assert.equal(document.querySelector('[data-info-debug-fout]').textContent, 'Onjuist wachtwoord');
+  assert.equal(document.querySelector('[data-meetteller]'), null);
+  typ(veld(), 'geheim123');
+  veld().dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  await tick();
+  assert.ok(document.querySelector('[data-meetteller]'), 'kaart Meetteller na het juiste wachtwoord');
   assert.equal(document.querySelector('[data-meetteller-ons]').textContent, 'ONS zelf42');
   assert.equal(document.querySelector('[data-meetteller-hulp]').textContent, 'De hulp erbij13 (31% extra)');
   assert.deepEqual([...document.querySelectorAll('[data-meetteller-rij]')].map((r) => r.textContent), [
@@ -2333,4 +2348,8 @@ test('zijpaneel: meetteller onder Info alleen als de beheerder hem aanzet; total
   assert.deepEqual(gevraagd, ['Weet je het zeker?', 'Weet je het zeker?']);
   assert.equal(env.store.local['onsHelper.meetteller'], undefined);
   assert.ok(document.querySelector('[data-meetteller-leeg]'), 'weer leeg');
+  // Debug sluiten: weer alleen de knop.
+  document.querySelector('[data-info-debug-dicht]').click();
+  assert.equal(document.querySelector('[data-meetteller]'), null);
+  assert.ok(document.querySelector('[data-info-debug]'));
 });

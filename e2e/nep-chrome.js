@@ -16,6 +16,8 @@
     week: { summary: { clientMinutes: 690, nonClientMinutes: 125, totalMinutes: 815, directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, byType: [] },
       opts: { week: 42, date: maandag, scope: 'week', headerHint: 'geregistreerd' }, clientRows: [], overigRows: [] },
     weekError: '', weekLoading: false, features: { meetteller: true }, routeEnabled: true,
+    // Wachtwoord voor de knop Debug: 'e2e-wachtwoord'.
+    debugWachtwoord: '45e9a81951fa98cb477f70f1452f0a2f07303cc9fe14d81661f9b907d62045f2',
     afspraakTypes: [{ label: 'Huisbezoek', etiketten: ['JG Huisbezoek'], clientPresent: true, addTravelTime: true }]
   };
   // Meetteller (Info): een telling van een uur, met een lang adres.

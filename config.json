@@ -827,6 +827,9 @@
   "support": {
     "topdeskUrl": "https://impegno.topdesk.net/"
   },
+  "debug": {
+    "wachtwoord": ""
+  },
   "activation": {
     "appointmentNeedle": "/events/new",
     "registrationNeedle": "/registrations",

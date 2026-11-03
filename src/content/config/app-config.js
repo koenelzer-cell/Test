@@ -69,6 +69,7 @@ export function applyHelperConfig(hc) {
   if (hc.apiEndpoints && typeof hc.apiEndpoints === 'object') APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
   if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
   if (hc.support && typeof hc.support === 'object') APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
+  if (hc.debug && typeof hc.debug === 'object') APP_CONFIG.debug = Object.assign({}, APP_CONFIG.debug, hc.debug);
   if (hc.leaveRequest && typeof hc.leaveRequest === 'object') APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
   if (hc.activation && typeof hc.activation === 'object') {
     APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);

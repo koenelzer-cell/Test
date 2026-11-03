@@ -187,7 +187,11 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   blijft alleen het soort over (getallen worden `{n}`, zoekwaarden
   weggelaten, alleen vaste keuzes zoals `layer=events` blijven). In
   `chrome.storage.local` staan alleen die soorten en aantallen; er gaat niets
-  naar buiten, behalve wat de medewerker zelf met Kopiëren doorstuurt.
+  naar buiten, behalve wat de medewerker zelf met Kopiëren doorstuurt. De
+  kaart zit achter de knop Debug met een wachtwoord; in de configuratie staat
+  alleen de SHA-256 daarvan (`debug.wachtwoord`), en het supportpakket en de
+  storingscontrole tonen ook die niet. Het samenvoegen in het beheerscherm
+  gebeurt lokaal, zonder opslag of netwerk.
 - **Bewaartermijn:** een onthouden registratievorm vervalt na 10 minuten.
 - **Logging:** het content-script logt niets naar de console.
 

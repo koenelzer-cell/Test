@@ -2,6 +2,15 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.304
+
+- De meetteller staat in het zijpaneel niet meer zomaar in beeld: onder Info
+  staat alleen een kleine knop **Debug**, die met een wachtwoord van de
+  beheerder de telling opent.
+- Voor de beheerder: een pagina **Meetteller** in het beheerscherm. Daar stel
+  je het wachtwoord in en voeg je de tellingen van collega's samen tot één
+  overzicht, om bijvoorbeeld aan Nedap te laten zien.
+
 ## 1.6.303
 
 - **Meetteller** voor de pilot (standaard uit; de beheerder zet hem aan bij

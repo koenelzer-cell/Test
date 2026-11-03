@@ -140,6 +140,9 @@
     declarabiliteitRules: [],
     // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
     support: { topdeskUrl: "https://impegno.topdesk.net/" },
+    // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen de SHA-256
+    // van 'onsah-debug:' + wachtwoord (beheer, pagina Meetteller). Leeg = geen knop.
+    debug: { wachtwoord: "" },
     // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
     // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
     // aan te vragen. maxDays: hoe lang een herhaling hooguit mag lopen.
@@ -305,6 +308,7 @@
     if (hc.apiEndpoints && typeof hc.apiEndpoints === "object") APP_CONFIG.apiEndpoints = Object.assign({}, APP_CONFIG.apiEndpoints, hc.apiEndpoints);
     if (Array.isArray(hc.declarabiliteitRules)) APP_CONFIG.declarabiliteitRules = hc.declarabiliteitRules;
     if (hc.support && typeof hc.support === "object") APP_CONFIG.support = Object.assign({}, APP_CONFIG.support, hc.support);
+    if (hc.debug && typeof hc.debug === "object") APP_CONFIG.debug = Object.assign({}, APP_CONFIG.debug, hc.debug);
     if (hc.leaveRequest && typeof hc.leaveRequest === "object") APP_CONFIG.leaveRequest = Object.assign({}, APP_CONFIG.leaveRequest, hc.leaveRequest);
     if (hc.activation && typeof hc.activation === "object") {
       APP_CONFIG.activation = Object.assign({}, APP_CONFIG.activation, hc.activation);
@@ -18913,6 +18917,8 @@
       routeEnabled: routeEnabled(),
       // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
       features: panelFeatures(),
+      // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
+      debugWachtwoord: /^[0-9a-f]{64}$/.test(String(APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord || "")) ? APP_CONFIG.debug.wachtwoord : "",
       afspraakTypes: afspraakTypesVoorPaneel(),
       // Rijtijden-server (alleen https); leeg = niet ingesteld.
       routesProxy: routesProxyVoorPaneel(),

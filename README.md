@@ -223,11 +223,25 @@ nooit mee. De aantallen tellen elke 10 seconden (en bij het verlaten van de
 pagina) op in `chrome.storage.local`, over alle tabbladen en
 herlaadbeurten heen; hooguit 300 soorten adressen.
 
-In het zijpaneel staat onder **Info** de kaart **Meetteller**: sinds wanneer,
-**ONS zelf** en **De hulp erbij** met het percentage extra, en per soort adres
-de aantallen (de drukste 12). **Kopiëren** zet alles als tekst op het klembord
-om naar de beheerder te sturen; **Opnieuw beginnen** (na 'Weet je het zeker?')
-zet de telling op nul. Zet de meetteller na de meting weer uit.
+De telling staat niet zomaar in beeld. Onder **Info** staat onderaan alleen
+een kleine knop **Debug**, en die alleen als de beheerder een wachtwoord
+instelde (beheerscherm, pagina **Meetteller**; in de configuratie staat
+alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`). Met het juiste
+wachtwoord opent de kaart **Meetteller**: sinds wanneer, **ONS zelf** en **De
+hulp erbij** met het percentage extra, en per soort adres de aantallen (de
+drukste 12). **Kopiëren** zet alles als tekst op het klembord om naar de
+beheerder te sturen; **Opnieuw beginnen** (na 'Weet je het zeker?') zet de
+telling op nul; **Debug sluiten** vergrendelt weer. Het wachtwoord houdt
+nieuwsgierigen buiten, het is geen echte beveiliging.
+
+In het beheerscherm, pagina **Meetteller** (onder Controleren), stel je het
+wachtwoord in en voeg je de tellingen samen: plak de teksten van één of meer
+collega's onder elkaar (of kies tekstbestanden) en kies **Samenvoegen**. Je
+ziet het aantal metingen, ONS zelf, de hulp erbij met het percentage extra,
+per meting de periode en de cijfers, en per soort adres de aantallen (de
+drukste 40). **Overzicht kopiëren** geeft alles als tekst, bijvoorbeeld voor
+Nedap. Dit gebeurt alleen in het beheerscherm; er wordt niets opgeslagen of
+verstuurd. Zet de meetteller na de meting weer uit.
 
 ### Wekelijkse herinnering
 
