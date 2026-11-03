@@ -6,12 +6,16 @@
 // klikken in velden die er anders uitzien; daarom draait die hulp op deze
 // hosts niet, en neemt deze module het registratieformulier over.
 //
-// Nu herkent de module alleen waar hij is. Wat hij op het formulier doet,
-// komt erbij zodra de opbouw van het nieuwe formulier bekend is
-// (tools/console/registratie-opbouw.js geeft die, zonder cliëntgegevens).
-// Alleen het testpakket draait op deze host (manifest: *.onsagenda.nl).
+// Het nieuwe formulier is een venster op de agenda (uc-modal met de
+// Vue-component DeclareAsRegistrationForm), geen aparte pagina meer
+// (ons/registratie-venster.js). Nu herkent de module alleen waar hij is. Wat
+// hij op het formulier doet, komt erbij zodra de opbouw van dat venster
+// bekend is (tools/console/registratie-opbouw.js geeft die, zonder cliënt-
+// of medewerkergegevens). Alleen het testpakket draait op deze host
+// (manifest: *.onsagenda.nl).
 
 import { isRegistrationEditOrNew } from '../../ons/agenda-location.js';
+import { vindRegistratieVenster } from '../../ons/registratie-venster.js';
 
 // Hosts met het nieuwe registratieformulier.
 export const NIEUW_FORMULIER_HOSTS = ['impegno-backup-staging.onsagenda.nl'];
@@ -21,17 +25,12 @@ export function opNieuwFormulierHost(host) {
   return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
 }
 
-// Staat het nieuwe registratieformulier open? Voorlopig dezelfde adressen als
-// het oude formulier (/registrations/{id}/edit of /registrations/new); als
-// ONS die ook veranderde, passen we het hier aan.
+// Staat het nieuwe registratieformulier open? Het venster op de agenda, of
+// (voor het geval ONS het ook als pagina toont) /registrations/{id}/edit of
+// /registrations/new.
 export function opNieuwRegistratieFormulier() {
-  return opNieuwFormulierHost() && isRegistrationEditOrNew();
+  return opNieuwFormulierHost() && (!!vindRegistratieVenster() || isRegistrationEditOrNew());
 }
-
-let actief = false;
-export function nieuweRegistratiehulpActief() { return actief; }
-// Aan op het nieuwe formulier, uit daarbuiten. Nog zonder eigen scherm.
-export function syncNieuweRegistratiehulp() {
-  actief = opNieuwRegistratieFormulier();
-  return actief;
-}
+export function nieuweRegistratiehulpActief() { return opNieuwRegistratieFormulier(); }
+// Bij elke adreswijziging (helper/routing.js). Nog zonder eigen scherm.
+export function syncNieuweRegistratiehulp() { return opNieuwRegistratieFormulier(); }

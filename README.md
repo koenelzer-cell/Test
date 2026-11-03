@@ -391,18 +391,22 @@ Op `impegno-backup-staging.onsagenda.nl` heeft ONS het registratieformulier
 vernieuwd. De bestaande registratiehulp draait daar niet (die zou klikken in
 een formulier dat anders is opgebouwd); de module
 `src/content/features/registratie-nieuw/` herkent daar het
-registratieformulier (`/registrations/{id}/edit` en `/registrations/new`) en
-neemt het over. Hij doet nog niets op het formulier zelf: dat komt erbij
-zodra de opbouw bekend is. Alleen het testpakket draait op die host; de
+registratieformulier en neemt het over. Daar is het formulier geen pagina meer maar een venster op
+de agenda (`uc-modal` met de Vue-component `DeclareAsRegistrationForm`,
+herkend aan `data-qa="time-distribution-fields"` of de velden
+`declaration[…]`, `ons/registratie-venster.js`). De module doet nog niets op
+het formulier zelf: dat komt erbij zodra de opbouw bekend is. Alleen het testpakket draait op die host; de
 agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
 
-De opbouw uitlezen: open daar een registratieformulier, F12, Console, en plak
-`tools/console/registratie-opbouw.js`. Het resultaat (Vue-componenten, props,
-events en methoden, velden met een koppeling, de vorm van keuzelijsten en van
-het formuliermodel, data-qa's en labels) staat daarna op het klembord. Tekst
-in velden als naam, cliënt of rapportage wordt `tekst(lengte)`, lange
-getallen `getal(n)`, en een label houdt alleen de woorden vóór een woord met
-een hoofdletter.
+De opbouw uitlezen: open daar het registratievenster, F12, Console, en plak
+`tools/console/registratie-opbouw.js`. Het leest alleen wat binnen het
+venster staat (Vue-componenten met de luisteraars van hun ouder, props,
+events en methoden, velden met een koppeling, de vorm van keuzelijsten en
+van het formuliermodel, data-qa's, veldnamen) en zet het op het klembord.
+Tekst onder sleutels als naam, cliënt, rapportage of identificatie wordt
+`tekst(lengte)`, id's `id`, lange getallen `getal(n)`, nummers in andere
+tekst `{n}`, en een label stopt bij het eerste woord met een hoofdletter dat
+geen formulierwoord is (`Verwijder …`).
 
 ### Zijpaneel
 

@@ -18031,6 +18031,17 @@
     removePopup();
   }
 
+  // src/content/ons/registratie-venster.js
+  function vindRegistratieVenster(root) {
+    return deepQueryAll("uc-modal", root || document).find(function(m) {
+      try {
+        return !!m.querySelector('[data-qa="time-distribution-fields"], [name^="declaration["]');
+      } catch (e) {
+        return false;
+      }
+    }) || null;
+  }
+
   // src/content/features/registratie-nieuw/index.js
   var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl"];
   function opNieuwFormulierHost(host) {
@@ -18038,12 +18049,10 @@
     return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
   }
   function opNieuwRegistratieFormulier() {
-    return opNieuwFormulierHost() && isRegistrationEditOrNew();
+    return opNieuwFormulierHost() && (!!vindRegistratieVenster() || isRegistrationEditOrNew());
   }
-  var actief = false;
   function syncNieuweRegistratiehulp() {
-    actief = opNieuwRegistratieFormulier();
-    return actief;
+    return opNieuwRegistratieFormulier();
   }
 
   // src/content/helper/routing.js

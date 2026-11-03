@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.309
+
+- Alleen voor het testpakket: de module voor het vernieuwde
+  registratieformulier herkent dat formulier nu als venster op de agenda.
+  Voor medewerkers verandert er niets.
+
 ## 1.6.308
 
 - Alleen voor het testpakket: op de ONS-testomgeving

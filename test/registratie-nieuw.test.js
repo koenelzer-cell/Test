@@ -28,3 +28,16 @@ test('op de nieuwe host maar niet op een registratieformulier: de module staat u
   await tick();
   assert.equal(api.nieuweRegistratiehulpActief(), false);
 });
+
+test('het nieuwe formulier als venster op de agenda wordt herkend (uc-modal met de tijdverdeling of declaration[…])', async () => {
+  const venster = '<!doctype html><html><body><uc-modal><form><div data-qa="time-distribution-fields"></div><input type="hidden" name="declaration[date]"></form></uc-modal></body></html>';
+  const { api } = bootHelper({ html: venster, url: 'https://impegno-backup-staging.onsagenda.nl/invitees/1,2/calendar/week' });
+  await tick();
+  assert.equal(api.nieuweRegistratiehulpActief(), true);
+  const zonder = bootHelper({ html: '<!doctype html><html><body><uc-modal><p>Iets anders</p></uc-modal></body></html>', url: 'https://impegno-backup-staging.onsagenda.nl/invitees/1/calendar/week' });
+  await tick();
+  assert.equal(zonder.api.nieuweRegistratiehulpActief(), false, 'een ander venster telt niet');
+  const elders = bootHelper({ html: venster, url: 'https://impegno.onsagenda.nl/invitees/1/calendar/week' });
+  await tick();
+  assert.equal(elders.api.nieuweRegistratiehulpActief(), false, 'alleen op de host met het nieuwe formulier');
+});
