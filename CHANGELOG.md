@@ -2,6 +2,13 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.310
+
+- Alleen voor het testpakket: de hulp kan het vernieuwde registratievenster
+  (impegno-backup-staging) uitlezen en de tijdverdeling, reistijd en no-show
+  zetten via ONS' eigen koppeling. Uitproberen kan in het zijpaneel onder
+  Debug, Registratievenster. Voor medewerkers verandert er niets.
+
 ## 1.6.309
 
 - Alleen voor het testpakket: de module voor het vernieuwde

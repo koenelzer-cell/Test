@@ -408,6 +408,25 @@ Tekst onder sleutels als naam, cliënt, rapportage of identificatie wordt
 tekst `{n}`, en een label stopt bij het eerste woord met een hoofdletter dat
 geen formulierwoord is (`Verwijder …`).
 
+Wat de hulp al kan in dat venster (main-world, via ONS' eigen koppeling,
+steeds nagekeken):
+- **lezen** (`leesRegistratieVenster`): datum, begin- en eindtijd, direct,
+  indirect, reistijd heen en terug, of de rapportage verplicht is en hoe lang
+  hij is, en per cliënt het id, no-show en de uursoort-id. Geen namen en geen
+  rapportagetekst;
+- **tijden zetten** (`zetRegistratieTijden`): direct, indirect en reistijd,
+  als stukje registratie aan de luisteraar die het venster aan
+  `TimeRegistrationCard` meegeeft (`onUpdate:registration`), net zoals ONS
+  het zelf doorgeeft (reistijd als tekst);
+- **no-show** per cliënt (`zetRegistratieNoShow`): `{ client_id, field:
+  'no_show', value }` aan de luisteraar van `ReportAndClientsCard`.
+
+Testen kan in het zijpaneel bij Info, Debug, **Registratievenster**:
+**Uitlezen** toont wat er staat; met Direct, Indirect en **Zetten** zet de
+hulp de tijdverdeling en leest hij het venster opnieuw. De uursoort volgt
+zodra ONS die op deze omgeving laadt (nu antwoordt
+`/gateway/api/v0/administration/authorized/activities` met 403).
+
 Hoe elk onderdeel een wijziging doorgeeft: `tools/console/registratie-luister.js`
 in de console plakken, de velden één voor één veranderen en
 `onsahLuister.kopieer()` typen. Het pakt de luisteraars in die een ouder aan

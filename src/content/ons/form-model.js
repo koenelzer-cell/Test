@@ -84,6 +84,21 @@ export function zetHerhalingNietViaFormulier(wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs || 3000);
 }
 
+// Het vernieuwde registratievenster (DeclareAsRegistrationForm, op de agenda):
+// lezen geeft { ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug,
+// rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow,
+// uursoort }] } of null; zetten via ONS' eigen luisteraars, nagekeken.
+export function leesRegistratieVenster(wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, {}, wachtMs, true);
+}
+// velden: { direct_time, indirect_time, travel_time_before, travel_time_after } in minuten.
+export function zetRegistratieTijden(velden, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { velden: velden || {} }, wachtMs);
+}
+export function zetRegistratieNoShow(clientId, aan, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan === true } }, wachtMs);
+}
+
 // Wat het open formulier bevat (main-world, uit het Vue-model):
 // { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
 //   labelIds } of null als dat niet lukt. Geen volledige namen.

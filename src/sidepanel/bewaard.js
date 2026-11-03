@@ -57,7 +57,9 @@ export const BEWAARD = {
   // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier (Vue).
   formulier: { items: [], gekopieerd: false },
   // Debug, Fouten: de laatst gelezen fouten uit het tabblad.
-  fouten: { items: [], gekopieerd: false }
+  fouten: { items: [], gekopieerd: false },
+  // Debug, Registratievenster: laatste uitkomst en de getallen om te zetten.
+  regvenster: { bezig: false, uitkomst: null, direct: '', indirect: '' }
 };
 export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };

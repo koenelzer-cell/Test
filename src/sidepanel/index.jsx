@@ -91,6 +91,8 @@ const agendaActies = {
   onFormulierlog: function (cb) { vraagAanTab({ type: MSG.AGENDA_FORMLOG }, cb); },
   // Debug, Fouten: wat de hulp in dit tabblad stil opving.
   onFoutlog: function (cb) { vraagAanTab({ type: MSG.AGENDA_ERRLOG }, cb); },
+  // Debug, Registratievenster: uitlezen of de tijdverdeling zetten (testen).
+  onRegistratieVenster: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_REGVENSTER }, req), cb); },
 };
 
 /* ── Rijtijden en kaart: alleen uit de extensie zelf en het beleid ────────── */

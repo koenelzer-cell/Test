@@ -50,6 +50,7 @@ export const MSG = {
   AGENDA_RELOAD: 'ag-reload',           //                 agenda verversen (na afspraken maken)
   AGENDA_CLIENT_SEARCH: 'ag-client-search', // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
   AGENDA_FORMLOG: 'ag-formulierlog', // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+  AGENDA_REGVENSTER: 'ag-registratievenster', // { actie: 'lees' } of { actie: 'zet', direct, indirect } -> { ok, venster?, reden? }  Debug: het vernieuwde registratievenster uitlezen of de tijdverdeling zetten (testen)
   AGENDA_ERRLOG: 'ag-foutlog',      // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
   AGENDA_NETLOG: 'ag-netwerklog',   // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
   AGENDA_EMPLOYEE_SEARCH: 'ag-employee-search', // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
@@ -99,6 +100,10 @@ export const PAGE_COMMAND = {
   USER_READ: 'gebruikerGelezen', // { id, ok, userId }
   SET_RECURRENCE_NONE: 'zetHerhalingNiet', // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
   RECURRENCE_SET: 'herhalingGezet', // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
+  READ_REGISTRATION: 'leesRegistratie', // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
+  REGISTRATION_READ: 'registratieGelezen', // { id, ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
+  SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } } of { id, noShow: { clientId, aan } }  via de luisteraars van de kaarten, nagekeken
+  REGISTRATION_SET: 'registratieGezet', // { id, ok, reden? }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
 };

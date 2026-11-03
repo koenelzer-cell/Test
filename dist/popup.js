@@ -175,6 +175,8 @@
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FORMLOG: "ag-formulierlog",
     // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+    AGENDA_REGVENSTER: "ag-registratievenster",
+    // { actie: 'lees' } of { actie: 'zet', direct, indirect } -> { ok, venster?, reden? }  Debug: het vernieuwde registratievenster uitlezen of de tijdverdeling zetten (testen)
     AGENDA_ERRLOG: "ag-foutlog",
     // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",

@@ -77,7 +77,7 @@ function volgPaneelFetch() {
 
 /* ── Formulier ───────────────────────────────────────────────────────── */
 
-const ACTIE_NAAM = { zetLabels: 'Labels', zetUursoort: 'Uursoort', zetVeld: 'Veld', zetHerhalingNiet: 'Herhaling op Niet', leesFormulier: 'Formulier lezen', leesGebruiker: 'Medewerker lezen' };
+const ACTIE_NAAM = { zetLabels: 'Labels', zetUursoort: 'Uursoort', zetVeld: 'Veld', zetHerhalingNiet: 'Herhaling op Niet', leesFormulier: 'Formulier lezen', leesGebruiker: 'Medewerker lezen', leesRegistratie: 'Registratievenster lezen', zetRegistratie: 'Registratievenster zetten' };
 function actieNaam(it) { return (ACTIE_NAAM[it.actie] || String(it.actie || '')) + (it.veld ? ' ' + it.veld : ''); }
 // Als tekst, oudste eerst; de opbouw van een veld netjes uitgeschreven.
 export function formulierTekst(items, versie) {
@@ -95,7 +95,7 @@ export function maakInfo(ctx) {
   // sluit). In BEWAARD, zodat een paginawissel in ONS het niet weer op slot zet.
   const debug = BEWAARD.debug;
   const net = BEWAARD.netwerk;
-  const form = BEWAARD.formulier, fout = BEWAARD.fouten;
+  const form = BEWAARD.formulier, fout = BEWAARD.fouten, rv = BEWAARD.regvenster;
   let timer = null, vraagt = false, vraagtForm = false, vraagtFout = false;
 
   function voegToe(it) {
@@ -325,6 +325,54 @@ export function maakInfo(ctx) {
       </>
     );
   }
+  // Registratievenster (vernieuwd formulier, impegno-backup-staging): testen
+  // of de hulp het via Vue kan lezen en de tijdverdeling kan zetten.
+  function vraagRegVenster(req) {
+    if (rv.bezig || !ctx.actions.onRegistratieVenster) return;
+    rv.bezig = true; renderPagina();
+    ctx.actions.onRegistratieVenster(req, function (r) {
+      rv.bezig = false;
+      rv.uitkomst = Object.assign({}, r && typeof r === 'object' ? r : { ok: false, reden: 'geen antwoord' }, { zet: req.actie === 'zet' });
+      const v = rv.uitkomst.venster;
+      if (v && req.actie === 'lees') { rv.direct = v.direct == null ? '' : String(v.direct); rv.indirect = v.indirect == null ? '' : String(v.indirect); }
+      if (ctx.pagina === 'info') renderPagina();
+    });
+  }
+  function regVensterKaart() {
+    const u = rv.uitkomst, v = u && u.venster;
+    const rij = function (k, w, attr) { return <div key={k} data-regvenster-rij={attr} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '2px 0' }}><span style={{ flex: '0 0 110px', color: T.inkSoft }}>{k}</span><span style={{ color: T.ink, fontVariantNumeric: 'tabular-nums' }}>{w}</span></div>; };
+    const getal = function (x) { return x == null ? 'leeg' : x + ' min'; };
+    return (
+      <>
+        <SectionHead tekst="Registratievenster" sub="vernieuwd formulier" />
+        <div data-regvenster="" style={{ border: '1px solid ' + T.line, borderRadius: '12px', background: '#fff', padding: '10px 12px' }}>
+          <Knop tekst={rv.bezig ? 'Bezig' : 'Uitlezen'} data-regvenster-lees="" disabled={rv.bezig} style={{ width: '100%', whiteSpace: 'nowrap' }} onClick={function () { vraagRegVenster({ actie: 'lees' }); }} />
+          {u && !u.ok && !v ? <Regel toon="let" tekst={u.reden === 'geen registratievenster open' ? 'Geen registratievenster open. Open het in ONS en lees opnieuw.' : 'Niet gelukt: ' + (u.reden || 'onbekend')} data-regvenster-fout="" /> : null}
+          {u && u.ok === false && v ? <Regel toon="let" tekst="Zetten niet gelukt; dit is wat er nu staat." data-regvenster-fout="" /> : null}
+          {u && u.ok && v && u.zet ? <Regel toon="ok" tekst="Gezet en nagekeken." data-regvenster-ok="" /> : null}
+          {v ? (
+            <div data-regvenster-uitkomst="" style={{ marginTop: '8px' }}>
+              {rij('Datum', v.datum || 'onbekend', 'datum')}
+              {rij('Tijd', (v.begin || '?') + ' tot ' + (v.eind || '?'), 'tijd')}
+              {rij('Direct', getal(v.direct), 'direct')}
+              {rij('Indirect', getal(v.indirect), 'indirect')}
+              {rij('Reistijd', 'heen ' + getal(v.reisHeen) + ', terug ' + getal(v.reisTerug), 'reistijd')}
+              {rij('Cliënten', (v.clients || []).length + ((v.clients || []).some(function (c) { return c.noShow; }) ? ', met no-show' : '') + ((v.clients || []).some(function (c) { return c.uursoort == null; }) ? ', uursoort ontbreekt' : ''), 'clienten')}
+              {rij('Rapportage', (v.rapportVerplicht ? 'verplicht' : 'niet verplicht') + ', ' + v.rapportLengte + ' tekens', 'rapportage')}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px' }}>
+            <Invoer waarde={rv.direct} inputMode="numeric" placeholder="Direct" aria-label="Direct in minuten" data-regvenster-direct="" style={{ flex: '1 1 0', minWidth: '0', width: '0' }} onWaarde={function (x) { rv.direct = x; }} />
+            <Invoer waarde={rv.indirect} inputMode="numeric" placeholder="Indirect" aria-label="Indirect in minuten" data-regvenster-indirect="" style={{ flex: '1 1 0', minWidth: '0', width: '0' }} onWaarde={function (x) { rv.indirect = x; }} />
+            <Knop tekst="Zetten" data-regvenster-zet="" disabled={rv.bezig || !/^\d+$/.test(String(rv.direct).trim()) || !/^\d+$/.test(String(rv.indirect).trim())} style={{ flex: '0 0 auto', width: 'auto', whiteSpace: 'nowrap' }} onClick={function () {
+              vraagRegVenster({ actie: 'zet', direct: Number(rv.direct), indirect: Number(rv.indirect) });
+            }} />
+          </div>
+        </div>
+        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Voor het vernieuwde registratievenster: lezen en de tijdverdeling zetten via ONS' eigen koppeling, zonder te klikken. Zonder namen of rapportagetekst.</Txt>
+      </>
+    );
+  }
   function ontgrendel() {
     if (debugHash(debug.invoer) === debugWachtwoord()) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
     else debug.fout = true;
@@ -358,6 +406,7 @@ export function maakInfo(ctx) {
         {netwerkKaart()}
         {formulierKaart()}
         {foutenKaart()}
+        {regVensterKaart()}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
           <button type="button" data-info-debug-dicht="" style={klein} onClick={function () { debug.stand = 'dicht'; stopNetwerk(); renderPagina(); }}>Debug sluiten</button>
         </div>

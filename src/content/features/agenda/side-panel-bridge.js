@@ -18,7 +18,7 @@ import { cachedFreeSlots, cachedOpenRange, cachedProduction, cachedWeekRatio, de
 import { _nonClientMarker } from '../../domain/registrations.js';
 import { openNewEvent, quickRegister } from './quick-register.js';
 import { netwerklogSessie, netwerklogSinds } from '../../services/ons-api/netwerklog.js';
-import { formulierLog } from '../../ons/form-model.js';
+import { formulierLog, leesRegistratieVenster, zetRegistratieTijden } from '../../ons/form-model.js';
 import { foutLijst } from '../../core/foutbuffer.js';
 import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js';
 import { createEvents, eventOptions } from './event-create.js';
@@ -243,6 +243,13 @@ export function listenForSidePanelMessages() {
           }, function () {
             try { sendResponse({ ok: false, error: 'Zoeken in ONS mislukt.' }); } catch (e2) {}
           });
+          return true;
+        case MSG.AGENDA_REGVENSTER:
+          // Debug: het vernieuwde registratievenster uitlezen of de tijdverdeling zetten.
+          (msg.actie === 'zet'
+            ? zetRegistratieTijden({ direct_time: msg.direct, indirect_time: msg.indirect }).then(function (ok) { return leesRegistratieVenster().then(function (v) { return { ok: ok, venster: v, reden: ok ? '' : 'niet gelukt' }; }); })
+            : leesRegistratieVenster().then(function (v) { return { ok: !!v, venster: v, reden: v ? '' : 'geen registratievenster open' }; })
+          ).then(function (r) { try { sendResponse(r); } catch (e) {} }, function () { try { sendResponse({ ok: false, reden: 'fout' }); } catch (e) {} });
           return true;
         case MSG.AGENDA_ERRLOG:
           try { sendResponse({ ok: true, items: foutLijst() }); } catch (e) {}

@@ -46,6 +46,14 @@
     // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
     RECURRENCE_SET: "herhalingGezet",
     // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
+    READ_REGISTRATION: "leesRegistratie",
+    // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
+    REGISTRATION_READ: "registratieGelezen",
+    // { id, ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
+    SET_REGISTRATION: "zetRegistratie",
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } } of { id, noShow: { clientId, aan } }  via de luisteraars van de kaarten, nagekeken
+    REGISTRATION_SET: "registratieGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -468,7 +476,7 @@
       let h = anker;
       while (h && !h.__vue_app__) h = omhoog(h);
       if (!h || !h._vnode) return null;
-      let perEl = /* @__PURE__ */ new Map(), velden = [], details = null, alle = [];
+      let perEl = /* @__PURE__ */ new Map(), velden = [], details = null, alle = [], perNaam = /* @__PURE__ */ Object.create(null);
       let stapel = [h._vnode], gezien = /* @__PURE__ */ new WeakSet(), n = 0;
       while (stapel.length && n < 2e5) {
         const v = stapel.pop();
@@ -483,6 +491,8 @@
         const c = v.component;
         if (c) {
           if (!details && c.props && c.props.event && typeof c.props.event === "object" && c.type && (c.type.name || c.type.__name) === "EventDetails") details = c;
+          const naam = c.type && (c.type.name || c.type.__name);
+          if (naam && !perNaam[naam]) perNaam[naam] = v;
           stapel.push(c.subTree);
         }
         if (Array.isArray(v.children)) for (let i = 0; i < v.children.length; i++) stapel.push(v.children[i]);
@@ -498,6 +508,9 @@
           return alle.filter(function(v) {
             return v.el === el || el && el.contains(v.el);
           });
+        },
+        component: function(naam) {
+          return perNaam[naam] || null;
         }
       };
     }
@@ -996,6 +1009,109 @@
       }
       return uit;
     }
+    function registratieVenster() {
+      const anker = diepZoek(document, '[data-qa="time-distribution-fields"]');
+      const boom = anker ? formulierBoom(anker) : null;
+      if (!boom) return null;
+      const tijd = boom.component("TimeRegistrationCard"), clients = boom.component("ReportAndClientsCard");
+      const reg = tijd && tijd.component && tijd.component.props && tijd.component.props.registration;
+      return reg && typeof reg === "object" ? { boom, tijd, clients, reg } : null;
+    }
+    function uurMin(w) {
+      if (Object.prototype.toString.call(w) === "[object Date]" && !isNaN(w.getTime())) return ("0" + w.getHours()).slice(-2) + ":" + ("0" + w.getMinutes()).slice(-2);
+      if (w && typeof w === "object" && typeof w.toDate === "function") {
+        try {
+          return uurMin(w.toDate());
+        } catch (e) {
+          return "";
+        }
+      }
+      const m = /T(\d{2}):(\d{2})/.exec(String(w == null ? "" : w)) || /^(\d{1,2}):(\d{2})$/.exec(String(w == null ? "" : w));
+      return m ? ("0" + m[1]).slice(-2) + ":" + m[2] : "";
+    }
+    function getalOfNull(w) {
+      const n = Number(w);
+      return w == null || w === "" || isNaN(n) ? null : n;
+    }
+    function leesRegistratie() {
+      const r = registratieVenster();
+      if (!r) return { ok: false, reden: "geen registratievenster" };
+      const reg = r.reg, meta = reg.meta || {};
+      return {
+        ok: true,
+        datum: /^\d{4}-\d{2}-\d{2}$/.test(String(reg.date)) ? reg.date : "",
+        begin: uurMin(reg.start_time),
+        eind: uurMin(reg.end_time),
+        direct: getalOfNull(reg.direct_time),
+        indirect: getalOfNull(reg.indirect_time),
+        reisHeen: getalOfNull(reg.travel_time_before),
+        reisTerug: getalOfNull(reg.travel_time_after),
+        rapportVerplicht: meta.report_required === true,
+        rapportLengte: String(reg.report_comment == null ? "" : reg.report_comment).length,
+        reistijdMag: meta.allow_travel_time_registration !== false,
+        clients: (Array.isArray(reg.client_declarations) ? reg.client_declarations : []).filter(function(cd) {
+          return cd && cd.client && !cd.soft_deleted;
+        }).slice(0, 20).map(function(cd) {
+          const ht = cd.hour_type;
+          return { id: Number(cd.client.id), noShow: cd.no_show === true, uursoort: ht == null ? null : typeof ht === "object" ? getalOfNull(ht.id) : getalOfNull(ht) };
+        })
+      };
+    }
+    const REG_TIJDEN = ["direct_time", "indirect_time", "travel_time_before", "travel_time_after"];
+    function zetRegistratie(d, klaar) {
+      const r = registratieVenster();
+      if (!r) {
+        klaar({ ok: false, reden: "geen registratievenster" });
+        return;
+      }
+      if (d.noShow && typeof d.noShow === "object") {
+        const id = Number(d.noShow.clientId), aan = d.noShow.aan === true;
+        const zet2 = r.clients && r.clients.props && r.clients.props["onUpdate:clientDeclarationField"];
+        if (!(id > 0) || typeof zet2 !== "function") {
+          klaar({ ok: false, reden: typeof zet2 !== "function" ? "geen koppeling voor de cliënt" : "ongeldig verzoek" });
+          return;
+        }
+        if (!(r.reg.client_declarations || []).some(function(cd) {
+          return cd && cd.client && Number(cd.client.id) === id;
+        })) {
+          klaar({ ok: false, reden: "cliënt niet in deze registratie" });
+          return;
+        }
+        zetEnControleer(function() {
+          zet2({ client_id: id, field: "no_show", value: aan });
+        }, function() {
+          const na = registratieVenster(), cd = na && (na.reg.client_declarations || []).filter(function(x) {
+            return x && x.client && Number(x.client.id) === id;
+          })[0];
+          return !!cd && cd.no_show === true === aan;
+        }, klaar);
+        return;
+      }
+      const velden = d.velden && typeof d.velden === "object" ? d.velden : {}, stuk = {};
+      REG_TIJDEN.forEach(function(k) {
+        if (!(k in velden)) return;
+        const n = Number(velden[k]);
+        if (!(n >= 0 && n < 1440) || Math.round(n) !== n) return;
+        stuk[k] = /^travel_/.test(k) ? String(n) : n;
+      });
+      if (!Object.keys(stuk).length) {
+        klaar({ ok: false, reden: "geen geldige velden" });
+        return;
+      }
+      const zet = r.tijd.props && r.tijd.props["onUpdate:registration"];
+      if (typeof zet !== "function") {
+        klaar({ ok: false, reden: "geen koppeling voor de tijden" });
+        return;
+      }
+      zetEnControleer(function() {
+        zet(stuk);
+      }, function() {
+        const na = registratieVenster();
+        return !!na && Object.keys(stuk).every(function(k) {
+          return Number(na.reg[k]) === Number(stuk[k]);
+        });
+      }, klaar);
+    }
     function leesFormulier() {
       const boom = formulierBoom(), c = boom && boom.details;
       if (!c) return { ok: false, reden: "geen afspraakmodel" };
@@ -1066,6 +1182,14 @@
         }
         if (d.type === PAGE_COMMAND.SET_RECURRENCE_NONE) {
           zetHerhalingNiet(antwoord(PAGE_COMMAND.RECURRENCE_SET));
+          return;
+        }
+        if (d.type === PAGE_COMMAND.READ_REGISTRATION) {
+          antwoord(PAGE_COMMAND.REGISTRATION_READ)(leesRegistratie());
+          return;
+        }
+        if (d.type === PAGE_COMMAND.SET_REGISTRATION) {
+          zetRegistratie(d, antwoord(PAGE_COMMAND.REGISTRATION_SET));
           return;
         }
         if (d.type === PAGE_COMMAND.SET_LABELS) {

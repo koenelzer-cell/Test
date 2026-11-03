@@ -3439,6 +3439,8 @@
     // { term, outOfCare } -> { ok, clients: [{ id, name, pc, number, birth }] }  planhulp: meerdere afspraken
     AGENDA_FORMLOG: "ag-formulierlog",
     // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
+    AGENDA_REGVENSTER: "ag-registratievenster",
+    // { actie: 'lees' } of { actie: 'zet', direct, indirect } -> { ok, venster?, reden? }  Debug: het vernieuwde registratievenster uitlezen of de tijdverdeling zetten (testen)
     AGENDA_ERRLOG: "ag-foutlog",
     // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",
@@ -3503,6 +3505,14 @@
     // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
     RECURRENCE_SET: "herhalingGezet",
     // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
+    READ_REGISTRATION: "leesRegistratie",
+    // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
+    REGISTRATION_READ: "registratieGelezen",
+    // { id, ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
+    SET_REGISTRATION: "zetRegistratie",
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } } of { id, noShow: { clientId, aan } }  via de luisteraars van de kaarten, nagekeken
+    REGISTRATION_SET: "registratieGezet",
+    // { id, ok, reden? }
     READ_FORM: "leesFormulier",
     // { id }  wat het open afspraakformulier bevat
     FORM_READ: "formulierGelezen"
@@ -5818,6 +5828,12 @@
   }
   function zetHerhalingNietViaFormulier(wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs || 3e3);
+  }
+  function leesRegistratieVenster(wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, {}, wachtMs, true);
+  }
+  function zetRegistratieTijden(velden, wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { velden: velden || {} }, wachtMs);
   }
   function leesFormulier(wachtMs) {
     return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
@@ -19323,6 +19339,25 @@
               try {
                 sendResponse({ ok: false, error: "Zoeken in ONS mislukt." });
               } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_REGVENSTER:
+            (msg.actie === "zet" ? zetRegistratieTijden({ direct_time: msg.direct, indirect_time: msg.indirect }).then(function(ok) {
+              return leesRegistratieVenster().then(function(v) {
+                return { ok, venster: v, reden: ok ? "" : "niet gelukt" };
+              });
+            }) : leesRegistratieVenster().then(function(v) {
+              return { ok: !!v, venster: v, reden: v ? "" : "geen registratievenster open" };
+            })).then(function(r) {
+              try {
+                sendResponse(r);
+              } catch (e) {
+              }
+            }, function() {
+              try {
+                sendResponse({ ok: false, reden: "fout" });
+              } catch (e) {
               }
             });
             return true;

@@ -2447,6 +2447,46 @@ test('zijpaneel: Fouten onder Debug toont wat de hulp stil opving, met Kopiëren
   assert.equal(gekopieerd, 'Fouten ONS Agendahulp 1.6.307\n11:00:01\tcontent.js:1:2345\tTypeError: x is undefined\n11:00:02\tGET /calendar/holidays\tHTTP 500');
 });
 
+test('zijpaneel: Registratievenster onder Debug: uitlezen, tijdverdeling zetten, en een nette melding zonder venster', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  let open = false;
+  const gevraagd = [];
+  const venster = { ok: true, datum: '2026-11-03', begin: '13:05', eind: '14:00', direct: 55, indirect: 0, reisHeen: 5, reisTerug: 0, rapportVerplicht: true, rapportLengte: 6, reistijdMag: true, clients: [{ id: 9, noShow: false, uursoort: null }] };
+  const { document } = zijpaneelMetTools({
+    'ag-registratievenster': (msg, cb) => {
+      gevraagd.push({ ...msg });
+      if (!open) return cb({ ok: false, venster: null, reden: 'geen registratievenster open' });
+      if (msg.actie === 'zet') Object.assign(venster, { direct: msg.direct, indirect: msg.indirect });
+      cb({ ok: true, venster: { ...venster } });
+    },
+  }, { ...AGENDA_STATE_TOOLS, debugWachtwoord: HASH });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  await tick();
+  document.querySelector('[data-regvenster-lees]').click();
+  assert.match(document.querySelector('[data-regvenster-fout]').textContent, /Geen registratievenster open/);
+  open = true;
+  document.querySelector('[data-regvenster-lees]').click();
+  const rij = (k) => document.querySelector('[data-regvenster-rij="' + k + '"]').textContent;
+  assert.equal(rij('tijd'), 'Tijd13:05 tot 14:00');
+  assert.equal(rij('direct'), 'Direct55 min');
+  assert.equal(rij('reistijd'), 'Reistijdheen 5 min, terug 0 min');
+  assert.equal(rij('clienten'), 'Cliënten1, uursoort ontbreekt');
+  assert.equal(rij('rapportage'), 'Rapportageverplicht, 6 tekens');
+  assert.equal(document.querySelector('[data-regvenster-direct]').value, '55', 'de getallen van het venster staan klaar');
+  typ(document.querySelector('[data-regvenster-direct]'), '45');
+  typ(document.querySelector('[data-regvenster-indirect]'), '10');
+  document.querySelector('[data-regvenster-zet]').click();
+  assert.deepEqual(gevraagd.at(-1), { type: 'ag-registratievenster', actie: 'zet', direct: 45, indirect: 10 });
+  assert.equal(document.querySelector('[data-regvenster-ok]').textContent, 'Gezet en nagekeken.');
+  assert.equal(rij('direct'), 'Direct45 min');
+});
+
 test('zijpaneel: Netwerk onder Debug toont live de verzoeken van ONS, de hulp en het zijpaneel, met filter, pauze, kopiëren en wissen', async () => {
   const { createHash } = await import('node:crypto');
   const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');

@@ -40,6 +40,7 @@
       return { ok: true, items: [{ tijd: Date.now() - 5000, actie: 'zetLabels', ok: true }, { tijd: Date.now() - 4000, actie: 'zetVeld', veld: 'travel_time_before', ok: true },
         { tijd: Date.now() - 3000, actie: 'zetHerhalingNiet', ok: false, reden: 'het formulier nam de waarde niet over', opbouw: '{"geprobeerd":["keuze uit het veld: niet overgenomen (in beeld: wekelijks)"]}' }] };
     },
+    'ag-registratievenster': function () { return { ok: true, venster: { ok: true, datum: vandaag, begin: '13:05', eind: '14:00', direct: 55, indirect: 0, reisHeen: 5, reisTerug: 0, rapportVerplicht: true, rapportLengte: 0, reistijdMag: true, clients: [{ id: 9, noShow: false, uursoort: null }] } }; },
     'ag-foutlog': function () { return { ok: true, items: [{ tijd: Date.now() - 2000, plek: 'GET /calendar/invitee/{n}/entries/week', melding: 'HTTP 500' }] }; },
     'ag-netwerklog': function (msg) { return { ok: true, sessie: 'e2e', items: netwerk.filter(function (it) { return it.id > (msg.sinds || 0); }) }; },
     'ag-free-slots': vrij,
