@@ -1,4 +1,4 @@
-import { helperPanel } from '../state.js';
+import { registratieModus } from '../state.js';
 import { clean, deepQueryAll, isOwnPopup, rect, visible } from './dom.js';
 // De tijdvelden van het afspraakformulier (uc-time-input) en de bescherming
 // van de begintijd: die zet de medewerker zelf, de hulp typt er nooit in.
@@ -11,7 +11,7 @@ export function ucTimeInputHost(inp) {
   return (host && /uc-time-input/i.test(host.tagName || '')) ? host : null;
 }
 export function isProtectedAppointmentStartInput(inp) {
-  if (!inp || helperPanel.activeMode === 'registrations') return false;
+  if (!inp || registratieModus()) return false;
   if (!/^(input|textarea)$/i.test(inp.tagName || '')) return false;
   // Directe check via uc-time-input host aria-label
   const host = ucTimeInputHost(inp);

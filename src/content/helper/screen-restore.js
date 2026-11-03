@@ -2,14 +2,15 @@
 // hoofdscherm per modus kiezen.
 
 import { clean } from '../ons/dom.js';
-import { appointmentFlow, helperPanel, registrationFlow } from '../state.js';
+import { appointmentFlow, helperPanel, registrationFlow, VENSTER_MODUS } from '../state.js';
 import { $body, showDisabledState } from '../screen/status.js';
 import { currentScreen } from '../screen/screen-state.js';
 import { schermen } from '../screen/schermen.js';
 
 export function refreshMainScreen() {
   if (!helperPanel.helperEnabled) { showDisabledState(); return; }
-  if (helperPanel.activeMode === 'registrations') schermen.showRegistrationChoices();
+  if (helperPanel.activeMode === VENSTER_MODUS) schermen.toonRegistratieVenster();
+  else if (helperPanel.activeMode === 'registrations') schermen.showRegistrationChoices();
   else schermen.showChoices();
 }
 // Tekent een eerder gemarkeerd scherm opnieuw. Geeft false bij een onbekende
@@ -35,6 +36,11 @@ function renderMarkedScreen(screen) {
     case 'appointmentTravelSelection': schermen.showAppointmentTravelSelection(a.choice); return true;
     case 'manualUursoortInstruction': schermen.showManualUursoortInstruction(); return true;
     case 'choices': schermen.showChoices(); return true;
+    case 'registratieVensterKeuze': schermen.toonRegistratieVenster(); return true;
+    case 'registratieVensterDeel': schermen.toonRegistratieVensterDeel(); return true;
+    case 'registratieVensterDeelDuur': schermen.toonRegistratieVensterDeelDuur(); return true;
+    case 'registratieVensterReis': schermen.toonRegistratieVensterReis(); return true;
+    case 'registratieVensterRapport': schermen.toonRegistratieVensterRapport(); return true;
     default: return false;
   }
 }
@@ -70,6 +76,7 @@ export function createCurrentScreenRestore() {
   };
   return () => {
     if (renderMarkedScreen(marked)) return; // scherm meldde zich zelf aan: geen giswerk nodig
+    if (helperPanel.activeMode === VENSTER_MODUS) { schermen.toonRegistratieVenster(); return; }
     if (helperPanel.activeMode === 'registrations') {
       if (registrationScreen.noShowPrompt) { schermen.showRegistrationNoShowPrompt(); return; }
       if (registrationScreen.needsClient) { schermen.showRegistrationNeedsClient(); return; }

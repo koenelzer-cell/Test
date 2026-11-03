@@ -2395,6 +2395,10 @@
   function setAgendaHelperDeactivate(fn) {
     agendaHelperDeactivate = fn;
   }
+  var VENSTER_MODUS = "registratieVenster";
+  function registratieModus() {
+    return helperPanel.activeMode === "registrations" || helperPanel.activeMode === VENSTER_MODUS;
+  }
   var helperPanel = {
     popupEl: null,
     // het paneel-element, of null als het niet staat
@@ -2403,7 +2407,7 @@
     active: false,
     // hulp actief op deze pagina
     activeMode: null,
-    // 'events' | 'registrations' | null
+    // 'events' | 'registrations' | VENSTER_MODUS | null
     repositionTimer: null,
     // Slepen + positie
     userPos: null,
@@ -3508,9 +3512,9 @@
     READ_REGISTRATION: "leesRegistratie",
     // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
     REGISTRATION_READ: "registratieGelezen",
-    // { id, ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
+    // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } } of { id, noShow: { clientId, aan } }  via de luisteraars van de kaarten, nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef }  via de luisteraars van de kaarten (de aanhef via het tekstveld), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -3778,6 +3782,10 @@
     if (!_laatsteDetails) return [];
     if (Date.now() - _laatsteDetails.ts > DETAILS_MAX_AGE_MS) return [];
     return _laatsteDetails.labels.slice();
+  }
+  function labelsVoorAfspraak(occurrenceId) {
+    if (!_laatsteDetails || !occurrenceId || _laatsteDetails.occurrenceId !== String(occurrenceId)) return [];
+    return laatsteDetailsLabels();
   }
   function fetchEventDetailsLabels(occurrenceId, inviteeId) {
     const id = inviteeId != null ? inviteeId : resolveInviteeId();
@@ -4668,7 +4676,7 @@
     return host && /uc-time-input/i.test(host.tagName || "") ? host : null;
   }
   function isProtectedAppointmentStartInput(inp) {
-    if (!inp || helperPanel.activeMode === "registrations") return false;
+    if (!inp || registratieModus()) return false;
     if (!/^(input|textarea)$/i.test(inp.tagName || "")) return false;
     const host = ucTimeInputHost(inp);
     if (host) return /^begintijd/.test(clean(host.getAttribute("aria-label") || ""));
@@ -5834,6 +5842,12 @@
   }
   function zetRegistratieTijden(velden, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { velden: velden || {} }, wachtMs);
+  }
+  function zetRegistratieRapport(aanhef, wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { rapport: String(aanhef || "") }, wachtMs);
+  }
+  function zetRegistratieNoShow(clientId, aan2, wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan2 === true } }, wachtMs);
   }
   function leesFormulier(wachtMs) {
     return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
@@ -7101,10 +7115,10 @@
     if (!p || !p.moments.length && !p.eigen.length) return;
     _bezig2 = true;
     try {
-      const verder = p.eigen.length ? " Volgende afspraak met eigen instellingen: " + momentLabel(p.eigen[0]) + " (" + p.eigen.length + (p.eigen.length === 1 ? " te gaan)." : " te gaan).") : "";
+      const verder2 = p.eigen.length ? " Volgende afspraak met eigen instellingen: " + momentLabel(p.eigen[0]) + " (" + p.eigen.length + (p.eigen.length === 1 ? " te gaan)." : " te gaan).") : "";
       if (!p.moments.length) {
         volgendeEigen(p.eigen, bodyText);
-        toonMelding("Afspraak opgeslagen." + verder, true, false);
+        toonMelding("Afspraak opgeslagen." + verder2, true, false);
         meldPaneel({ made: [], failed: [], reason: "", next: p.eigen[0], left: p.eigen.length });
         return;
       }
@@ -7117,10 +7131,10 @@
       } else if (!totaal) {
         toonMelding("Afspraak opgeslagen; er waren geen andere momenten meer om te kopiëren.", true, false);
       } else if (!r.failed.length) {
-        toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + "." + verder, true, !p.eigen.length);
+        toonMelding("Afspraak ook gemaakt op " + r.made.length + (r.made.length === 1 ? " ander moment: " : " andere momenten: ") + r.made.map(momentLabel).join(", ") + "." + verder2, true, !p.eigen.length);
       } else {
         toonMelding(
-          r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + "." + verder,
+          r.made.length + " van " + totaal + " kopieën gemaakt. Niet gelukt: " + r.failed.map(momentLabel).join(", ") + "." + verder2,
           false,
           r.made.length > 0 && !p.eigen.length,
           opnieuwVoor(bodyText, r.failed)
@@ -13097,7 +13111,7 @@
       zetTitel: (tekst) => zetTitelAsync(tekst),
       zetLabel: (naam, klaar) => setLabel(naam, klaar),
       wisLabels: (klaar) => clearKnownLabels(klaar),
-      zetReistijd: (minuten) => setAppointmentTravelTotalMinutes(minuten),
+      zetReistijd: (minuten2) => setAppointmentTravelTotalMinutes(minuten2),
       wisReistijd: () => clearAppointmentTravelTimes(),
       wisTitel: () => clearTitle(),
       wisEindtijd: () => clearEndTime()
@@ -14754,7 +14768,7 @@
     return false;
   }
   function maybeDismissStrayInviteeModal(attempt = 0) {
-    if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations") return;
+    if (!helperPanel.helperEnabled || registratieModus()) return;
     if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
     const modal = findInviteeSearchModal();
     if (!modal) {
@@ -14776,7 +14790,7 @@
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   }
   function guardInviteeAddButton() {
-    if (helperPanel.activeMode === "registrations") return;
+    if (registratieModus()) return;
     const btn = findAddInviteeButtonFast();
     if (!btn) return;
     const targets = [btn];
@@ -14957,7 +14971,7 @@
   }
   function onAppointmentInput(e) {
     if (!helperPanel.helperEnabled) return;
-    if (helperPanel.activeMode === "registrations" || isOwnPopup(e.target)) return;
+    if (registratieModus() || isOwnPopup(e.target)) return;
     schermen.refreshAppointmentPrereqScreen();
     updateSubmitGuard();
   }
@@ -16109,7 +16123,7 @@
     resetBody(body);
     body.appendChild(mkBackButton(() => safe(closeInfoPanel), "Terug"));
     const title = document.createElement("div");
-    title.textContent = helperPanel.activeMode === "registrations" ? "Registratiehulp" : "Afspraakhulp";
+    title.textContent = registratieModus() ? "Registratiehulp" : "Afspraakhulp";
     Object.assign(title.style, { fontWeight: "700", fontSize: "14px", margin: "6px 0 2px" });
     body.appendChild(title);
     const ver = document.createElement("div");
@@ -16131,6 +16145,51 @@
     if (statusEl) {
       statusEl.textContent = "";
     }
+  }
+
+  // src/content/ons/registratie-venster.js
+  function klikIndienenInVenster() {
+    const v = vindRegistratieVenster();
+    const knop = v ? deepQueryAll('uc-button[data-qa="submit-button"]', v)[0] : null;
+    if (!knop) return false;
+    try {
+      knop.click();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  var VENSTER_VELD = '[data-qa="time-distribution-fields"], [name^="declaration["]';
+  function vindRegistratieVensterSnel() {
+    try {
+      const veld = document.querySelector('uc-modal [data-qa="time-distribution-fields"], uc-modal [name^="declaration["]');
+      return veld ? veld.closest("uc-modal") : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function vindRegistratieVenster(root) {
+    if (!root) {
+      const snel = vindRegistratieVensterSnel();
+      if (snel) return snel;
+    }
+    return deepQueryAll("uc-modal", root || document).find(function(m) {
+      try {
+        return !!m.querySelector(VENSTER_VELD);
+      } catch (e) {
+        return false;
+      }
+    }) || null;
+  }
+  function vensterHouder(venster) {
+    const v = venster || vindRegistratieVenster();
+    if (!v) return null;
+    try {
+      const d = v.shadowRoot && v.shadowRoot.querySelector('dialog[open], [role="dialog"], [aria-modal="true"]');
+      if (d) return d;
+    } catch (e) {
+    }
+    return v;
   }
 
   // src/content/ui/choice-style.js
@@ -17407,7 +17466,7 @@
     const header = document.createElement("div");
     Object.assign(header.style, { display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", color: "#201d1f", padding: "11px 12px", fontWeight: "700", cursor: "move", userSelect: "none", borderBottom: "1px solid #f1ecea" });
     const title = document.createElement("span");
-    title.textContent = helperPanel.activeMode === "registrations" ? "Registratiehulp" : "Afspraakhulp";
+    title.textContent = registratieModus() ? "Registratiehulp" : "Afspraakhulp";
     Object.assign(title.style, { flex: "1 1 auto", minWidth: "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
     header.appendChild(title);
     const enabledToggle = document.createElement("button");
@@ -17449,12 +17508,12 @@
       if (helperPanel.helperEnabled) {
         const reapplyGuard = () => {
           if (helperPanel.activeMode === "registrations") updateRegistrationSubmitGuard();
-          else updateSubmitGuard();
+          else if (helperPanel.activeMode === "events") updateSubmitGuard();
         };
         const restore = helperPanel._disabledRestore;
         helperPanel._disabledRestore = null;
         if (restore) {
-          if (helperPanel.activeMode !== "registrations" && hasClientInAppointment()) {
+          if (helperPanel.activeMode === "events" && hasClientInAppointment()) {
             ensureClientExpanded(() => {
               restore();
               reapplyGuard();
@@ -17463,7 +17522,7 @@
             restore();
             reapplyGuard();
           }
-        } else if (helperPanel.activeMode !== "registrations") {
+        } else if (helperPanel.activeMode === "events") {
           resumeAppointmentHelperAfterEnable();
         } else {
           schermen.refreshMainScreen();
@@ -17573,8 +17632,8 @@
   function ensureMounted() {
     if (!helperPanel.active) return;
     if (!helperPanel.popupEl) buildPopup();
-    const m = findModal();
-    const host = m && m.host || document.body;
+    const m = helperPanel.activeMode === VENSTER_MODUS ? null : findModal();
+    const host = (helperPanel.activeMode === VENSTER_MODUS ? vensterHouder() : m && m.host) || document.body;
     if (helperPanel.popupEl.parentNode !== host) {
       try {
         host.appendChild(helperPanel.popupEl);
@@ -17589,6 +17648,11 @@
     }
     if (appointmentFlow.appointmentClearingSettings) {
       showLoadingState("Instellingen verwijderen...");
+      reposition();
+      return;
+    }
+    if (helperPanel.activeMode === VENSTER_MODUS) {
+      schermen.verversRegistratieVenster();
       reposition();
       return;
     }
@@ -17703,13 +17767,13 @@
       return findClientEntries().length ? clientsMissingUursoortEntries().length : 1;
     });
   }
-  function wachtOpClientkaarten(verder) {
+  function wachtOpClientkaarten(verder2) {
     ensureClientExpanded(() => {
       wachtTot(() => {
         invalidateClientEntries();
         const kaarten = findClientEntries();
         return kaarten.length > 0 && kaarten.every((e) => e.name && e.uursoortTrigger);
-      }, { max: 4e3 }).then(() => verder());
+      }, { max: 4e3 }).then(() => verder2());
     });
   }
   function startVanuitPlanhulp() {
@@ -17928,11 +17992,350 @@
     updateRegistrationSubmitGuard();
   }
 
+  // src/content/domain/registratie-venster.js
+  function minuten(hhmm) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ""));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+  function duurVanVenster(v) {
+    const b = minuten(v && v.begin), e = minuten(v && v.eind);
+    return b == null || e == null || e <= b ? null : e - b;
+  }
+  function isNoShowVorm(vorm) {
+    return !!vorm && /^no.?show$/i.test(String(vorm.label || "").trim());
+  }
+  function deelVraagGeldt(vorm) {
+    return !!(vorm && (vorm.askIndirectPortion || vorm.askDirectPortion));
+  }
+  function verdelingVoorVorm(vorm, totaal, deel) {
+    if (!vorm || !(totaal > 0)) return null;
+    if (deel != null && deelVraagGeldt(vorm)) {
+      const p = Math.max(0, Math.min(Math.round(deel), totaal));
+      return vorm.askIndirectPortion ? { direct: totaal - p, indirect: p } : { direct: p, indirect: totaal - p };
+    }
+    if (vorm.startSplit) {
+      const d = Math.round(totaal * Math.max(0, Math.min(100, vorm.startSplit.directPct || 0)) / 100);
+      return { direct: d, indirect: totaal - d };
+    }
+    if (vorm.indirectFullDuration) return { direct: 0, indirect: totaal };
+    if (vorm.directFullDuration) return { direct: totaal, indirect: 0 };
+    return null;
+  }
+  function reistijdVerdeling(totaal) {
+    const t = Math.max(0, Math.round(Number(totaal) || 0));
+    return { heen: Math.ceil(t / 2), terug: Math.floor(t / 2) };
+  }
+  function controleerVenster(v, vorm) {
+    const uit = [];
+    if (!v) return uit;
+    const clients = Array.isArray(v.clients) ? v.clients : [];
+    const alleNoShow = clients.length > 0 && clients.every(function(c) {
+      return c.noShow;
+    });
+    const prefix = String(vorm && vorm.reportPrefix || "");
+    if (v.rapportVerplicht && !alleNoShow && !(v.rapportLengte > prefix.length)) {
+      uit.push({ sev: "error", soort: "rapportage", msg: "Schrijf eerst de rapportage" });
+    }
+    if (v.uursoort == null && !clients.some(function(c) {
+      return c.uursoort != null;
+    })) {
+      uit.push({ sev: "error", soort: "uursoort", msg: "Kies de uursoort" + (vorm && vorm.hourType ? " (" + vorm.hourType + ")" : "") });
+    }
+    const totaal = duurVanVenster(v);
+    if (totaal != null && v.direct != null && v.indirect != null && v.direct + v.indirect !== totaal && !alleNoShow) {
+      uit.push({ sev: "error", soort: "tijd", msg: "Direct en indirect samen zijn " + (v.direct + v.indirect) + " min, de registratie duurt " + totaal + " min" });
+    }
+    return uit;
+  }
+
+  // src/content/features/registratie-nieuw/schermen.js
+  var stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null };
+  var controleTimer = null;
+  function vormen() {
+    return REGISTRATION_CHOICES || [];
+  }
+  function opgevangen(belofte, plek) {
+    return Promise.resolve(belofte).catch(function(e) {
+      stand.bezig = false;
+      meldFout(plek, e);
+      setStatus("Er ging iets mis", false);
+    });
+  }
+  function stopControle() {
+    clearInterval(controleTimer);
+    controleTimer = null;
+  }
+  function nieuwVenster(afspraak) {
+    if (stand.afspraak === afspraak) return;
+    stand.afspraak = afspraak;
+    stand.vorm = null;
+    stand.autoGedaan = false;
+    stand.laatst = null;
+  }
+  function vergeetRegistratieVenster() {
+    stopControle();
+    stand.afspraak = null;
+    stand.vorm = null;
+    stand.autoGedaan = false;
+    stand.laatst = null;
+    stand.bezig = false;
+  }
+  function toonRegistratieVenster() {
+    const body = $body();
+    if (!body) return;
+    if (stand.vorm) {
+      toonRegistratieVensterRapport();
+      return;
+    }
+    markScreen("registratieVensterKeuze");
+    stopControle();
+    renderScreen(body, "choices", {
+      choices: vormen().map(function(vorm, i) {
+        return { label: vorm.label, tick: onsahCategoryColor(onsahRegistrationIsDirect(vorm), i), meta: vorm.directIndirectLabel };
+      }),
+      blocked: false,
+      tokens: ONSAH_TOKENS,
+      onPick: function(i) {
+        opgevangen(kiesVorm(vormen()[i]), "registratievenster vorm");
+      }
+    });
+    setStatus("Kies de registratievorm");
+    opgevangen(leesRegistratieVenster().then(function(v) {
+      if (!v || !isScreen("registratieVensterKeuze")) return;
+      nieuwVenster(v.afspraak || "");
+      if (stand.autoGedaan || stand.vorm) return;
+      const vorm = labelsVoorAfspraak(v.afspraak).map(matchRegistrationChoiceByLabel).filter(Boolean)[0];
+      if (!vorm) return;
+      stand.autoGedaan = true;
+      setStatus("Uit afspraak: " + vorm.label);
+      return kiesVorm(vorm, v);
+    }), "registratievenster label");
+  }
+  function verversRegistratieVenster() {
+    if (stand.bezig) return;
+    if (isScreen("registratieVensterKeuze") || isScreen("registratieVensterDeel") || isScreen("registratieVensterDeelDuur") || isScreen("registratieVensterReis") || isScreen("registratieVensterRapport")) return;
+    toonRegistratieVenster();
+  }
+  async function kiesVorm(vorm, gelezen) {
+    if (!vorm || stand.bezig) return;
+    stand.bezig = true;
+    try {
+      showLoadingState(vorm.label + " toepassen...");
+      const v = gelezen || await leesRegistratieVenster();
+      if (!v) {
+        stand.bezig = false;
+        setStatus("Het registratievenster is niet te lezen", false);
+        toonRegistratieVenster();
+        return;
+      }
+      nieuwVenster(v.afspraak || "");
+      stand.vorm = vorm;
+      if (isNoShowVorm(vorm)) {
+        let ok = true;
+        for (const c of v.clients || []) if (!c.noShow) ok = await zetRegistratieNoShow(c.id, true) && ok;
+        setStatus(ok ? "No show gezet" : "No show niet gezet bij elke cliënt", ok);
+        stand.bezig = false;
+        await zetAanhef(vorm);
+        toonRegistratieVensterRapport();
+        return;
+      }
+      stand.bezig = false;
+      if (deelVraagGeldt(vorm)) {
+        toonRegistratieVensterDeel();
+        return;
+      }
+      await pasVerdelingToe(vorm, null, v);
+      verder(vorm);
+    } catch (e) {
+      stand.bezig = false;
+      throw e;
+    }
+  }
+  async function pasVerdelingToe(vorm, deel, gelezen) {
+    const v = gelezen || await leesRegistratieVenster();
+    const verdeling = verdelingVoorVorm(vorm, duurVanVenster(v), deel);
+    if (!verdeling) return true;
+    const ok = await zetRegistratieTijden({ direct_time: verdeling.direct, indirect_time: verdeling.indirect });
+    setStatus(ok ? vorm.label + ": direct " + verdeling.direct + " min, indirect " + verdeling.indirect + " min" : "Tijdverdeling niet gezet", ok);
+    return ok;
+  }
+  function verder(vorm) {
+    if (vorm.addTravelTime) {
+      toonRegistratieVensterReis();
+      return;
+    }
+    return zetAanhef(vorm).then(toonRegistratieVensterRapport);
+  }
+  async function zetAanhef(vorm) {
+    if (!vorm || !vorm.reportPrefix) return;
+    const v = await leesRegistratieVenster();
+    if (!v || v.rapportLengte > 0) return;
+    await zetRegistratieRapport(vorm.reportPrefix);
+  }
+  function toonRegistratieVensterDeel() {
+    const body = $body();
+    const vorm = stand.vorm;
+    if (!body || !vorm) return;
+    markScreen("registratieVensterDeel");
+    const woord = vorm.askIndirectPortion ? "indirecte" : "directe";
+    renderScreen(body, "portionQuestion", {
+      question: woord.charAt(0).toUpperCase() + woord.slice(1) + " tijd aanwezig in deze registratie?",
+      woordBijw: vorm.askIndirectPortion ? "indirect" : "direct",
+      startText: "begintijd",
+      endText: "eindtijd",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        stand.vorm = null;
+        safe(toonRegistratieVenster, "registratievenster terug");
+      },
+      onYes: function() {
+        safe(toonRegistratieVensterDeelDuur, "registratievenster deel");
+      },
+      onNo: function() {
+        opgevangen(pasVerdelingToe(vorm, null).then(function() {
+          verder(vorm);
+        }), "registratievenster deel");
+      },
+      onNoShow: null
+    });
+    setStatus(woord + " tijd?");
+  }
+  function toonRegistratieVensterDeelDuur() {
+    const body = $body();
+    const vorm = stand.vorm;
+    if (!body || !vorm) return;
+    markScreen("registratieVensterDeelDuur");
+    const woord = vorm.askIndirectPortion ? "indirecte" : "directe";
+    opgevangen(leesRegistratieVenster().then(function(v) {
+      if (!isScreen("registratieVensterDeelDuur")) return;
+      const totaal = duurVanVenster(v);
+      const onBack = function() {
+        safe(toonRegistratieVensterDeel, "registratievenster terug");
+      };
+      if (!(totaal >= 5)) {
+        renderScreen(body, "duration", { title: "Duur " + woord + " tijd:", tokens: ONSAH_TOKENS, onBack, errorMessage: "Registratieduur onbekend of te kort." });
+        return;
+      }
+      const stap = APP_CONFIG.generalSettings && APP_CONFIG.generalSettings.portionStepMin > 0 ? APP_CONFIG.generalSettings.portionStepMin : 5;
+      const waarden = [];
+      for (let m = stap; m <= Math.floor(totaal / stap) * stap; m += stap) waarden.push(m);
+      renderScreen(body, "duration", {
+        title: "Duur " + woord + " tijd:",
+        tokens: ONSAH_TOKENS,
+        onBack,
+        pickerNode: mkDurationPicker(waarden, function(minuten2) {
+          opgevangen(pasVerdelingToe(vorm, minuten2).then(function() {
+            verder(vorm);
+          }), "registratievenster deel");
+        }, "minutenRooster", void 0, durationLabelStyle("duur"))
+      });
+    }), "registratievenster deelduur");
+  }
+  function toonRegistratieVensterReis() {
+    const body = $body();
+    const vorm = stand.vorm;
+    if (!body || !vorm) return;
+    markScreen("registratieVensterReis");
+    const stap = gsNum("travelStepMin", 5), max = gsNum("travelMaxMin", 60);
+    const waarden = [];
+    for (let m = 0; m <= max; m += stap) waarden.push(m);
+    renderScreen(body, "duration", {
+      title: "Totale reistijd (heen en terug):",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        safe(function() {
+          if (deelVraagGeldt(vorm)) toonRegistratieVensterDeel();
+          else {
+            stand.vorm = null;
+            toonRegistratieVenster();
+          }
+        }, "registratievenster terug");
+      },
+      pickerNode: mkDurationPicker(waarden, function(totaal) {
+        const r = reistijdVerdeling(totaal);
+        opgevangen(zetRegistratieTijden({ travel_time_before: r.heen, travel_time_after: r.terug }).then(function(ok) {
+          setStatus(ok ? "Reistijd " + totaal + " min" : "Reistijd niet gezet", ok);
+          return zetAanhef(vorm);
+        }).then(toonRegistratieVensterRapport), "registratievenster reistijd");
+      }, void 0, void 0, durationLabelStyle("reistijd"))
+    });
+    setStatus("Kies de reistijd");
+  }
+  function toonRegistratieVensterRapport() {
+    const body = $body();
+    if (!body) return;
+    markScreen("registratieVensterRapport");
+    const vorm = stand.vorm;
+    const lijst = document.createElement("div");
+    lijst.setAttribute("data-registratievenster-controles", "");
+    const knop = mkPillButton("Indienen", function() {
+      opgevangen(leesRegistratieVenster().then(function(v) {
+        if (!v) {
+          setStatus("Het registratievenster is niet te lezen", false);
+          return;
+        }
+        stand.laatst = v;
+        const issues = controleerVenster(v, vorm);
+        vulRegistratieControles(lijst, issues);
+        if (issues.length) {
+          zetKnop(true);
+          setStatus(issues[0].msg, false);
+          return;
+        }
+        const ok = klikIndienenInVenster();
+        setStatus(ok ? "Ingediend bij ONS" : "Knop Indienen van ONS niet gevonden", ok);
+      }), "registratievenster indienen");
+    });
+    knop.style.width = "100%";
+    knop.setAttribute("data-registratievenster-indienen", "");
+    const zetKnop = function(blok) {
+      knop.setAttribute("aria-disabled", blok ? "true" : "false");
+      knop.style.background = blok ? "#c9c1bd" : "#1b7f3b";
+      knop.style.boxShadow = blok ? "none" : "0 6px 16px -7px rgba(27,127,59,.55)";
+      knop.style.cursor = blok ? "not-allowed" : "pointer";
+    };
+    zetKnop(true);
+    renderScreen(body, "reportPrompt", {
+      msgNode: mkText("registratie_rapportage_titel", "Schrijf nu je rapportage", { fontWeight: "700", fontSize: "14px", margin: "8px 0 6px" }),
+      completenessNode: lijst,
+      submitNode: knop,
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        stand.vorm = null;
+        safe(toonRegistratieVenster, "registratievenster terug");
+      }
+    });
+    let bezigMetLezen = false;
+    const ververs = function() {
+      if (!isScreen("registratieVensterRapport") || !helperPanel.active) {
+        stopControle();
+        return;
+      }
+      if (bezigMetLezen) return;
+      bezigMetLezen = true;
+      opgevangen(leesRegistratieVenster().then(function(v) {
+        bezigMetLezen = false;
+        if (!v || !isScreen("registratieVensterRapport")) return;
+        stand.laatst = v;
+        const issues = controleerVenster(v, vorm);
+        vulRegistratieControles(lijst, issues);
+        zetKnop(issues.length > 0);
+        setStatus(issues.length ? issues[0].msg : "Klaar om in te dienen", !issues.length);
+      }, function(e) {
+        bezigMetLezen = false;
+        throw e;
+      }), "registratievenster controle");
+    };
+    stopControle();
+    ververs();
+    controleTimer = setInterval(ververs, 1e3);
+  }
+
   // src/content/helper/lifecycle.js
   function activate(mode) {
     if (helperPanel.active && helperPanel.activeMode === mode) return;
     if (helperPanel.active && helperPanel.activeMode !== mode) deactivate();
-    if (typeof agendaHelperDeactivate === "function") {
+    if (mode !== VENSTER_MODUS && typeof agendaHelperDeactivate === "function") {
       try {
         agendaHelperDeactivate();
       } catch (e) {
@@ -17962,17 +18365,17 @@
       });
       if (!own) {
         helperPanel.lastDomMutationAt = Date.now();
-        if (modalAdded) safe(maybeDismissStrayInviteeModal);
+        if (modalAdded && helperPanel.activeMode === "events") safe(maybeDismissStrayInviteeModal);
         scheduleMount();
       }
     });
     helperPanel.observer.observe(document.documentElement, { childList: true, subtree: true });
-    if (helperPanel.activeMode !== "registrations") {
+    if (helperPanel.activeMode === "events") {
       document.addEventListener("click", blockSubmitIfNoUursoort, true);
       document.addEventListener("submit", blockSubmitIfNoUursoort, true);
       document.addEventListener("input", onAppointmentInput, true);
       document.addEventListener("change", onAppointmentInput, true);
-    } else {
+    } else if (helperPanel.activeMode === "registrations") {
       document.addEventListener("input", onRegistrationReportInput, true);
       document.addEventListener("change", onRegistrationReportInput, true);
       document.addEventListener("focusout", onRegistrationTimeInteract, true);
@@ -17988,8 +18391,12 @@
         reposition();
         return;
       }
+      if (helperPanel.activeMode === VENSTER_MODUS) {
+        reposition();
+        return;
+      }
       invalidateClientEntries();
-      if (helperPanel.activeMode !== "registrations") {
+      if (helperPanel.activeMode === "events") {
         schermen.refreshAppointmentPrereqScreen();
         updateSubmitGuard();
       } else {
@@ -18042,20 +18449,10 @@
     registrationFlow.registrationAutoChoice = null;
     registrationFlow.registrationFromAppointment = false;
     registrationFlow.registrationAutoApplied = false;
+    vergeetRegistratieVenster();
     clearScreenMark();
     helperPanel.activeMode = null;
     removePopup();
-  }
-
-  // src/content/ons/registratie-venster.js
-  function vindRegistratieVenster(root) {
-    return deepQueryAll("uc-modal", root || document).find(function(m) {
-      try {
-        return !!m.querySelector('[data-qa="time-distribution-fields"], [name^="declaration["]');
-      } catch (e) {
-        return false;
-      }
-    }) || null;
   }
 
   // src/content/features/registratie-nieuw/index.js
@@ -18069,6 +18466,39 @@
   }
   function syncNieuweRegistratiehulp() {
     return opNieuwRegistratieFormulier();
+  }
+  var DIEP_MS = 2e3;
+  var _bewaker = null;
+  function bewaakRegistratieVenster(opWijziging) {
+    if (_bewaker || !opNieuwFormulierHost() || typeof MutationObserver !== "function") return;
+    let open = !!vindRegistratieVenster();
+    let timer = null, laatsteDiep = 0;
+    const kijk = function() {
+      timer = null;
+      let nu = !!vindRegistratieVensterSnel();
+      if (!nu) {
+        const wacht2 = DIEP_MS - (Date.now() - laatsteDiep);
+        if (wacht2 > 0) {
+          timer = setTimeout(kijk, wacht2);
+          return;
+        }
+        laatsteDiep = Date.now();
+        nu = !!vindRegistratieVenster();
+      }
+      if (nu === open) return;
+      open = nu;
+      opWijziging();
+    };
+    _bewaker = new MutationObserver(function() {
+      if (!timer) timer = setTimeout(kijk, 150);
+    });
+    _bewaker.observe(document.documentElement, { childList: true, subtree: true });
+  }
+  function stopBewakingRegistratieVenster() {
+    if (_bewaker) {
+      _bewaker.disconnect();
+      _bewaker = null;
+    }
   }
 
   // src/content/helper/routing.js
@@ -18098,8 +18528,9 @@
     }
     const wantEvents = (HELPER_SCOPE === "all" || HELPER_SCOPE === "events") && RUNTIME_CONFIG.appointmentHelperEnabled;
     const nieuwFormulier = opNieuwFormulierHost();
-    syncNieuweRegistratiehulp();
-    const wantRegistrations = !nieuwFormulier && (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
+    const registratiehulpAan = (HELPER_SCOPE === "all" || HELPER_SCOPE === "registrations") && RUNTIME_CONFIG.registrationHelperEnabled;
+    const wantRegistrations = !nieuwFormulier && registratiehulpAan;
+    const inVenster = nieuwFormulier && registratiehulpAan && syncNieuweRegistratiehulp();
     const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
     if (!opFormulier) planhulpVoorHref = null;
     if (opFormulier) {
@@ -18109,6 +18540,7 @@
         startVanuitPlanhulp();
       }
     } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate("registrations");
+    else if (inVenster) activate(VENSTER_MODUS);
     else deactivate();
     updateRegistrationsOverviewPanel();
   }
@@ -18134,6 +18566,7 @@
     window.addEventListener("locationchange", syncWithUrl);
     if (!_stopUrlSein) _stopUrlSein = onPageEvent(PAGE_EVENT.URL_CHANGED, meldUrlWijziging);
     _urlTimer = setInterval(meldUrlWijziging, 1e3);
+    bewaakRegistratieVenster(syncWithUrl);
   }
   function stopUrlWatch() {
     clearInterval(_urlTimer);
@@ -18141,6 +18574,7 @@
       _stopUrlSein();
       _stopUrlSein = null;
     }
+    stopBewakingRegistratieVenster();
     window.removeEventListener("locationchange", syncWithUrl);
   }
 
@@ -19886,7 +20320,8 @@
       showDisabledState();
       return;
     }
-    if (helperPanel.activeMode === "registrations") schermen.showRegistrationChoices();
+    if (helperPanel.activeMode === VENSTER_MODUS) schermen.toonRegistratieVenster();
+    else if (helperPanel.activeMode === "registrations") schermen.showRegistrationChoices();
     else schermen.showChoices();
   }
   function renderMarkedScreen(screen) {
@@ -19944,6 +20379,21 @@
       case "choices":
         schermen.showChoices();
         return true;
+      case "registratieVensterKeuze":
+        schermen.toonRegistratieVenster();
+        return true;
+      case "registratieVensterDeel":
+        schermen.toonRegistratieVensterDeel();
+        return true;
+      case "registratieVensterDeelDuur":
+        schermen.toonRegistratieVensterDeelDuur();
+        return true;
+      case "registratieVensterReis":
+        schermen.toonRegistratieVensterReis();
+        return true;
+      case "registratieVensterRapport":
+        schermen.toonRegistratieVensterRapport();
+        return true;
       default:
         return false;
     }
@@ -19978,6 +20428,10 @@
     };
     return () => {
       if (renderMarkedScreen(marked)) return;
+      if (helperPanel.activeMode === VENSTER_MODUS) {
+        schermen.toonRegistratieVenster();
+        return;
+      }
       if (helperPanel.activeMode === "registrations") {
         if (registrationScreen.noShowPrompt) {
           schermen.showRegistrationNoShowPrompt();
@@ -20376,7 +20830,7 @@
     } catch (e) {
     }
     const onWatchTick = () => safe(() => {
-      if (!helperPanel.helperEnabled || helperPanel.activeMode === "registrations" || helperPanel._infoPanelRestore) return;
+      if (!helperPanel.helperEnabled || registratieModus() || helperPanel._infoPanelRestore) return;
       checkNow();
     });
     const renderMissing = () => {
@@ -20485,7 +20939,13 @@
     showRegistrationSubmitOnly,
     showRegistrationTravelSelection,
     showUursoort,
-    showUursoortQueue
+    showUursoortQueue,
+    toonRegistratieVenster,
+    toonRegistratieVensterDeel,
+    toonRegistratieVensterDeelDuur,
+    toonRegistratieVensterRapport,
+    toonRegistratieVensterReis,
+    verversRegistratieVenster
   });
   startModuleHost();
   listenForMainWorldDetails();

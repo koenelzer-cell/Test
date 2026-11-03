@@ -9,13 +9,14 @@ import { ensureClientExpanded, hasClientInAppointment } from '../features/appoin
 import { handleClientListChanges } from '../features/appointment/uursoort-queue.js';
 import { storageSet, STORE_HELPER_ENABLED } from '../storage/page-prefs.js';
 import { guardInviteeAddButton } from '../features/appointment/invitee-guard.js';
-import { appointmentFlow, helperPanel } from '../state.js';
+import { appointmentFlow, helperPanel, registratieModus, VENSTER_MODUS } from '../state.js';
 import { safe, showDisabledState, showLoadingState } from '../screen/status.js';
 import { resumeAppointmentHelperAfterEnable } from '../features/appointment/prereqs.js';
 import { onsahFocusRing } from '../ui/theme.js';
 import { setChevronIcon, svgInfoIcon, svgSpineCheck, svgSpinePause } from '../ui/icons.js';
 import { toggleInfoPanel } from './info-panel.js';
 import { findModal } from '../ons/modal.js';
+import { vensterHouder } from '../ons/registratie-venster.js';
 import { setRegistrationSubmitBlocked, updateRegistrationSubmitGuard } from '../features/registration/report.js';
 import { checkRegistrationEpisodesText, checkRegistrationNoShowText } from '../features/registration/prompts.js';
 import { extensionVersion } from '../../shared/version.js';
@@ -170,7 +171,7 @@ function buildPopup() {
   const header = document.createElement('div');
   Object.assign(header.style, { display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', color: '#201d1f', padding: '11px 12px', fontWeight: '700', cursor: 'move', userSelect: 'none', borderBottom: '1px solid #f1ecea' });
   const title = document.createElement('span');
-  title.textContent = helperPanel.activeMode === 'registrations' ? 'Registratiehulp' : 'Afspraakhulp';
+  title.textContent = registratieModus() ? 'Registratiehulp' : 'Afspraakhulp';
   Object.assign(title.style, { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
   header.appendChild(title);
   const enabledToggle = document.createElement('button');
@@ -214,19 +215,19 @@ function buildPopup() {
       // passend bij de actieve modus (afspraak vs. registratie).
       const reapplyGuard = () => {
         if (helperPanel.activeMode === 'registrations') updateRegistrationSubmitGuard();
-        else updateSubmitGuard();
+        else if (helperPanel.activeMode === 'events') updateSubmitGuard();
       };
       const restore = helperPanel._disabledRestore;
       helperPanel._disabledRestore = null;
       if (restore) {
         // Terug naar het laatst geopende scherm (afspraak én registratie).
-        if (helperPanel.activeMode !== 'registrations' && hasClientInAppointment()) {
+        if (helperPanel.activeMode === 'events' && hasClientInAppointment()) {
           ensureClientExpanded(() => { restore(); reapplyGuard(); });
         } else {
           restore();
           reapplyGuard();
         }
-      } else if (helperPanel.activeMode !== 'registrations') {
+      } else if (helperPanel.activeMode === 'events') {
         resumeAppointmentHelperAfterEnable();
       } else {
         schermen.refreshMainScreen();
@@ -332,8 +333,10 @@ export function reposition() {
 export function ensureMounted() {
   if (!helperPanel.active) return;
   if (!helperPanel.popupEl) buildPopup();
-  const m = findModal();
-  const host = (m && m.host) || document.body;
+  // In het vernieuwde registratievenster: in dat venster zelf (een modaal
+  // venster maakt de rest van de pagina onklikbaar).
+  const m = helperPanel.activeMode === VENSTER_MODUS ? null : findModal();
+  const host = (helperPanel.activeMode === VENSTER_MODUS ? vensterHouder() : (m && m.host)) || document.body;
   if (helperPanel.popupEl.parentNode !== host) { try { host.appendChild(helperPanel.popupEl); } catch (e) { document.body.appendChild(helperPanel.popupEl); } }
   if (!helperPanel.helperEnabled) {
     showDisabledState();
@@ -342,6 +345,11 @@ export function ensureMounted() {
   }
   if (appointmentFlow.appointmentClearingSettings) {
     showLoadingState('Instellingen verwijderen...');
+    reposition();
+    return;
+  }
+  if (helperPanel.activeMode === VENSTER_MODUS) {
+    schermen.verversRegistratieVenster();
     reposition();
     return;
   }

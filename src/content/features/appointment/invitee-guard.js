@@ -3,7 +3,7 @@
 
 import { clean, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import { clickUiButton, uiText } from '../../ons/form-controls.js';
-import { appointmentFlow, helperPanel } from '../../state.js';
+import { appointmentFlow, helperPanel, registratieModus } from '../../state.js';
 import { setStatus } from '../../screen/status.js';
 import { deepQueryAll } from '../../ons/dom.js';
 import { UI_OVERRIDES } from '../../ons/selector-overrides.js';
@@ -115,7 +115,7 @@ function closeInviteeSearchModal(modal) {
 // helper-knop) is geopend. Vangt het neveneffect ongeacht welke interne klik
 // hem opende \u2014 betrouwbaarder dan het onderscheppen door de shadow-DOM heen.
 export function maybeDismissStrayInviteeModal(attempt = 0) {
-  if (!helperPanel.helperEnabled || helperPanel.activeMode === 'registrations') return;
+  if (!helperPanel.helperEnabled || registratieModus()) return;
   if (appointmentFlow.intentionalAddClientClick || Date.now() < appointmentFlow.allowInviteeModalUntil) return;
   const modal = findInviteeSearchModal();
   if (!modal) {
@@ -147,7 +147,7 @@ function inviteeAddButtonGuard(e) {
 // Hang de guard op de actuele "+ Toevoegen"-knop (en zijn inner shadow-button).
 // Wordt bij elke mount opnieuw aangeroepen omdat ONS de knop kan hertekenen.
 export function guardInviteeAddButton() {
-  if (helperPanel.activeMode === 'registrations') return;
+  if (registratieModus()) return;
   // Bewust de goedkope finder: dit draait bij elke mount, dus geen dure
   // document-brede shadow-scan.
   const btn = findAddInviteeButtonFast();

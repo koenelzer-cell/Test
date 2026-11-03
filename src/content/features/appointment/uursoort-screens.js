@@ -5,7 +5,7 @@ import { entryUursoortIsSet, findClientEntries, findClientUursoortTrigger, first
 import { chooseUursoort, hasUursoortSelected } from './uursoort-field.js';
 import { scheduleAppointmentEndTime } from './end-time.js';
 import { freshUursoortTriggerForContext } from './uursoort-queue.js';
-import { appointmentFlow, helperPanel } from '../../state.js';
+import { appointmentFlow, helperPanel, registratieModus } from '../../state.js';
 import { $body, safe, setStatus } from '../../screen/status.js';
 import { ONSAH_TOKENS } from '../../ui/theme.js';
 import { clearScreenMark, markScreen } from '../../screen/screen-state.js';
@@ -42,7 +42,7 @@ export function showManualUursoortInstruction() {
   // lus draait in het React-scherm (useInterval) en stopt vanzelf zodra we hier
   // weg navigeren.
   const onWatchTick = () => safe(() => {
-    if (!helperPanel.helperEnabled || helperPanel.activeMode === 'registrations' || helperPanel._infoPanelRestore) return;
+    if (!helperPanel.helperEnabled || registratieModus() || helperPanel._infoPanelRestore) return;
     checkNow();
   });
   const renderMissing = () => {

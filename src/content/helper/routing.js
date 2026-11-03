@@ -11,7 +11,8 @@ import {
 } from '../features/agenda-overview/registrations-overview.js';
 import { HELPER_SCOPE, helperConfigReady, RUNTIME_CONFIG } from '../config/loader.js';
 import { activate, deactivate } from './lifecycle.js';
-import { opNieuwFormulierHost, syncNieuweRegistratiehulp } from '../features/registratie-nieuw/index.js';
+import { bewaakRegistratieVenster, opNieuwFormulierHost, stopBewakingRegistratieVenster, syncNieuweRegistratiehulp } from '../features/registratie-nieuw/index.js';
+import { VENSTER_MODUS } from '../state.js';
 import { onPageEvent } from '../core/page-bridge.js';
 import { PAGE_EVENT } from '../../shared/messages.js';
 
@@ -50,8 +51,10 @@ export function syncWithUrl() {
   // Op een host met het vernieuwde registratieformulier neemt
   // features/registratie-nieuw/ het formulier over; de oude hulp blijft weg.
   const nieuwFormulier = opNieuwFormulierHost();
-  syncNieuweRegistratiehulp();
-  const wantRegistrations = !nieuwFormulier && (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
+  const registratiehulpAan = (HELPER_SCOPE === 'all' || HELPER_SCOPE === 'registrations') && RUNTIME_CONFIG.registrationHelperEnabled;
+  const wantRegistrations = !nieuwFormulier && registratiehulpAan;
+  // Het vernieuwde registratievenster ligt op de agenda (geen eigen adres).
+  const inVenster = nieuwFormulier && registratiehulpAan && syncNieuweRegistratiehulp();
   const opFormulier = wantEvents && location.href.includes(CONFIG.urlNeedle);
   if (!opFormulier) planhulpVoorHref = null;
   // De registratiehulp draait alleen op de invul-/edit-/new-pagina, NIET op het
@@ -60,6 +63,7 @@ export function syncWithUrl() {
     activate('events');
     if (planhulpVoorHref !== location.href) { planhulpVoorHref = location.href; startVanuitPlanhulp(); }
   } else if (wantRegistrations && location.href.includes(CONFIG.registrationNeedle) && isRegistrationEditOrNew()) activate('registrations');
+  else if (inVenster) activate(VENSTER_MODUS);
   else deactivate();
   updateRegistrationsOverviewPanel();
 }
@@ -88,9 +92,12 @@ export function installUrlWatch() {
   window.addEventListener('locationchange', syncWithUrl);
   if (!_stopUrlSein) _stopUrlSein = onPageEvent(PAGE_EVENT.URL_CHANGED, meldUrlWijziging);
   _urlTimer = setInterval(meldUrlWijziging, 1000);
+  // Het vernieuwde registratievenster opent zonder adreswijziging.
+  bewaakRegistratieVenster(syncWithUrl);
 }
 export function stopUrlWatch() {
   clearInterval(_urlTimer);
   if (_stopUrlSein) { _stopUrlSein(); _stopUrlSein = null; }
+  stopBewakingRegistratieVenster();
   window.removeEventListener('locationchange', syncWithUrl);
 }

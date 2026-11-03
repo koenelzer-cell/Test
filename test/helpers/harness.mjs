@@ -22,7 +22,9 @@ export function fixture(name) {
 }
 
 // sync (optioneel): wat er al in chrome.storage.sync staat (teamkeuze, werktijden).
-export function bootHelper({ html = '<!doctype html><html><body></body></html>', url, sync, managed, lokaal, naam, bundled } = {}) {
+// react: ook dist/react-bundle.js laden (de schermen van het hulppaneel), vóór
+// content.js zoals in het manifest.
+export function bootHelper({ html = '<!doctype html><html><body></body></html>', url, sync, managed, lokaal, naam, bundled, react } = {}) {
   const dom = new JSDOM(html, {
     url: url || 'https://impegno.ons-dossier.nl/calendar/invitee/123/day?date=2026-08-30',
     runScripts: 'outside-only',
@@ -93,6 +95,7 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     get() { return this.isConnected && !(this.hasAttribute && this.hasAttribute('data-test-hidden')) ? (this.parentElement || w.document.body) : null; },
   });
 
+  if (react) w.eval(fs.readFileSync(path.join(ROOT, 'dist', 'react-bundle.js'), 'utf8'));
   w.eval(CONTENT_JS);
 
   // Geeft het bericht aan alle onMessage-luisteraars; belooft het antwoord

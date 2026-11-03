@@ -36,16 +36,19 @@ export function ChoicesScreen({ choices, blocked, blockedNote, tokens, onPick, o
           />
         ))}
       </div>
-      <div style={{ marginTop: 6 }}>
-        <TileButton
-          label={resetLabel}
-          tokens={tokens}
-          chevron={false}
-          accent="#a3241f"
-          accentWash="#fbeceb"
-          onClick={onReset}
-        />
-      </div>
+      {/* Zonder onReset (registratievenster) geen knop die niets doet. */}
+      {onReset ? (
+        <div style={{ marginTop: 6 }}>
+          <TileButton
+            label={resetLabel}
+            tokens={tokens}
+            chevron={false}
+            accent="#a3241f"
+            accentWash="#fbeceb"
+            onClick={onReset}
+          />
+        </div>
+      ) : null}
       {extra}
     </div>
   );

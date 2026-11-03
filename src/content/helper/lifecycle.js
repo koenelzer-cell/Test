@@ -4,7 +4,7 @@
 import { invalidateClientEntries } from '../ons/appointment-form.js';
 import { blockSubmitIfNoUursoort, updateSubmitGuard } from '../features/appointment/submit-guard.js';
 import { maybeDismissStrayInviteeModal } from '../features/appointment/invitee-guard.js';
-import { agendaHelperDeactivate, appointmentFlow, helperPanel, registrationFlow } from '../state.js';
+import { agendaHelperDeactivate, appointmentFlow, helperPanel, registrationFlow, VENSTER_MODUS } from '../state.js';
 import { safe } from '../screen/status.js';
 import { clearScreenMark } from '../screen/screen-state.js';
 import { blockRegistrationSubmitIfReportEmpty, updateRegistrationSubmitGuard } from '../features/registration/report.js';
@@ -13,12 +13,15 @@ import { loadPendingRegistrationLabel } from '../features/registration/pending.j
 import { ensureMounted, removePopup, reposition, scheduleMount } from './panel.js';
 import { schermen } from '../screen/schermen.js';
 import { onAppointmentInput } from '../features/appointment/gereed.js';
+import { vergeetRegistratieVenster } from '../features/registratie-nieuw/schermen.js';
 
 export function activate(mode) {
   if (helperPanel.active && helperPanel.activeMode === mode) return;
   if (helperPanel.active && helperPanel.activeMode !== mode) deactivate();
-  // Agendahulp sluiten zodra afspraak-/registratiehulp actief wordt.
-  if (typeof agendaHelperDeactivate === 'function') { try { agendaHelperDeactivate(); } catch (e) {} }
+  // Agendahulp sluiten zodra afspraak-/registratiehulp actief wordt. Het
+  // registratievenster ligt óp de agenda: daar blijft de agenda (en dus het
+  // zijpaneel) gewoon aan.
+  if (mode !== VENSTER_MODUS && typeof agendaHelperDeactivate === 'function') { try { agendaHelperDeactivate(); } catch (e) {} }
   helperPanel.active = true; helperPanel.activeMode = mode; helperPanel.userPos = null;
   registrationFlow.registrationTravelClicked = false; registrationFlow.registrationFlowBusy = false; registrationFlow.registrationHourTypeBusy = false;
   // Afspraaklabel inlezen vóór de eerste render, zodat de registratiehulp de
@@ -39,19 +42,19 @@ export function activate(mode) {
     });
     if (!own) {
       helperPanel.lastDomMutationAt = Date.now(); // pagina muteert nog -> nog niet "rustig/geladen"
-      if (modalAdded) safe(maybeDismissStrayInviteeModal);
+      if (modalAdded && helperPanel.activeMode === 'events') safe(maybeDismissStrayInviteeModal);
       scheduleMount();
     }
   });
   helperPanel.observer.observe(document.documentElement, { childList: true, subtree: true });
-  if (helperPanel.activeMode !== 'registrations') {
+  if (helperPanel.activeMode === 'events') {
     // De "+ Toevoegen"-guard hangt direct op de knop (guardInviteeAddButton);
     // geen dure document-brede pointer-listeners meer nodig.
     document.addEventListener('click', blockSubmitIfNoUursoort, true);
     document.addEventListener('submit', blockSubmitIfNoUursoort, true);
     document.addEventListener('input', onAppointmentInput, true);
     document.addEventListener('change', onAppointmentInput, true);
-  } else {
+  } else if (helperPanel.activeMode === 'registrations') {
     document.addEventListener('input', onRegistrationReportInput, true);
     document.addEventListener('change', onRegistrationReportInput, true);
     document.addEventListener('focusout', onRegistrationTimeInteract, true);
@@ -66,8 +69,9 @@ export function activate(mode) {
     if (!helperPanel.helperEnabled) { reposition(); return; }
     // De guard draait al bij elke input/change; in de achtergrond met verse
     // client-cache, zodat het interval niet de hele DOM herbouwt.
+    if (helperPanel.activeMode === VENSTER_MODUS) { reposition(); return; }
     invalidateClientEntries();
-    if (helperPanel.activeMode !== 'registrations') {
+    if (helperPanel.activeMode === 'events') {
       // Vangnet: mocht de MutationObserver/input een cliënt- of datum/tijd-
       // wijziging missen, dan herkent dit interval die alsnog snel.
       schermen.refreshAppointmentPrereqScreen();
@@ -113,6 +117,7 @@ export function deactivate() {
   registrationFlow.registrationAutoChoice = null;
   registrationFlow.registrationFromAppointment = false;
   registrationFlow.registrationAutoApplied = false;
+  vergeetRegistratieVenster();
   clearScreenMark();
   helperPanel.activeMode = null;
   removePopup(); // ruimt ook de React-root op, incl. de controle-lussen

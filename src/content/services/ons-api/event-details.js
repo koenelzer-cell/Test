@@ -62,6 +62,11 @@ export function laatsteDetailsLabels() {
   if ((Date.now() - _laatsteDetails.ts) > DETAILS_MAX_AGE_MS) return [];
   return _laatsteDetails.labels.slice();
 }
+// De labels van de details van deze afspraak (occurrence-id), mits vers genoeg.
+export function labelsVoorAfspraak(occurrenceId) {
+  if (!_laatsteDetails || !occurrenceId || _laatsteDetails.occurrenceId !== String(occurrenceId)) return [];
+  return laatsteDetailsLabels();
+}
 // Haal de details van één afspraak zelf op (relatief pad => same-origin => de
 // sessiecookie gaat mee). Vangnet voor als de watcher niets zag.
 function fetchEventDetailsLabels(occurrenceId, inviteeId) {

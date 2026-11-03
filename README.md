@@ -394,9 +394,37 @@ een formulier dat anders is opgebouwd); de module
 registratieformulier en neemt het over. Daar is het formulier geen pagina meer maar een venster op
 de agenda (`uc-modal` met de Vue-component `DeclareAsRegistrationForm`,
 herkend aan `data-qa="time-distribution-fields"` of de velden
-`declaration[…]`, `ons/registratie-venster.js`). De module doet nog niets op
-het formulier zelf: dat komt erbij zodra de opbouw bekend is. Alleen het testpakket draait op die host; de
-agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
+`declaration[…]`, `ons/registratie-venster.js`). Alleen het testpakket draait
+op die host; de agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
+
+**Registratiehulp in het venster.** Gaat het venster open, dan verschijnt het
+hulppaneel (Registratiehulp) ín het venster; de agenda en het zijpaneel
+blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
+1. **Registratievorm kiezen**, dezelfde vormen als de bestaande hulp. Komt
+   het venster uit een afspraak met een gekoppeld label (de afspraakdetails
+   die ONS net liet zien, zelfde afspraak), dan kiest de hulp die vorm zelf,
+   één keer per venster.
+2. De vorm zet **direct en indirect** over de hele registratie (eind min
+   begin): 100% direct, 100% indirect of de startverdeling. Vraagt de vorm
+   naar de tegen-tijd ('Indirecte tijd aanwezig in deze registratie?'), dan
+   eerst die vraag; bij Ja de minuten kiezen. **No show** zet no-show bij
+   elke cliënt (in het nieuwe venster een knop per cliënt) en zet geen tijden.
+3. **Reistijd**, als de vorm dat vraagt: de totale reistijd kiezen, heen de
+   helft naar boven, terug de rest.
+4. De **aanhef** van de vorm in de rapportage, alleen als die nog leeg is
+   (via het rapportageveld, zoals ONS het doorgeeft).
+5. **Controles**, elke seconde bijgewerkt: rapportage geschreven (alleen de
+   aanhef telt niet; bij no-show voor alle cliënten niet nodig), uursoort
+   gekozen, direct plus indirect gelijk aan de duur. **Indienen** in het
+   paneel is grijs zolang er iets openstaat; als alles klopt (groen) klikt
+   het de knop Indienen van ONS. De knop Indienen van ONS zelf blokkeert de
+   hulp niet.
+
+Met de terugknop kies je opnieuw een vorm. De uursoort zet de hulp nog niet
+(zie hieronder); de controle vraagt er wel om. Sluit het venster, dan gaat
+de hulp mee weg. Code: `features/registratie-nieuw/schermen.js` (de
+schermen), `domain/registratie-venster.js` (verdeling en controles),
+modus `registratieVenster` (`VENSTER_MODUS` in `state.js`).
 
 De opbouw uitlezen: open daar het registratievenster, F12, Console, en plak
 `tools/console/registratie-opbouw.js`. Het leest alleen wat binnen het
@@ -419,7 +447,13 @@ steeds nagekeken):
   `TimeRegistrationCard` meegeeft (`onUpdate:registration`), net zoals ONS
   het zelf doorgeeft (reistijd als tekst);
 - **no-show** per cliënt (`zetRegistratieNoShow`): `{ client_id, field:
-  'no_show', value }` aan de luisteraar van `ReportAndClientsCard`.
+  'no_show', value }` aan de luisteraar van `ReportAndClientsCard`;
+- **aanhef** in een lege rapportage (`zetRegistratieRapport`): de tekst in het
+  rapportageveld (`uc-textarea` in `new-report-field` of
+  `group-report-fields`) met een `input`-gebeurtenis zoals dat veld hem zelf
+  geeft, nagekeken in de registratie;
+- **indienen** (`klikIndienenInVenster`): de knop Indienen van ONS
+  (`data-qa="submit-button"`).
 
 Testen kan in het zijpaneel bij Info, Debug, **Registratievenster**:
 **Uitlezen** toont wat er staat; met Direct, Indirect en **Zetten** zet de

@@ -5,7 +5,7 @@
 import { hasClientInAppointment } from './clients.js';
 import { appointmentHasKnownLabel, hasAppointmentDate, hasAppointmentEndTime, hasAppointmentStartTime } from './fields.js';
 import { hasUursoortSelected } from './uursoort-field.js';
-import { appointmentFlow, helperPanel } from '../../state.js';
+import { appointmentFlow, helperPanel, registratieModus } from '../../state.js';
 import { isOwnPopup } from '../../ons/dom.js';
 import { schermen } from '../../screen/schermen.js';
 import { updateSubmitGuard } from './submit-guard.js';
@@ -37,7 +37,7 @@ export function appointmentSaveStageStillValid() {
 }
 export function onAppointmentInput(e) {
   if (!helperPanel.helperEnabled) return;
-  if (helperPanel.activeMode === 'registrations' || isOwnPopup(e.target)) return;
+  if (registratieModus() || isOwnPopup(e.target)) return;
   schermen.refreshAppointmentPrereqScreen();
   updateSubmitGuard();
 }

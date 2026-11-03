@@ -1,7 +1,7 @@
 // Het info-scherm van het hulppaneel.
 
 import { supportTopdeskUrl } from '../config/app-config.js';
-import { helperPanel } from '../state.js';
+import { helperPanel, registratieModus } from '../state.js';
 import { $body, safe, showDisabledState } from '../screen/status.js';
 import { mkBackButton } from '../ui/controls.js';
 import { resetBody } from '../screen/screen-state.js';
@@ -28,7 +28,7 @@ function showInfoPanel() {
   body.appendChild(mkBackButton(() => safe(closeInfoPanel), 'Terug'));
 
   const title = document.createElement('div');
-  title.textContent = (helperPanel.activeMode === 'registrations' ? 'Registratiehulp' : 'Afspraakhulp');
+  title.textContent = (registratieModus() ? 'Registratiehulp' : 'Afspraakhulp');
   Object.assign(title.style, { fontWeight: '700', fontSize: '14px', margin: '6px 0 2px' });
   body.appendChild(title);
 

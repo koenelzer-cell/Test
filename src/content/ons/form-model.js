@@ -95,6 +95,10 @@ export function leesRegistratieVenster(wachtMs) {
 export function zetRegistratieTijden(velden, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { velden: velden || {} }, wachtMs);
 }
+// De aanhef van de registratievorm in de (lege) rapportage.
+export function zetRegistratieRapport(aanhef, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { rapport: String(aanhef || '') }, wachtMs);
+}
 export function zetRegistratieNoShow(clientId, aan, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan === true } }, wachtMs);
 }

@@ -6,6 +6,13 @@ import { storageGet, STORE_HELPER_ENABLED } from './storage/page-prefs.js';
 
 export let agendaHelperDeactivate = null; // wordt door startDayColoring gezet
 export function setAgendaHelperDeactivate(fn) { agendaHelperDeactivate = fn; }
+// helperPanel.activeMode van de registratiehulp in het vernieuwde
+// registratievenster (een venster op de agenda, features/registratie-nieuw/).
+// Naast 'events' (afspraakhulp) en 'registrations' (oude registratiehulp).
+export const VENSTER_MODUS = 'registratieVenster';
+// Draait er een registratiehulp (de oude of die in het venster)? Dan doen de
+// onderdelen van de afspraakhulp niets.
+export function registratieModus() { return helperPanel.activeMode === 'registrations' || helperPanel.activeMode === VENSTER_MODUS; }
 /* ===== Gedeelde toestand van de hulp =====
    Alle toestand die door meerdere onderdelen gelezen én geschreven wordt,
    staat in deze drie objecten. Zo is zichtbaar WAT er gedeeld wordt en wie
@@ -22,7 +29,7 @@ export const helperPanel = {
   popupEl: null,              // het paneel-element, of null als het niet staat
   observer: null,             // MutationObserver die het paneel herstelt (zie activate)
   active: false,              // hulp actief op deze pagina
-  activeMode: null,           // 'events' | 'registrations' | null
+  activeMode: null,           // 'events' | 'registrations' | VENSTER_MODUS | null
   repositionTimer: null,
   // Slepen + positie
   userPos: null, dragging: false, dragDX: 0, dragDY: 0, popupDragMoved: false,

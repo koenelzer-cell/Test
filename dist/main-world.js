@@ -49,9 +49,9 @@
     READ_REGISTRATION: "leesRegistratie",
     // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
     REGISTRATION_READ: "registratieGelezen",
-    // { id, ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
+    // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } } of { id, noShow: { clientId, aan } }  via de luisteraars van de kaarten, nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef }  via de luisteraars van de kaarten (de aanhef via het tekstveld), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -1013,9 +1013,9 @@
       const anker = diepZoek(document, '[data-qa="time-distribution-fields"]');
       const boom = anker ? formulierBoom(anker) : null;
       if (!boom) return null;
-      const tijd = boom.component("TimeRegistrationCard"), clients = boom.component("ReportAndClientsCard");
+      const tijd = boom.component("TimeRegistrationCard"), clients = boom.component("ReportAndClientsCard"), modal = boom.component("DeclareAsRegistrationModal");
       const reg = tijd && tijd.component && tijd.component.props && tijd.component.props.registration;
-      return reg && typeof reg === "object" ? { boom, tijd, clients, reg } : null;
+      return reg && typeof reg === "object" ? { boom, tijd, clients, modal, reg } : null;
     }
     function uurMin(w) {
       if (Object.prototype.toString.call(w) === "[object Date]" && !isNaN(w.getTime())) return ("0" + w.getHours()).slice(-2) + ":" + ("0" + w.getMinutes()).slice(-2);
@@ -1042,6 +1042,12 @@
         datum: /^\d{4}-\d{2}-\d{2}$/.test(String(reg.date)) ? reg.date : "",
         begin: uurMin(reg.start_time),
         eind: uurMin(reg.end_time),
+        // De afspraak waaruit dit venster komt (hex-id), voor de vorm uit het afspraaklabel.
+        afspraak: (function() {
+          const o = r.modal && r.modal.component && r.modal.component.props && r.modal.component.props.occurrenceId;
+          return /^[\w-]{1,40}$/.test(String(o || "")) ? String(o) : "";
+        })(),
+        uursoort: reg.hour_type == null ? null : typeof reg.hour_type === "object" ? getalOfNull(reg.hour_type.id) : getalOfNull(reg.hour_type),
         direct: getalOfNull(reg.direct_time),
         indirect: getalOfNull(reg.indirect_time),
         reisHeen: getalOfNull(reg.travel_time_before),
@@ -1057,11 +1063,34 @@
         })
       };
     }
+    function zetRapportAanhef(r, tekst, klaar) {
+      tekst = String(tekst).slice(0, 2e3);
+      if (String(r.reg.report_comment == null ? "" : r.reg.report_comment).length) {
+        klaar({ ok: false, reden: "rapportage is al ingevuld" });
+        return;
+      }
+      const veld = diepZoek(document, '[data-qa="new-report-field"] uc-textarea, [data-qa="group-report-fields"] uc-textarea');
+      if (!veld) {
+        klaar({ ok: false, reden: "geen rapportageveld" });
+        return;
+      }
+      zetEnControleer(function() {
+        veld.value = tekst;
+        veld.dispatchEvent(new CustomEvent("input", { detail: [tekst], bubbles: true, composed: true }));
+      }, function() {
+        const na = registratieVenster();
+        return !!na && String(na.reg.report_comment == null ? "" : na.reg.report_comment) === tekst;
+      }, klaar);
+    }
     const REG_TIJDEN = ["direct_time", "indirect_time", "travel_time_before", "travel_time_after"];
     function zetRegistratie(d, klaar) {
       const r = registratieVenster();
       if (!r) {
         klaar({ ok: false, reden: "geen registratievenster" });
+        return;
+      }
+      if (typeof d.rapport === "string" && d.rapport) {
+        zetRapportAanhef(r, d.rapport, klaar);
         return;
       }
       if (d.noShow && typeof d.noShow === "object") {

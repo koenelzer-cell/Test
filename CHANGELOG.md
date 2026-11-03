@@ -2,6 +2,17 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.311
+
+- Alleen voor het testpakket: in het vernieuwde registratievenster
+  (impegno-backup-staging) verschijnt nu de registratiehulp zodra het venster
+  opent. Je kiest de registratievorm (of de hulp neemt hem over uit het
+  afspraaklabel), de hulp zet direct en indirect, eventueel de reistijd en
+  no-show, zet de aanhef in een lege rapportage en laat zien wat nog moet.
+  Indienen in de hulp kan pas als alles klopt. Het zijpaneel blijft daarbij
+  gewoon open. De uursoort kiest de hulp hier nog niet. Voor medewerkers
+  verandert er niets.
+
 ## 1.6.310
 
 - Alleen voor het testpakket: de hulp kan het vernieuwde registratievenster
