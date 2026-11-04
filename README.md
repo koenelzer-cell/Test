@@ -477,12 +477,16 @@ gaat ongewijzigd door naar ONS; na 10 minuten stopt het vanzelf. Dezelfde
 regels voor gegevens als hierboven.
 
 De uursoort: `tools/console/registratie-uursoort.js` in de console plakken
-als de uursoorten geladen zijn, dan een uursoort kiezen en
-`onsahUursoort.kopieer()` typen. Het geeft elke keuzelijst in het venster
-(met welke component, welke props en op welke gebeurtenissen Vue luistert)
-en de componenten die met een uursoort te maken hebben, en noteert wat er
-doorgegeven wordt bij het kiezen. Alleen bij een uursoortlijst staan de
-eerste vijf namen leesbaar; bij andere lijsten (zoals de medewerker) alleen
+als de uursoorten geladen zijn, dán een andere uursoort kiezen en
+`onsahUursoort.kopieer()` typen. Het geeft elk keuzeveld in het venster (ook
+eigen elementen zoals `ue-activity-select`, het uursoortveld in
+`TimeRegistrationCard`, met de props en de gebeurtenissen waar Vue op
+luistert), waar de uursoort in de registratie staat, de status waarmee ONS
+de uursoorten ophaalde (`/gateway/api/v0/administration/authorized/activities`,
+alleen de namen van de zoekwaarden), de opbouw van die lijst (één keer
+opnieuw gelezen op hetzelfde adres, alleen lezen), en wat er doorgegeven
+wordt bij het kiezen (ook wat het uursoortveld zelf verstuurt). Uursoorten
+staan leesbaar (id en naam); bij andere lijsten (zoals de medewerker) alleen
 het aantal en de opbouw.
 
 ### Zijpaneel
