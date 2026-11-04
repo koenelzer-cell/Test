@@ -11,7 +11,8 @@ import { bootHelper } from './helpers/harness.mjs';
 
 const MAIN = fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8');
 const AGENDA = 'https://impegno-backup-staging.onsagenda.nl/invitees/1,2/calendar/week';
-const VENSTER = '<uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div></uc-card>'
+const VENSTER = '<uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div>'
+  + '<uc-button data-qa="add-travel-times">+ Reistijd</uc-button></uc-card>'
   + '<uc-card id="rapport"><div data-qa="new-report-field"><uc-textarea></uc-textarea></div></uc-card>'
   + '<uc-button data-qa="submit-button">Indienen</uc-button></div></uc-modal>';
 const VORMEN = { registrationForms: [
@@ -63,8 +64,15 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
     $('#content')._vnode = { component: modal };
   };
   let ingediend = 0;
-  // Zoals ReportFields en de knop Indienen van ONS.
+  // Zoals ReportFields, de knop Indienen en de knop '+ Reistijd' van ONS (die
+  // toont de reistijdvelden en verdwijnt).
   const koppel = () => {
+    const reis = $('[data-qa="add-travel-times"]');
+    if (reis) reis.addEventListener('click', () => {
+      ontvangen.push(['klik', 'add-travel-times']);
+      reis.insertAdjacentHTML('afterend', '<input data-qa="travel-before"><input data-qa="travel-after">');
+      reis.remove();
+    });
     const veld = $('uc-textarea');
     if (veld) veld.addEventListener('input', (ev) => werkBij({ report_comment: ev.detail[0] }));
     const knop = $('[data-qa="submit-button"]');
@@ -75,8 +83,9 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   if (labels) w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'details', url: '/calendar/invitee/1/events/occ1/details', labels }, origin: w.location.origin, source: w }));
   const paneel = () => boot.api.getHelperPanel().popupEl;
   const tekst = () => (paneel() ? paneel().textContent.replace(/\s+/g, ' ') : '');
-  // Een keuzetegel begint met zijn sneltoets (1, 2, …): die laten we weg.
-  const knop = (re) => paneel() && [...paneel().querySelectorAll('button')].find((b) => re.test(b.textContent.trim().replace(/^\d(?=\D)/, '')));
+  // Een keuzetegel begint met zijn sneltoets, vast aan de naam ('1No show'):
+  // die laten we weg ('0 min.' blijft heel).
+  const knop = (re) => paneel() && [...paneel().querySelectorAll('button')].find((b) => re.test(b.textContent.trim().replace(/^\d(?=[A-Za-z])/, '')));
   const openVenster = () => { $('#content').insertAdjacentHTML('beforeend', VENSTER); bouw(); koppel(); };
   return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, paneel, tekst, knop, openVenster, $ };
 }
@@ -121,12 +130,15 @@ test('vorm uit het afspraaklabel: meteen de vraag naar de tegen-tijd, dan reisti
   const t = opzet({ labels: ['JG Huisbezoek'] });
   await wachtOp(() => /Indirecte tijd aanwezig/.test(t.tekst()));
   assert.doesNotMatch(t.tekst(), /Verslaglegging/, 'de keuze is overgeslagen');
-  t.knop(/^Nee/).click();
+  (await wachtOp(() => t.knop(/^Nee$/))).click();
   await wachtOp(() => /Totale reistijd/.test(t.tekst()));
   assert.deepEqual([t.reg.direct_time, t.reg.indirect_time], [55, 0]);
-  t.knop(/^25 min\.?$/).click();
+  (await wachtOp(() => t.knop(/^25 min\.?$/))).click();
   await wachtOp(() => t.reg.travel_time_before === '13');
   assert.deepEqual([t.reg.travel_time_before, t.reg.travel_time_after], ['13', '12'], 'zoals ONS: reistijd als tekst');
+  const stappen = t.ontvangen().map(([soort, x]) => (soort === 'klik' ? 'klik' : soort === 'registration' && 'travel_time_before' in x ? 'reistijd' : null)).filter(Boolean);
+  assert.deepEqual(stappen, ['klik', 'reistijd'], 'eerst + Reistijd van ONS (dan staan de velden in beeld), dan de waarden');
+  assert.ok(t.$('[data-qa="travel-before"]') && !t.$('[data-qa="add-travel-times"]'), 'de reistijdvelden staan in beeld');
   await wachtOp(() => t.paneel().querySelector('[data-registratievenster-indienen]'));
   assert.equal(t.reg.report_comment, null, 'Huisbezoek heeft geen aanhef: de rapportage blijft leeg');
 });
@@ -135,9 +147,9 @@ test('tegen-tijd kiezen: de gekozen minuten indirect, de rest direct; een aanhef
   const t = opzet();
   (await wachtOp(() => t.knop(/^Verslaglegging/))).click();
   await wachtOp(() => /Directe tijd aanwezig/.test(t.tekst()));
-  t.knop(/^Ja/).click();
+  (await wachtOp(() => t.knop(/^Ja$/))).click();
   await wachtOp(() => /Duur directe tijd/.test(t.tekst()));
-  t.knop(/^0:15$|^15 min\.?$/).click();
+  (await wachtOp(() => t.knop(/^0:15$|^15 min\.?$/))).click(); // de kiezer komt net na de titel
   await wachtOp(() => t.reg.indirect_time === 40);
   assert.deepEqual([t.reg.direct_time, t.reg.indirect_time], [15, 40]);
   await wachtOp(() => t.reg.report_comment === 'Verslag:');
@@ -174,4 +186,25 @@ test('op andere hosts start deze hulp niet', async () => {
   const t = opzet({ host: 'impegno.onsagenda.nl' });
   await tick(400);
   assert.notEqual(t.api.getHelperPanel().activeMode, 'registratieVenster');
+});
+
+test('staan de reistijdvelden al in beeld, dan klikt de hulp + Reistijd niet (dat zou ze weer kunnen verbergen)', async () => {
+  const t = opzet({ labels: ['Huisbezoek'] });
+  t.$('[data-qa="add-travel-times"]').insertAdjacentHTML('afterend', '<input data-qa="travel-before"><input data-qa="travel-after">');
+  await wachtOp(() => /Indirecte tijd aanwezig/.test(t.tekst()));
+  (await wachtOp(() => t.knop(/^Nee$/))).click();
+  (await wachtOp(() => t.knop(/^10 min\.?$/))).click();
+  await wachtOp(() => t.reg.travel_time_before === '5');
+  assert.deepEqual([t.reg.travel_time_before, t.reg.travel_time_after], ['5', '5']);
+  assert.ok(!t.ontvangen().some(([soort]) => soort === 'klik'), 'geen klik op + Reistijd');
+});
+
+test('reistijd 0: niets uitklappen', async () => {
+  const t = opzet({ labels: ['Huisbezoek'] });
+  await wachtOp(() => /Indirecte tijd aanwezig/.test(t.tekst()));
+  (await wachtOp(() => t.knop(/^Nee$/))).click();
+  (await wachtOp(() => t.knop(/^0 min\.?$/))).click();
+  await wachtOp(() => t.paneel().querySelector('[data-registratievenster-indienen]'));
+  assert.ok(!t.ontvangen().some(([soort]) => soort === 'klik'), 'de knop + Reistijd blijft dicht');
+  assert.ok(t.$('[data-qa="add-travel-times"]'));
 });

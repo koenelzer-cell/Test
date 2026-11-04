@@ -16151,13 +16151,18 @@
   function klikIndienenInVenster() {
     const v = vindRegistratieVenster();
     const knop = v ? deepQueryAll('uc-button[data-qa="submit-button"]', v)[0] : null;
-    if (!knop) return false;
-    try {
-      knop.click();
-      return true;
-    } catch (e) {
-      return false;
-    }
+    return knop ? clickUiButton(knop) : false;
+  }
+  var REISTIJD_VELD = '[data-qa="travel-before"], [data-qa="travel-after"]';
+  function toonReistijdInVenster(venster) {
+    const v = venster || vindRegistratieVenster();
+    if (!v) return Promise.resolve(false);
+    const veldZichtbaar = () => deepQueryAll(REISTIJD_VELD, v).some(visible);
+    if (veldZichtbaar()) return Promise.resolve(true);
+    const knop = deepQueryAll('uc-button[data-qa="add-travel-times"]', v).filter(visible)[0];
+    if (!knop) return Promise.resolve(true);
+    clickUiButton(knop);
+    return wachtTot(() => veldZichtbaar() || !knop.isConnected || !visible(knop), { max: 1500 }).then(Boolean);
   }
   var VENSTER_VELD = '[data-qa="time-distribution-fields"], [name^="declaration["]';
   function vindRegistratieVensterSnel() {
@@ -18253,7 +18258,9 @@
       },
       pickerNode: mkDurationPicker(waarden, function(totaal) {
         const r = reistijdVerdeling(totaal);
-        opgevangen(zetRegistratieTijden({ travel_time_before: r.heen, travel_time_after: r.terug }).then(function(ok) {
+        opgevangen((totaal > 0 ? toonReistijdInVenster() : Promise.resolve(true)).then(function() {
+          return zetRegistratieTijden({ travel_time_before: r.heen, travel_time_after: r.terug });
+        }).then(function(ok) {
           setStatus(ok ? "Reistijd " + totaal + " min" : "Reistijd niet gezet", ok);
           return zetAanhef(vorm);
         }).then(toonRegistratieVensterRapport), "registratievenster reistijd");

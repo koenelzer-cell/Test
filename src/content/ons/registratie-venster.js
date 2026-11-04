@@ -3,14 +3,35 @@
 // DeclareAsRegistrationForm. In de DOM herkenbaar aan de tijdverdeling
 // (data-qa="time-distribution-fields") of de formuliervelden declaration[…].
 
-import { deepQueryAll } from './dom.js';
+import { deepQueryAll, visible } from './dom.js';
+import { clickUiButton } from './form-controls.js';
+import { wachtTot } from '../core/wacht.js';
 
-// Indienen zoals de medewerker: de knop Indienen van ONS in het venster.
+// Indienen zoals de medewerker: de knop Indienen van ONS in het venster. Een
+// uc-button reageert op de klikreeks op zijn eigen knop (clickUiButton), niet
+// altijd op een kale .click() op het element zelf.
 export function klikIndienenInVenster() {
   const v = vindRegistratieVenster();
   const knop = v ? deepQueryAll('uc-button[data-qa="submit-button"]', v)[0] : null;
-  if (!knop) return false;
-  try { knop.click(); return true; } catch (e) { return false; }
+  return knop ? clickUiButton(knop) : false;
+}
+
+// De reistijdvelden staan achter de knop '+ Reistijd' van ONS: ook als de
+// reistijd in het model staat, toont het venster ze pas na die klik. De hulp
+// klikt hem vóór het zetten (dan kan de klik de gezette waarden niet meer
+// terugzetten), en alleen als er nog geen reistijdveld te zien is, zodat een
+// tweede keer de velden niet weer verbergt. -> Promise<boolean>: true als de
+// velden te zien zijn (of er niets te klikken viel).
+const REISTIJD_VELD = '[data-qa="travel-before"], [data-qa="travel-after"]';
+export function toonReistijdInVenster(venster) {
+  const v = venster || vindRegistratieVenster();
+  if (!v) return Promise.resolve(false);
+  const veldZichtbaar = () => deepQueryAll(REISTIJD_VELD, v).some(visible);
+  if (veldZichtbaar()) return Promise.resolve(true);
+  const knop = deepQueryAll('uc-button[data-qa="add-travel-times"]', v).filter(visible)[0];
+  if (!knop) return Promise.resolve(true);
+  clickUiButton(knop);
+  return wachtTot(() => veldZichtbaar() || !knop.isConnected || !visible(knop), { max: 1500 }).then(Boolean);
 }
 const VENSTER_VELD = '[data-qa="time-distribution-fields"], [name^="declaration["]';
 // Snel: alleen de gewone DOM van de pagina (daar zet ONS het venster).

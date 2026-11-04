@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.312
+
+- Alleen voor het testpakket: in het vernieuwde registratievenster staat de
+  gekozen reistijd nu ook in beeld. De hulp klikt eerst op + Reistijd en vult
+  dan heen en terug in.
+
 ## 1.6.311
 
 - Alleen voor het testpakket: in het vernieuwde registratievenster

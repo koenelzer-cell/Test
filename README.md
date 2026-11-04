@@ -410,7 +410,9 @@ blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
    eerst die vraag; bij Ja de minuten kiezen. **No show** zet no-show bij
    elke cliënt (in het nieuwe venster een knop per cliënt) en zet geen tijden.
 3. **Reistijd**, als de vorm dat vraagt: de totale reistijd kiezen, heen de
-   helft naar boven, terug de rest.
+   helft naar boven, terug de rest. ONS toont de reistijdvelden pas na de
+   knop **+ Reistijd**: die klikt de hulp eerst (alleen als er nog geen
+   reistijdveld te zien is, en niet bij 0 minuten), daarna zet hij de waarden.
 4. De **aanhef** van de vorm in de rapportage, alleen als die nog leeg is
    (via het rapportageveld, zoals ONS het doorgeeft).
 5. **Controles**, elke seconde bijgewerkt: rapportage geschreven (alleen de
@@ -453,7 +455,11 @@ steeds nagekeken):
   `group-report-fields`) met een `input`-gebeurtenis zoals dat veld hem zelf
   geeft, nagekeken in de registratie;
 - **indienen** (`klikIndienenInVenster`): de knop Indienen van ONS
-  (`data-qa="submit-button"`).
+  (`data-qa="submit-button"`), met de klikreeks op de knop in de
+  `uc-button` (`clickUiButton`);
+- **reistijdvelden tonen** (`toonReistijdInVenster`): de knop + Reistijd
+  (`data-qa="add-travel-times"`) als `travel-before`/`travel-after` nog niet
+  te zien zijn. Dat is alleen tonen; de waarden gaan via de koppeling.
 
 Testen kan in het zijpaneel bij Info, Debug, **Registratievenster**:
 **Uitlezen** toont wat er staat; met Direct, Indirect en **Zetten** zet de

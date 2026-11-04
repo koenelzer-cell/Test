@@ -16,7 +16,7 @@
 
 import { APP_CONFIG, gsNum, REGISTRATION_CHOICES } from '../../config/app-config.js';
 import { leesRegistratieVenster, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden } from '../../ons/form-model.js';
-import { klikIndienenInVenster } from '../../ons/registratie-venster.js';
+import { klikIndienenInVenster, toonReistijdInVenster } from '../../ons/registratie-venster.js';
 import { labelsVoorAfspraak } from '../../services/ons-api/event-details.js';
 import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, reistijdVerdeling, verdelingVoorVorm } from '../../domain/registratie-venster.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
@@ -178,7 +178,10 @@ export function toonRegistratieVensterReis() {
     onBack: function () { safe(function () { if (deelVraagGeldt(vorm)) toonRegistratieVensterDeel(); else { stand.vorm = null; toonRegistratieVenster(); } }, 'registratievenster terug'); },
     pickerNode: mkDurationPicker(waarden, function (totaal) {
       const r = reistijdVerdeling(totaal);
-      opgevangen(zetRegistratieTijden({ travel_time_before: r.heen, travel_time_after: r.terug }).then(function (ok) {
+      // Eerst de velden van ONS tonen ('+ Reistijd'), dan de waarden zetten.
+      opgevangen((totaal > 0 ? toonReistijdInVenster() : Promise.resolve(true)).then(function () {
+        return zetRegistratieTijden({ travel_time_before: r.heen, travel_time_after: r.terug });
+      }).then(function (ok) {
         setStatus(ok ? 'Reistijd ' + totaal + ' min' : 'Reistijd niet gezet', ok);
         return zetAanhef(vorm);
       }).then(toonRegistratieVensterRapport), 'registratievenster reistijd');
