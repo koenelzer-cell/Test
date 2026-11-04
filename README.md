@@ -399,9 +399,10 @@ Dezelfde punten staan linksonder op de pagina ('Controleer voor opslaan')
 alleen als het paneel ingeklapt is of een ander scherm toont; staat het
 paneel open op deze lijst, dan staan ze daar niet nog een keer.
 
-### Vernieuwde formulieren op backup staging (in ontwikkeling)
+### Vernieuwde formulieren op de testomgevingen (in ontwikkeling)
 
-Op `impegno-backup-staging.onsagenda.nl` (`ons/nieuwe-formulieren.js`,
+Op `impegno-backup-staging.onsagenda.nl` en `impegno-staging-staging.onsagenda.nl`
+(`ons/nieuwe-formulieren.js`,
 `NIEUW_FORMULIER_HOSTS`) heeft ONS de formulieren vernieuwd. Alleen daar:
 
 - **Afspraakhulp:** het afspraakformulier heeft geen cliëntkaarten meer, maar
@@ -419,7 +420,7 @@ Op `impegno-backup-staging.onsagenda.nl` (`ons/nieuwe-formulieren.js`,
 
 ### Vernieuwd registratieformulier (in ontwikkeling)
 
-Op `impegno-backup-staging.onsagenda.nl` heeft ONS het registratieformulier
+Op deze testomgevingen heeft ONS het registratieformulier
 vernieuwd. De bestaande registratiehulp draait daar niet (die zou klikken in
 een formulier dat anders is opgebouwd); de module
 `src/content/features/registratie-nieuw/` herkent daar het

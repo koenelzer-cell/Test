@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.320
+
+- Alleen voor het testpakket: alles wat op backup staging voor de vernieuwde
+  formulieren gold (registratiehulp in het venster, één uursoort in de
+  afspraakhulp, concepten), werkt nu ook op impegno-staging-staging.
+
 ## 1.6.319
 
 - De knop Indienen in de registratiehulp blijft grijs of groen; hij springt

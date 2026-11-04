@@ -8118,7 +8118,7 @@
   }
 
   // src/content/ons/nieuwe-formulieren.js
-  var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl"];
+  var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl", "impegno-staging-staging.onsagenda.nl"];
   function opNieuwFormulierHost(host) {
     const h = String(host == null ? location.hostname : host).toLowerCase();
     return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
