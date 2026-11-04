@@ -20,8 +20,10 @@
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
     URL_CHANGED: "urlGewijzigd",
     // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
-    NET_REQUEST: "netwerkVerzoek"
+    NET_REQUEST: "netwerkVerzoek",
     // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
+    HOUR_TYPES_LOADED: "uursoortenGeladen"
+    // { aantal }  het uursoortveld van het registratievenster haalde zijn lijst op (de lijst zelf via READ_REGISTRATION met uursoorten)
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
@@ -274,10 +276,13 @@
             const id = Number(m && m.objectId), naam = String(m && m.description || "").trim().slice(0, 120);
             if (!(id > 0) || !naam || gezien[id] || lijst.length >= 500) return;
             gezien[id] = true;
-            lijst.push({ id, naam });
+            lijst.push({ id, naam, aanbevolen: k === "suggestedActivityList" });
           });
         });
-        if (lijst.length) laatsteUursoorten = { lijst, ts: Date.now() };
+        if (lijst.length) {
+          laatsteUursoorten = { lijst, ts: Date.now() };
+          post(PAGE_EVENT.HOUR_TYPES_LOADED, { aantal: lijst.length });
+        }
       } catch (e) {
       }
     }
@@ -534,6 +539,13 @@
         },
         component: function(naam) {
           return perNaam[naam] || null;
+        },
+        // componentZoals(re): het eerste onderdeel waarvan de naam past.
+        componentZoals: function(re) {
+          const k = Object.keys(perNaam).filter(function(n2) {
+            return re.test(n2);
+          })[0];
+          return k ? perNaam[k] : null;
         }
       };
     }
@@ -1036,7 +1048,7 @@
       const anker = diepZoek(document, '[data-qa="time-distribution-fields"]');
       const boom = anker ? formulierBoom(anker) : null;
       if (!boom) return null;
-      const tijd = boom.component("TimeRegistrationCard"), clients = boom.component("ReportAndClientsCard"), modal = boom.component("DeclareAsRegistrationModal");
+      const tijd = boom.component("TimeRegistrationCard"), clients = boom.component("ReportAndClientsCard"), modal = boom.component("DeclareAsRegistrationModal") || boom.componentZoals(/Registration.*Modal$/);
       const reg = tijd && tijd.component && tijd.component.props && tijd.component.props.registration;
       return reg && typeof reg === "object" ? { boom, tijd, clients, modal, reg } : null;
     }

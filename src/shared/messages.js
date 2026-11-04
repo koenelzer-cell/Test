@@ -85,6 +85,7 @@ export const PAGE_EVENT = {
   MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
   URL_CHANGED: 'urlGewijzigd',  // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
   NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
+  HOUR_TYPES_LOADED: 'uursoortenGeladen', // { aantal }  het uursoortveld van het registratievenster haalde zijn lijst op (de lijst zelf via READ_REGISTRATION met uursoorten)
 };
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
 // antwoord (dir FROM_MAIN, met hetzelfde id).

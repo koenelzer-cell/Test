@@ -2,6 +2,13 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.314
+
+- Alleen voor het testpakket: de registratiehulp in het vernieuwde
+  registratievenster vraagt nu de uursoort uit, zoals de afspraakhulp: staat
+  er nog geen uursoort, dan kies je hem in het hulppaneel uit dezelfde lijst
+  als het veld Uursoort van ONS. Dat werkt ook bij registreren voor jezelf.
+
 ## 1.6.313
 
 - Alleen voor het testpakket: in het vernieuwde registratievenster zet de

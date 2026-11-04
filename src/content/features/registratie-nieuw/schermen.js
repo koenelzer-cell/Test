@@ -8,7 +8,9 @@
 //      naar de tegen-tijd; 'No show' zet no-show bij de cliënten;
 //   3. reistijd, als de vorm dat vraagt;
 //   4. de aanhef in de lege rapportage;
-//   5. de controles (rapportage, uursoort, direct plus indirect) en Indienen.
+//   5. de uursoort, als die nog niet gekozen is: 'Kies uursoort' met de lijst
+//      van het uursoortveld van ONS, zoals de afspraakhulp hem uitvraagt;
+//   6. de controles (rapportage, uursoort, direct plus indirect) en Indienen.
 //
 // De uursoort van de vorm zoekt de hulp op naam in de lijst die het
 // uursoortveld zelf ophaalt (main-world), en zet hem zoals dat veld een keuze
@@ -19,7 +21,7 @@ import { APP_CONFIG, gsNum, REGISTRATION_CHOICES } from '../../config/app-config
 import { leesRegistratieVenster, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden, zetRegistratieUursoort } from '../../ons/form-model.js';
 import { klikIndienenInVenster, toonReistijdInVenster } from '../../ons/registratie-venster.js';
 import { labelsVoorAfspraak } from '../../services/ons-api/event-details.js';
-import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, verdelingVoorVorm } from '../../domain/registratie-venster.js';
+import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, uursoortOntbreekt, verdelingVoorVorm } from '../../domain/registratie-venster.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
 import { isScreen, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
@@ -32,12 +34,18 @@ import { vulRegistratieControles } from '../registration/completeness.js';
 import { matchRegistrationChoiceByLabel } from '../registration/pending.js';
 import { helperPanel } from '../../state.js';
 import { meldFout } from '../../core/foutbuffer.js';
+import { onPageEvent } from '../../core/page-bridge.js';
+import { PAGE_EVENT } from '../../../shared/messages.js';
 
 // Per open venster (afspraak-id): welke vorm, of de vorm uit het label al is
 // toegepast, en of de uursoort van de vorm al geprobeerd is (één keer per
 // gekozen vorm: kiest de medewerker daarna zelf een andere, dan blijft die).
 const stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false };
 let controleTimer = null;
+// 'Kies uursoort' wacht op de lijst van het uursoortveld: het sein van de
+// main-world, en na een tijdje een melding.
+let stopUursoortSein = null, uursoortTimer = null;
+function stopUursoortWacht() { if (stopUursoortSein) { stopUursoortSein(); stopUursoortSein = null; } clearTimeout(uursoortTimer); uursoortTimer = null; }
 
 function vormen() { return REGISTRATION_CHOICES || []; }
 // Een stap die via Vue loopt is async: een fout gaat naar de foutbuffer
@@ -51,7 +59,7 @@ function nieuwVenster(afspraak) {
   if (stand.afspraak === afspraak) return;
   stand.afspraak = afspraak; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.uursoortGedaan = false;
 }
-export function vergeetRegistratieVenster() { stopControle(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; stand.uursoortGedaan = false; }
+export function vergeetRegistratieVenster() { stopControle(); stopUursoortWacht(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; stand.uursoortGedaan = false; }
 
 // De uursoort van de vorm. v: een lezing met de uursoortlijst. Zonder lijst
 // (nog niet geladen) niets, en later opnieuw; anders één poging.
@@ -100,7 +108,7 @@ export function toonRegistratieVenster() {
 export function verversRegistratieVenster() {
   if (stand.bezig) return;
   if (isScreen('registratieVensterKeuze') || isScreen('registratieVensterDeel') || isScreen('registratieVensterDeelDuur')
-    || isScreen('registratieVensterReis') || isScreen('registratieVensterRapport')) return;
+    || isScreen('registratieVensterReis') || isScreen('registratieVensterUursoort') || isScreen('registratieVensterRapport')) return;
   toonRegistratieVenster();
 }
 
@@ -121,7 +129,7 @@ async function kiesVorm(vorm, gelezen) {
       setStatus(ok ? 'No show gezet' : 'No show niet gezet bij elke cliënt', ok);
       stand.bezig = false;
       await zetAanhef(vorm);
-      toonRegistratieVensterRapport();
+      await naarUursoortOfRapport();
       return;
     }
     stand.bezig = false;
@@ -140,7 +148,104 @@ async function pasVerdelingToe(vorm, deel, gelezen) {
 }
 function verder(vorm) {
   if (vorm.addTravelTime) { toonRegistratieVensterReis(); return; }
-  return zetAanhef(vorm).then(toonRegistratieVensterRapport);
+  return zetAanhef(vorm).then(naarUursoortOfRapport);
+}
+// Na de tijden: staat er nog geen uursoort, dan eerst 'Kies uursoort' (de
+// uursoort van de vorm probeert de hulp dan eerst zelf), anders de rapportage.
+async function naarUursoortOfRapport() {
+  let v = await leesRegistratieVenster(undefined, true);
+  if (uursoortOntbreekt(v) && stand.vorm && stand.vorm.hourType && !stand.uursoortGedaan) {
+    await zetUursoortVanVorm(stand.vorm, v);
+    v = await leesRegistratieVenster();
+  }
+  if (uursoortOntbreekt(v)) toonRegistratieVensterUursoort();
+  else toonRegistratieVensterRapport();
+}
+
+// 'Kies uursoort': dezelfde lijst als het uursoortveld van ONS (de aanbevolen
+// uursoorten eerst, zoals ONS ze toont), net als de afspraakhulp hem uitvraagt.
+// Kiezen zet hem zoals dat veld een keuze meldt; daarna de rapportage.
+function uursoortOpties(lijst) {
+  const gezien = Object.create(null);
+  return (Array.isArray(lijst) ? lijst : []).slice()
+    .sort(function (a, b) { return (b.aanbevolen ? 1 : 0) - (a.aanbevolen ? 1 : 0); })
+    .filter(function (u) { if (!u || !u.naam || gezien[u.naam]) return false; gezien[u.naam] = true; return true; });
+}
+export function toonRegistratieVensterUursoort() {
+  const body = $body(); if (!body) return;
+  markScreen('registratieVensterUursoort');
+  stopControle();
+  stopUursoortWacht();
+  const vorm = stand.vorm;
+  const terug = function () {
+    stopUursoortWacht();
+    safe(function () {
+      if (vorm && vorm.addTravelTime) toonRegistratieVensterReis();
+      else if (deelVraagGeldt(vorm)) toonRegistratieVensterDeel();
+      else { stand.vorm = null; toonRegistratieVenster(); }
+    }, 'registratievenster terug');
+  };
+  const teken = function (lijst, laden) {
+    if (!isScreen('registratieVensterUursoort')) return;
+    renderScreen(body, 'pickList', {
+      title: 'Kies uursoort', titleWeight: 600, loading: laden,
+      options: laden ? null : lijst.map(function (u) { return u.naam; }),
+      emptyMessage: 'Geen uursoorten gevonden, kies hem in het veld Uursoort.',
+      tokens: ONSAH_TOKENS, onBack: terug,
+      onPick: function (naam) {
+        const u = lijst.filter(function (x) { return x.naam === naam; })[0];
+        if (!u) return;
+        stopUursoortWacht();
+        setStatus('Bezig...');
+        opgevangen(zetRegistratieUursoort(u.id).then(function (ok) {
+          stand.uursoortGedaan = true;
+          setStatus(ok ? 'Uursoort ' + u.naam : 'Uursoort niet gezet, kies hem in het veld Uursoort', ok);
+          toonRegistratieVensterRapport();
+        }), 'registratievenster uursoort kiezen');
+      },
+    });
+  };
+  const laad = function () {
+    return leesRegistratieVenster(undefined, true).then(function (v) {
+      if (!isScreen('registratieVensterUursoort')) return;
+      if (v && !uursoortOntbreekt(v)) { stopUursoortWacht(); toonRegistratieVensterRapport(); return; } // intussen in ONS gekozen
+      const lijst = uursoortOpties(v && v.uursoorten);
+      if (lijst.length) {
+        stopUursoortWacht();
+        // Kwam de lijst pas nu, dan eerst de uursoort van de vorm zelf.
+        if (vorm && vorm.hourType && !stand.uursoortGedaan) {
+          return zetUursoortVanVorm(vorm, v).then(function () { return leesRegistratieVenster(); }).then(function (na) {
+            if (!isScreen('registratieVensterUursoort')) return;
+            if (na && !uursoortOntbreekt(na)) toonRegistratieVensterRapport();
+            else { teken(lijst, false); setStatus('Kies de uursoort'); bewaakKeuzeInOns(); }
+          });
+        }
+        teken(lijst, false); setStatus('Kies de uursoort'); bewaakKeuzeInOns(); return;
+      }
+      // Nog geen lijst: opnieuw zodra het uursoortveld hem ophaalt; na even
+      // wachten zonder lijst de melding dat er niets is.
+      if (!stopUursoortSein) stopUursoortSein = onPageEvent(PAGE_EVENT.HOUR_TYPES_LOADED, function () { opgevangen(laad(), 'registratievenster uursoorten'); });
+      if (!uursoortTimer) uursoortTimer = setTimeout(function () { uursoortTimer = null; teken([], false); setStatus('Geen uursoorten gevonden', false); }, 6000);
+    });
+  };
+  // Kiest de medewerker de uursoort in ONS zelf, dan door naar de rapportage
+  // (zoals de afspraakhulp blijft kijken of de uursoort er al is).
+  let bezig = false;
+  const bewaakKeuzeInOns = function () {
+    stopControle();
+    controleTimer = setInterval(function () {
+      if (!isScreen('registratieVensterUursoort') || !helperPanel.active) { stopControle(); return; }
+      if (bezig) return;
+      bezig = true;
+      opgevangen(leesRegistratieVenster().then(function (v) {
+        bezig = false;
+        if (v && !uursoortOntbreekt(v) && isScreen('registratieVensterUursoort')) { stopUursoortWacht(); setStatus('Uursoort gekozen', true); toonRegistratieVensterRapport(); }
+      }, function (e) { bezig = false; throw e; }), 'registratievenster uursoort bewaken');
+    }, 1000);
+  };
+  teken([], true);
+  setStatus('Uursoorten laden...');
+  opgevangen(laad(), 'registratievenster uursoorten');
 }
 // De aanhef van de vorm in de rapportage, alleen als die nog leeg is.
 async function zetAanhef(vorm) {
@@ -203,7 +308,7 @@ export function toonRegistratieVensterReis() {
       }).then(function (ok) {
         setStatus(ok ? 'Reistijd ' + totaal + ' min' : 'Reistijd niet gezet', ok);
         return zetAanhef(vorm);
-      }).then(toonRegistratieVensterRapport), 'registratievenster reistijd');
+      }).then(naarUursoortOfRapport), 'registratievenster reistijd');
     }, undefined, undefined, durationLabelStyle('reistijd')),
   });
   setStatus('Kies de reistijd');

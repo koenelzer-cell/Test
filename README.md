@@ -399,7 +399,9 @@ op die host; de agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
 
 **Registratiehulp in het venster.** Gaat het venster open, dan verschijnt het
 hulppaneel (Registratiehulp) ín het venster; de agenda en het zijpaneel
-blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
+blijven gewoon aan. Dat geldt voor registreren voor een ander én voor
+jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
+`DeclareAsRegistrationModal` of een ander `…RegistrationModal`). De stappen, alles via ONS' eigen koppeling (hieronder):
 1. **Registratievorm kiezen**, dezelfde vormen als de bestaande hulp. Komt
    het venster uit een afspraak met een gekoppeld label (de afspraakdetails
    die ONS net liet zien, zelfde afspraak), dan kiest de hulp die vorm zelf,
@@ -422,7 +424,15 @@ blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
    reistijdveld te zien is, en niet bij 0 minuten), daarna zet hij de waarden.
 4. De **aanhef** van de vorm in de rapportage, alleen als die nog leeg is
    (via het rapportageveld, zoals ONS het doorgeeft).
-5. **Controles**, elke seconde bijgewerkt: rapportage geschreven (alleen de
+5. **Kies uursoort**, zoals de afspraakhulp hem uitvraagt: staat er nog geen
+   uursoort (niet op de registratie en bij geen cliënt), dan toont de hulp de
+   lijst van het uursoortveld van ONS (de aanbevolen uursoorten eerst, zoals
+   ONS ze toont) en zet hij de keuze zoals dat veld. Is de lijst nog niet
+   geladen, dan wacht het scherm op het sein van de main-world
+   (`HOUR_TYPES_LOADED`); kiest de medewerker intussen in ONS zelf, dan gaat
+   de hulp door naar de rapportage. Staat er al een uursoort (bijvoorbeeld uit
+   de afspraak), dan slaat de hulp deze stap over.
+6. **Controles**, elke seconde bijgewerkt: rapportage geschreven (alleen de
    aanhef telt niet; bij no-show voor alle cliënten niet nodig), uursoort
    gekozen, direct plus indirect gelijk aan de duur. **Indienen** in het
    paneel is grijs zolang er iets openstaat; als alles klopt (groen) klikt

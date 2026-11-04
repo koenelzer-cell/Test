@@ -40,6 +40,7 @@ function renderMarkedScreen(screen) {
     case 'registratieVensterDeel': schermen.toonRegistratieVensterDeel(); return true;
     case 'registratieVensterDeelDuur': schermen.toonRegistratieVensterDeelDuur(); return true;
     case 'registratieVensterReis': schermen.toonRegistratieVensterReis(); return true;
+    case 'registratieVensterUursoort': schermen.toonRegistratieVensterUursoort(); return true;
     case 'registratieVensterRapport': schermen.toonRegistratieVensterRapport(); return true;
     default: return false;
   }

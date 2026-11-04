@@ -66,6 +66,13 @@ export function reistijdVerdeling(totaal) {
   return { heen: Math.ceil(t / 2), terug: Math.floor(t / 2) };
 }
 
+// Staat er nog geen uursoort (niet op de registratie en bij geen cliënt)?
+export function uursoortOntbreekt(v) {
+  if (!v) return false;
+  const clients = Array.isArray(v.clients) ? v.clients : [];
+  return v.uursoort == null && !clients.some(function (c) { return c && c.uursoort != null; });
+}
+
 // Wat nog moet vóór indienen: [{ sev: 'error', soort, msg }]. Een fout houdt
 // Indienen in de hulp tegen.
 export function controleerVenster(v, vorm) {
@@ -77,7 +84,7 @@ export function controleerVenster(v, vorm) {
   if (v.rapportVerplicht && !alleNoShow && !(v.rapportLengte > prefix.length)) {
     uit.push({ sev: 'error', soort: 'rapportage', msg: 'Schrijf eerst de rapportage' });
   }
-  if (v.uursoort == null && !clients.some(function (c) { return c.uursoort != null; })) {
+  if (uursoortOntbreekt(v)) {
     uit.push({ sev: 'error', soort: 'uursoort', msg: 'Kies de uursoort' + (vorm && vorm.hourType ? ' (' + vorm.hourType + ')' : '') });
   }
   const totaal = duurVanVenster(v);

@@ -3483,8 +3483,10 @@
     // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
     URL_CHANGED: "urlGewijzigd",
     // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
-    NET_REQUEST: "netwerkVerzoek"
+    NET_REQUEST: "netwerkVerzoek",
     // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
+    HOUR_TYPES_LOADED: "uursoortenGeladen"
+    // { aantal }  het uursoortveld van het registratievenster haalde zijn lijst op (de lijst zelf via READ_REGISTRATION met uursoorten)
   };
   var PAGE_COMMAND = {
     SET_LABELS: "zetLabels",
@@ -18051,6 +18053,13 @@
     const t = Math.max(0, Math.round(Number(totaal) || 0));
     return { heen: Math.ceil(t / 2), terug: Math.floor(t / 2) };
   }
+  function uursoortOntbreekt(v) {
+    if (!v) return false;
+    const clients = Array.isArray(v.clients) ? v.clients : [];
+    return v.uursoort == null && !clients.some(function(c) {
+      return c && c.uursoort != null;
+    });
+  }
   function controleerVenster(v, vorm) {
     const uit = [];
     if (!v) return uit;
@@ -18062,9 +18071,7 @@
     if (v.rapportVerplicht && !alleNoShow && !(v.rapportLengte > prefix.length)) {
       uit.push({ sev: "error", soort: "rapportage", msg: "Schrijf eerst de rapportage" });
     }
-    if (v.uursoort == null && !clients.some(function(c) {
-      return c.uursoort != null;
-    })) {
+    if (uursoortOntbreekt(v)) {
       uit.push({ sev: "error", soort: "uursoort", msg: "Kies de uursoort" + (vorm && vorm.hourType ? " (" + vorm.hourType + ")" : "") });
     }
     const totaal = duurVanVenster(v);
@@ -18077,6 +18084,16 @@
   // src/content/features/registratie-nieuw/schermen.js
   var stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false };
   var controleTimer = null;
+  var stopUursoortSein = null;
+  var uursoortTimer = null;
+  function stopUursoortWacht() {
+    if (stopUursoortSein) {
+      stopUursoortSein();
+      stopUursoortSein = null;
+    }
+    clearTimeout(uursoortTimer);
+    uursoortTimer = null;
+  }
   function vormen() {
     return REGISTRATION_CHOICES || [];
   }
@@ -18101,6 +18118,7 @@
   }
   function vergeetRegistratieVenster() {
     stopControle();
+    stopUursoortWacht();
     stand.afspraak = null;
     stand.vorm = null;
     stand.autoGedaan = false;
@@ -18155,7 +18173,7 @@
   }
   function verversRegistratieVenster() {
     if (stand.bezig) return;
-    if (isScreen("registratieVensterKeuze") || isScreen("registratieVensterDeel") || isScreen("registratieVensterDeelDuur") || isScreen("registratieVensterReis") || isScreen("registratieVensterRapport")) return;
+    if (isScreen("registratieVensterKeuze") || isScreen("registratieVensterDeel") || isScreen("registratieVensterDeelDuur") || isScreen("registratieVensterReis") || isScreen("registratieVensterUursoort") || isScreen("registratieVensterRapport")) return;
     toonRegistratieVenster();
   }
   async function kiesVorm(vorm, gelezen) {
@@ -18180,7 +18198,7 @@
         setStatus(ok ? "No show gezet" : "No show niet gezet bij elke cliënt", ok);
         stand.bezig = false;
         await zetAanhef(vorm);
-        toonRegistratieVensterRapport();
+        await naarUursoortOfRapport();
         return;
       }
       stand.bezig = false;
@@ -18208,7 +18226,137 @@
       toonRegistratieVensterReis();
       return;
     }
-    return zetAanhef(vorm).then(toonRegistratieVensterRapport);
+    return zetAanhef(vorm).then(naarUursoortOfRapport);
+  }
+  async function naarUursoortOfRapport() {
+    let v = await leesRegistratieVenster(void 0, true);
+    if (uursoortOntbreekt(v) && stand.vorm && stand.vorm.hourType && !stand.uursoortGedaan) {
+      await zetUursoortVanVorm(stand.vorm, v);
+      v = await leesRegistratieVenster();
+    }
+    if (uursoortOntbreekt(v)) toonRegistratieVensterUursoort();
+    else toonRegistratieVensterRapport();
+  }
+  function uursoortOpties(lijst) {
+    const gezien = /* @__PURE__ */ Object.create(null);
+    return (Array.isArray(lijst) ? lijst : []).slice().sort(function(a, b) {
+      return (b.aanbevolen ? 1 : 0) - (a.aanbevolen ? 1 : 0);
+    }).filter(function(u) {
+      if (!u || !u.naam || gezien[u.naam]) return false;
+      gezien[u.naam] = true;
+      return true;
+    });
+  }
+  function toonRegistratieVensterUursoort() {
+    const body = $body();
+    if (!body) return;
+    markScreen("registratieVensterUursoort");
+    stopControle();
+    stopUursoortWacht();
+    const vorm = stand.vorm;
+    const terug = function() {
+      stopUursoortWacht();
+      safe(function() {
+        if (vorm && vorm.addTravelTime) toonRegistratieVensterReis();
+        else if (deelVraagGeldt(vorm)) toonRegistratieVensterDeel();
+        else {
+          stand.vorm = null;
+          toonRegistratieVenster();
+        }
+      }, "registratievenster terug");
+    };
+    const teken = function(lijst, laden) {
+      if (!isScreen("registratieVensterUursoort")) return;
+      renderScreen(body, "pickList", {
+        title: "Kies uursoort",
+        titleWeight: 600,
+        loading: laden,
+        options: laden ? null : lijst.map(function(u) {
+          return u.naam;
+        }),
+        emptyMessage: "Geen uursoorten gevonden, kies hem in het veld Uursoort.",
+        tokens: ONSAH_TOKENS,
+        onBack: terug,
+        onPick: function(naam) {
+          const u = lijst.filter(function(x) {
+            return x.naam === naam;
+          })[0];
+          if (!u) return;
+          stopUursoortWacht();
+          setStatus("Bezig...");
+          opgevangen(zetRegistratieUursoort(u.id).then(function(ok) {
+            stand.uursoortGedaan = true;
+            setStatus(ok ? "Uursoort " + u.naam : "Uursoort niet gezet, kies hem in het veld Uursoort", ok);
+            toonRegistratieVensterRapport();
+          }), "registratievenster uursoort kiezen");
+        }
+      });
+    };
+    const laad = function() {
+      return leesRegistratieVenster(void 0, true).then(function(v) {
+        if (!isScreen("registratieVensterUursoort")) return;
+        if (v && !uursoortOntbreekt(v)) {
+          stopUursoortWacht();
+          toonRegistratieVensterRapport();
+          return;
+        }
+        const lijst = uursoortOpties(v && v.uursoorten);
+        if (lijst.length) {
+          stopUursoortWacht();
+          if (vorm && vorm.hourType && !stand.uursoortGedaan) {
+            return zetUursoortVanVorm(vorm, v).then(function() {
+              return leesRegistratieVenster();
+            }).then(function(na) {
+              if (!isScreen("registratieVensterUursoort")) return;
+              if (na && !uursoortOntbreekt(na)) toonRegistratieVensterRapport();
+              else {
+                teken(lijst, false);
+                setStatus("Kies de uursoort");
+                bewaakKeuzeInOns();
+              }
+            });
+          }
+          teken(lijst, false);
+          setStatus("Kies de uursoort");
+          bewaakKeuzeInOns();
+          return;
+        }
+        if (!stopUursoortSein) stopUursoortSein = onPageEvent(PAGE_EVENT.HOUR_TYPES_LOADED, function() {
+          opgevangen(laad(), "registratievenster uursoorten");
+        });
+        if (!uursoortTimer) uursoortTimer = setTimeout(function() {
+          uursoortTimer = null;
+          teken([], false);
+          setStatus("Geen uursoorten gevonden", false);
+        }, 6e3);
+      });
+    };
+    let bezig = false;
+    const bewaakKeuzeInOns = function() {
+      stopControle();
+      controleTimer = setInterval(function() {
+        if (!isScreen("registratieVensterUursoort") || !helperPanel.active) {
+          stopControle();
+          return;
+        }
+        if (bezig) return;
+        bezig = true;
+        opgevangen(leesRegistratieVenster().then(function(v) {
+          bezig = false;
+          if (v && !uursoortOntbreekt(v) && isScreen("registratieVensterUursoort")) {
+            stopUursoortWacht();
+            setStatus("Uursoort gekozen", true);
+            toonRegistratieVensterRapport();
+          }
+        }, function(e) {
+          bezig = false;
+          throw e;
+        }), "registratievenster uursoort bewaken");
+      }, 1e3);
+    };
+    teken([], true);
+    setStatus("Uursoorten laden...");
+    opgevangen(laad(), "registratievenster uursoorten");
   }
   async function zetAanhef(vorm) {
     if (!vorm || !vorm.reportPrefix) return;
@@ -18302,7 +18450,7 @@
         }).then(function(ok) {
           setStatus(ok ? "Reistijd " + totaal + " min" : "Reistijd niet gezet", ok);
           return zetAanhef(vorm);
-        }).then(toonRegistratieVensterRapport), "registratievenster reistijd");
+        }).then(naarUursoortOfRapport), "registratievenster reistijd");
       }, void 0, void 0, durationLabelStyle("reistijd"))
     });
     setStatus("Kies de reistijd");
@@ -20439,6 +20587,9 @@
       case "registratieVensterReis":
         schermen.toonRegistratieVensterReis();
         return true;
+      case "registratieVensterUursoort":
+        schermen.toonRegistratieVensterUursoort();
+        return true;
       case "registratieVensterRapport":
         schermen.toonRegistratieVensterRapport();
         return true;
@@ -20993,6 +21144,7 @@
     toonRegistratieVensterDeelDuur,
     toonRegistratieVensterRapport,
     toonRegistratieVensterReis,
+    toonRegistratieVensterUursoort,
     verversRegistratieVenster
   });
   startModuleHost();

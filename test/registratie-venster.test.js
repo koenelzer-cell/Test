@@ -17,7 +17,7 @@ const ACTIVITEITEN = {
 };
 
 // opties: neemtOver (de ouder werkt de registratie bij), metClients.
-async function venster({ neemtOver = true, metVenster = true } = {}) {
+async function venster({ neemtOver = true, metVenster = true, modalNaam = 'DeclareAsRegistrationModal' } = {}) {
   const { JSDOM } = await import('jsdom');
   const dom = new JSDOM(metVenster ? HTML : '<!doctype html><body><div id="content"></div></body>', { url: 'https://impegno-backup-staging.onsagenda.nl/invitees/1,2/calendar/week', runScripts: 'outside-only' });
   const w = dom.window, d = w.document, $ = (s) => d.querySelector(s);
@@ -45,7 +45,7 @@ async function venster({ neemtOver = true, metVenster = true } = {}) {
     { component: tijd, props: { 'onUpdate:registration': werkBij } },
     { component: clients, props: { 'onUpdate:registration': werkBij, 'onUpdate:clientDeclarationField': veldBij } },
   ] } };
-  const modal = { type: { name: 'DeclareAsRegistrationModal' }, props: {}, subTree: { el: $('uc-modal') || d.body, children: [{ component: form, props: {} }] } };
+  const modal = { type: { name: modalNaam }, props: { occurrenceId: 'a1b2c3' }, subTree: { el: $('uc-modal') || d.body, children: [{ component: form, props: {} }] } };
   $('#content').__vue_app__ = { version: '3.5.43' };
   $('#content')._vnode = { component: modal };
   // Wat de pagina zelf ophaalt (de main-world kijkt mee).
@@ -118,7 +118,7 @@ test('de uursoortlijst die het uursoortveld ophaalt: alleen id en naam, zonder d
   await new Promise((k) => setTimeout(k, 20));
   const r = await v.vraag('leesRegistratie', 'registratieGelezen', { uursoorten: true });
   assert.deepEqual(JSON.parse(JSON.stringify(r.uursoorten)), [
-    { id: 1145, naam: 'Behandeling (GGZ 18+)' }, { id: 1146, naam: 'Diagnostiek (GGZ 18+)' }, { id: 1089, naam: 'Detachering' },
+    { id: 1145, naam: 'Behandeling (GGZ 18+)', aanbevolen: true }, { id: 1146, naam: 'Diagnostiek (GGZ 18+)', aanbevolen: true }, { id: 1089, naam: 'Detachering', aanbevolen: false },
   ]);
   assert.doesNotMatch(JSON.stringify(r), /BEH-GGZ|4645/);
 });
@@ -134,4 +134,12 @@ test('uursoort zetten: het change-activity-event met de id als tekst aan onChang
   const nietOver = await venster({ neemtOver: false });
   const r2 = await nietOver.vraag('zetRegistratie', 'registratieGezet', { uursoort: 1146 });
   assert.deepEqual([r2.ok, r2.reden], [false, 'het formulier nam de waarde niet over']);
+});
+
+test('ook het venster voor registreren voor jezelf: de afspraak uit een ander …RegistrationModal', async () => {
+  const zelf = await venster({ modalNaam: 'RegistrationModal' });
+  const r = await zelf.vraag('leesRegistratie', 'registratieGelezen');
+  assert.deepEqual([r.ok, r.afspraak], [true, 'a1b2c3']);
+  const voor = await venster();
+  assert.equal((await voor.vraag('leesRegistratie', 'registratieGelezen')).afspraak, 'a1b2c3');
 });

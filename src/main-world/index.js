@@ -207,10 +207,10 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           const id = Number(m && m.objectId), naam = String((m && m.description) || '').trim().slice(0, 120);
           if (!(id > 0) || !naam || gezien[id] || lijst.length >= 500) return;
           gezien[id] = true;
-          lijst.push({ id: id, naam: naam });
+          lijst.push({ id: id, naam: naam, aanbevolen: k === 'suggestedActivityList' });
         });
       });
-      if (lijst.length) laatsteUursoorten = { lijst: lijst, ts: Date.now() };
+      if (lijst.length) { laatsteUursoorten = { lijst: lijst, ts: Date.now() }; post(PAGE_EVENT.HOUR_TYPES_LOADED, { aantal: lijst.length }); }
     } catch (e) {}
   }
   function melderVoor(url, method) {
@@ -433,7 +433,9 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     // props de luisteraars die de ouder meegeeft, zoals onUpdate:registration).
     return { veld: function (el) { return perEl.get(el) || null; }, velden: velden, details: details,
       binnen: function (el) { return alle.filter(function (v) { return v.el === el || (el && el.contains(v.el)); }); },
-      component: function (naam) { return perNaam[naam] || null; } };
+      component: function (naam) { return perNaam[naam] || null; },
+      // componentZoals(re): het eerste onderdeel waarvan de naam past.
+      componentZoals: function (re) { const k = Object.keys(perNaam).filter(function (n) { return re.test(n); })[0]; return k ? perNaam[k] : null; } };
   }
   function zetEnControleer(doe, controleer, klaar) {
     try { doe(); } catch (e) { klaar({ ok: false, reden: 'ONS weigerde de waarde' }); return; }
@@ -788,7 +790,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     const anker = diepZoek(document, '[data-qa="time-distribution-fields"]');
     const boom = anker ? formulierBoom(anker) : null;
     if (!boom) return null;
-    const tijd = boom.component('TimeRegistrationCard'), clients = boom.component('ReportAndClientsCard'), modal = boom.component('DeclareAsRegistrationModal');
+    const tijd = boom.component('TimeRegistrationCard'), clients = boom.component('ReportAndClientsCard'), modal = boom.component('DeclareAsRegistrationModal') || boom.componentZoals(/Registration.*Modal$/);
     const reg = tijd && tijd.component && tijd.component.props && tijd.component.props.registration;
     return reg && typeof reg === 'object' ? { boom: boom, tijd: tijd, clients: clients, modal: modal, reg: reg } : null;
   }

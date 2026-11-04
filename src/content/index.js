@@ -34,7 +34,7 @@ import { showRegistrationChoices, showRegistrationDurationAsk, showRegistrationP
 import { showRegistrationHourTypeSelection } from './features/registration/hour-type.js';
 import { showRegistrationNoShowPrompt } from './features/registration/prompts.js';
 import { showUursoortQueue } from './features/appointment/uursoort-queue.js';
-import { toonRegistratieVenster, toonRegistratieVensterDeel, toonRegistratieVensterDeelDuur, toonRegistratieVensterRapport, toonRegistratieVensterReis, verversRegistratieVenster } from './features/registratie-nieuw/schermen.js';
+import { toonRegistratieVenster, toonRegistratieVensterDeel, toonRegistratieVensterDeelDuur, toonRegistratieVensterRapport, toonRegistratieVensterReis, toonRegistratieVensterUursoort, verversRegistratieVenster } from './features/registratie-nieuw/schermen.js';
 
 /* ===== Opstarten =====
    Alles hierboven zijn declaraties. Hier, en alleen hier, start het script:
@@ -60,7 +60,7 @@ koppelSchermen({
   showRegistrationReportPrompt, showRegistrationSubmitOnly, showRegistrationTravelSelection,
   showUursoort, showUursoortQueue,
   toonRegistratieVenster, toonRegistratieVensterDeel, toonRegistratieVensterDeelDuur,
-  toonRegistratieVensterRapport, toonRegistratieVensterReis, verversRegistratieVenster,
+  toonRegistratieVensterRapport, toonRegistratieVensterReis, toonRegistratieVensterUursoort, verversRegistratieVenster,
 });
 // Het moduleplatform eerst: de modules melden zich daar aan.
 startModuleHost();
