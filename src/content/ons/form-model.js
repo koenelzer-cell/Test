@@ -107,24 +107,32 @@ export function zetRegistratieRapport(aanhef, wachtMs) {
 export function zetRegistratieUursoort(id, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoort: Number(id) }, wachtMs);
 }
+// De uursoort via de eigen lijst van het uursoortveld (zonder hem te openen),
+// zodat het veld hem ook toont.
+export function zetRegistratieUursoortViaVeld(id, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoortViaVeld: Number(id) }, wachtMs);
+}
 // De eindtijd zoveel minuten na de begintijd (No show: 1), via de koppeling
 // van TimeRegistrationCard (end_time als Date, zoals ONS hem doorgeeft).
 export function zetRegistratieEindNaBegin(minuten, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { eindNaBegin: Number(minuten) }, wachtMs);
 }
 // De uursoort in het registratievenster kiezen. UITZONDERING op eerst-via-het-
-// formulier: het uursoortveld (ue-activity-select) toont een keuze alleen als
-// die via het veld zelf loopt; via de koppeling staat hij wel in de
-// registratie maar blijft het veld 'Selecteer een uursoort' tonen. Daarom hier
-// eerst het scherm (de keuzelijst openen en de optie kiezen, zoals bij het
-// afspraakformulier), nagekeken in de registratie; lukt dat niet, dan de
-// koppeling. -> Promise<{ ok, zichtbaar }>
+// formulier: het uursoortveld (ue-activity-select, een Vue-onderdeel als
+// web-element) toont een keuze alleen als die uit zijn eigen lijst komt; via de
+// koppeling staat hij wel in de registratie maar blijft het veld 'Selecteer
+// een uursoort' tonen. Daarom, telkens nagekeken in de registratie:
+//   1. via de eigen lijst van het veld, zonder hem te openen (main-world);
+//   2. het scherm: de keuzelijst openen en de optie kiezen;
+//   3. de koppeling (staat goed, maar het veld toont hem niet).
+// -> Promise<{ ok, zichtbaar }>
 export function kiesUursoortInVenster(id, naam, keuzelijst) {
+  const viaVeld = () => zetRegistratieUursoortViaVeld(id);
   const viaScherm = () => new Promise((klaar) => {
     if (!keuzelijst || !naam) { klaar(false); return; }
     openTypePick(() => keuzelijst, naam, (ok) => klaar(!!ok));
   }).then((ok) => (ok ? leesRegistratieVenster().then((v) => !!v && v.uursoort === Number(id)) : false));
-  return viaScherm().then((ok) => (ok ? { ok: true, zichtbaar: true }
+  return viaVeld().then((ok) => (ok ? true : viaScherm())).then((ok) => (ok ? { ok: true, zichtbaar: true }
     : zetRegistratieUursoort(id).then((gezet) => ({ ok: !!gezet, zichtbaar: false }))));
 }
 export function zetRegistratieNoShow(clientId, aan, wachtMs) {

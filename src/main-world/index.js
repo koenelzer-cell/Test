@@ -906,6 +906,35 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
       return !!na && String(na.reg.report_comment == null ? '' : na.reg.report_comment) === tekst;
     }, klaar);
   }
+  // De uursoort via de lijst van het uursoortveld zelf, zonder hem te openen.
+  // ue-activity-select is een Vue-onderdeel als web-element: het toont een
+  // keuze alleen als die uit zijn eigen lijst komt (uc-select-list in zijn
+  // shadow-DOM, items met value 'SUGGESTED_1145' en src.activityId). Dus: de
+  // waarde van die lijst op de uursoort zetten en de gebeurtenissen sturen die
+  // de lijst bij een klik zelf stuurt; het veld meldt dan zelf change-activity
+  // en toont de keuze. Nagekeken in de registratie.
+  function zetVensterUursoortViaVeld(waarde, klaar) {
+    const id = Number(waarde);
+    if (!(id > 0) || Math.round(id) !== id) { klaar({ ok: false, reden: 'ongeldige uursoort' }); return; }
+    const veld = diepZoek(document, 'ue-activity-select');
+    const lijst = veld && veld.shadowRoot ? diepZoek(veld.shadowRoot, 'uc-select-list') : null;
+    if (!lijst) { klaar({ ok: false, reden: 'geen lijst in het uursoortveld' }); return; }
+    let items = [];
+    try { items = Array.isArray(lijst.items) ? lijst.items : []; } catch (e) { items = []; }
+    const item = items.filter(function (it) {
+      const s = it && it.src, a = s && (s.activityId != null ? s.activityId : s.id), m = /(\d+)$/.exec(String(it && it.value));
+      return String(a) === String(id) || (!!m && m[1] === String(id));
+    })[0];
+    if (!item) { klaar({ ok: false, reden: 'uursoort niet in de lijst van het veld' }); return; }
+    zetEnControleer(function () {
+      lijst.value = item.value;
+      lijst.dispatchEvent(new CustomEvent('uc-select:change', { detail: [], bubbles: true, composed: true }));
+      lijst.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    }, function () {
+      const na = registratieVenster();
+      return !!na && uursoortId(na.reg.hour_type) === id;
+    }, klaar);
+  }
   // De uursoort: zoals het uursoortveld (ue-activity-select) een keuze meldt,
   // het change-activity-event met de id als tekst, aan de luisteraar die
   // TimeRegistrationCard op dat veld zet (onChangeActivity). Die maakt er zelf
@@ -946,6 +975,7 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
     const r = registratieVenster();
     if (!r) { klaar({ ok: false, reden: 'geen registratievenster' }); return; }
     if (typeof d.rapport === 'string' && d.rapport) { zetRapportAanhef(r, d.rapport, klaar); return; }
+    if (d.uursoortViaVeld != null) { zetVensterUursoortViaVeld(d.uursoortViaVeld, klaar); return; }
     if (d.uursoort != null) { zetVensterUursoort(r, d.uursoort, klaar); return; }
     if (d.eindNaBegin != null) { zetVensterEind(r, d.eindNaBegin, klaar); return; }
     if (d.noShow && typeof d.noShow === 'object') {

@@ -53,7 +53,7 @@
     REGISTRATION_READ: "registratieGelezen",
     // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, uursoortViaVeld: id } (via de lijst van ue-activity-select, zodat het veld hem toont) of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -1267,6 +1267,41 @@
         return !!na && String(na.reg.report_comment == null ? "" : na.reg.report_comment) === tekst;
       }, klaar);
     }
+    function zetVensterUursoortViaVeld(waarde, klaar) {
+      const id = Number(waarde);
+      if (!(id > 0) || Math.round(id) !== id) {
+        klaar({ ok: false, reden: "ongeldige uursoort" });
+        return;
+      }
+      const veld = diepZoek(document, "ue-activity-select");
+      const lijst = veld && veld.shadowRoot ? diepZoek(veld.shadowRoot, "uc-select-list") : null;
+      if (!lijst) {
+        klaar({ ok: false, reden: "geen lijst in het uursoortveld" });
+        return;
+      }
+      let items = [];
+      try {
+        items = Array.isArray(lijst.items) ? lijst.items : [];
+      } catch (e) {
+        items = [];
+      }
+      const item = items.filter(function(it) {
+        const s = it && it.src, a = s && (s.activityId != null ? s.activityId : s.id), m = /(\d+)$/.exec(String(it && it.value));
+        return String(a) === String(id) || !!m && m[1] === String(id);
+      })[0];
+      if (!item) {
+        klaar({ ok: false, reden: "uursoort niet in de lijst van het veld" });
+        return;
+      }
+      zetEnControleer(function() {
+        lijst.value = item.value;
+        lijst.dispatchEvent(new CustomEvent("uc-select:change", { detail: [], bubbles: true, composed: true }));
+        lijst.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+      }, function() {
+        const na = registratieVenster();
+        return !!na && uursoortId(na.reg.hour_type) === id;
+      }, klaar);
+    }
     function zetVensterUursoort(r, waarde, klaar) {
       const id = Number(waarde);
       if (!(id > 0) || Math.round(id) !== id) {
@@ -1324,6 +1359,10 @@
       }
       if (typeof d.rapport === "string" && d.rapport) {
         zetRapportAanhef(r, d.rapport, klaar);
+        return;
+      }
+      if (d.uursoortViaVeld != null) {
+        zetVensterUursoortViaVeld(d.uursoortViaVeld, klaar);
         return;
       }
       if (d.uursoort != null) {

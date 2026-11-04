@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.318
+
+- Alleen voor het testpakket: in het vernieuwde registratievenster kiest de
+  hulp de uursoort nu in het veld zelf zonder de keuzelijst open te klappen;
+  het veld toont de uursoort daarna gewoon.
+
 ## 1.6.317
 
 - Alleen voor het testpakket (backup staging):

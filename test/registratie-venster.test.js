@@ -58,7 +58,7 @@ async function venster({ neemtOver = true, metVenster = true, modalNaam = 'Decla
     w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type, id, ...velden }, origin: w.location.origin, source: w }));
     setTimeout(() => klaar(null), 600);
   });
-  return { w, vraag, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), activiteit: () => JSON.parse(JSON.stringify(activiteit)) };
+  return { w, vraag, reg, opActiviteit, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), activiteit: () => JSON.parse(JSON.stringify(activiteit)) };
 }
 
 test('lezen: tijden, getallen en per cliÃ«nt id, no-show en uursoort; geen namen of rapportagetekst', async () => {
@@ -142,4 +142,31 @@ test('ook het venster voor registreren voor jezelf: de afspraak uit een ander â€
   assert.deepEqual([r.ok, r.afspraak], [true, 'a1b2c3']);
   const voor = await venster();
   assert.equal((await voor.vraag('leesRegistratie', 'registratieGelezen')).afspraak, 'a1b2c3');
+});
+
+test('uursoort via de eigen lijst van het veld (zonder openen): de waarde van uc-select-list en zijn change, zodat het veld zelf change-activity meldt', async () => {
+  const v = await venster();
+  const zonder = await v.vraag('zetRegistratie', 'registratieGezet', { uursoortViaVeld: 1146 });
+  assert.deepEqual([zonder.ok, zonder.reden], [false, 'geen lijst in het uursoortveld']);
+  // Zoals het web-element: een uc-select-list in de shadow-DOM, en bij change
+  // meldt het veld zelf change-activity (waar Vue op luistert).
+  const ue = v.w.document.querySelector('ue-activity-select');
+  const sr = ue.attachShadow({ mode: 'open' });
+  sr.innerHTML = '<div><uc-select><uc-select-list></uc-select-list></uc-select></div>';
+  const lijst = sr.querySelector('uc-select-list');
+  lijst.items = [{ value: 'SUGGESTED_1145', label: 'Behandeling (GGZ 18+)', src: { activityId: '1145' } }, { value: 'OTHER_1146', label: 'Diagnostiek (GGZ 18+)', src: { activityId: '1146' } }];
+  const gemeld = [];
+  lijst.addEventListener('change', () => {
+    const it = lijst.items.filter((x) => x.value === lijst.value)[0];
+    gemeld.push(lijst.value);
+    ue.dispatchEvent(new v.w.CustomEvent('change-activity', { detail: [String(it.src.activityId)] }));
+  });
+  ue.addEventListener('change-activity', v.opActiviteit);
+  const r = await v.vraag('zetRegistratie', 'registratieGezet', { uursoortViaVeld: 1146 });
+  assert.equal(r.ok, true);
+  assert.deepEqual(gemeld, ['OTHER_1146'], 'de lijst kreeg de waarde van die uursoort');
+  assert.deepEqual(v.activiteit(), [['change-activity', ['1146']]], 'het veld meldde zelf de keuze');
+  assert.deepEqual(v.ontvangen(), [['registration', { hour_type: { external_id: '1146' } }]]);
+  const onbekend = await v.vraag('zetRegistratie', 'registratieGezet', { uursoortViaVeld: 999 });
+  assert.deepEqual([onbekend.ok, onbekend.reden], [false, 'uursoort niet in de lijst van het veld']);
 });

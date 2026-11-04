@@ -464,11 +464,14 @@ jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
 5. **Kies uursoort**, zoals de afspraakhulp hem uitvraagt: staat er nog geen
    uursoort (niet op de registratie en bij geen cliënt), dan toont de hulp de
    lijst van het uursoortveld van ONS (de aanbevolen uursoorten eerst, zoals
-   ONS ze toont). Kiezen loopt via het veld zelf: de keuzelijst van het
-   uursoortveld openen en de optie kiezen, zoals bij het afspraakformulier,
-   zodat het veld hem ook toont. Lukt dat niet, dan via de koppeling: dan
-   staat hij in de registratie maar toont het veld hem niet, en dat staat bij
-   de controles. Is de lijst nog niet
+   ONS ze toont). Het uursoortveld (`ue-activity-select`, een Vue-onderdeel
+   als web-element) toont een keuze alleen als die uit zijn eigen lijst komt.
+   Kiezen loopt daarom eerst via die lijst, zonder hem te openen: de hulp zet
+   in de main-world de waarde van de `uc-select-list` in het veld en stuurt
+   de gebeurtenissen die die lijst bij een klik stuurt; het veld meldt dan
+   zelf de keuze en toont hem. Lukt dat niet, dan de keuzelijst openen en de
+   optie kiezen; lukt ook dat niet, dan via de koppeling: dan staat hij in de
+   registratie maar toont het veld hem niet, en dat staat bij de controles. Is de lijst nog niet
    geladen, dan wacht het scherm op het sein van de main-world
    (`HOUR_TYPES_LOADED`); kiest de medewerker intussen in ONS zelf, dan gaat
    de hulp door naar de rapportage. Staat er al een uursoort (bijvoorbeeld uit

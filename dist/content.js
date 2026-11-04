@@ -3516,7 +3516,7 @@
     REGISTRATION_READ: "registratieGelezen",
     // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, uursoortViaVeld: id } (via de lijst van ue-activity-select, zodat het veld hem toont) of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -6135,10 +6135,14 @@
   function zetRegistratieUursoort(id, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoort: Number(id) }, wachtMs);
   }
+  function zetRegistratieUursoortViaVeld(id, wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoortViaVeld: Number(id) }, wachtMs);
+  }
   function zetRegistratieEindNaBegin(minuten2, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { eindNaBegin: Number(minuten2) }, wachtMs);
   }
   function kiesUursoortInVenster(id, naam, keuzelijst) {
+    const viaVeld = () => zetRegistratieUursoortViaVeld(id);
     const viaScherm = () => new Promise((klaar) => {
       if (!keuzelijst || !naam) {
         klaar(false);
@@ -6146,7 +6150,7 @@
       }
       openTypePick(() => keuzelijst, naam, (ok) => klaar(!!ok));
     }).then((ok) => ok ? leesRegistratieVenster().then((v) => !!v && v.uursoort === Number(id)) : false);
-    return viaScherm().then((ok) => ok ? { ok: true, zichtbaar: true } : zetRegistratieUursoort(id).then((gezet) => ({ ok: !!gezet, zichtbaar: false })));
+    return viaVeld().then((ok) => ok ? true : viaScherm()).then((ok) => ok ? { ok: true, zichtbaar: true } : zetRegistratieUursoort(id).then((gezet) => ({ ok: !!gezet, zichtbaar: false })));
   }
   function zetRegistratieNoShow(clientId, aan2, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan2 === true } }, wachtMs);
