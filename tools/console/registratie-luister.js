@@ -14,8 +14,8 @@
 // (tekst onder gevoelige sleutels als 'tekst(n)', id's als 'id', nummers in
 // tekst als '{n}', tekst uit tekstvelden en de rapportage alleen als lengte).
 (() => {
-  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$/i;
-  const ID_SLEUTEL = /(^|_)ids?$|^external/i;
+  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker/i;
+  const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   const schoon = (t) => String(t).replace(/[0-9a-f]{10,}/gi, '{id}').replace(/\d{3,}/g, '{n}');
   const adres = (u) => { const [pad, zoek] = String(u).split('?'); return schoon(pad).replace(/\d+/g, '{n}') + (zoek ? '?' + zoek.split('&').map((d) => d.split('=')[0] + '=…').join('&') : ''); };
   const kort = (w, d, sleutel) => {
@@ -38,7 +38,10 @@
     if (d > 4) return Array.isArray(w) ? 'lijst(' + w.length + ')' : 'object{' + Object.keys(w).slice(0, 12).join(',') + '}';
     if (Array.isArray(w)) return w.slice(0, 3).map((x) => kort(x, d + 1, sleutel)).concat(w.length > 3 ? ['…en ' + (w.length - 3) + ' meer'] : []);
     const o = {};
-    Object.keys(w).slice(0, 45).forEach((k) => { let x; try { x = w[k]; } catch (e) { x = '?'; } o[k] = kort(x, d + 1, k); });
+    // Onder een gevoelige sleutel (client, care_allocations …) blijft alles
+    // gevoelig: de sleutel wordt 'client name', 'care_allocations begin_date'.
+    const erft = sleutel && GEVOELIG.test(sleutel);
+    Object.keys(w).slice(0, 45).forEach((k) => { let x; try { x = w[k]; } catch (e) { x = '?'; } o[k] = kort(x, d + 1, erft ? sleutel + ' ' + k : k); });
     return o;
   };
   const naamVan = (t) => (t && typeof t === 'object' ? (t.name || t.__name || 'naamloos') : typeof t === 'string' ? t : '');

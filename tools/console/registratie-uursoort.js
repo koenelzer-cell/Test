@@ -20,8 +20,8 @@
 // persoonsgegevens); bij andere keuzelijsten (zoals de medewerker) alleen
 // het aantal en de opbouw.
 (() => {
-  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$/i;
-  const ID_SLEUTEL = /(^|_)ids?$|^external/i;
+  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker/i;
+  const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   const UURSOORT = /hour|activit|uursoort/i;
   const LABEL_SLEUTEL = /^(name|description|label|title|text|code|abbreviation)$/i;
   const schoon = (t) => String(t).replace(/[0-9a-f]{10,}/gi, '{id}').replace(/\d{3,}/g, '{n}');
@@ -44,7 +44,10 @@
     if (d > 4) return Array.isArray(w) ? 'lijst(' + w.length + ')' : 'object{' + Object.keys(w).slice(0, 12).join(',') + '}';
     if (Array.isArray(w)) return w.slice(0, 3).map((x) => kort(x, d + 1, sleutel)).concat(w.length > 3 ? ['…en ' + (w.length - 3) + ' meer'] : []);
     const o = {};
-    Object.keys(w).slice(0, 45).forEach((k) => { let x; try { x = w[k]; } catch (e) { x = '?'; } o[k] = kort(x, d + 1, k); });
+    // Onder een gevoelige sleutel (client, care_allocations …) blijft alles
+    // gevoelig: de sleutel wordt 'client name', 'care_allocations begin_date'.
+    const erft = sleutel && GEVOELIG.test(sleutel);
+    Object.keys(w).slice(0, 45).forEach((k) => { let x; try { x = w[k]; } catch (e) { x = '?'; } o[k] = kort(x, d + 1, erft ? sleutel + ' ' + k : k); });
     return o;
   };
   // Een lijst opties: aantal, de sleutels van een optie, en bij een

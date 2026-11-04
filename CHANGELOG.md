@@ -2,6 +2,13 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.313
+
+- Alleen voor het testpakket: in het vernieuwde registratievenster zet de
+  hulp nu ook de uursoort van de registratievorm, en de controle ziet een
+  uursoort die je zelf kiest. Vindt de hulp de uursoort niet, dan kies je
+  hem zelf.
+
 ## 1.6.312
 
 - Alleen voor het testpakket: in het vernieuwde registratievenster staat de

@@ -3510,11 +3510,11 @@
     RECURRENCE_SET: "herhalingGezet",
     // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
     READ_REGISTRATION: "leesRegistratie",
-    // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
+    // { id, uursoorten? }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen; met uursoorten: true ook de laatst opgehaalde uursoortlijst [{ id, naam }]
     REGISTRATION_READ: "registratieGelezen",
     // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef }  via de luisteraars van de kaarten (de aanhef via het tekstveld), nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -5837,14 +5837,17 @@
   function zetHerhalingNietViaFormulier(wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_RECURRENCE_NONE, PAGE_COMMAND.RECURRENCE_SET, {}, wachtMs || 3e3);
   }
-  function leesRegistratieVenster(wachtMs) {
-    return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, {}, wachtMs, true);
+  function leesRegistratieVenster(wachtMs, metUursoorten) {
+    return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, metUursoorten ? { uursoorten: true } : {}, wachtMs, true);
   }
   function zetRegistratieTijden(velden, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { velden: velden || {} }, wachtMs);
   }
   function zetRegistratieRapport(aanhef, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { rapport: String(aanhef || "") }, wachtMs);
+  }
+  function zetRegistratieUursoort(id, wachtMs) {
+    return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoort: Number(id) }, wachtMs);
   }
   function zetRegistratieNoShow(clientId, aan2, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan2 === true } }, wachtMs);
@@ -18026,6 +18029,24 @@
     if (vorm.directFullDuration) return { direct: totaal, indirect: 0 };
     return null;
   }
+  function normNaam(t) {
+    return String(t == null ? "" : t).toLowerCase().replace(/\s+/g, " ").trim();
+  }
+  function kiesUursoort(lijst, naam) {
+    const w = normNaam(naam);
+    if (!w || !Array.isArray(lijst)) return null;
+    const geldig = lijst.filter(function(u) {
+      return u && Number(u.id) > 0 && normNaam(u.naam);
+    });
+    const exact = geldig.filter(function(u) {
+      return normNaam(u.naam) === w;
+    });
+    if (exact.length) return exact[0];
+    const bevat = geldig.filter(function(u) {
+      return normNaam(u.naam).indexOf(w) !== -1;
+    });
+    return bevat.length === 1 ? bevat[0] : null;
+  }
   function reistijdVerdeling(totaal) {
     const t = Math.max(0, Math.round(Number(totaal) || 0));
     return { heen: Math.ceil(t / 2), terug: Math.floor(t / 2) };
@@ -18054,7 +18075,7 @@
   }
 
   // src/content/features/registratie-nieuw/schermen.js
-  var stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null };
+  var stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false };
   var controleTimer = null;
   function vormen() {
     return REGISTRATION_CHOICES || [];
@@ -18076,6 +18097,7 @@
     stand.vorm = null;
     stand.autoGedaan = false;
     stand.laatst = null;
+    stand.uursoortGedaan = false;
   }
   function vergeetRegistratieVenster() {
     stopControle();
@@ -18084,6 +18106,21 @@
     stand.autoGedaan = false;
     stand.laatst = null;
     stand.bezig = false;
+    stand.uursoortGedaan = false;
+  }
+  async function zetUursoortVanVorm(vorm, v) {
+    if (!vorm || !vorm.hourType || stand.uursoortGedaan || !v) return;
+    const lijst = Array.isArray(v.uursoorten) ? v.uursoorten : [];
+    if (!lijst.length) return;
+    stand.uursoortGedaan = true;
+    const u = kiesUursoort(lijst, vorm.hourType);
+    if (!u) {
+      setStatus("Uursoort " + vorm.hourType + " niet gevonden, kies hem zelf", false);
+      return;
+    }
+    if (v.uursoort === u.id) return;
+    const ok = await zetRegistratieUursoort(u.id);
+    setStatus(ok ? "Uursoort " + u.naam : "Uursoort niet gezet, kies hem zelf", ok);
   }
   function toonRegistratieVenster() {
     const body = $body();
@@ -18135,6 +18172,8 @@
       }
       nieuwVenster(v.afspraak || "");
       stand.vorm = vorm;
+      stand.uursoortGedaan = false;
+      if (vorm.hourType) await zetUursoortVanVorm(vorm, await leesRegistratieVenster(void 0, true));
       if (isNoShowVorm(vorm)) {
         let ok = true;
         for (const c of v.clients || []) if (!c.noShow) ok = await zetRegistratieNoShow(c.id, true) && ok;
@@ -18320,9 +18359,11 @@
       }
       if (bezigMetLezen) return;
       bezigMetLezen = true;
-      opgevangen(leesRegistratieVenster().then(function(v) {
+      const uursoortNog = !!(vorm && vorm.hourType && !stand.uursoortGedaan);
+      opgevangen(leesRegistratieVenster(void 0, uursoortNog).then(function(v) {
         bezigMetLezen = false;
         if (!v || !isScreen("registratieVensterRapport")) return;
+        if (uursoortNog) opgevangen(zetUursoortVanVorm(vorm, v), "registratievenster uursoort");
         stand.laatst = v;
         const issues = controleerVenster(v, vorm);
         vulRegistratieControles(lijst, issues);

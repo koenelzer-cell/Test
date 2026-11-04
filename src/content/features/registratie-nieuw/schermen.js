@@ -10,15 +10,16 @@
 //   4. de aanhef in de lege rapportage;
 //   5. de controles (rapportage, uursoort, direct plus indirect) en Indienen.
 //
-// De uursoort zet de hulp nog niet: ONS laadt die op de testomgeving niet
-// (403), dus hoe het venster die doorgeeft is nog niet bekend. De controle
-// vraagt er wel om.
+// De uursoort van de vorm zoekt de hulp op naam in de lijst die het
+// uursoortveld zelf ophaalt (main-world), en zet hem zoals dat veld een keuze
+// meldt. Is de lijst er nog niet, dan probeert de controle het straks nog één
+// keer; is de naam niet (eenduidig) te vinden, dan kiest de medewerker zelf.
 
 import { APP_CONFIG, gsNum, REGISTRATION_CHOICES } from '../../config/app-config.js';
-import { leesRegistratieVenster, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden } from '../../ons/form-model.js';
+import { leesRegistratieVenster, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden, zetRegistratieUursoort } from '../../ons/form-model.js';
 import { klikIndienenInVenster, toonReistijdInVenster } from '../../ons/registratie-venster.js';
 import { labelsVoorAfspraak } from '../../services/ons-api/event-details.js';
-import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, reistijdVerdeling, verdelingVoorVorm } from '../../domain/registratie-venster.js';
+import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, verdelingVoorVorm } from '../../domain/registratie-venster.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
 import { isScreen, markScreen } from '../../screen/screen-state.js';
 import { renderScreen } from '../../ui/react-bridge.js';
@@ -32,8 +33,10 @@ import { matchRegistrationChoiceByLabel } from '../registration/pending.js';
 import { helperPanel } from '../../state.js';
 import { meldFout } from '../../core/foutbuffer.js';
 
-// Per open venster (afspraak-id): welke vorm, en of de vorm uit het label al is toegepast.
-const stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null };
+// Per open venster (afspraak-id): welke vorm, of de vorm uit het label al is
+// toegepast, en of de uursoort van de vorm al geprobeerd is (één keer per
+// gekozen vorm: kiest de medewerker daarna zelf een andere, dan blijft die).
+const stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false };
 let controleTimer = null;
 
 function vormen() { return REGISTRATION_CHOICES || []; }
@@ -46,9 +49,23 @@ function stopControle() { clearInterval(controleTimer); controleTimer = null; }
 // Een nieuw venster (andere afspraak) begint opnieuw.
 function nieuwVenster(afspraak) {
   if (stand.afspraak === afspraak) return;
-  stand.afspraak = afspraak; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null;
+  stand.afspraak = afspraak; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.uursoortGedaan = false;
 }
-export function vergeetRegistratieVenster() { stopControle(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; }
+export function vergeetRegistratieVenster() { stopControle(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; stand.uursoortGedaan = false; }
+
+// De uursoort van de vorm. v: een lezing met de uursoortlijst. Zonder lijst
+// (nog niet geladen) niets, en later opnieuw; anders één poging.
+async function zetUursoortVanVorm(vorm, v) {
+  if (!vorm || !vorm.hourType || stand.uursoortGedaan || !v) return;
+  const lijst = Array.isArray(v.uursoorten) ? v.uursoorten : [];
+  if (!lijst.length) return;
+  stand.uursoortGedaan = true;
+  const u = kiesUursoort(lijst, vorm.hourType);
+  if (!u) { setStatus('Uursoort ' + vorm.hourType + ' niet gevonden, kies hem zelf', false); return; }
+  if (v.uursoort === u.id) return;
+  const ok = await zetRegistratieUursoort(u.id);
+  setStatus(ok ? 'Uursoort ' + u.naam : 'Uursoort niet gezet, kies hem zelf', ok);
+}
 
 // Het startscherm: de vorm kiezen. Komt het venster uit een afspraak met een
 // gekoppeld label, dan meteen die vorm (één keer per venster), zoals de
@@ -96,6 +113,8 @@ async function kiesVorm(vorm, gelezen) {
     if (!v) { stand.bezig = false; setStatus('Het registratievenster is niet te lezen', false); toonRegistratieVenster(); return; }
     nieuwVenster(v.afspraak || '');
     stand.vorm = vorm;
+    stand.uursoortGedaan = false;
+    if (vorm.hourType) await zetUursoortVanVorm(vorm, await leesRegistratieVenster(undefined, true));
     if (isNoShowVorm(vorm)) {
       let ok = true;
       for (const c of (v.clients || [])) if (!c.noShow) ok = (await zetRegistratieNoShow(c.id, true)) && ok;
@@ -232,9 +251,13 @@ export function toonRegistratieVensterRapport() {
     if (!isScreen('registratieVensterRapport') || !helperPanel.active) { stopControle(); return; }
     if (bezigMetLezen) return; // vorige lezing loopt nog
     bezigMetLezen = true;
-    opgevangen(leesRegistratieVenster().then(function (v) {
+    // Zolang de uursoort van de vorm nog niet geprobeerd is (lijst nog niet
+    // geladen), ook de lijst meelezen.
+    const uursoortNog = !!(vorm && vorm.hourType && !stand.uursoortGedaan);
+    opgevangen(leesRegistratieVenster(undefined, uursoortNog).then(function (v) {
       bezigMetLezen = false;
       if (!v || !isScreen('registratieVensterRapport')) return;
+      if (uursoortNog) opgevangen(zetUursoortVanVorm(vorm, v), 'registratievenster uursoort');
       stand.laatst = v;
       const issues = controleerVenster(v, vorm);
       vulRegistratieControles(lijst, issues);

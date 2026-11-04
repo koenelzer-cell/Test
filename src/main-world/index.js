@@ -182,9 +182,41 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     try { return sessionStorage.getItem(PAGE_SESSION.PENDING_DUPLICATES) || ''; } catch (e) { return ''; }
   }
 
+  /* ---- uursoorten van het registratievenster -------------------------
+     Het uursoortveld van het vernieuwde registratievenster (ue-activity-
+     select) haalt zijn lijst zelf op:
+       /gateway/api/v0/administration/authorized/activities?…
+     -> { suggestedActivityList, otherActivityList: [{ activityModel:
+          { objectId, description, … } }] }.
+     We onthouden hier alleen id en naam van de laatste lijst (uursoorten,
+     geen persoonsgegevens), zodat de registratiehulp de uursoort van een
+     registratievorm op naam kan vinden. Niets gaat ongevraagd weg.
+     ---------------------------------------------------------------------- */
+  const UURSOORTEN_RE = /\/authorized\/activities(?:[?#]|$)/;
+  const UURSOORTEN_MAX_MS = 30 * 60 * 1000;
+  let laatsteUursoorten = null;
+  function onthoudUursoorten(url, text) {
+    try {
+      const abs = new URL(String(url), location.href);
+      if (abs.origin !== location.origin) return;
+      const j = JSON.parse(String(text));
+      const lijst = [], gezien = Object.create(null);
+      ['suggestedActivityList', 'otherActivityList'].forEach(function (k) {
+        (Array.isArray(j && j[k]) ? j[k] : []).forEach(function (item) {
+          const m = item && (item.activityModel || item);
+          const id = Number(m && m.objectId), naam = String((m && m.description) || '').trim().slice(0, 120);
+          if (!(id > 0) || !naam || gezien[id] || lijst.length >= 500) return;
+          gezien[id] = true;
+          lijst.push({ id: id, naam: naam });
+        });
+      });
+      if (lijst.length) laatsteUursoorten = { lijst: lijst, ts: Date.now() };
+    } catch (e) {}
+  }
   function melderVoor(url, method) {
     const u = String(url || '');
     if (DETAILS_RE.test(u)) return reportDetails;
+    if (UURSOORTEN_RE.test(u)) return onthoudUursoorten;
     if (OVERLAP_RE.test(u)) return reportOverlap;
     if (String(method || 'GET').toUpperCase() !== 'POST') return null;
     try {
@@ -768,24 +800,35 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
     return m ? ('0' + m[1]).slice(-2) + ':' + m[2] : '';
   }
   function getalOfNull(w) { const n = Number(w); return w == null || w === '' || isNaN(n) ? null : n; }
-  function leesRegistratie() {
+  // De uursoort van de registratie of een cliënt: in het vernieuwde venster
+  // { external_id: '1145' } (zo geeft TimeRegistrationCard hem door), elders
+  // { id } of alleen het getal.
+  function uursoortId(ht) {
+    if (ht == null) return null;
+    if (typeof ht !== 'object') return getalOfNull(ht);
+    return getalOfNull(ht.id != null ? ht.id : ht.external_id);
+  }
+  // d.uursoorten: ook de uursoortlijst die het uursoortveld laatst ophaalde
+  // ([{ id, naam }], hooguit een half uur oud).
+  function leesRegistratie(d) {
     const r = registratieVenster();
     if (!r) return { ok: false, reden: 'geen registratievenster' };
     const reg = r.reg, meta = reg.meta || {};
-    return {
+    const uit = {
       ok: true, datum: /^\d{4}-\d{2}-\d{2}$/.test(String(reg.date)) ? reg.date : '', begin: uurMin(reg.start_time), eind: uurMin(reg.end_time),
       // De afspraak waaruit dit venster komt (hex-id), voor de vorm uit het afspraaklabel.
       afspraak: (function () { const o = r.modal && r.modal.component && r.modal.component.props && r.modal.component.props.occurrenceId; return /^[\w-]{1,40}$/.test(String(o || '')) ? String(o) : ''; })(),
-      uursoort: reg.hour_type == null ? null : (typeof reg.hour_type === 'object' ? getalOfNull(reg.hour_type.id) : getalOfNull(reg.hour_type)),
+      uursoort: uursoortId(reg.hour_type),
       direct: getalOfNull(reg.direct_time), indirect: getalOfNull(reg.indirect_time),
       reisHeen: getalOfNull(reg.travel_time_before), reisTerug: getalOfNull(reg.travel_time_after),
       rapportVerplicht: meta.report_required === true, rapportLengte: String(reg.report_comment == null ? '' : reg.report_comment).length,
       reistijdMag: meta.allow_travel_time_registration !== false,
       clients: (Array.isArray(reg.client_declarations) ? reg.client_declarations : []).filter(function (cd) { return cd && cd.client && !cd.soft_deleted; }).slice(0, 20).map(function (cd) {
-        const ht = cd.hour_type;
-        return { id: Number(cd.client.id), noShow: cd.no_show === true, uursoort: ht == null ? null : (typeof ht === 'object' ? getalOfNull(ht.id) : getalOfNull(ht)) };
+        return { id: Number(cd.client.id), noShow: cd.no_show === true, uursoort: uursoortId(cd.hour_type) };
       }),
     };
+    if (d && d.uursoorten) uit.uursoorten = laatsteUursoorten && Date.now() - laatsteUursoorten.ts < UURSOORTEN_MAX_MS ? laatsteUursoorten.lijst.slice() : [];
+    return uit;
   }
   // velden: { direct_time, indirect_time, travel_time_before, travel_time_after }
   // (minuten). noShow: { clientId, aan }. rapport: de aanhef van de registratie-
@@ -804,11 +847,31 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       return !!na && String(na.reg.report_comment == null ? '' : na.reg.report_comment) === tekst;
     }, klaar);
   }
+  // De uursoort: zoals het uursoortveld (ue-activity-select) een keuze meldt,
+  // het change-activity-event met de id als tekst, aan de luisteraar die
+  // TimeRegistrationCard op dat veld zet (onChangeActivity). Die maakt er zelf
+  // hour_type van; wij kijken daarna of de registratie die uursoort heeft.
+  function zetVensterUursoort(r, waarde, klaar) {
+    const id = Number(waarde);
+    if (!(id > 0) || Math.round(id) !== id) { klaar({ ok: false, reden: 'ongeldige uursoort' }); return; }
+    const veld = diepZoek(document, 'ue-activity-select');
+    if (!veld) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
+    const v = r.boom.binnen(veld).filter(function (x) { return x.el === veld && x.props && typeof x.props.onChangeActivity === 'function'; })[0];
+    const ev = new CustomEvent('change-activity', { detail: [String(id)] });
+    zetEnControleer(function () {
+      if (v) v.props.onChangeActivity(ev);
+      else veld.dispatchEvent(ev); // terugval: Vue luistert op het veld zelf
+    }, function () {
+      const na = registratieVenster();
+      return !!na && uursoortId(na.reg.hour_type) === id;
+    }, klaar);
+  }
   const REG_TIJDEN = ['direct_time', 'indirect_time', 'travel_time_before', 'travel_time_after'];
   function zetRegistratie(d, klaar) {
     const r = registratieVenster();
     if (!r) { klaar({ ok: false, reden: 'geen registratievenster' }); return; }
     if (typeof d.rapport === 'string' && d.rapport) { zetRapportAanhef(r, d.rapport, klaar); return; }
+    if (d.uursoort != null) { zetVensterUursoort(r, d.uursoort, klaar); return; }
     if (d.noShow && typeof d.noShow === 'object') {
       const id = Number(d.noShow.clientId), aan = d.noShow.aan === true;
       const zet = r.clients && r.clients.props && r.clients.props['onUpdate:clientDeclarationField'];
@@ -881,7 +944,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_RECURRENCE_NONE) { zetHerhalingNiet(antwoord(PAGE_COMMAND.RECURRENCE_SET)); return; }
-      if (d.type === PAGE_COMMAND.READ_REGISTRATION) { antwoord(PAGE_COMMAND.REGISTRATION_READ)(leesRegistratie()); return; }
+      if (d.type === PAGE_COMMAND.READ_REGISTRATION) { antwoord(PAGE_COMMAND.REGISTRATION_READ)(leesRegistratie(d)); return; }
       if (d.type === PAGE_COMMAND.SET_REGISTRATION) { zetRegistratie(d, antwoord(PAGE_COMMAND.REGISTRATION_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_LABELS) {
         const namen = (Array.isArray(d.labels) ? d.labels : []).map(function (x) { return String(x == null ? '' : x).slice(0, 100); }).filter(Boolean).slice(0, 10);

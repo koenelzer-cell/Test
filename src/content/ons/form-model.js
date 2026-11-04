@@ -88,8 +88,9 @@ export function zetHerhalingNietViaFormulier(wachtMs) {
 // lezen geeft { ok, datum, begin, eind, direct, indirect, reisHeen, reisTerug,
 // rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow,
 // uursoort }] } of null; zetten via ONS' eigen luisteraars, nagekeken.
-export function leesRegistratieVenster(wachtMs) {
-  return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, {}, wachtMs, true);
+// metUursoorten: ook de uursoortlijst die het uursoortveld laatst ophaalde.
+export function leesRegistratieVenster(wachtMs, metUursoorten) {
+  return vraagFormulier(PAGE_COMMAND.READ_REGISTRATION, PAGE_COMMAND.REGISTRATION_READ, metUursoorten ? { uursoorten: true } : {}, wachtMs, true);
 }
 // velden: { direct_time, indirect_time, travel_time_before, travel_time_after } in minuten.
 export function zetRegistratieTijden(velden, wachtMs) {
@@ -98,6 +99,10 @@ export function zetRegistratieTijden(velden, wachtMs) {
 // De aanhef van de registratievorm in de (lege) rapportage.
 export function zetRegistratieRapport(aanhef, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { rapport: String(aanhef || '') }, wachtMs);
+}
+// De uursoort van de registratie (id uit de uursoortlijst), via het uursoortveld.
+export function zetRegistratieUursoort(id, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoort: Number(id) }, wachtMs);
 }
 export function zetRegistratieNoShow(clientId, aan, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan === true } }, wachtMs);

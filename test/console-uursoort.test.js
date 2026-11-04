@@ -150,3 +150,14 @@ test('versie 3: waar de uursoort in de registratie staat, en de opbouw van de uu
   assert.doesNotMatch(JSON.stringify(u), /Tamara|Jansen|11142|4645|2026-11-04/);
   v.w.onsahUursoort.stop();
 });
+
+test('cliëntgegevens die meekomen bij een gebeurtenis (cliënt toevoegen) blijven afgeschermd, ook dieper in het object', () => {
+  // De afscherming (kort) rechtstreeks, zoals bij onAddInvitee van InviteeSearchDialog.
+  const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'outside-only' });
+  dom.window.copy = () => {};
+  dom.window.eval(CODE.replace('const vindVenster', 'window.__kort = (a) => kort(a, 1, "onAddInvitee arg0");\n  const vindVenster'));
+  const client = { id: 11142, external_id: 77, name: 'Tamara Test', gender: 'female', home_town: 'Groningen', pronouns_type: 'SHE_HER', care_begin_date: '2014-01-01', care_allocations: [{ begin_date: '2014-01-01', end_date: '2025-01-09' }], date_of_birth: '1990-01-01' };
+  const t = JSON.stringify(dom.window.__kort(client));
+  assert.doesNotMatch(t, /Tamara|female|Groningen|SHE_HER|2014|2025|1990|11142/);
+  assert.match(t, /"care_allocations":\[\{"begin_date":"tekst\(10\)"/, 'de opbouw blijft zichtbaar');
+});

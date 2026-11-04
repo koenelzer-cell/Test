@@ -409,6 +409,13 @@ blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
    naar de tegen-tijd ('Indirecte tijd aanwezig in deze registratie?'), dan
    eerst die vraag; bij Ja de minuten kiezen. **No show** zet no-show bij
    elke cliënt (in het nieuwe venster een knop per cliënt) en zet geen tijden.
+   Heeft de vorm een **uursoort**, dan zoekt de hulp die op naam in de lijst
+   die het uursoortveld van ONS zelf ophaalt (dezelfde naam, hoofdletters en
+   spaties tellen niet; anders de ene uursoort waar de naam in staat) en zet
+   hem zoals dat veld een keuze meldt. Is de lijst nog niet geladen, dan
+   probeert de controle het zodra hij er is. Eén poging per gekozen vorm:
+   kies je daarna zelf een andere uursoort, dan blijft die staan. Niet of
+   niet eenduidig gevonden: niets gezet, de controle vraagt erom.
 3. **Reistijd**, als de vorm dat vraagt: de totale reistijd kiezen, heen de
    helft naar boven, terug de rest. ONS toont de reistijdvelden pas na de
    knop **+ Reistijd**: die klikt de hulp eerst (alleen als er nog geen
@@ -422,9 +429,8 @@ blijven gewoon aan. De stappen, alles via ONS' eigen koppeling (hieronder):
    het de knop Indienen van ONS. De knop Indienen van ONS zelf blokkeert de
    hulp niet.
 
-Met de terugknop kies je opnieuw een vorm. De uursoort zet de hulp nog niet
-(zie hieronder); de controle vraagt er wel om. Sluit het venster, dan gaat
-de hulp mee weg. Code: `features/registratie-nieuw/schermen.js` (de
+Met de terugknop kies je opnieuw een vorm. Sluit het venster, dan gaat de
+hulp mee weg. Code: `features/registratie-nieuw/schermen.js` (de
 schermen), `domain/registratie-venster.js` (verdeling en controles),
 modus `registratieVenster` (`VENSTER_MODUS` in `state.js`).
 
@@ -442,8 +448,12 @@ Wat de hulp al kan in dat venster (main-world, via ONS' eigen koppeling,
 steeds nagekeken):
 - **lezen** (`leesRegistratieVenster`): datum, begin- en eindtijd, direct,
   indirect, reistijd heen en terug, of de rapportage verplicht is en hoe lang
-  hij is, en per cliënt het id, no-show en de uursoort-id. Geen namen en geen
-  rapportagetekst;
+  hij is, de uursoort-id van de registratie en per cliënt het id, no-show en
+  de uursoort-id. Geen namen en geen rapportagetekst. In dit venster staat
+  de uursoort als `hour_type: { external_id: '1145' }` (zo geeft
+  `TimeRegistrationCard` hem door); elders als `{ id }`. Op verzoek
+  (`metUursoorten`) ook de uursoortlijst die het uursoortveld laatst
+  ophaalde: alleen id en naam;
 - **tijden zetten** (`zetRegistratieTijden`): direct, indirect en reistijd,
   als stukje registratie aan de luisteraar die het venster aan
   `TimeRegistrationCard` meegeeft (`onUpdate:registration`), net zoals ONS
@@ -457,15 +467,20 @@ steeds nagekeken):
 - **indienen** (`klikIndienenInVenster`): de knop Indienen van ONS
   (`data-qa="submit-button"`), met de klikreeks op de knop in de
   `uc-button` (`clickUiButton`);
+- **uursoort zetten** (`zetRegistratieUursoort`): het uursoortveld
+  (`ue-activity-select`, een eigen element van ONS dat zijn lijst ophaalt
+  bij `/gateway/api/v0/administration/authorized/activities`) meldt een keuze
+  met het event `change-activity` en de id als tekst (`['1146']`). Precies
+  dat event gaat naar de luisteraar die `TimeRegistrationCard` op het veld
+  zet (`onChangeActivity`); die maakt er zelf `hour_type` van. Daarna
+  kijkt de hulp of de registratie die uursoort heeft;
 - **reistijdvelden tonen** (`toonReistijdInVenster`): de knop + Reistijd
   (`data-qa="add-travel-times"`) als `travel-before`/`travel-after` nog niet
   te zien zijn. Dat is alleen tonen; de waarden gaan via de koppeling.
 
 Testen kan in het zijpaneel bij Info, Debug, **Registratievenster**:
 **Uitlezen** toont wat er staat; met Direct, Indirect en **Zetten** zet de
-hulp de tijdverdeling en leest hij het venster opnieuw. De uursoort volgt
-zodra ONS die op deze omgeving laadt (nu antwoordt
-`/gateway/api/v0/administration/authorized/activities` met 403).
+hulp de tijdverdeling en leest hij het venster opnieuw.
 
 Hoe elk onderdeel een wijziging doorgeeft: `tools/console/registratie-luister.js`
 in de console plakken, de velden één voor één veranderen en

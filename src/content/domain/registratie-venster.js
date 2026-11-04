@@ -45,6 +45,21 @@ export function verdelingVoorVorm(vorm, totaal, deel) {
   return null;
 }
 
+// De uursoort van een registratievorm in de uursoortlijst van het venster
+// ([{ id, naam }]): dezelfde naam (hoofdletters en spaties tellen niet), anders
+// de ene uursoort waar de naam in staat. Meer dan één of geen: null (dan kiest
+// de medewerker zelf; liever dan een verkeerde).
+function normNaam(t) { return String(t == null ? '' : t).toLowerCase().replace(/\s+/g, ' ').trim(); }
+export function kiesUursoort(lijst, naam) {
+  const w = normNaam(naam);
+  if (!w || !Array.isArray(lijst)) return null;
+  const geldig = lijst.filter(function (u) { return u && Number(u.id) > 0 && normNaam(u.naam); });
+  const exact = geldig.filter(function (u) { return normNaam(u.naam) === w; });
+  if (exact.length) return exact[0];
+  const bevat = geldig.filter(function (u) { return normNaam(u.naam).indexOf(w) !== -1; });
+  return bevat.length === 1 ? bevat[0] : null;
+}
+
 // Totale reistijd verdeeld over heen en terug, zoals de oude hulp: heen de helft naar boven.
 export function reistijdVerdeling(totaal) {
   const t = Math.max(0, Math.round(Number(totaal) || 0));

@@ -5,7 +5,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const HTML = '<!doctype html><body><div id="content"><uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div></uc-card><uc-card id="rapport"></uc-card></div></uc-modal></div></body>';
+const HTML = '<!doctype html><body><div id="content"><uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div><ue-activity-select aria-label="Uursoort"></ue-activity-select></uc-card><uc-card id="rapport"></uc-card></div></uc-modal></div></body>';
+// Zoals /gateway/api/v0/administration/authorized/activities (ingekort).
+const ACTIVITEITEN = {
+  suggestedActivityList: [
+    { activityModel: { objectId: 1145, description: 'Behandeling (GGZ 18+)', identificationNo: 'BEH-GGZ-18', typeDirect: 'Direct' }, preselected: false },
+    { activityModel: { objectId: 1146, description: 'Diagnostiek (GGZ 18+) ', typeDirect: 'Direct' }, preselected: false },
+  ],
+  otherActivityList: [{ activityModel: { objectId: 1089, description: 'Detachering ' } }, { activityModel: { objectId: 1145, description: 'Behandeling (GGZ 18+)' } }],
+  allowDistributeClientTime: false,
+};
 
 // opties: neemtOver (de ouder werkt de registratie bij), metClients.
 async function venster({ neemtOver = true, metVenster = true } = {}) {
@@ -25,7 +34,12 @@ async function venster({ neemtOver = true, metVenster = true } = {}) {
   // Zoals DeclareAsRegistrationForm: een stukje registratie samenvoegen.
   const werkBij = (stuk) => { ontvangen.push(['registration', stuk]); if (neemtOver) Object.assign(reg, stuk); };
   const veldBij = (x) => { ontvangen.push(['field', x]); if (neemtOver) { const cd = reg.client_declarations.find((c) => c.client.id === x.client_id); if (cd) cd[x.field] = x.value; } };
-  const tijd = { type: { name: 'TimeRegistrationCard' }, props: { registration: reg }, subTree: { el: $('#tijd') || d.body, children: [] } };
+  // Het uursoortveld: TimeRegistrationCard luistert met onChangeActivity en
+  // maakt er zelf hour_type { external_id } van (zoals registratie-uursoort liet zien).
+  const activiteit = [];
+  const opActiviteit = (ev) => { activiteit.push([ev.type, ev.detail]); werkBij({ hour_type: { external_id: String(ev.detail[0]) } }); };
+  const uursoortVeld = $('ue-activity-select');
+  const tijd = { type: { name: 'TimeRegistrationCard' }, props: { registration: reg }, subTree: { el: $('#tijd') || d.body, children: uursoortVeld ? [{ type: 'ue-activity-select', el: uursoortVeld, props: { 'activity-ids': '', onChangeActivity: opActiviteit } }] : [] } };
   const clients = { type: { name: 'ReportAndClientsCard' }, props: { registration: reg }, subTree: { el: $('#rapport') || d.body, children: [] } };
   const form = { type: { name: 'DeclareAsRegistrationForm' }, props: { initialRegistration: reg }, subTree: { el: $('#form') || d.body, children: [
     { component: tijd, props: { 'onUpdate:registration': werkBij } },
@@ -34,6 +48,8 @@ async function venster({ neemtOver = true, metVenster = true } = {}) {
   const modal = { type: { name: 'DeclareAsRegistrationModal' }, props: {}, subTree: { el: $('uc-modal') || d.body, children: [{ component: form, props: {} }] } };
   $('#content').__vue_app__ = { version: '3.5.43' };
   $('#content')._vnode = { component: modal };
+  // Wat de pagina zelf ophaalt (de main-world kijkt mee).
+  w.fetch = (u) => Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this; }, text: () => Promise.resolve(/authorized\/activities/.test(String(u)) ? JSON.stringify(ACTIVITEITEN) : '{}') });
   w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
   const vraag = (type, antwoordType, velden = {}) => new Promise((klaar) => {
     const id = 'r' + Math.random();
@@ -42,7 +58,7 @@ async function venster({ neemtOver = true, metVenster = true } = {}) {
     w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type, id, ...velden }, origin: w.location.origin, source: w }));
     setTimeout(() => klaar(null), 600);
   });
-  return { vraag, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)) };
+  return { w, vraag, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), activiteit: () => JSON.parse(JSON.stringify(activiteit)) };
 }
 
 test('lezen: tijden, getallen en per cliënt id, no-show en uursoort; geen namen of rapportagetekst', async () => {
@@ -82,4 +98,40 @@ test('no-show per cliënt via onUpdate:clientDeclarationField({ client_id, field
   assert.equal(v.reg.client_declarations[0].no_show, true);
   const vreemd = await v.vraag('zetRegistratie', 'registratieGezet', { noShow: { clientId: 999, aan: true } });
   assert.deepEqual([vreemd.ok, vreemd.reden], [false, 'cliënt niet in deze registratie']);
+});
+
+test('uursoort lezen: in het vernieuwde venster hour_type { external_id }, ook per cliënt', async () => {
+  const v = await venster();
+  v.reg.hour_type = { external_id: '1145' };
+  v.reg.client_declarations[0].hour_type = { external_id: '1146' };
+  const r = await v.vraag('leesRegistratie', 'registratieGelezen');
+  assert.equal(r.uursoort, 1145);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.clients.map((c) => c.uursoort))), [1146, 1135], 'per cliënt: external_id of id');
+  assert.equal(r.uursoorten, undefined, 'de uursoortlijst alleen op verzoek');
+});
+
+test('de uursoortlijst die het uursoortveld ophaalt: alleen id en naam, zonder dubbele, alleen op verzoek mee', async () => {
+  const v = await venster();
+  const leeg = await v.vraag('leesRegistratie', 'registratieGelezen', { uursoorten: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(leeg.uursoorten)), [], 'nog niets opgehaald');
+  await v.w.fetch('/gateway/api/v0/administration/authorized/activities?inactive=false&employeeId=4645&date=2026-11-04');
+  await new Promise((k) => setTimeout(k, 20));
+  const r = await v.vraag('leesRegistratie', 'registratieGelezen', { uursoorten: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(r.uursoorten)), [
+    { id: 1145, naam: 'Behandeling (GGZ 18+)' }, { id: 1146, naam: 'Diagnostiek (GGZ 18+)' }, { id: 1089, naam: 'Detachering' },
+  ]);
+  assert.doesNotMatch(JSON.stringify(r), /BEH-GGZ|4645/);
+});
+
+test('uursoort zetten: het change-activity-event met de id als tekst aan onChangeActivity van het uursoortveld, nagekeken', async () => {
+  const v = await venster();
+  const r = await v.vraag('zetRegistratie', 'registratieGezet', { uursoort: 1146 });
+  assert.equal(r.ok, true);
+  assert.deepEqual(v.activiteit(), [['change-activity', ['1146']]], 'zoals het veld zelf een keuze meldt');
+  assert.deepEqual(v.ontvangen(), [['registration', { hour_type: { external_id: '1146' } }]], 'TimeRegistrationCard maakte er zelf hour_type van');
+  const fout = await v.vraag('zetRegistratie', 'registratieGezet', { uursoort: 'abc' });
+  assert.deepEqual([fout.ok, fout.reden], [false, 'ongeldige uursoort']);
+  const nietOver = await venster({ neemtOver: false });
+  const r2 = await nietOver.vraag('zetRegistratie', 'registratieGezet', { uursoort: 1146 });
+  assert.deepEqual([r2.ok, r2.reden], [false, 'het formulier nam de waarde niet over']);
 });

@@ -1,7 +1,7 @@
 // Rekenregels voor het vernieuwde registratievenster (domain/registratie-venster.js).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, reistijdVerdeling, verdelingVoorVorm } from '../src/content/domain/registratie-venster.js';
+import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, verdelingVoorVorm } from '../src/content/domain/registratie-venster.js';
 
 const V = { begin: '13:05', eind: '14:00', direct: 55, indirect: 0, rapportVerplicht: true, rapportLengte: 0, uursoort: null, clients: [{ id: 9, noShow: false, uursoort: null }] };
 
@@ -38,4 +38,15 @@ test('controles: rapportage, uursoort en direct plus indirect; no-show voor iede
   assert.deepEqual(controleerVenster({ ...V, rapportLengte: 14, uursoort: 5 }, { reportPrefix: 'Verslaglegging' }).map((x) => x.soort), ['rapportage'], 'alleen het begin van de hulp telt niet');
   assert.deepEqual(controleerVenster({ ...V, rapportLengte: 3, uursoort: 5, direct: 30, indirect: 10 }, null).map((x) => x.msg), ['Direct en indirect samen zijn 40 min, de registratie duurt 55 min']);
   assert.deepEqual(controleerVenster({ ...V, clients: [{ id: 9, noShow: true, uursoort: 5 }] }, null), [], 'no-show: geen rapportage nodig');
+});
+
+test('uursoort van de vorm in de lijst: zelfde naam, anders de ene die hem bevat; twijfel of niets: null', () => {
+  const L = [{ id: 1145, naam: 'Behandeling (GGZ 18+)' }, { id: 1146, naam: 'Diagnostiek (GGZ 18+)' }, { id: 7, naam: 'No show#' }, { id: 8, naam: 'Behandeling' }];
+  assert.deepEqual(kiesUursoort(L, 'behandeling'), { id: 8, naam: 'Behandeling' }, 'precies dezelfde naam gaat voor');
+  assert.deepEqual(kiesUursoort(L, '  No  show# '), { id: 7, naam: 'No show#' }, 'hoofdletters en spaties tellen niet');
+  assert.deepEqual(kiesUursoort(L, 'Diagnostiek'), { id: 1146, naam: 'Diagnostiek (GGZ 18+)' }, 'de ene die de naam bevat');
+  assert.equal(kiesUursoort(L, 'GGZ 18+'), null, 'meer dan één: liever niets dan een verkeerde');
+  assert.equal(kiesUursoort(L, 'Detachering'), null);
+  assert.equal(kiesUursoort(L, ''), null);
+  assert.equal(kiesUursoort(null, 'Behandeling'), null);
 });

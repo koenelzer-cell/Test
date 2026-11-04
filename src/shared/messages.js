@@ -100,9 +100,9 @@ export const PAGE_COMMAND = {
   USER_READ: 'gebruikerGelezen', // { id, ok, userId }
   SET_RECURRENCE_NONE: 'zetHerhalingNiet', // { id }  herhaling van het open afspraakformulier op 'Niet' (keuze uit het eigen keuzeveld, of via het model; nagekeken op wat het veld toont)
   RECURRENCE_SET: 'herhalingGezet', // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
-  READ_REGISTRATION: 'leesRegistratie', // { id }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen
+  READ_REGISTRATION: 'leesRegistratie', // { id, uursoorten? }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen; met uursoorten: true ook de laatst opgehaalde uursoortlijst [{ id, naam }]
   REGISTRATION_READ: 'registratieGelezen', // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
-  SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef }  via de luisteraars van de kaarten (de aanhef via het tekstveld), nagekeken
+  SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
   REGISTRATION_SET: 'registratieGezet', // { id, ok, reden? }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }

@@ -12,7 +12,7 @@ import { bootHelper } from './helpers/harness.mjs';
 const MAIN = fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8');
 const AGENDA = 'https://impegno-backup-staging.onsagenda.nl/invitees/1,2/calendar/week';
 const VENSTER = '<uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div>'
-  + '<uc-button data-qa="add-travel-times">+ Reistijd</uc-button></uc-card>'
+  + '<uc-button data-qa="add-travel-times">+ Reistijd</uc-button><ue-activity-select aria-label="Uursoort"></ue-activity-select></uc-card>'
   + '<uc-card id="rapport"><div data-qa="new-report-field"><uc-textarea></uc-textarea></div></uc-card>'
   + '<uc-button data-qa="submit-button">Indienen</uc-button></div></uc-modal>';
 const VORMEN = { registrationForms: [
@@ -20,7 +20,11 @@ const VORMEN = { registrationForms: [
   { vorm: 'MDO', startVerdeling: '100% indirect', labels: ['MDO'] },
   { vorm: 'Huisbezoek', startVerdeling: '100% direct', vraagIndirecteTijd: true, vraagReistijd: true, labels: ['Huisbezoek'] },
   { vorm: 'Verslaglegging', startVerdeling: '100% indirect', vraagDirecteTijd: true, rapportagePrefix: 'Verslag:', labels: ['Verslaglegging'] },
+  { vorm: 'Diagnostiek', startVerdeling: '100% direct', uursoort: 'Diagnostiek', labels: [] },
+  { vorm: 'Overleg', startVerdeling: '100% indirect', uursoort: 'Overleg extern', labels: [] },
 ] };
+// Wat het uursoortveld ophaalt (/authorized/activities, ingekort).
+const ACTIVITEITEN = { suggestedActivityList: [{ activityModel: { objectId: 1145, description: 'Behandeling (GGZ 18+)' } }, { activityModel: { objectId: 1146, description: 'Diagnostiek (GGZ 18+)' } }], otherActivityList: [] };
 
 const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
 async function wachtOp(fn, max = 4000) {
@@ -53,7 +57,10 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   const werkBij = (stuk) => { ontvangen.push(['registration', stuk]); Object.assign(reg, stuk); };
   const veldBij = (x) => { ontvangen.push(['field', x]); const cd = reg.client_declarations.find((c) => c.client.id === x.client_id); if (cd) cd[x.field] = x.value; };
   const bouw = () => {
-    const tijd = { type: { name: 'TimeRegistrationCard' }, props: { registration: reg }, subTree: { el: $('#tijd') || d.body, children: [] } };
+    // Het uursoortveld: TimeRegistrationCard maakt van change-activity zelf hour_type.
+    const veld = $('ue-activity-select');
+    const opActiviteit = (ev) => werkBij({ hour_type: { external_id: String(ev.detail[0]) } });
+    const tijd = { type: { name: 'TimeRegistrationCard' }, props: { registration: reg }, subTree: { el: $('#tijd') || d.body, children: veld ? [{ type: 'ue-activity-select', el: veld, props: { onChangeActivity: opActiviteit } }] : [] } };
     const clients = { type: { name: 'ReportAndClientsCard' }, props: { registration: reg }, subTree: { el: $('#rapport') || d.body, children: [] } };
     const form = { type: { name: 'DeclareAsRegistrationForm' }, props: { initialRegistration: reg }, subTree: { el: $('#form') || d.body, children: [
       { component: tijd, props: { 'onUpdate:registration': werkBij } },
@@ -79,7 +86,14 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
     if (knop) knop.addEventListener('click', () => { ingediend++; });
   };
   if (venster) { bouw(); koppel(); }
+  // De pagina haalt de uursoorten op (de main-world kijkt mee); de rest gaat
+  // naar de stub van het harnas.
+  const oudeFetch = w.fetch;
+  w.fetch = (u, init) => (/authorized\/activities/.test(String(u))
+    ? Promise.resolve({ ok: true, status: 200, headers: { get: () => null }, clone() { return this; }, text: () => Promise.resolve(JSON.stringify(ACTIVITEITEN)) })
+    : oudeFetch(u, init));
   w.eval(MAIN);
+  const laadUursoorten = () => w.fetch('/gateway/api/v0/administration/authorized/activities?date=2026-11-03').then(() => tick(20));
   if (labels) w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'from-main', type: 'details', url: '/calendar/invitee/1/events/occ1/details', labels }, origin: w.location.origin, source: w }));
   const paneel = () => boot.api.getHelperPanel().popupEl;
   const tekst = () => (paneel() ? paneel().textContent.replace(/\s+/g, ' ') : '');
@@ -87,7 +101,7 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   // die laten we weg ('0 min.' blijft heel).
   const knop = (re) => paneel() && [...paneel().querySelectorAll('button')].find((b) => re.test(b.textContent.trim().replace(/^\d(?=[A-Za-z])/, '')));
   const openVenster = () => { $('#content').insertAdjacentHTML('beforeend', VENSTER); bouw(); koppel(); };
-  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, paneel, tekst, knop, openVenster, $ };
+  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, paneel, tekst, knop, openVenster, laadUursoorten, $ };
 }
 
 test('venster open op de agenda: het hulppaneel staat erin met de registratievormen, en de agenda blijft aan', async () => {
@@ -118,7 +132,7 @@ test('een vorm kiezen zet de tijdverdeling via ONS; daarna de controles, en Indi
   assert.equal(t.ingediend(), 0, 'met open punten klikt de hulp Indienen van ONS niet');
   // De medewerker schrijft de rapportage en kiest de uursoort in ONS.
   t.reg.report_comment = 'Overleg gehad';
-  t.reg.client_declarations[0].hour_type = { id: 1135 };
+  t.reg.hour_type = { external_id: '1145' }; // zoals ONS hem zet na een keuze in het uursoortveld
   await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 3000);
   assert.doesNotMatch(t.tekst(), /Schrijf eerst|Kies de uursoort/);
   indienen.click();
@@ -207,4 +221,37 @@ test('reistijd 0: niets uitklappen', async () => {
   await wachtOp(() => t.paneel().querySelector('[data-registratievenster-indienen]'));
   assert.ok(!t.ontvangen().some(([soort]) => soort === 'klik'), 'de knop + Reistijd blijft dicht');
   assert.ok(t.$('[data-qa="add-travel-times"]'));
+});
+
+test('uursoort van de vorm: op naam gevonden in de lijst van het uursoortveld en gezet zoals dat veld; de controle is tevreden', async () => {
+  const t = opzet();
+  await t.laadUursoorten();
+  (await wachtOp(() => t.knop(/^Diagnostiek/))).click();
+  await wachtOp(() => t.reg.hour_type);
+  assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  assert.doesNotMatch(t.tekst(), /Kies de uursoort/);
+});
+
+test('lijst nog niet geladen bij het kiezen: zodra ONS hem ophaalde, zet de controle de uursoort alsnog (één keer)', async () => {
+  const t = opzet();
+  (await wachtOp(() => t.knop(/^Diagnostiek/))).click();
+  await wachtOp(() => /Kies de uursoort \(Diagnostiek\)/.test(t.tekst()), 3000);
+  assert.equal(t.reg.hour_type, undefined, 'nog niets gezet');
+  await t.laadUursoorten();
+  await wachtOp(() => t.reg.hour_type, 3000);
+  assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
+  // Kiest de medewerker daarna zelf een andere, dan blijft die staan.
+  t.reg.hour_type = { external_id: '1145' };
+  await tick(1300);
+  assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1145' });
+});
+
+test('uursoort van de vorm niet in de lijst: niets gezet, de medewerker kiest zelf', async () => {
+  const t = opzet();
+  await t.laadUursoorten();
+  (await wachtOp(() => t.knop(/^Overleg/))).click();
+  await wachtOp(() => /Kies de uursoort \(Overleg extern\)/.test(t.tekst()), 3000);
+  assert.equal(t.reg.hour_type, undefined);
+  assert.ok(!t.ontvangen().some(([, x]) => x && 'hour_type' in x));
 });
