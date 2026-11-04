@@ -13690,21 +13690,22 @@
       boxSizing: "border-box"
     });
     el.addEventListener("mouseenter", () => {
-      if (!el.disabled) el.style.boxShadow = "0 6px 16px -5px rgba(" + shadowRgb + ",.6)";
+      if (!el.disabled && el.getAttribute("aria-disabled") !== "true") el.style.boxShadow = "0 6px 16px -5px rgba(" + shadowRgb + ",.6)";
     });
     el.addEventListener("mouseleave", () => {
-      el.style.boxShadow = "0 4px 12px -6px rgba(" + shadowRgb + ",.55)";
-      el.style.background = from;
+      el.style.boxShadow = el.getAttribute("aria-disabled") === "true" ? "none" : "0 4px 12px -6px rgba(" + shadowRgb + ",.55)";
+      el.style.transform = "none";
+      el.style.filter = "none";
     });
     el.addEventListener("mousedown", () => {
       if (!el.disabled) {
         el.style.transform = "translateY(1px)";
-        el.style.background = to;
+        el.style.filter = "brightness(.92)";
       }
     });
     el.addEventListener("mouseup", () => {
       el.style.transform = "none";
-      el.style.background = from;
+      el.style.filter = "none";
     });
     onsahFocusRing(el, to);
   }
@@ -16326,6 +16327,26 @@
     const knop = v ? deepQueryAll('uc-button[data-qa="submit-button"]', v)[0] : null;
     return knop ? clickUiButton(knop) : false;
   }
+  function focusRapportageInVenster() {
+    const v = vindRegistratieVenster();
+    const veld = v ? deepQueryAll('[data-qa="new-report-field"] uc-textarea, [data-qa="group-report-fields"] uc-textarea', v)[0] : null;
+    if (!veld) return false;
+    const tekstvak = veld.shadowRoot && veld.shadowRoot.querySelector("textarea") || veld;
+    try {
+      tekstvak.scrollIntoView({ block: "center", inline: "nearest" });
+    } catch (e) {
+    }
+    try {
+      tekstvak.focus();
+    } catch (e) {
+    }
+    try {
+      const n = String(tekstvak.value || "").length;
+      if (tekstvak.setSelectionRange) tekstvak.setSelectionRange(n, n);
+    } catch (e) {
+    }
+    return true;
+  }
   function klikClientToevoegenInVenster() {
     const v = vindRegistratieVenster();
     const knop = v ? deepQueryAll("uc-button", v).find(function(b) {
@@ -18681,6 +18702,9 @@
         if (issues.length) {
           zetKnop(true);
           setStatus(issues[0].msg, false);
+          if (issues.some(function(i) {
+            return i.soort === "rapportage";
+          })) focusRapportageInVenster();
           return;
         }
         const ok = klikIndienenInVenster();
@@ -18693,6 +18717,7 @@
       knop.setAttribute("aria-disabled", blok ? "true" : "false");
       knop.style.background = blok ? "#c9c1bd" : "#1b7f3b";
       knop.style.boxShadow = blok ? "none" : "0 6px 16px -7px rgba(27,127,59,.55)";
+      knop.style.filter = "none";
       knop.style.cursor = blok ? "not-allowed" : "pointer";
     };
     zetKnop(true);

@@ -16,6 +16,19 @@ export function klikIndienenInVenster() {
   return knop ? clickUiButton(knop) : false;
 }
 
+// De rapportage schrijven: de cursor achteraan in het rapportageveld van het
+// venster (het tekstvak in de uc-textarea), zoals de bestaande hulp bij
+// Indienen zonder rapportage. -> true als het veld er was.
+export function focusRapportageInVenster() {
+  const v = vindRegistratieVenster();
+  const veld = v ? deepQueryAll('[data-qa="new-report-field"] uc-textarea, [data-qa="group-report-fields"] uc-textarea', v)[0] : null;
+  if (!veld) return false;
+  const tekstvak = (veld.shadowRoot && veld.shadowRoot.querySelector('textarea')) || veld;
+  try { tekstvak.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+  try { tekstvak.focus(); } catch (e) {}
+  try { const n = String(tekstvak.value || '').length; if (tekstvak.setSelectionRange) tekstvak.setSelectionRange(n, n); } catch (e) {}
+  return true;
+}
 // Cliënt toevoegen zoals de medewerker: de knop '+ Toevoegen' bij Cliënten in
 // het venster (de enige knop met die tekst daar; ONS opent dan zijn eigen
 // zoekvenster). -> true als geklikt.

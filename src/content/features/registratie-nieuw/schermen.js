@@ -19,7 +19,7 @@
 
 import { APP_CONFIG, gsNum, REGISTRATION_CHOICES } from '../../config/app-config.js';
 import { kiesUursoortInVenster, leesRegistratieVenster, zetRegistratieEindNaBegin, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden } from '../../ons/form-model.js';
-import { aantalClientsInVenster, klikClientToevoegenInVenster, klikIndienenInVenster, toonReistijdInVenster, uursoortKeuzelijstInVenster } from '../../ons/registratie-venster.js';
+import { aantalClientsInVenster, focusRapportageInVenster, klikClientToevoegenInVenster, klikIndienenInVenster, toonReistijdInVenster, uursoortKeuzelijstInVenster } from '../../ons/registratie-venster.js';
 import { labelsVoorAfspraak } from '../../services/ons-api/event-details.js';
 import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, uursoortOntbreekt, verdelingVoorVorm } from '../../domain/registratie-venster.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
@@ -351,7 +351,13 @@ export function toonRegistratieVensterRapport() {
       stand.laatst = v;
       const issues = controleerVenster(v, vorm);
       vulRegistratieControles(lijst, issues);
-      if (issues.length) { zetKnop(true); setStatus(issues[0].msg, false); return; }
+      if (issues.length) {
+        zetKnop(true);
+        setStatus(issues[0].msg, false);
+        // Ontbreekt de rapportage, dan meteen de cursor in het rapportageveld.
+        if (issues.some(function (i) { return i.soort === 'rapportage'; })) focusRapportageInVenster();
+        return;
+      }
       const ok = klikIndienenInVenster();
       setStatus(ok ? 'Ingediend bij ONS' : 'Knop Indienen van ONS niet gevonden', ok);
     }), 'registratievenster indienen');
@@ -363,6 +369,7 @@ export function toonRegistratieVensterRapport() {
     knop.setAttribute('aria-disabled', blok ? 'true' : 'false');
     knop.style.background = blok ? '#c9c1bd' : '#1b7f3b';
     knop.style.boxShadow = blok ? 'none' : '0 6px 16px -7px rgba(27,127,59,.55)';
+    knop.style.filter = 'none';
     knop.style.cursor = blok ? 'not-allowed' : 'pointer';
   };
   zetKnop(true);

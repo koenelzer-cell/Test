@@ -85,7 +85,7 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   let ingediend = 0;
   // Zoals ReportFields, de knop Indienen en de knop '+ Reistijd' van ONS (die
   // toont de reistijdvelden en verdwijnt).
-  let toegevoegd = 0;
+  let toegevoegd = 0, rapportFocus = 0;
   const gekozenInVeld = [], gekozenInLijst = [];
   const koppel = () => {
     const toevoegen = $('#toevoegen');
@@ -118,7 +118,13 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
       reis.remove();
     });
     const veld = $('uc-textarea');
-    if (veld) veld.addEventListener('input', (ev) => werkBij({ report_comment: ev.detail[0] }));
+    if (veld) {
+      veld.addEventListener('input', (ev) => werkBij({ report_comment: ev.detail[0] }));
+      // Het tekstvak zit in de shadow-DOM van uc-textarea.
+      const sr = veld.attachShadow({ mode: 'open' });
+      sr.innerHTML = '<textarea></textarea>';
+      sr.querySelector('textarea').addEventListener('focus', () => { rapportFocus++; });
+    }
     const knop = $('[data-qa="submit-button"]');
     if (knop) knop.addEventListener('click', () => { ingediend++; });
   };
@@ -139,7 +145,7 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   // die laten we weg ('0 min.' blijft heel).
   const knop = (re) => paneel() && [...paneel().querySelectorAll('button')].find((b) => re.test(b.textContent.trim().replace(/^\d(?=[A-Za-z])/, '')));
   const openVenster = () => { $('#content').insertAdjacentHTML('beforeend', VENSTER); bouw(); koppel(); };
-  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, toegevoegd: () => toegevoegd, gekozenInVeld: () => gekozenInVeld.slice(), gekozenInLijst: () => gekozenInLijst.slice(), paneel, tekst, knop, openVenster, laadUursoorten, $ };
+  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, toegevoegd: () => toegevoegd, rapportFocus: () => rapportFocus, gekozenInVeld: () => gekozenInVeld.slice(), gekozenInLijst: () => gekozenInLijst.slice(), paneel, tekst, knop, openVenster, laadUursoorten, $ };
 }
 
 test('venster open op de agenda: het hulppaneel staat erin met de registratievormen, en de agenda blijft aan', async () => {
@@ -360,4 +366,19 @@ test('uursoort kiezen via de eigen lijst van het veld: de keuzelijst gaat niet o
   assert.deepEqual(t.gekozenInVeld(), [], 'de keuzelijst is niet geopend');
   await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
   assert.doesNotMatch(t.tekst(), /toont hem nog niet/);
+});
+
+test('Indienen houdt zijn kleur bij aanwijzen en indrukken; zonder rapportage zet hij de cursor in het rapportageveld', async () => {
+  const t = opzet({ registratieUursoort: { external_id: '1145' } });
+  (await wachtOp(() => t.knop(/^MDO/))).click();
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  const indienen = t.paneel().querySelector('[data-registratievenster-indienen]');
+  const grijs = indienen.style.background;
+  assert.match(grijs, /201, 193, 189|#c9c1bd/i);
+  ['mouseenter', 'mousedown', 'mouseup', 'mouseleave'].forEach((type) => indienen.dispatchEvent(new t.window.MouseEvent(type, { bubbles: true })));
+  assert.equal(indienen.style.background, grijs, 'geen roze of rood meer na aanwijzen en indrukken');
+  indienen.click();
+  await wachtOp(() => t.rapportFocus() > 0, 3000);
+  assert.equal(t.rapportFocus(), 1, 'de cursor staat in het rapportageveld');
+  assert.equal(t.ingediend(), 0);
 });

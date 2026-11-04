@@ -480,7 +480,11 @@ jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
    aanhef telt niet; bij no-show voor alle cliënten niet nodig), uursoort
    gekozen, direct plus indirect gelijk aan de duur. **Indienen** in het
    paneel is grijs zolang er iets openstaat; als alles klopt (groen) klikt
-   het de knop Indienen van ONS. De knop Indienen van ONS zelf blokkeert de
+   het de knop Indienen van ONS. Ontbreekt de rapportage, dan zet Indienen de
+   cursor achteraan in het rapportageveld van het venster, zoals de bestaande
+   hulp. Aanwijzen en indrukken veranderen bij de pilknoppen van de hulp
+   alleen schaduw en helderheid, niet de kleur (`ui/controls.js`), zodat grijs
+   of groen blijft staan. De knop Indienen van ONS zelf blokkeert de
    hulp niet.
 
 Met de terugknop kies je opnieuw een vorm. Sluit het venster, dan gaat de

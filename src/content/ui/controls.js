@@ -8,7 +8,9 @@ import { svgEmptyIcon, svgIcon } from './icons.js';
 
 // Pil: primaire/bevestigende actie. Vlakke kleur (geen gradient - dat oogde
 // gedateerd) + JS-gedreven hover/active, zodat de vorm nooit van een
-// <style>-tag afhangt. `to` fungeert als iets donkerdere druk-tint.
+// <style>-tag afhangt. Aanwijzen en indrukken veranderen alleen schaduw,
+// helderheid en positie, nooit de achtergrond: een knop die zijn kleur per
+// toestand krijgt (Indienen: grijs of groen) houdt die dan ook.
 function applyOnsahPillStyle(el, opts) {
   opts = opts || {};
   const from = opts.from || ONSAH_TOKENS.brand;
@@ -22,10 +24,10 @@ function applyOnsahPillStyle(el, opts) {
     boxShadow: '0 4px 12px -6px rgba(' + shadowRgb + ',.55)',
     transition: 'transform .08s ease, box-shadow .12s ease, background .1s ease', boxSizing: 'border-box',
   });
-  el.addEventListener('mouseenter', () => { if (!el.disabled) el.style.boxShadow = '0 6px 16px -5px rgba(' + shadowRgb + ',.6)'; });
-  el.addEventListener('mouseleave', () => { el.style.boxShadow = '0 4px 12px -6px rgba(' + shadowRgb + ',.55)'; el.style.background = from; });
-  el.addEventListener('mousedown', () => { if (!el.disabled) { el.style.transform = 'translateY(1px)'; el.style.background = to; } });
-  el.addEventListener('mouseup', () => { el.style.transform = 'none'; el.style.background = from; });
+  el.addEventListener('mouseenter', () => { if (!el.disabled && el.getAttribute('aria-disabled') !== 'true') el.style.boxShadow = '0 6px 16px -5px rgba(' + shadowRgb + ',.6)'; });
+  el.addEventListener('mouseleave', () => { el.style.boxShadow = el.getAttribute('aria-disabled') === 'true' ? 'none' : '0 4px 12px -6px rgba(' + shadowRgb + ',.55)'; el.style.transform = 'none'; el.style.filter = 'none'; });
+  el.addEventListener('mousedown', () => { if (!el.disabled) { el.style.transform = 'translateY(1px)'; el.style.filter = 'brightness(.92)'; } });
+  el.addEventListener('mouseup', () => { el.style.transform = 'none'; el.style.filter = 'none'; });
   onsahFocusRing(el, to);
 }
 // Kant-en-klare pil-knop met klik-handler (bevestigende acties, bv. Indienen).

@@ -2,6 +2,13 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.319
+
+- De knop Indienen in de registratiehulp blijft grijs of groen; hij springt
+  niet meer naar roze of rood als je erop wijst of klikt.
+- Alleen voor het testpakket: Indienen zonder rapportage in het vernieuwde
+  registratievenster zet de cursor meteen in het rapportageveld.
+
 ## 1.6.318
 
 - Alleen voor het testpakket: in het vernieuwde registratievenster kiest de
