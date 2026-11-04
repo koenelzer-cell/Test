@@ -10,7 +10,8 @@
 // niet opnieuw, en stopt het vooraf laden tot de tijd uit Retry-After (of
 // een minuut) voorbij is (onsTeDruk). Een POST nooit opnieuw.
 
-import { logVerzoek, netwerklogAan } from './netwerklog.js';
+import { logVerzoek, netwerklogAan, netwerklogAntwoorden } from './netwerklog.js';
+import { opbouwTekst } from '../../../shared/opbouw-masker.js';
 import { meldFout } from '../../core/foutbuffer.js';
 
 // Het soort adres voor de foutbuffer: zonder zoekdeel en zonder nummers.
@@ -22,7 +23,13 @@ async function haal(pad, init) {
   const t0 = performance.now(), methode = init.method || 'GET';
   try {
     const r = await fetch(pad, init);
-    logVerzoek('hulp', { methode, url: pad, status: r.status, ms: performance.now() - t0, grootte: r.headers && r.headers.get ? r.headers.get('content-length') : null });
+    // Met antwoorden (Debug): ook de afgeschermde opbouw van antwoord en verzoek.
+    let antwoord = '', verzoek = '';
+    if (netwerklogAntwoorden()) {
+      try { antwoord = opbouwTekst(await r.clone().text()); } catch (e) { antwoord = ''; }
+      verzoek = typeof init.body === 'string' ? opbouwTekst(init.body) : '';
+    }
+    logVerzoek('hulp', { methode, url: pad, status: r.status, ms: performance.now() - t0, grootte: r.headers && r.headers.get ? r.headers.get('content-length') : null, antwoord: antwoord, verzoek: verzoek });
     return r;
   } catch (e) {
     logVerzoek('hulp', { methode, url: pad, status: 0, ms: performance.now() - t0 });

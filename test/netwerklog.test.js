@@ -103,3 +103,27 @@ test('main-world: meldt verzoeken van ONS (fetch en XHR) alleen als het log aan 
   ]);
   assert.doesNotMatch(JSON.stringify(gezien), /naam|"x":1/, 'geen inhoud van verzoek of antwoord');
 });
+
+test('main-world met antwoorden: de afgeschermde opbouw van antwoord en verzoek, alleen JSON en alleen van ONS zelf', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body></body>', { url: ONS + '/invitees/42479/calendar/week', runScripts: 'outside-only' });
+  const w = dom.window;
+  const antwoord = (type, tekst) => ({ ok: true, status: 200, headers: { get: (h) => (h === 'content-type' ? type : null) }, clone() { return this; }, text: () => Promise.resolve(tekst) });
+  w.fetch = (url) => Promise.resolve(/html/.test(url) ? antwoord('text/html', '<p>Tamara</p>')
+    : antwoord('application/json; charset=utf-8', JSON.stringify({ basic_list: [['Toegestaan', [['Diagnostiek (GGZ 18+)', 1136, [], false, false]]]], client: { name: 'Tamara Test' }, care_orders: [] })));
+  const gezien = [];
+  w.addEventListener('message', (ev) => { const d = ev.data; if (d && d.dir === 'from-main' && d.type === 'netwerkVerzoek') gezien.push(d); });
+  w.eval(fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8'));
+  w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'netwerklogZetten', aan: true, antwoorden: true }, origin: w.location.origin, source: w }));
+  await w.fetch('/product_selection/product_list?client_ids%5B%5D=11142', { method: 'POST', body: JSON.stringify({ client: { name: 'Tamara Test' }, hour_type_id: 1136 }) });
+  await w.fetch('/pagina.html');
+  await w.fetch('https://elders.example/api.json');
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(gezien.length, 3);
+  const a = JSON.parse(gezien[0].antwoord), v = JSON.parse(gezien[0].verzoek);
+  assert.deepEqual(a, { basic_list: [['tekst(10)', [['tekst(21)', 1136, [], false, false]]]], client: { name: 'tekst(11)' }, care_orders: [] });
+  assert.deepEqual(v, { client: { name: 'tekst(11)' }, hour_type_id: 1136 });
+  assert.equal(gezien[1].antwoord, undefined, 'geen JSON: geen opbouw');
+  assert.equal(gezien[2].antwoord, undefined, 'een andere site: geen opbouw');
+  assert.doesNotMatch(JSON.stringify(gezien), /Tamara/);
+});

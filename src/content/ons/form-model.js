@@ -10,6 +10,7 @@
 import { PAGE_COMMAND } from '../../shared/messages.js';
 import { vraagMainWorld } from '../core/page-bridge.js';
 import { APP_CONFIG } from '../config/app-config.js';
+import { openTypePick } from './interaction.js';
 
 // Noodschakelaar (beheerscherm of bedrijfsbeleid): features.formViaModel ===
 // false zet de route via het ONS-model uit. Elke zetter gaat dan meteen via
@@ -100,9 +101,31 @@ export function zetRegistratieTijden(velden, wachtMs) {
 export function zetRegistratieRapport(aanhef, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { rapport: String(aanhef || '') }, wachtMs);
 }
-// De uursoort van de registratie (id uit de uursoortlijst), via het uursoortveld.
+// De uursoort van de registratie (id uit de uursoortlijst), via de koppeling
+// van het uursoortveld (onChangeActivity). Staat dan in de registratie, maar
+// het veld zelf toont hem niet: gebruik kiesUursoortInVenster.
 export function zetRegistratieUursoort(id, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { uursoort: Number(id) }, wachtMs);
+}
+// De eindtijd zoveel minuten na de begintijd (No show: 1), via de koppeling
+// van TimeRegistrationCard (end_time als Date, zoals ONS hem doorgeeft).
+export function zetRegistratieEindNaBegin(minuten, wachtMs) {
+  return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { eindNaBegin: Number(minuten) }, wachtMs);
+}
+// De uursoort in het registratievenster kiezen. UITZONDERING op eerst-via-het-
+// formulier: het uursoortveld (ue-activity-select) toont een keuze alleen als
+// die via het veld zelf loopt; via de koppeling staat hij wel in de
+// registratie maar blijft het veld 'Selecteer een uursoort' tonen. Daarom hier
+// eerst het scherm (de keuzelijst openen en de optie kiezen, zoals bij het
+// afspraakformulier), nagekeken in de registratie; lukt dat niet, dan de
+// koppeling. -> Promise<{ ok, zichtbaar }>
+export function kiesUursoortInVenster(id, naam, keuzelijst) {
+  const viaScherm = () => new Promise((klaar) => {
+    if (!keuzelijst || !naam) { klaar(false); return; }
+    openTypePick(() => keuzelijst, naam, (ok) => klaar(!!ok));
+  }).then((ok) => (ok ? leesRegistratieVenster().then((v) => !!v && v.uursoort === Number(id)) : false));
+  return viaScherm().then((ok) => (ok ? { ok: true, zichtbaar: true }
+    : zetRegistratieUursoort(id).then((gezet) => ({ ok: !!gezet, zichtbaar: false }))));
 }
 export function zetRegistratieNoShow(clientId, aan, wachtMs) {
   return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan === true } }, wachtMs);

@@ -229,6 +229,18 @@ cliëntnaam zijn); alleen waarden die zeggen wat er gevraagd wordt (`layer`,
 `date`, `page`, `usage` en dergelijke) blijven staan. Daaronder staan
 **Formulier** en **Fouten** (zie verderop).
 
+Met **Antwoorden** (standaard aan) heeft een verzoek van ONS of de hulp met
+een JSON-antwoord de knop **Opbouw tonen**: de opbouw van het verzoek (wat
+ONS meestuurt) en van het antwoord, om een nieuwe structuur van ONS uit te
+zoeken. Alleen van deze site, zonder persoonsgegevens
+(`shared/opbouw-masker.js`): sleutels en soorten waarden; tekst onder een
+gevoelige sleutel (naam, cliënt, geboorte, adres, rapportage, omschrijving,
+gender, woonplaats, zorg …) en tekst op een plek in een lijst worden
+`tekst(lengte)`, id's `id`; codes, datums, tijden en uursoorten (onder een
+sleutel met activity of hour) blijven leesbaar; lijsten de eerste 3, een
+korte rij losse waarden helemaal. **Kopiëren** neemt de opbouw mee, onder
+elk verzoek.
+
 - **ONS**: verzoeken van de ONS-pagina zelf (de main-world kijkt mee met
   `fetch` en `XMLHttpRequest`);
 - **Hulp**: verzoeken van de hulp (`services/ons-api/http.js`);
@@ -397,7 +409,10 @@ herkend aan `data-qa="time-distribution-fields"` of de velden
 `declaration[…]`, `ons/registratie-venster.js`). Alleen het testpakket draait
 op die host; de agenda, het zijpaneel en de afspraakhulp werken daar gewoon.
 
-**Registratiehulp in het venster.** Gaat het venster open, dan verschijnt het
+**Registratiehulp in het venster.** Staat er nog geen cliënt in het venster,
+dan staat bovenaan **Cliënt toevoegen**, zoals bij de afspraakhulp: dat klikt
+'+ Toevoegen' bij Cliënten in het venster (ONS opent zijn eigen zoekvenster);
+met een cliënt verdwijnt de knop. Gaat het venster open, dan verschijnt het
 hulppaneel (Registratiehulp) ín het venster; de agenda en het zijpaneel
 blijven gewoon aan. Dat geldt voor registreren voor een ander én voor
 jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
@@ -410,7 +425,9 @@ jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
    begin): 100% direct, 100% indirect of de startverdeling. Vraagt de vorm
    naar de tegen-tijd ('Indirecte tijd aanwezig in deze registratie?'), dan
    eerst die vraag; bij Ja de minuten kiezen. **No show** zet no-show bij
-   elke cliënt (in het nieuwe venster een knop per cliënt) en zet geen tijden.
+   elke cliënt (in het nieuwe venster een knop per cliënt), zet de eindtijd
+   op begintijd plus 1 minuut (zoals de bestaande hulp, `eindtijdBeginPlusMin`)
+   en dan 1 minuut direct.
    Heeft de vorm een **uursoort**, dan zoekt de hulp die op naam in de lijst
    die het uursoortveld van ONS zelf ophaalt (dezelfde naam, hoofdletters en
    spaties tellen niet; anders de ene uursoort waar de naam in staat) en zet
@@ -427,7 +444,11 @@ jezelf (beide hetzelfde venster; de afspraak waar het uit komt, staat in
 5. **Kies uursoort**, zoals de afspraakhulp hem uitvraagt: staat er nog geen
    uursoort (niet op de registratie en bij geen cliënt), dan toont de hulp de
    lijst van het uursoortveld van ONS (de aanbevolen uursoorten eerst, zoals
-   ONS ze toont) en zet hij de keuze zoals dat veld. Is de lijst nog niet
+   ONS ze toont). Kiezen loopt via het veld zelf: de keuzelijst van het
+   uursoortveld openen en de optie kiezen, zoals bij het afspraakformulier,
+   zodat het veld hem ook toont. Lukt dat niet, dan via de koppeling: dan
+   staat hij in de registratie maar toont het veld hem niet, en dat staat bij
+   de controles. Is de lijst nog niet
    geladen, dan wacht het scherm op het sein van de main-world
    (`HOUR_TYPES_LOADED`); kiest de medewerker intussen in ONS zelf, dan gaat
    de hulp door naar de rapportage. Staat er al een uursoort (bijvoorbeeld uit

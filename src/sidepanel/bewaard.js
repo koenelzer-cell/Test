@@ -53,7 +53,8 @@ export const BEWAARD = {
   // in ONS. Netwerk: de verzoeken (alleen hier in het geheugen), het filter en
   // pauze; sinds en sessie: tot waar het content-script al gevraagd is.
   debug: { stand: 'dicht', invoer: '', fout: false },
-  netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0 },
+  // antwoorden: ook de afgeschermde opbouw van antwoord en verzoek; open: welke rijen die tonen.
+  netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0, antwoorden: true, open: {} },
   // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier (Vue).
   formulier: { items: [], gekopieerd: false },
   // Debug, Fouten: de laatst gelezen fouten uit het tabblad.

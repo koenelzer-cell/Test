@@ -9,11 +9,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { bootHelper } from './helpers/harness.mjs';
 
+// De tijden in het venster staan in Nederlandse tijd (+01:00); de eindtijd die
+// de hulp zet is een Date, zoals ONS hem doorgeeft. Zelfde tijdzone als in ONS.
+process.env.TZ = 'Europe/Amsterdam';
+
 const MAIN = fs.readFileSync(new URL('../dist/main-world.js', import.meta.url), 'utf8');
 const AGENDA = 'https://impegno-backup-staging.onsagenda.nl/invitees/1,2/calendar/week';
 const VENSTER = '<uc-modal><div id="form"><uc-card id="tijd"><div data-qa="time-distribution-fields"></div>'
   + '<uc-button data-qa="add-travel-times">+ Reistijd</uc-button><ue-activity-select aria-label="Uursoort"></ue-activity-select></uc-card>'
-  + '<uc-card id="rapport"><div data-qa="new-report-field"><uc-textarea></uc-textarea></div></uc-card>'
+  + '<uc-card id="rapport"><div data-qa="new-report-field"><uc-textarea></uc-textarea></div><uc-button id="toevoegen">Toevoegen</uc-button></uc-card>'
   + '<uc-button data-qa="submit-button">Indienen</uc-button></div></uc-modal>';
 const VORMEN = { registrationForms: [
   { vorm: 'No show', startVerdeling: '100% direct', uursoort: 'No show#', eindtijdBeginPlusMin: 1, rapportagePrefix: 'No show', labels: [] },
@@ -37,7 +41,10 @@ async function wachtOp(fn, max = 4000) {
 // venster komt), host, uursoort (van de eerste cliënt), registratieUursoort
 // (al gekozen, bijvoorbeeld uit de afspraak), uursoorten (het uursoortveld
 // heeft zijn lijst al opgehaald).
-function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.onsagenda.nl', uursoort = null, registratieUursoort, uursoorten = true } = {}) {
+// metKeuzelijst: het uursoortveld heeft zijn keuzelijst (uc-select met de
+// opties) in de shadow-DOM, zoals in ONS; een klik op een optie meldt
+// change-activity, waar Vue op luistert.
+function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.onsagenda.nl', uursoort = null, registratieUursoort, uursoorten = true, metKeuzelijst = false } = {}) {
   const boot = bootHelper({
     url: AGENDA.replace('impegno-backup-staging.onsagenda.nl', host),
     html: '<!doctype html><html><body><div id="content">' + (venster ? VENSTER : '') + '</div></body></html>',
@@ -76,7 +83,23 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   let ingediend = 0;
   // Zoals ReportFields, de knop Indienen en de knop '+ Reistijd' van ONS (die
   // toont de reistijdvelden en verdwijnt).
+  let toegevoegd = 0;
+  const gekozenInVeld = [];
   const koppel = () => {
+    const toevoegen = $('#toevoegen');
+    if (toevoegen) toevoegen.addEventListener('click', () => { toegevoegd++; });
+    const ue = $('ue-activity-select');
+    if (ue && metKeuzelijst) {
+      // Zoals Vue: de luisteraar op het veld zelf.
+      ue.addEventListener('change-activity', (ev) => werkBij({ hour_type: { external_id: String(ev.detail[0]) } }));
+      const sr = ue.attachShadow({ mode: 'open' });
+      sr.innerHTML = '<uc-select role="combobox" aria-label="Uursoort"></uc-select><div role="listbox" data-test-rect="40,0,300,200">'
+        + ACTIVITEITEN.suggestedActivityList.concat(ACTIVITEITEN.otherActivityList).map((a) => '<div role="option" data-id="' + a.activityModel.objectId + '" data-test-rect="50,0,280,30">' + a.activityModel.description.trim() + '</div>').join('') + '</div>';
+      sr.querySelectorAll('[role="option"]').forEach((o) => o.addEventListener('click', () => {
+        gekozenInVeld.push(o.textContent);
+        ue.dispatchEvent(new w.CustomEvent('change-activity', { detail: [o.getAttribute('data-id')] }));
+      }));
+    }
     const reis = $('[data-qa="add-travel-times"]');
     if (reis) reis.addEventListener('click', () => {
       ontvangen.push(['klik', 'add-travel-times']);
@@ -105,7 +128,7 @@ function opzet({ venster = true, labels = null, host = 'impegno-backup-staging.o
   // die laten we weg ('0 min.' blijft heel).
   const knop = (re) => paneel() && [...paneel().querySelectorAll('button')].find((b) => re.test(b.textContent.trim().replace(/^\d(?=[A-Za-z])/, '')));
   const openVenster = () => { $('#content').insertAdjacentHTML('beforeend', VENSTER); bouw(); koppel(); };
-  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, paneel, tekst, knop, openVenster, laadUursoorten, $ };
+  return { ...boot, reg, ontvangen: () => JSON.parse(JSON.stringify(ontvangen)), ingediend: () => ingediend, toegevoegd: () => toegevoegd, gekozenInVeld: () => gekozenInVeld.slice(), paneel, tekst, knop, openVenster, laadUursoorten, $ };
 }
 
 test('venster open op de agenda: het hulppaneel staat erin met de registratievormen, en de agenda blijft aan', async () => {
@@ -184,12 +207,14 @@ test('tegen-tijd kiezen: de gekozen minuten indirect, de rest direct; een aanhef
   assert.match(t.tekst(), /Schrijf eerst de rapportage/, 'alleen de aanhef telt niet als rapportage');
 });
 
-test('No show: no-show aan bij elke cliënt, geen tijdverdeling; de rapportage hoeft dan niet', async () => {
+test('No show: eindtijd begintijd plus 1 minuut, 1 minuut direct, no-show bij elke cliënt; de rapportage hoeft dan niet', async () => {
   const t = opzet({ uursoort: { id: 77 } });
   (await wachtOp(() => t.knop(/^No show/))).click();
-  await wachtOp(() => t.reg.client_declarations.every((c) => c.no_show === true));
+  await wachtOp(() => t.reg.client_declarations.every((c) => c.no_show === true) && t.reg.direct_time === 1);
   assert.deepEqual(t.reg.client_declarations.map((c) => c.no_show), [true, true]);
-  assert.ok(!t.ontvangen().some(([soort, x]) => soort === 'registration' && 'direct_time' in x), 'geen tijden gezet');
+  assert.equal(Object.prototype.toString.call(t.reg.end_time), '[object Date]', 'eindtijd als Date, zoals ONS hem doorgeeft');
+  assert.equal(t.reg.end_time.getHours() + ':' + t.reg.end_time.getMinutes(), '13:6', '13:05 plus 1 minuut');
+  assert.deepEqual([t.reg.direct_time, t.reg.indirect_time], [1, 0]);
   const indienen = await wachtOp(() => t.paneel().querySelector('[data-registratievenster-indienen]'));
   await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 3000);
   assert.equal(indienen.getAttribute('aria-disabled'), 'false');
@@ -281,4 +306,35 @@ test('kiest de medewerker de uursoort in ONS zelf terwijl Kies uursoort openstaa
   t.reg.hour_type = { external_id: '1089' }; // zoals ONS hem zet na een keuze in het uursoortveld
   await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
   assert.doesNotMatch(t.tekst(), /Kies uursoort|Kies de uursoort/);
+});
+
+test('nog geen cliënt: bovenaan Cliënt toevoegen, dat + Toevoegen van ONS klikt; met een cliënt verdwijnt de knop', async () => {
+  const t = opzet();
+  (await wachtOp(() => t.knop(/^Cliënt toevoegen$/))).click();
+  assert.equal(t.toegevoegd(), 1, 'de knop Toevoegen bij Cliënten in het venster is geklikt');
+  t.$('#rapport').insertAdjacentHTML('beforeend', '<div data-qa="client-declaration-0"></div>');
+  await wachtOp(() => !t.knop(/^Cliënt toevoegen$/), 3000);
+  assert.ok(!t.knop(/^Cliënt toevoegen$/));
+  assert.ok(t.knop(/^MDO/), 'de vormen blijven');
+});
+
+test('uursoort kiezen loopt via het veld zelf (keuzelijst openen, optie kiezen), zodat het veld hem ook toont', async () => {
+  const t = opzet({ metKeuzelijst: true });
+  (await wachtOp(() => t.knop(/^MDO/))).click();
+  (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Diagnostiek \(GGZ 18\+\)$/))).click();
+  await wachtOp(() => t.reg.hour_type, 6000);
+  assert.deepEqual(t.gekozenInVeld(), ['Diagnostiek (GGZ 18+)'], 'de optie in het uursoortveld zelf gekozen');
+  assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  assert.doesNotMatch(t.tekst(), /toont hem nog niet/);
+});
+
+test('zonder keuzelijst in het veld: de uursoort via de koppeling, met de melding dat het veld hem nog niet toont', async () => {
+  const t = opzet();
+  (await wachtOp(() => t.knop(/^MDO/))).click();
+  (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Diagnostiek \(GGZ 18\+\)$/))).click();
+  await wachtOp(() => t.reg.hour_type);
+  assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
+  await wachtOp(() => /toont hem nog niet/.test(t.tekst()), 3000);
+  assert.match(t.tekst(), /gezet, het veld Uursoort toont hem nog niet/);
 });

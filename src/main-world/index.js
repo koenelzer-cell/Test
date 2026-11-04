@@ -26,6 +26,7 @@ import { PAGE_BRIDGE, PAGE_COMMAND, PAGE_EVENT } from '../shared/messages.js';
 import { parseEventOverlap } from '../shared/overlap.js';
 import { firstNameFromName } from '../shared/namen.js';
 import { PAGE_SESSION } from '../shared/storage-keys.js';
+import { opbouwTekst } from '../shared/opbouw-masker.js';
 
 (function onsAgendahulpMainWorld() {
   if (window.__onsAgendahulpMW) return;
@@ -250,13 +251,25 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
      het geheugen en geeft het alleen aan het zijpaneel.
      ---------------------------------------------------------------------- */
   let netlog = false;
-  function logNet(method, url, t0, status, grootte) {
+  // Debug, Netwerk met antwoorden: van verzoeken op deze site ook de opbouw
+  // van het antwoord en van een meegestuurd verzoek (JSON), zonder
+  // persoonsgegevens (shared/opbouw-masker.js). Alleen zolang het zijpaneel
+  // erom vraagt.
+  let netlogAntwoorden = false;
+  function eigenSite(url) { try { return new URL(String(url), location.href).origin === location.origin; } catch (e) { return false; } }
+  function logNet(method, url, t0, status, grootte, antwoordTekst, verzoekTekst) {
     try {
-      post(PAGE_EVENT.NET_REQUEST, {
+      const uit = {
         methode: String(method || 'GET'), url: String(url == null ? '' : url).slice(0, 2000),
         status: Number(status) || 0, ms: Math.round(performance.now() - t0),
         grootte: grootte == null || grootte === '' ? null : Number(grootte),
-      });
+      };
+      if (netlogAntwoorden && eigenSite(url)) {
+        const a = opbouwTekst(antwoordTekst), v = typeof verzoekTekst === 'string' ? opbouwTekst(verzoekTekst) : '';
+        if (a) uit.antwoord = a;
+        if (v) uit.verzoek = v;
+      }
+      post(PAGE_EVENT.NET_REQUEST, uit);
     } catch (e) {}
   }
 
@@ -272,8 +285,13 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
           const p = origFetch.apply(this, arguments);
           if (netlog) {
             try {
-              p.then(function (res) { logNet(method, url, t0, res && res.status, res && res.headers && res.headers.get ? res.headers.get('content-length') : null); },
-                function () { logNet(method, url, t0, 0, null); });
+              p.then(function (res) {
+                const grootte = res && res.headers && res.headers.get ? res.headers.get('content-length') : null;
+                const json = res && res.headers && res.headers.get && /json/i.test(res.headers.get('content-type') || '');
+                if (netlogAntwoorden && json && res.clone && eigenSite(url)) {
+                  res.clone().text().then(function (t) { logNet(method, url, t0, res.status, grootte, t, body); }, function () { logNet(method, url, t0, res.status, grootte); });
+                } else logNet(method, url, t0, res && res.status, grootte, '', body);
+              }, function () { logNet(method, url, t0, 0, null); });
             } catch (e) {}
           }
           try {
@@ -321,9 +339,12 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
             if (netlog) {
               const t0 = performance.now();
               xhr.addEventListener('loadend', function () {
-                let grootte = null;
+                let grootte = null, tekst = '';
                 try { grootte = xhr.getResponseHeader('content-length'); } catch (e) {}
-                logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte);
+                if (netlogAntwoorden) {
+                  try { tekst = xhr.responseType === 'json' ? JSON.stringify(xhr.response) : (xhr.responseType === '' || xhr.responseType === 'text' ? xhr.responseText : ''); } catch (e) { tekst = ''; }
+                }
+                logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte, tekst, body);
               });
             }
             if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
@@ -868,12 +889,29 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       return !!na && uursoortId(na.reg.hour_type) === id;
     }, klaar);
   }
+  // De eindtijd zoveel minuten na de begintijd (No show: 1). Zoals
+  // TimeRegistrationCard een gewijzigde eindtijd doorgeeft: { end_time: Date }.
+  function zetVensterEind(r, waarde, klaar) {
+    const min = Number(waarde);
+    if (!(min > 0 && min < 1440) || Math.round(min) !== min) { klaar({ ok: false, reden: 'ongeldige duur' }); return; }
+    const s = r.reg.start_time;
+    const begin = Object.prototype.toString.call(s) === '[object Date]' ? new Date(s.getTime()) : (s && typeof s.toDate === 'function' ? s.toDate() : new Date(String(s)));
+    if (!begin || isNaN(begin.getTime())) { klaar({ ok: false, reden: 'geen begintijd' }); return; }
+    const eind = new Date(begin.getTime() + min * 60000);
+    const zet = r.tijd.props && r.tijd.props['onUpdate:registration'];
+    if (typeof zet !== 'function') { klaar({ ok: false, reden: 'geen koppeling voor de tijden' }); return; }
+    zetEnControleer(function () { zet({ end_time: eind }); }, function () {
+      const na = registratieVenster();
+      return !!na && uurMin(na.reg.end_time) === uurMin(eind);
+    }, klaar);
+  }
   const REG_TIJDEN = ['direct_time', 'indirect_time', 'travel_time_before', 'travel_time_after'];
   function zetRegistratie(d, klaar) {
     const r = registratieVenster();
     if (!r) { klaar({ ok: false, reden: 'geen registratievenster' }); return; }
     if (typeof d.rapport === 'string' && d.rapport) { zetRapportAanhef(r, d.rapport, klaar); return; }
     if (d.uursoort != null) { zetVensterUursoort(r, d.uursoort, klaar); return; }
+    if (d.eindNaBegin != null) { zetVensterEind(r, d.eindNaBegin, klaar); return; }
     if (d.noShow && typeof d.noShow === 'object') {
       const id = Number(d.noShow.clientId), aan = d.noShow.aan === true;
       const zet = r.clients && r.clients.props && r.clients.props['onUpdate:clientDeclarationField'];
@@ -940,7 +978,7 @@ import { PAGE_SESSION } from '../shared/storage-keys.js';
       if (!d || d[PAGE_BRIDGE.MARKER] !== true || d.dir !== PAGE_BRIDGE.TO_MAIN) return;
       const id = String(d.id || '').slice(0, 60);
       const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
-      if (d.type === PAGE_COMMAND.SET_NETLOG) { netlog = d.aan === true; return; }
+      if (d.type === PAGE_COMMAND.SET_NETLOG) { netlog = d.aan === true; netlogAntwoorden = netlog && d.antwoorden === true; return; }
       if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
       if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }

@@ -180,7 +180,7 @@
     AGENDA_ERRLOG: "ag-foutlog",
     // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
     AGENDA_NETLOG: "ag-netwerklog",
-    // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
+    // { sinds, antwoorden } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte, antwoord, verzoek }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
     AGENDA_EMPLOYEE_SEARCH: "ag-employee-search",
     // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
     AGENDA_COLLEAGUE_CHECK: "ag-colleague-check",

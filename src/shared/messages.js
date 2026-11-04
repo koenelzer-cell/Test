@@ -52,7 +52,7 @@ export const MSG = {
   AGENDA_FORMLOG: 'ag-formulierlog', // {} -> { ok, items: [{ tijd, actie, veld?, ok, via?, reden?, opbouw? }] }  Debug, Formulier: de laatste 30 uitkomsten van de route via het ONS-formulier (Vue)
   AGENDA_REGVENSTER: 'ag-registratievenster', // { actie: 'lees' } of { actie: 'zet', direct, indirect } -> { ok, venster?, reden? }  Debug: het vernieuwde registratievenster uitlezen of de tijdverdeling zetten (testen)
   AGENDA_ERRLOG: 'ag-foutlog',      // {} -> { ok, items: [{ tijd, plek, melding }] }  Debug, Fouten: de laatste 100 stil opgevangen fouten in dit tabblad
-  AGENDA_NETLOG: 'ag-netwerklog',   // { sinds } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
+  AGENDA_NETLOG: 'ag-netwerklog',   // { sinds, antwoorden } -> { ok, sessie, items: [{ id, tijd, bron, methode, url, status, ms, grootte, antwoord, verzoek }] }  Debug, Netwerk: verzoeken na id 'sinds'; elke vraag houdt het loggen 15 s aan
   AGENDA_EMPLOYEE_SEARCH: 'ag-employee-search', // { term } -> { ok, employees: [{ id, name, team, kanUitnodigen }] }  Afspraak maken: collega toevoegen
   AGENDA_COLLEAGUE_CHECK: 'ag-colleague-check', // { ids, moments: [{ date, startMin, minutes }] } -> { ok, result: { id: [{ kan, soort?, heleDag?, van?, tot?, reistijd? } | { onbekend }] } }
   AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
@@ -84,7 +84,7 @@ export const PAGE_EVENT = {
   CREATED: 'eventCreated',      // { body }  opslaan-verzoek van ONS (na het antwoord), alleen als de planhulp kopieën klaarzette
   MAIN_READY: 'mainWorldKlaar', // {}  de main-world is geladen (het content-script stuurt dan opnieuw wat aan staat)
   URL_CHANGED: 'urlGewijzigd',  // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
-  NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
+  NET_REQUEST: 'netwerkVerzoek', // { methode, url, status, ms, grootte, antwoord?, verzoek? }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat; met antwoorden de afgeschermde opbouw (shared/opbouw-masker.js)
   HOUR_TYPES_LOADED: 'uursoortenGeladen', // { aantal }  het uursoortveld van het registratievenster haalde zijn lijst op (de lijst zelf via READ_REGISTRATION met uursoorten)
 };
 // Opdrachten van het content-script aan de main-world (dir TO_MAIN) en het
@@ -94,7 +94,7 @@ export const PAGE_COMMAND = {
   LABELS_SET: 'labelsGezet',    // { id, ok, reden? }
   SET_HOUR_TYPE: 'zetUursoort', // { id, doel | clientId, hourTypeId, beschrijving } of { id, doel, wis: true }  uursoort van het veld met data-onsah-doel=doel, of van die cliënt
   HOUR_TYPE_SET: 'uursoortGezet', // { id, ok, reden? }
-  SET_NETLOG: 'netwerklogZetten', // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
+  SET_NETLOG: 'netwerklogZetten', // { aan, antwoorden }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet, met antwoorden: ook de afgeschermde opbouw van antwoord en verzoek; geen antwoord
   SET_FIELD: 'zetVeld',         // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
   FIELD_SET: 'veldGezet',       // { id, ok, reden? }
   READ_USER: 'leesGebruiker',   // { id }  medewerker-id uit onsContext() van de pagina
@@ -103,7 +103,7 @@ export const PAGE_COMMAND = {
   RECURRENCE_SET: 'herhalingGezet', // { id, ok, via?, reden?, opbouw? }  opbouw: hoe het herhalingveld is opgebouwd (alleen bij niet gelukt, voor Debug)
   READ_REGISTRATION: 'leesRegistratie', // { id, uursoorten? }  het vernieuwde registratievenster (DeclareAsRegistrationForm) lezen; met uursoorten: true ook de laatst opgehaalde uursoortlijst [{ id, naam }]
   REGISTRATION_READ: 'registratieGelezen', // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
-  SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
+  SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
   REGISTRATION_SET: 'registratieGezet', // { id, ok, reden? }
   READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
   FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }

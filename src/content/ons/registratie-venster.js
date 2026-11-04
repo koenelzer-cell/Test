@@ -3,7 +3,7 @@
 // DeclareAsRegistrationForm. In de DOM herkenbaar aan de tijdverdeling
 // (data-qa="time-distribution-fields") of de formuliervelden declaration[…].
 
-import { deepQueryAll, visible } from './dom.js';
+import { clean, deepQueryAll, visible } from './dom.js';
 import { clickUiButton } from './form-controls.js';
 import { wachtTot } from '../core/wacht.js';
 
@@ -14,6 +14,32 @@ export function klikIndienenInVenster() {
   const v = vindRegistratieVenster();
   const knop = v ? deepQueryAll('uc-button[data-qa="submit-button"]', v)[0] : null;
   return knop ? clickUiButton(knop) : false;
+}
+
+// Cliënt toevoegen zoals de medewerker: de knop '+ Toevoegen' bij Cliënten in
+// het venster (de enige knop met die tekst daar; ONS opent dan zijn eigen
+// zoekvenster). -> true als geklikt.
+export function klikClientToevoegenInVenster() {
+  const v = vindRegistratieVenster();
+  const knop = v ? deepQueryAll('uc-button', v).find(function (b) { return /^\+?\s*toevoegen$/.test(clean(b.textContent || '')) && visible(b); }) : null;
+  return knop ? clickUiButton(knop) : false;
+}
+// Hoeveel cliënten het venster toont (goedkoop, voor het startscherm).
+export function aantalClientsInVenster() {
+  const v = vindRegistratieVensterSnel() || vindRegistratieVenster();
+  return v ? v.querySelectorAll('[data-qa^="client-declaration-"]').length : 0;
+}
+
+// Het uursoortveld (ue-activity-select) en de keuzelijst daarin: dezelfde
+// uc-select als het uursoortveld van het afspraakformulier, in de shadow-DOM
+// van het veld. null als die er niet is.
+export function uursoortVeldInVenster() {
+  const v = vindRegistratieVenster();
+  return v ? deepQueryAll('ue-activity-select', v)[0] || null : null;
+}
+export function uursoortKeuzelijstInVenster() {
+  const veld = uursoortVeldInVenster();
+  return veld && veld.shadowRoot ? deepQueryAll('uc-select', veld.shadowRoot)[0] || null : null;
 }
 
 // De reistijdvelden staan achter de knop '+ Reistijd' van ONS: ook als de

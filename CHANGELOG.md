@@ -2,6 +2,18 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.315
+
+- Alleen voor het testpakket, in het vernieuwde registratievenster:
+  - Staat er nog geen cliënt in het venster, dan kun je er vanuit de hulp een
+    toevoegen, zoals bij de afspraakhulp.
+  - No show zet de eindtijd weer op 1 minuut na de begintijd.
+  - De uursoort kiest de hulp nu via het veld Uursoort zelf, zodat het veld
+    hem ook toont.
+- Debug, Netwerk toont nu ook de opbouw van wat ONS stuurt en terugkrijgt
+  (zonder namen of andere persoonsgegevens), om nieuwe onderdelen van ONS uit
+  te zoeken.
+
 ## 1.6.314
 
 - Alleen voor het testpakket: de registratiehulp in het vernieuwde

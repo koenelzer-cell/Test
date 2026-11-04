@@ -95,6 +95,8 @@ export function bootHelper({ html = '<!doctype html><html><body></body></html>',
     get() { return this.isConnected && !(this.hasAttribute && this.hasAttribute('data-test-hidden')) ? (this.parentElement || w.document.body) : null; },
   });
 
+  // jsdom kent geen layout en dus geen elementFromPoint (de klikroutes vragen het).
+  if (typeof w.document.elementFromPoint !== 'function') w.document.elementFromPoint = () => null;
   if (react) w.eval(fs.readFileSync(path.join(ROOT, 'dist', 'react-bundle.js'), 'utf8'));
   w.eval(CONTENT_JS);
 

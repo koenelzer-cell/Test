@@ -21,7 +21,7 @@
     URL_CHANGED: "urlGewijzigd",
     // {}  de pagina veranderde zelf van adres (history.pushState/replaceState); het content-script kijkt meteen
     NET_REQUEST: "netwerkVerzoek",
-    // { methode, url, status, ms, grootte }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat
+    // { methode, url, status, ms, grootte, antwoord?, verzoek? }  Debug, Netwerk: een verzoek van ONS zelf, alleen zolang het log aan staat; met antwoorden de afgeschermde opbouw (shared/opbouw-masker.js)
     HOUR_TYPES_LOADED: "uursoortenGeladen"
     // { aantal }  het uursoortveld van het registratievenster haalde zijn lijst op (de lijst zelf via READ_REGISTRATION met uursoorten)
   };
@@ -35,7 +35,7 @@
     HOUR_TYPE_SET: "uursoortGezet",
     // { id, ok, reden? }
     SET_NETLOG: "netwerklogZetten",
-    // { aan }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet; geen antwoord
+    // { aan, antwoorden }  Debug, Netwerk: verzoeken van ONS zelf volledig melden (NET_REQUEST) of niet, met antwoorden: ook de afgeschermde opbouw van antwoord en verzoek; geen antwoord
     SET_FIELD: "zetVeld",
     // { id, veld, waarde }  één veld van het afspraakmodel via ONS' onChange (vaste lijst velden)
     FIELD_SET: "veldGezet",
@@ -53,7 +53,7 @@
     REGISTRATION_READ: "registratieGelezen",
     // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
     SET_REGISTRATION: "zetRegistratie",
-    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
+    // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
@@ -120,6 +120,82 @@
     EDGE_TAB_NUDGED: "onsHelper.edgeTabNudged"
     // het lipje heeft deze sessie al eens gewiebeld
   };
+
+  // src/shared/opbouw-masker.js
+  var GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|postcode|zip|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|insertion|infix|tussenvoeg|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|iban|account/i;
+  var ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
+  var OPEN = /activit|hour/i;
+  var MAX_DIEP = 6;
+  var MAX_LIJST = 3;
+  var MAX_SLEUTELS = 45;
+  function schoon(t) {
+    return String(t).replace(/[0-9a-f]{10,}/gi, "{id}").replace(/\d{3,}/g, "{n}");
+  }
+  function adres(u) {
+    const [pad, zoek] = String(u).split("?");
+    return schoon(pad).replace(/\d+/g, "{n}") + (zoek ? "?" + zoek.split("&").map(function(d) {
+      return d.split("=")[0] + "=…";
+    }).join("&") : "");
+  }
+  function vorm(w, d, ctx) {
+    if (typeof w === "function") return "ƒ";
+    if (typeof w === "string") {
+      if (ctx.gevoelig) return "tekst(" + w.length + ")";
+      if (/^(\/|https?:\/\/)/.test(w) && w.length < 300) return adres(w);
+      if (/^\d{4}-\d{2}-\d{2}(T[\d:.]+([+-]\d{2}:?\d{2}|Z)?)?$/.test(w) || /^\d{1,2}:\d{2}(:\d{2})?$/.test(w)) return w;
+      if (ctx.open) return w.length <= 80 ? w : "tekst(" + w.length + ")";
+      if (ctx.inLijst && !/^[a-z0-9_.-]{1,30}$/.test(w)) return "tekst(" + w.length + ")";
+      return w.length <= 40 ? schoon(w) : "tekst(" + w.length + ")";
+    }
+    if (typeof w === "number") {
+      if (ctx.sleutel && ID_SLEUTEL.test(ctx.sleutel) && !ctx.open) return "id";
+      if (ctx.gevoelig) return "getal";
+      const n = String(Math.trunc(Math.abs(w))).length;
+      return n >= 5 && !ctx.open ? "getal(" + n + ")" : w;
+    }
+    if (w == null || typeof w !== "object") return w;
+    if (d >= MAX_DIEP) return Array.isArray(w) ? "lijst(" + w.length + ")" : "object{" + Object.keys(w).slice(0, 12).join(",") + "}";
+    if (Array.isArray(w)) {
+      const rij = w.length <= 8 && w.every(function(x) {
+        return x == null || typeof x !== "object" || Array.isArray(x) && !x.length;
+      });
+      const max = rij ? w.length : MAX_LIJST;
+      const uit = w.slice(0, max).map(function(x) {
+        return vorm(x, d + 1, Object.assign({}, ctx, { inLijst: true }));
+      });
+      if (w.length > max) uit.push("…en " + (w.length - max) + " meer");
+      return uit;
+    }
+    const o = {};
+    Object.keys(w).slice(0, MAX_SLEUTELS).forEach(function(k) {
+      let x;
+      try {
+        x = w[k];
+      } catch (e) {
+        x = "?";
+      }
+      const gevoelig = ctx.gevoelig || GEVOELIG.test(k) && !(ctx.open && /^(name|description|label|title|code|abbreviation|external_id|identificationNo)$/i.test(k));
+      o[k] = vorm(x, d + 1, { sleutel: (ctx.sleutel && ctx.gevoelig ? ctx.sleutel + " " : "") + k, gevoelig, open: !gevoelig && (ctx.open || OPEN.test(k)), inLijst: false });
+    });
+    if (Object.keys(w).length > MAX_SLEUTELS) o["…"] = Object.keys(w).length - MAX_SLEUTELS + " sleutels meer";
+    return o;
+  }
+  function opbouwVan(waarde) {
+    return vorm(waarde, 0, { sleutel: "", gevoelig: false, open: false, inLijst: false });
+  }
+  function opbouwTekst(tekst, max) {
+    const t = String(tekst == null ? "" : tekst).trim();
+    if (!t || !/^[[{]/.test(t)) return "";
+    let j;
+    try {
+      j = JSON.parse(t);
+    } catch (e) {
+      return "";
+    }
+    const s = JSON.stringify(opbouwVan(j));
+    const m = max || 6e3;
+    return s.length > m ? s.slice(0, m) + "…(ingekort)" : s;
+  }
 
   // src/main-world/index.js
   (function onsAgendahulpMainWorld() {
@@ -318,15 +394,29 @@
       return null;
     }
     let netlog = false;
-    function logNet(method, url, t0, status, grootte) {
+    let netlogAntwoorden = false;
+    function eigenSite(url) {
       try {
-        post(PAGE_EVENT.NET_REQUEST, {
+        return new URL(String(url), location.href).origin === location.origin;
+      } catch (e) {
+        return false;
+      }
+    }
+    function logNet(method, url, t0, status, grootte, antwoordTekst, verzoekTekst) {
+      try {
+        const uit = {
           methode: String(method || "GET"),
           url: String(url == null ? "" : url).slice(0, 2e3),
           status: Number(status) || 0,
           ms: Math.round(performance.now() - t0),
           grootte: grootte == null || grootte === "" ? null : Number(grootte)
-        });
+        };
+        if (netlogAntwoorden && eigenSite(url)) {
+          const a = opbouwTekst(antwoordTekst), v = typeof verzoekTekst === "string" ? opbouwTekst(verzoekTekst) : "";
+          if (a) uit.antwoord = a;
+          if (v) uit.verzoek = v;
+        }
+        post(PAGE_EVENT.NET_REQUEST, uit);
       } catch (e) {
       }
     }
@@ -342,14 +432,19 @@
             const p = origFetch.apply(this, arguments);
             if (netlog) {
               try {
-                p.then(
-                  function(res) {
-                    logNet(method, url, t0, res && res.status, res && res.headers && res.headers.get ? res.headers.get("content-length") : null);
-                  },
-                  function() {
-                    logNet(method, url, t0, 0, null);
-                  }
-                );
+                p.then(function(res) {
+                  const grootte = res && res.headers && res.headers.get ? res.headers.get("content-length") : null;
+                  const json = res && res.headers && res.headers.get && /json/i.test(res.headers.get("content-type") || "");
+                  if (netlogAntwoorden && json && res.clone && eigenSite(url)) {
+                    res.clone().text().then(function(t) {
+                      logNet(method, url, t0, res.status, grootte, t, body);
+                    }, function() {
+                      logNet(method, url, t0, res.status, grootte);
+                    });
+                  } else logNet(method, url, t0, res && res.status, grootte, "", body);
+                }, function() {
+                  logNet(method, url, t0, 0, null);
+                });
               } catch (e) {
               }
             }
@@ -416,12 +511,19 @@
               if (netlog) {
                 const t0 = performance.now();
                 xhr.addEventListener("loadend", function() {
-                  let grootte = null;
+                  let grootte = null, tekst = "";
                   try {
                     grootte = xhr.getResponseHeader("content-length");
                   } catch (e) {
                   }
-                  logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte);
+                  if (netlogAntwoorden) {
+                    try {
+                      tekst = xhr.responseType === "json" ? JSON.stringify(xhr.response) : xhr.responseType === "" || xhr.responseType === "text" ? xhr.responseText : "";
+                    } catch (e) {
+                      tekst = "";
+                    }
+                  }
+                  logNet(xhr.__onsahMethod, xhr.__onsahUrl, t0, xhr.status, grootte, tekst, body);
                 });
               }
               if (isNieuwModel(xhr.__onsahUrl, xhr.__onsahMethod) && klaargezetModel()) vulXhr(xhr, XHR.prototype);
@@ -1146,6 +1248,31 @@
         return !!na && uursoortId(na.reg.hour_type) === id;
       }, klaar);
     }
+    function zetVensterEind(r, waarde, klaar) {
+      const min = Number(waarde);
+      if (!(min > 0 && min < 1440) || Math.round(min) !== min) {
+        klaar({ ok: false, reden: "ongeldige duur" });
+        return;
+      }
+      const s = r.reg.start_time;
+      const begin = Object.prototype.toString.call(s) === "[object Date]" ? new Date(s.getTime()) : s && typeof s.toDate === "function" ? s.toDate() : new Date(String(s));
+      if (!begin || isNaN(begin.getTime())) {
+        klaar({ ok: false, reden: "geen begintijd" });
+        return;
+      }
+      const eind = new Date(begin.getTime() + min * 6e4);
+      const zet = r.tijd.props && r.tijd.props["onUpdate:registration"];
+      if (typeof zet !== "function") {
+        klaar({ ok: false, reden: "geen koppeling voor de tijden" });
+        return;
+      }
+      zetEnControleer(function() {
+        zet({ end_time: eind });
+      }, function() {
+        const na = registratieVenster();
+        return !!na && uurMin(na.reg.end_time) === uurMin(eind);
+      }, klaar);
+    }
     const REG_TIJDEN = ["direct_time", "indirect_time", "travel_time_before", "travel_time_after"];
     function zetRegistratie(d, klaar) {
       const r = registratieVenster();
@@ -1159,6 +1286,10 @@
       }
       if (d.uursoort != null) {
         zetVensterUursoort(r, d.uursoort, klaar);
+        return;
+      }
+      if (d.eindNaBegin != null) {
+        zetVensterEind(r, d.eindNaBegin, klaar);
         return;
       }
       if (d.noShow && typeof d.noShow === "object") {
@@ -1259,6 +1390,7 @@
         };
         if (d.type === PAGE_COMMAND.SET_NETLOG) {
           netlog = d.aan === true;
+          netlogAntwoorden = netlog && d.antwoorden === true;
           return;
         }
         if (d.type === PAGE_COMMAND.READ_FORM) {

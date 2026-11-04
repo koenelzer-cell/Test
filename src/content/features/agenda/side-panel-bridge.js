@@ -258,7 +258,7 @@ export function listenForSidePanelMessages() {
           try { sendResponse({ ok: true, items: formulierLog() }); } catch (e) {}
           return;
         case MSG.AGENDA_NETLOG:
-          try { sendResponse({ ok: true, sessie: netwerklogSessie(), items: netwerklogSinds(msg.sinds) }); } catch (e) {}
+          try { sendResponse({ ok: true, sessie: netwerklogSessie(), items: netwerklogSinds(msg.sinds, msg.antwoorden === true) }); } catch (e) {}
           return;
         case MSG.AGENDA_EMPLOYEE_SEARCH:
           searchEmployeesForPlan(msg.term).then(function (employees) {

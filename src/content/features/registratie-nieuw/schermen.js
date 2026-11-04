@@ -18,8 +18,8 @@
 // keer; is de naam niet (eenduidig) te vinden, dan kiest de medewerker zelf.
 
 import { APP_CONFIG, gsNum, REGISTRATION_CHOICES } from '../../config/app-config.js';
-import { leesRegistratieVenster, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden, zetRegistratieUursoort } from '../../ons/form-model.js';
-import { klikIndienenInVenster, toonReistijdInVenster } from '../../ons/registratie-venster.js';
+import { kiesUursoortInVenster, leesRegistratieVenster, zetRegistratieEindNaBegin, zetRegistratieNoShow, zetRegistratieRapport, zetRegistratieTijden } from '../../ons/form-model.js';
+import { aantalClientsInVenster, klikClientToevoegenInVenster, klikIndienenInVenster, toonReistijdInVenster, uursoortKeuzelijstInVenster } from '../../ons/registratie-venster.js';
 import { labelsVoorAfspraak } from '../../services/ons-api/event-details.js';
 import { controleerVenster, deelVraagGeldt, duurVanVenster, isNoShowVorm, kiesUursoort, reistijdVerdeling, uursoortOntbreekt, verdelingVoorVorm } from '../../domain/registratie-venster.js';
 import { $body, safe, setStatus, showLoadingState } from '../../screen/status.js';
@@ -40,7 +40,7 @@ import { PAGE_EVENT } from '../../../shared/messages.js';
 // Per open venster (afspraak-id): welke vorm, of de vorm uit het label al is
 // toegepast, en of de uursoort van de vorm al geprobeerd is (één keer per
 // gekozen vorm: kiest de medewerker daarna zelf een andere, dan blijft die).
-const stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false };
+const stand = { afspraak: null, vorm: null, autoGedaan: false, bezig: false, laatst: null, uursoortGedaan: false, clientsGetoond: -1, uursoortOnzichtbaar: null };
 let controleTimer = null;
 // 'Kies uursoort' wacht op de lijst van het uursoortveld: het sein van de
 // main-world, en na een tijdje een melding.
@@ -57,9 +57,9 @@ function stopControle() { clearInterval(controleTimer); controleTimer = null; }
 // Een nieuw venster (andere afspraak) begint opnieuw.
 function nieuwVenster(afspraak) {
   if (stand.afspraak === afspraak) return;
-  stand.afspraak = afspraak; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.uursoortGedaan = false;
+  stand.afspraak = afspraak; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.uursoortGedaan = false; stand.uursoortOnzichtbaar = null;
 }
-export function vergeetRegistratieVenster() { stopControle(); stopUursoortWacht(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; stand.uursoortGedaan = false; }
+export function vergeetRegistratieVenster() { stopControle(); stopUursoortWacht(); stand.afspraak = null; stand.vorm = null; stand.autoGedaan = false; stand.laatst = null; stand.bezig = false; stand.uursoortGedaan = false; stand.uursoortOnzichtbaar = null; }
 
 // De uursoort van de vorm. v: een lezing met de uursoortlijst. Zonder lijst
 // (nog niet geladen) niets, en later opnieuw; anders één poging.
@@ -71,8 +71,17 @@ async function zetUursoortVanVorm(vorm, v) {
   const u = kiesUursoort(lijst, vorm.hourType);
   if (!u) { setStatus('Uursoort ' + vorm.hourType + ' niet gevonden, kies hem zelf', false); return; }
   if (v.uursoort === u.id) return;
-  const ok = await zetRegistratieUursoort(u.id);
-  setStatus(ok ? 'Uursoort ' + u.naam : 'Uursoort niet gezet, kies hem zelf', ok);
+  meldUursoort(u, await kiesUursoortInVenster(u.id, u.naam, uursoortKeuzelijstInVenster()));
+}
+// Status na het kiezen: gezet en in beeld, gezet maar niet in het veld te
+// zien (alleen via de koppeling gelukt), of niet gezet.
+// Alleen via de koppeling gelukt: dat blijft als regel bij de controles staan
+// zolang die uursoort er staat (de statusregel wordt elke seconde ververst).
+function meldUursoort(u, uit) {
+  stand.uursoortOnzichtbaar = uit && uit.ok && !uit.zichtbaar ? { id: u.id, naam: u.naam } : null;
+  if (uit && uit.ok && uit.zichtbaar) setStatus('Uursoort ' + u.naam, true);
+  else if (uit && uit.ok) setStatus('Uursoort ' + u.naam + ' gezet, het veld Uursoort toont hem nog niet', true);
+  else setStatus('Uursoort niet gezet, kies hem in het veld Uursoort', false);
 }
 
 // Het startscherm: de vorm kiezen. Komt het venster uit een afspraak met een
@@ -83,7 +92,13 @@ export function toonRegistratieVenster() {
   if (stand.vorm) { toonRegistratieVensterRapport(); return; }
   markScreen('registratieVensterKeuze');
   stopControle();
+  // Nog geen cliënt: bovenaan 'Cliënt toevoegen', zoals bij de afspraakhulp
+  // (klikt '+ Toevoegen' bij Cliënten in het venster).
+  stand.clientsGetoond = aantalClientsInVenster();
   renderScreen(body, 'choices', {
+    onAddClient: stand.clientsGetoond ? undefined : function () {
+      safe(function () { setStatus(klikClientToevoegenInVenster() ? 'Cliënt toevoegen geopend' : 'Knop Toevoegen niet gevonden', true); }, 'registratievenster cliënt toevoegen');
+    },
     choices: vormen().map(function (vorm, i) {
       return { label: vorm.label, tick: onsahCategoryColor(onsahRegistrationIsDirect(vorm), i), meta: vorm.directIndirectLabel };
     }),
@@ -107,6 +122,9 @@ export function toonRegistratieVenster() {
 // Bij elke wijziging in de pagina (helper/panel.js): het juiste scherm laten staan.
 export function verversRegistratieVenster() {
   if (stand.bezig) return;
+  // Cliënt toegevoegd of weggehaald: het startscherm opnieuw (de knop
+  // 'Cliënt toevoegen' alleen zolang er geen cliënt is).
+  if (isScreen('registratieVensterKeuze') && aantalClientsInVenster() !== stand.clientsGetoond) { toonRegistratieVenster(); return; }
   if (isScreen('registratieVensterKeuze') || isScreen('registratieVensterDeel') || isScreen('registratieVensterDeelDuur')
     || isScreen('registratieVensterReis') || isScreen('registratieVensterUursoort') || isScreen('registratieVensterRapport')) return;
   toonRegistratieVenster();
@@ -123,10 +141,13 @@ async function kiesVorm(vorm, gelezen) {
     stand.vorm = vorm;
     stand.uursoortGedaan = false;
     if (vorm.hourType) await zetUursoortVanVorm(vorm, await leesRegistratieVenster(undefined, true));
+    // No show (eindtijd begintijd plus 1 minuut), zoals de bestaande hulp.
+    if (vorm.endPlusOneMinute && !(await zetRegistratieEindNaBegin(1))) setStatus('Eindtijd niet gezet', false);
     if (isNoShowVorm(vorm)) {
       let ok = true;
       for (const c of (v.clients || [])) if (!c.noShow) ok = (await zetRegistratieNoShow(c.id, true)) && ok;
-      setStatus(ok ? 'No show gezet' : 'No show niet gezet bij elke cliënt', ok);
+      await pasVerdelingToe(vorm, null);
+      if (!ok) setStatus('No show niet gezet bij elke cliënt', false);
       stand.bezig = false;
       await zetAanhef(vorm);
       await naarUursoortOfRapport();
@@ -134,7 +155,7 @@ async function kiesVorm(vorm, gelezen) {
     }
     stand.bezig = false;
     if (deelVraagGeldt(vorm)) { toonRegistratieVensterDeel(); return; }
-    await pasVerdelingToe(vorm, null, v);
+    await pasVerdelingToe(vorm, null, vorm.endPlusOneMinute ? null : v);
     verder(vorm);
   } catch (e) { stand.bezig = false; throw e; }
 }
@@ -197,10 +218,11 @@ export function toonRegistratieVensterUursoort() {
         if (!u) return;
         stopUursoortWacht();
         setStatus('Bezig...');
-        opgevangen(zetRegistratieUursoort(u.id).then(function (ok) {
+        showLoadingState('Uursoort ' + u.naam + ' kiezen...');
+        opgevangen(kiesUursoortInVenster(u.id, u.naam, uursoortKeuzelijstInVenster()).then(function (uit) {
           stand.uursoortGedaan = true;
-          setStatus(ok ? 'Uursoort ' + u.naam : 'Uursoort niet gezet, kies hem in het veld Uursoort', ok);
           toonRegistratieVensterRapport();
+          meldUursoort(u, uit);
         }), 'registratievenster uursoort kiezen');
       },
     });
@@ -365,7 +387,9 @@ export function toonRegistratieVensterRapport() {
       if (uursoortNog) opgevangen(zetUursoortVanVorm(vorm, v), 'registratievenster uursoort');
       stand.laatst = v;
       const issues = controleerVenster(v, vorm);
-      vulRegistratieControles(lijst, issues);
+      const o = stand.uursoortOnzichtbaar;
+      const regels = o && v.uursoort === o.id ? issues.concat([{ sev: 'info', msg: 'Uursoort ' + o.naam + ' gezet, het veld Uursoort toont hem nog niet' }]) : issues;
+      vulRegistratieControles(lijst, regels);
       zetKnop(issues.length > 0);
       setStatus(issues.length ? issues[0].msg : 'Klaar om in te dienen', !issues.length);
     }, function (e) { bezigMetLezen = false; throw e; }), 'registratievenster controle');

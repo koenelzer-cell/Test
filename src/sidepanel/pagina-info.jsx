@@ -38,9 +38,19 @@ export function netwerkGefilterd(items, bron, filter) {
   });
 }
 // Als tekst (tab gescheiden), oudste eerst.
+// Met antwoorden: onder een rij de opbouw van verzoek en antwoord, ingesprongen.
+function opbouwRegels(label, tekst) {
+  if (!tekst) return [];
+  let mooi = tekst;
+  try { mooi = JSON.stringify(JSON.parse(tekst), null, 1); } catch (e) {}
+  return ['  ' + label + ':'].concat(mooi.split('\n').map(function (r) { return '    ' + r; }));
+}
 export function netwerkTekst(items, versie) {
   const regels = ['Netwerk ONS Agendahulp ' + (versie || ''), ['tijd', 'bron', 'methode', 'status', 'ms', 'grootte', 'adres'].join('\t')];
-  items.forEach(function (it) { regels.push([klok(it.tijd), BRON_NAAM[it.bron] || it.bron, it.methode, statusTekst(it.status), it.ms, it.grootte == null ? '' : it.grootte, it.url].join('\t')); });
+  items.forEach(function (it) {
+    regels.push([klok(it.tijd), BRON_NAAM[it.bron] || it.bron, it.methode, statusTekst(it.status), it.ms, it.grootte == null ? '' : it.grootte, it.url].join('\t'));
+    regels.push.apply(regels, opbouwRegels('verzoek', it.verzoek).concat(opbouwRegels('antwoord', it.antwoord)));
+  });
   return regels.join('\n');
 }
 
@@ -130,11 +140,12 @@ export function maakInfo(ctx) {
         if (!it || !(it.id > net.sinds)) return;
         net.sinds = it.id;
         if (it.tijd < net.vanaf) return;
-        voegToe({ bron: it.bron === 'hulp' ? 'hulp' : 'ons', tijd: it.tijd, methode: String(it.methode || ''), url: String(it.url || ''), status: Number(it.status) || 0, ms: Number(it.ms) || 0, grootte: it.grootte == null ? null : Number(it.grootte) });
+        voegToe({ bron: it.bron === 'hulp' ? 'hulp' : 'ons', tijd: it.tijd, methode: String(it.methode || ''), url: String(it.url || ''), status: Number(it.status) || 0, ms: Number(it.ms) || 0, grootte: it.grootte == null ? null : Number(it.grootte),
+          antwoord: typeof it.antwoord === 'string' ? it.antwoord : '', verzoek: typeof it.verzoek === 'string' ? it.verzoek : '' });
         nieuw = true;
       });
       if (nieuw && ctx.pagina === 'info') renderPagina();
-    });
+    }, net.antwoorden !== false);
   }
   function vraagFormulierlog() {
     if (vraagtForm || !ctx.actions.onFormulierlog) return;
@@ -199,6 +210,9 @@ export function maakInfo(ctx) {
                 extra={{ padding: '0 9px', height: '28px', fontSize: '12px', border: '1px solid ' + (g ? T.brand : T.line) }}
                 onClick={function () { net.bron = b.id; renderPagina(); }} />;
             })}
+            <ChipKnop tekst="Antwoorden" gekozen={net.antwoorden !== false} data-netwerk-antwoorden="" aria-pressed={net.antwoorden !== false ? 'true' : 'false'}
+              extra={{ padding: '0 9px', height: '28px', fontSize: '12px', border: '1px solid ' + (net.antwoorden !== false ? T.brand : T.line) }}
+              onClick={function () { net.antwoorden = net.antwoorden === false; if (timer) vraagNetwerk(); renderPagina(); }} />
           </div>
           <div style={{ marginTop: '8px' }}>
             <Invoer waarde={net.filter} placeholder="Filter op adres of status" aria-label="Filter op adres of status" data-netwerk-filter="" autoComplete="off"
@@ -243,13 +257,25 @@ export function maakInfo(ctx) {
                     {it.grootte != null ? <span style={{ color: T.inkSoft }}>{grootteTekst(it.grootte)}</span> : null}
                   </div>
                   <div data-netwerk-adres="" style={{ fontSize: '11.5px', color: T.ink, overflowWrap: 'anywhere', marginTop: '2px' }}>{it.url}</div>
+                  {it.antwoord || it.verzoek ? (
+                    <button type="button" data-netwerk-opbouw={it.sleutel} aria-expanded={net.open[it.sleutel] ? 'true' : 'false'}
+                      style={{ border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '11.5px', fontWeight: '600', padding: '3px 0 0' }}
+                      onClick={function () { net.open[it.sleutel] = !net.open[it.sleutel]; renderPagina(); }}>
+                      {net.open[it.sleutel] ? 'Opbouw verbergen' : 'Opbouw tonen'}
+                    </button>
+                  ) : null}
+                  {net.open[it.sleutel] && (it.antwoord || it.verzoek) ? (
+                    <pre data-netwerk-opbouw-tekst="" style={{ margin: '4px 0 0', padding: '6px 8px', background: T.lineSoft, borderRadius: '8px', fontSize: '10.5px', lineHeight: '1.35', color: T.ink, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '260px', overflowY: 'auto', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      {opbouwRegels('verzoek', it.verzoek).concat(opbouwRegels('antwoord', it.antwoord)).join('\n')}
+                    </pre>
+                  ) : null}
                 </div>
               );
             })}
           </div>
           {lijst.length > zichtbaar.length ? <Txt kind="help" style={{ margin: '4px 0 0' }}>{'En ' + (lijst.length - zichtbaar.length) + ' oudere; Kopiëren neemt ze allemaal mee.'}</Txt> : null}
         </div>
-        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Alleen in het geheugen, weg als je het zijpaneel sluit. Zoekwaarden staan er als …; nummers in het adres zelf blijven staan, dus deel een kopie niet zomaar.</Txt>
+        <Txt kind="help" style={{ margin: '6px 2px 0' }}>Alleen in het geheugen, weg als je het zijpaneel sluit. Zoekwaarden staan er als …; nummers in het adres zelf blijven staan, dus deel een kopie niet zomaar. Met Antwoorden ook de opbouw van verzoek en antwoord van ONS: sleutels en soorten waarden, namen en andere tekst afgeschermd.</Txt>
       </>
     );
   }

@@ -2587,3 +2587,43 @@ test('zijpaneel: Netwerk onder Debug toont live de verzoeken van ONS, de hulp en
   assert.equal(vragen.length, na, 'Debug dicht: het log gaat vanzelf uit');
   assert.equal(document.querySelector('[data-netwerk]'), null);
 });
+
+test('zijpaneel: Netwerk met Antwoorden toont per verzoek de opbouw van verzoek en antwoord, en Kopiëren neemt die mee', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  const t = new Date(2026, 10, 4, 9, 15, 7).getTime();
+  const lijst = [
+    { id: 1, tijd: t, bron: 'ons', methode: 'GET', url: '/gateway/api/v0/administration/authorized/activities?date=…', status: 200, ms: 80, grootte: null, antwoord: '{"suggestedActivityList":[{"activityModel":{"objectId":1089,"description":"Detachering"}}]}', verzoek: '' },
+    { id: 2, tijd: t + 1000, bron: 'ons', methode: 'GET', url: '/calendar/holidays', status: 200, ms: 40, grootte: null, antwoord: '', verzoek: '' },
+  ];
+  const vragen = [];
+  const { document } = zijpaneelMetTools({
+    'ag-netwerklog': (msg, cb) => { vragen.push(msg.antwoorden); cb({ ok: true, sessie: 'tab-a', items: lijst.filter((it) => it.id > msg.sinds) }); },
+  }, { ...AGENDA_STATE_TOOLS, version: '1.6.315', debugWachtwoord: HASH });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  await tick();
+  assert.equal(vragen[0], true, 'standaard met antwoorden');
+  const knoppen = [...document.querySelectorAll('[data-netwerk-opbouw]')];
+  assert.equal(knoppen.length, 1, 'alleen een rij met opbouw heeft de knop');
+  assert.equal(knoppen[0].textContent, 'Opbouw tonen');
+  knoppen[0].click();
+  const pre = document.querySelector('[data-netwerk-opbouw-tekst]');
+  assert.ok(pre, 'de opbouw staat open');
+  assert.match(pre.textContent, /antwoord:[\s\S]*"objectId": 1089[\s\S]*"description": "Detachering"/);
+  let gekopieerd = '';
+  Object.defineProperty(document.defaultView.navigator, 'clipboard', { configurable: true, value: { writeText: (x) => { gekopieerd = x; return Promise.resolve(); } } });
+  document.querySelector('[data-netwerk-kopieer]').click();
+  await tick();
+  assert.match(gekopieerd, /authorized\/activities[\s\S]*antwoord:[\s\S]*"objectId": 1089/);
+  const chip = document.querySelector('[data-netwerk-antwoorden]');
+  assert.equal(chip.getAttribute('aria-pressed'), 'true');
+  chip.click();
+  await tick();
+  assert.equal(document.querySelector('[data-netwerk-antwoorden]').getAttribute('aria-pressed'), 'false');
+  assert.equal(vragen.at(-1), false, 'uit: de hulp vraagt zonder antwoorden');
+});
