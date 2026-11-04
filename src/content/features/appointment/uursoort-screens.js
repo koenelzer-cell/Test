@@ -1,7 +1,8 @@
 // Schermen rond de uursoortkeuze.
 
 import { mkText } from '../../ui/managed-text.js';
-import { entryUursoortIsSet, findClientEntries, findClientUursoortTrigger, firstNameFromName, getUursoortTrigger, invalidateClientEntries } from '../../ons/appointment-form.js';
+import { entryUursoortIsSet, findClientEntries, findClientUursoortTrigger, findNonClientUursoortTrigger, firstNameFromName, getUursoortTrigger, invalidateClientEntries } from '../../ons/appointment-form.js';
+import { opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
 import { chooseUursoort, hasUursoortSelected } from './uursoort-field.js';
 import { scheduleAppointmentEndTime } from './end-time.js';
 import { freshUursoortTriggerForContext } from './uursoort-queue.js';
@@ -14,8 +15,11 @@ import { schermen } from '../../screen/schermen.js';
 import { highlightField } from '../../ui/highlight.js';
 
 function clientsMissingUursoort() {
+  // Backup staging: één uursoortveld voor alle cliënten.
+  const nieuw = opNieuwFormulierHost();
+  if (nieuw && hasUursoortSelected()) return [];
   return findClientEntries()
-    .filter((entry) => !entryUursoortIsSet(entry))
+    .filter((entry) => nieuw || !entryUursoortIsSet(entry))
     .map((entry) => entry.firstName || firstNameFromName(entry.name))
     .filter(Boolean);
 }
@@ -69,6 +73,37 @@ export function showManualUursoortInstruction() {
     return false;
   };
   checkNow();
+}
+// Backup staging: 'Kies uursoort' voor de hele afspraak (één uursoortveld,
+// HourTypeSelect, met alle cliënten). opties: [{ id, naam, groep }] uit de lijst
+// van dat veld zelf; kiezen zet hem via de koppeling van het veld
+// (onUpdate:modelValue(id, naam)), met de keuzelijst als terugval.
+// afterPick(ok) na het kiezen.
+export function showAfspraakUursoort(opties, afterPick, onBack) {
+  const body = $body(); if (!body) return;
+  markScreen('afspraakUursoort');
+  renderScreen(body, 'pickList', {
+    title: 'Kies uursoort',
+    titleWeight: 600,
+    loading: false,
+    options: opties.map((o) => o.naam),
+    emptyMessage: 'Geen uursoorten gevonden, kies hem in het veld Uursoort.',
+    emptyColor: '#b3261e',
+    tokens: ONSAH_TOKENS,
+    onBack: function () { helperPanel.suppressAutoUntil = Date.now() + 1200; if (onBack) onBack(); schermen.showChoices(); },
+    onPick: function (naam) {
+      safe(function () {
+        const o = opties.filter((x) => x.naam === naam)[0];
+        if (!o) return;
+        setStatus('Bezig...');
+        chooseUursoort(o.naam, (ok) => {
+          setStatus(ok ? `uursoort "${o.naam}" gezet` : `uursoort "${o.naam}" niet gezet, kies hem in het veld Uursoort`, ok);
+          afterPick(ok);
+        }, findNonClientUursoortTrigger() || getUursoortTrigger(), { hourTypeId: o.id });
+      }, 'afspraak uursoort kiezen');
+    },
+  });
+  setStatus('Kies de uursoort');
 }
 export function showUursoort(options, afterPick, clientContext = null) {
   const body = $body(); if (!body) return;

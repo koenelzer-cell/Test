@@ -11,6 +11,8 @@
 //   'tekst(lengte)', tenzij het een korte code is ('client', 'draft');
 // - overige tekst tot 40 tekens blijft staan, met reeksen van 3+ cijfers als
 //   '{n}' en lange hex-id's als '{id}'; langer wordt 'tekst(lengte)';
+// - klassen en statussen (onder class, status, type …) met alleen kleine
+//   letters, cijfers en streepjes blijven helemaal staan;
 // - datums en tijden blijven staan; adressen zonder nummers en zoekwaarden;
 // - getallen onder id, external_id … worden 'id', getallen van 5+ cijfers
 //   'getal(n)';
@@ -38,6 +40,9 @@ function vorm(w, d, ctx) {
     if (/^(\/|https?:\/\/)/.test(w) && w.length < 300) return adres(w);
     if (/^\d{4}-\d{2}-\d{2}(T[\d:.]+([+-]\d{2}:?\d{2}|Z)?)?$/.test(w) || /^\d{1,2}:\d{2}(:\d{2})?$/.test(w)) return w;
     if (ctx.open) return w.length <= 80 ? w : 'tekst(' + w.length + ')';
+    // Klassen en statussen ('event declared not-past'): alleen kleine letters,
+    // cijfers en streepjes, dus geen naam; die blijven leesbaar.
+    if (ctx.sleutel && /class|status|state|type|kind|layer/i.test(ctx.sleutel) && /^[a-z0-9_ :-]{1,300}$/.test(w)) return w;
     if (ctx.inLijst && !/^[a-z0-9_.-]{1,30}$/.test(w)) return 'tekst(' + w.length + ')';
     return w.length <= 40 ? schoon(w) : 'tekst(' + w.length + ')';
   }

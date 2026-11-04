@@ -134,8 +134,11 @@ export function zetRegistratieNoShow(clientId, aan, wachtMs) {
 // Wat het open formulier bevat (main-world, uit het Vue-model):
 // { clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null },
 //   labelIds } of null als dat niet lukt. Geen volledige namen.
-export function leesFormulier(wachtMs) {
-  return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+// metOpties: ook de keuzes van het uursoortveld op afspraakniveau
+// (uursoortOpties: [{ id, naam, groep }]); uursoort is de uursoort op
+// afspraakniveau (backup staging: één veld voor alle cliënten).
+export function leesFormulier(wachtMs, metOpties) {
+  return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, metOpties ? { uursoortOpties: true } : {}, wachtMs, true);
 }
 
 // Debug, Formulier: de laatste uitkomsten van de route via het formulier,

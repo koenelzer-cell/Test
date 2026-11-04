@@ -28,7 +28,7 @@ import { refreshRegistrationPrereqScreen, showRegistrationNeedsClient } from './
 import { showAppointmentDurationSelection, showAppointmentTravelSelection } from './features/appointment/duration.js';
 import { showAppointmentReadyToSave } from './features/appointment/save.js';
 import { showAvailabilityWarning } from './features/appointment/availability.js';
-import { showManualUursoortInstruction, showUursoort } from './features/appointment/uursoort-screens.js';
+import { showAfspraakUursoort, showManualUursoortInstruction, showUursoort } from './features/appointment/uursoort-screens.js';
 import { showNonClientCategory, showNonClientDurationSelection, showNonClientFreeTitlePrompt } from './features/appointment/non-client.js';
 import { showRegistrationChoices, showRegistrationDurationAsk, showRegistrationPortionDuration, showRegistrationPortionQuestion, showRegistrationReportPrompt, showRegistrationSubmitOnly, showRegistrationTravelSelection } from './features/registration/screens.js';
 import { showRegistrationHourTypeSelection } from './features/registration/hour-type.js';
@@ -58,7 +58,7 @@ koppelSchermen({
   showRegistrationDurationAsk, showRegistrationHourTypeSelection, showRegistrationNeedsClient,
   showRegistrationNoShowPrompt, showRegistrationPortionDuration, showRegistrationPortionQuestion,
   showRegistrationReportPrompt, showRegistrationSubmitOnly, showRegistrationTravelSelection,
-  showUursoort, showUursoortQueue,
+  showUursoort, showUursoortQueue, showAfspraakUursoort,
   toonRegistratieVenster, toonRegistratieVensterDeel, toonRegistratieVensterDeelDuur,
   toonRegistratieVensterRapport, toonRegistratieVensterReis, toonRegistratieVensterUursoort, verversRegistratieVenster,
 });

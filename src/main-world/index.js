@@ -516,8 +516,44 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
     for (let e = doel, n = 0; e && n < 30; e = omhoog(e), n++) if (isUursoortVeld(e)) return e;
     return diepZoek(doel, 'uc-select[data-qa="hour_type_select"], uc-select[aria-label="Uursoort"]');
   }
+  // De uursoortvelden met hun koppeling; op backup staging ook HourTypeSelect
+  // (één veld met alle cliënten), als zijn wortel niet het uc-select zelf is.
   function uursoortVelden(boom) {
-    return (boom ? boom.velden : []).filter(function (v) { return isUursoortVeld(v.el); });
+    const lijst = (boom ? boom.velden : []).filter(function (v) { return isUursoortVeld(v.el); });
+    const h = boom && boom.component('HourTypeSelect');
+    if (h && h.props && typeof h.props['onUpdate:modelValue'] === 'function' && lijst.indexOf(h) < 0) lijst.push(h);
+    return lijst;
+  }
+  // De koppeling van een uursoortveld: de vnode met onUpdate:modelValue op dat
+  // element, anders het onderdeel HourTypeSelect waar het veld in zit (backup
+  // staging: één uursoortveld op afspraakniveau, HourTypeSelect met alle
+  // cliënten, onUpdate:modelValue(id, naam) zoals bij het oude veld).
+  function uursoortKoppeling(boom, el) {
+    if (!boom || !el) return null;
+    const v = boom.veld(el);
+    if (v) return v;
+    const h = boom.component('HourTypeSelect');
+    const hel = h && h.el;
+    if (h && h.props && typeof h.props['onUpdate:modelValue'] === 'function' && hel && (hel === el || (hel.nodeType === 1 && hel.contains(el)))) return h;
+    return null;
+  }
+  // De keuzes van het uursoortveld op afspraakniveau, uit de lijst van het
+  // veld zelf (uc-select-list: items met value, label, group), anders uit de
+  // data die Vue meegeeft. Alleen uursoorten: [{ id, naam, groep }].
+  function uursoortOptiesVan(boom) {
+    const veld = diepZoek(document, 'uc-select[data-qa="hour_type_select"]');
+    const lijst = veld ? (veld.querySelector('uc-select-list') || diepZoek(veld, 'uc-select-list')) : null;
+    let items = [];
+    try { items = lijst && Array.isArray(lijst.items) ? lijst.items : []; } catch (e) { items = []; }
+    if (!items.length && lijst && boom) {
+      const v = boom.binnen(lijst).filter(function (x) { return x.el === lijst; })[0];
+      const data = v && v.props && v.props['.data'];
+      if (Array.isArray(data)) items = data.map(function (s) { return { value: s && s.id, label: s && s.name, group: s && s.group }; });
+    }
+    const gezien = Object.create(null);
+    return items.filter(function (it) { return it && Number(it.value) > 0 && String(it.label || '').trim(); }).slice(0, 300).map(function (it) {
+      return { id: Number(it.value), naam: String(it.label).trim().slice(0, 120), groep: String(it.group || '').slice(0, 60) };
+    }).filter(function (o) { if (gezien[o.id]) return false; gezien[o.id] = true; return true; });
   }
   function zetUursoort(d, klaar) {
     const wis = d.wis === true, id = Number(d.hourTypeId);
@@ -536,15 +572,15 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
       const doel = diepZoek(document, '[data-onsah-doel="' + doelNaam + '"]');
       const el = doel ? uursoortVeldBij(doel) : null;
       boom = el ? formulierBoom(el) : null;
-      v = boom ? boom.veld(el) : null;
+      v = uursoortKoppeling(boom, el);
     }
     if (!v) { klaar({ ok: false, reden: 'geen uursoortveld' }); return; }
-    const veld = v.el;
+    const veld = v.el && v.el.nodeType === 1 ? v.el : diepZoek(document, 'uc-select[data-qa="hour_type_select"]');
     zetEnControleer(function () {
       if (wis) v.props['onUpdate:modelValue'](null, '');
       else v.props['onUpdate:modelValue'](id, String(d.beschrijving == null ? '' : d.beschrijving).slice(0, 200));
     }, function () {
-      const b = formulierBoom(veld), na = b && b.veld(veld), nu = na ? waardeVan(na) : null;
+      const b = formulierBoom(veld), na = uursoortKoppeling(b, veld), nu = na ? waardeVan(na) : null;
       return wis ? (nu == null || nu === '') : Number(nu) === id;
     }, klaar);
   }
@@ -943,7 +979,8 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
   /* Lezen wat het open formulier bevat: cliënt-id en voornaam (voor de
      titel), de uursoort per cliënt (uit de uursoortvelden) en de label-id's.
      Geen volledige naam, geboortedatum, nummer of adres. */
-  function leesFormulier() {
+  // d.uursoortOpties: ook de keuzes van het uursoortveld op afspraakniveau.
+  function leesFormulier(d) {
     const boom = formulierBoom(), c = boom && boom.details;
     if (!c) return { ok: false, reden: 'geen afspraakmodel' };
     const ev = c.props.event;
@@ -958,8 +995,12 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
       const waarde = waardeVan(v);
       cids.forEach(function (id) { uursoorten[Number(id)] = waarde == null || waarde === '' ? null : Number(waarde); });
     });
-    return { ok: true, clients: clients, uursoorten: uursoorten,
-      labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number) };
+    const uit = { ok: true, clients: clients, uursoorten: uursoorten,
+      labelIds: (Array.isArray(ev.label_ids) ? ev.label_ids : []).map(Number),
+      // De uursoort op afspraakniveau (backup staging: één veld voor alle cliënten).
+      uursoort: ev.hour_type_id == null || ev.hour_type_id === '' ? null : Number(ev.hour_type_id) };
+    if (d && d.uursoortOpties) uit.uursoortOpties = uursoortOptiesVan(boom);
+    return uit;
   }
 
   // Het medewerker-id dat ONS zelf kent (onsContext), voor de product-API.
@@ -979,7 +1020,7 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
       const id = String(d.id || '').slice(0, 60);
       const antwoord = function (type) { return function (r) { post(type, Object.assign({ id: id }, r)); }; };
       if (d.type === PAGE_COMMAND.SET_NETLOG) { netlog = d.aan === true; netlogAntwoorden = netlog && d.antwoorden === true; return; }
-      if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier()); return; }
+      if (d.type === PAGE_COMMAND.READ_FORM) { antwoord(PAGE_COMMAND.FORM_READ)(leesFormulier(d)); return; }
       if (d.type === PAGE_COMMAND.READ_USER) { antwoord(PAGE_COMMAND.USER_READ)(leesGebruiker()); return; }
       if (d.type === PAGE_COMMAND.SET_FIELD) { zetVeld(d, antwoord(PAGE_COMMAND.FIELD_SET)); return; }
       if (d.type === PAGE_COMMAND.SET_HOUR_TYPE) { zetUursoort(d, antwoord(PAGE_COMMAND.HOUR_TYPE_SET)); return; }

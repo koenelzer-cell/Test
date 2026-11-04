@@ -13,6 +13,7 @@ import {
 import { _apiUrl } from './endpoints.js';
 import { getEmployeeIdAsync } from './employee.js';
 import { getJson } from './http.js';
+import { opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
 import { haalWeek } from './week-cache.js';
 
 // De afspraken van de week waarin `date` valt. Altijd vers; het antwoord gaat
@@ -57,7 +58,7 @@ function _mapPool(items, limit, worker) {
 }
 function fetchRegistrationDetails(inviteeId, occurrenceId) {
   return getJson(_apiUrl('registrationDetails', { inviteeId: inviteeId, occurrenceId: occurrenceId }))
-    .then(parseRegistrationDetails)
+    .then(function (json) { return parseRegistrationDetails(json, { conceptTeltNiet: opNieuwFormulierHost() }); })
     .catch(function () { return null; });
 }
 // Begrenzer die over meerdere weken heen geldt: hooguit `n` aanroepen tegelijk.

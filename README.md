@@ -236,7 +236,8 @@ zoeken. Alleen van deze site, zonder persoonsgegevens
 (`shared/opbouw-masker.js`): sleutels en soorten waarden; tekst onder een
 gevoelige sleutel (naam, cliënt, geboorte, adres, rapportage, omschrijving,
 gender, woonplaats, zorg, `on_date` en `…_by` (kunnen een naam bevatten) …) en
-tekst op een plek in een lijst worden
+tekst op een plek in een lijst worden (klassen en statussen in kleine
+letters, zoals `event declared`, blijven leesbaar)
 `tekst(lengte)`, id's `id`; codes, datums, tijden en uursoorten (onder een
 sleutel met activity of hour) blijven leesbaar; lijsten de eerste 3, een
 korte rij losse waarden helemaal. **Kopiëren** neemt de opbouw mee, onder
@@ -397,6 +398,24 @@ zelf blijft intussen uit.
 Dezelfde punten staan linksonder op de pagina ('Controleer voor opslaan')
 alleen als het paneel ingeklapt is of een ander scherm toont; staat het
 paneel open op deze lijst, dan staan ze daar niet nog een keer.
+
+### Vernieuwde formulieren op backup staging (in ontwikkeling)
+
+Op `impegno-backup-staging.onsagenda.nl` (`ons/nieuwe-formulieren.js`,
+`NIEUW_FORMULIER_HOSTS`) heeft ONS de formulieren vernieuwd. Alleen daar:
+
+- **Afspraakhulp:** het afspraakformulier heeft geen cliëntkaarten meer, maar
+  één uursoortveld voor de hele afspraak (`HourTypeSelect` met alle cliënten,
+  `onUpdate:modelValue(id, naam)`, in het model `hour_type_id`). De hulp klapt
+  geen cliëntkaart meer uit, en in plaats van de uursoort per cliënt komt één
+  stap **Kies uursoort** met de keuzes van dat veld zelf (main-world, uit de
+  `uc-select-list` van het veld); de keuze gaat met zijn id via de koppeling
+  van het veld, met de keuzelijst als terugval. Staat er al een uursoort, dan
+  slaat de hulp de stap over. Een later toegevoegde cliënt start geen
+  wachtrij; 'uursoort gekozen' kijkt naar het ene veld.
+- **Weekcijfers:** een registratie die als concept is opgeslagen
+  (`declaration.sent: false`) telt niet mee in Verhouding en Productie; die is
+  nog niet ingediend.
 
 ### Vernieuwd registratieformulier (in ontwikkeling)
 

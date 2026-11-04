@@ -3,6 +3,7 @@
 import { clean, deepQueryAll, isOwnPopup, rect, visible } from '../../ons/dom.js';
 import { clickOption, uiText } from '../../ons/form-controls.js';
 import { entryUursoortIsSet, findClientEntries, findClientNameText, findClientUursoortTrigger, invalidateClientEntries } from '../../ons/appointment-form.js';
+import { opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
 import { findClientFirstName } from './client-name.js';
 import { clickAt, isAddInviteeControl } from '../../ons/interaction.js';
 import { UI_OVERRIDES } from '../../ons/selector-overrides.js';
@@ -134,6 +135,9 @@ function isAddInviteeControlAtPoint(x, y) {
   return /toevoegen|genodigd/.test(t) || /add|invitee|attendee/.test(qa);
 }
 export function ensureClientExpanded(onResult, attempt = 0) {
+  // Backup staging: geen cliëntkaarten meer (één uursoortveld voor de hele
+  // afspraak), dus niets uit te klappen.
+  if (opNieuwFormulierHost()) { onResult(true); return; }
   invalidateClientEntries();
   const entries = findClientEntries();
   // Klaar zodra elke clientkaart open staat (toggle uitgeklapt) OF er al een

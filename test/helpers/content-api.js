@@ -38,7 +38,8 @@ import { keuzeVoorLabel, nietClientOptieVoorUursoort } from '../../src/content/h
 import { clientVoornamenAsync, findClientFirstNames } from '../../src/content/features/appointment/client-name.js';
 import { clearAppointmentSnapshot, clearSettings, hasAppointmentSnapshot, takeAppointmentSnapshot } from '../../src/content/features/appointment/undo.js';
 import { fetchProductList, parseProductList } from '../../src/content/services/ons-api/products.js';
-import { clientsMissingUursoortEntries, uursoortContexts } from '../../src/content/features/appointment/uursoort-queue.js';
+import { clientsMissingUursoortEntries, showUursoortQueue, uursoortContexts } from '../../src/content/features/appointment/uursoort-queue.js';
+import { ensureClientExpanded as _ensureClientExpanded } from '../../src/content/features/appointment/clients.js';
 import { doorplannenBlocksSave, doorplannenWarnText, recurrenceHeaderExpanded, recurrenceIsSet, recurrenceValue, setRecurrenceToNiet } from '../../src/content/features/appointment/recurrence.js';
 import { appointmentFlow, helperPanel, registrationFlow } from '../../src/content/state.js';
 import { durationChipLabel, durationLabelStyle, mkDurationPicker, PICKER_CHIP_LIMIT } from '../../src/content/ui/duration-picker.js';
@@ -122,6 +123,8 @@ window.__onsHelperTestApi = {
   // meerdere-cliënten-flow en de schermherkenning.
   findClientEntries,
   uursoortContexts,
+  showUursoortQueue,
+  ensureClientExpanded: _ensureClientExpanded,
   clientsMissingUursoortEntries,
   invalidateClientEntries,
   inputBelongsToTrigger,

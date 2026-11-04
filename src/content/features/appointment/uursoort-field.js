@@ -10,6 +10,7 @@ import { computeAppointmentUursoortState } from './clients.js';
 import { appointmentFlow } from '../../state.js';
 import { eerstViaFormulier, wisUursoortViaFormulier, zetUursoortViaFormulier } from '../../ons/form-model.js';
 import { nietClientUursoortMetId, uursoortMetId } from './uursoort-source.js';
+import { opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
 
 // Zet de uursoort op het afspraak-detailniveau (combobox "Zoek naar uursoorten")
 // door de exacte naam (incl. sterretje) te zoeken en aan te klikken.
@@ -58,7 +59,8 @@ export function hasUursoortSelected() {
   };
   const entries = findClientEntries();
   // Cliënt-pad: gereed = centrale toestand READY_TO_SAVE (alle cliënten gezet).
-  if (entries.length) return computeAppointmentUursoortState() === 'READY_TO_SAVE';
+  // Backup staging: één uursoortveld op afspraakniveau, ook met cliënten.
+  if (entries.length && !opNieuwFormulierHost()) return computeAppointmentUursoortState() === 'READY_TO_SAVE';
   const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
   if (hasTriggerValue(trigger)) return true;
   const clientLabels = deepQueryAll('div,span,p').filter((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent) === 'client');
@@ -155,11 +157,16 @@ export function clearUursoortViaScherm(onDone, trigger) {
     }, 90);
   }, 120);
 }
-// context (optioneel): de cliënt uit de uursoortwachtrij, voor het juiste id.
+// context (optioneel): de cliënt uit de uursoortwachtrij, voor het juiste id;
+// of { hourTypeId } als het id al bekend is (backup staging: uit de lijst van
+// het uursoortveld zelf).
 export function chooseUursoort(text, onResult, triggerArg = null, context = null) {
   const trigger = triggerArg || getUursoortTrigger();
+  const optieVan = () => (context && Number(context.hourTypeId) > 0
+    ? Promise.resolve({ id: Number(context.hourTypeId), name: text })
+    : uursoortMetId(text, context, trigger));
   eerstViaFormulier(
-    () => (trigger ? uursoortMetId(text, context, trigger).then((optie) => (optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false)) : false),
+    () => (trigger ? optieVan().then((optie) => (optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false)) : false),
     () => new Promise((klaar) => openTypePick(() => triggerArg || getUursoortTrigger(), text, (ok) => {
       if (ok) setTimeout(clickEmptyModalSpot, 90);
       klaar(ok);

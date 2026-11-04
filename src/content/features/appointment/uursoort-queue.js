@@ -11,6 +11,8 @@ import { appointmentFlow } from '../../state.js';
 import { setStatus, showLoadingState } from '../../screen/status.js';
 import { listUursoortOptions, maybePrefetchUursoorten } from './uursoort-source.js';
 import { schermen } from '../../screen/schermen.js';
+import { opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
+import { leesFormulier } from '../../ons/form-model.js';
 
 export function uursoortContexts() {
   return findClientEntries()
@@ -80,7 +82,26 @@ export function clientsMissingUursoortEntries(exclude) {
 }
 // contexts dient alleen als "welke cliënten horen bij deze flow"; de volgorde
 // en het overslaan bepalen we live.
+// Backup staging: geen cliëntkaarten, maar één uursoortveld voor de hele
+// afspraak. Eén keer 'Kies uursoort' met de keuzes van dat veld zelf; staat er
+// al een uursoort (uit de afspraak of zelf gekozen), dan meteen verder.
+function afspraakUursoortStap(afterAll) {
+  if (appointmentFlow.uursoortQueueActive) return;
+  appointmentFlow.uursoortQueueActive = true;
+  const myGen = appointmentFlow.uursoortQueueGen;
+  const stale = () => myGen !== appointmentFlow.uursoortQueueGen;
+  const klaar = () => { if (stale()) return; appointmentFlow.uursoortQueueActive = false; setTimeout(afterAll, 60); };
+  showLoadingState('Uursoorten laden...');
+  leesFormulier(undefined, true).then((f) => {
+    if (stale()) return;
+    if (f && f.uursoort != null) { klaar(); return; }
+    const opties = f && Array.isArray(f.uursoortOpties) ? f.uursoortOpties : [];
+    if (!opties.length) { setStatus('Kies de uursoort in het veld Uursoort', false); klaar(); return; }
+    schermen.showAfspraakUursoort(opties, () => klaar(), () => { appointmentFlow.uursoortQueueActive = false; appointmentFlow.uursoortQueueGen++; });
+  });
+}
 export function showUursoortQueue(contexts, afterAll) {
+  if (opNieuwFormulierHost()) { afspraakUursoortStap(afterAll); return; }
   if (appointmentFlow.uursoortQueueActive) return; // maar één wachtrij tegelijk (geen race tussen drivers)
   appointmentFlow.uursoortQueueActive = true;
   // Deze wachtrij hoort bij de huidige generatie. Wist de gebruiker de instellingen
@@ -209,7 +230,9 @@ export function handleClientListChanges() {
     }
   }
   if (!entries.length) { appointmentFlow.knownClientNames.clear(); return; }
-  maybePrefetchUursoorten(); // cliënt aanwezig -> uursoorten alvast op de achtergrond laden
+  // Cliënt aanwezig -> uursoorten alvast op de achtergrond laden (niet op
+  // backup staging: daar haalt het ene uursoortveld zijn lijst zelf op).
+  if (!opNieuwFormulierHost()) maybePrefetchUursoorten();
   const firstSeed = !appointmentFlow.knownClientNames.size;
   const added = entries.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
   appointmentFlow.knownClientNames = new Set(currentNames);
@@ -220,6 +243,8 @@ export function handleClientListChanges() {
   // afspraaktype over).
   if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
     setTitleForChoice(appointmentFlow.pendingChoice, () => {});
+    // Backup staging: één uursoortveld voor alle cliënten, geen wachtrij per cliënt.
+    if (opNieuwFormulierHost()) return;
     // Een later toegevoegde cliënt: de namen gaan naar de auto-wachtrij (die de
     // nieuwe uursoortvelden zelf uitklapt en invult). Alleen zonder concrete
     // namen de handmatige instructie.

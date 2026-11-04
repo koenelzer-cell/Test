@@ -118,7 +118,10 @@ export function parseWeekRegistrationOccurrences(json) {
 // de tijden (getallen), de start/eind-timestamps en de hour_type-naam (zorgsoort,
 // geen persoonsgegeven). De rest van het JSON-object blijft onaangeroerd en wordt
 // meteen weggegooid (nergens opgeslagen, gelogd of verzonden).
-export function parseRegistrationDetails(json) {
+// opties.conceptTeltNiet: een als concept opgeslagen registratie
+// (declaration.sent === false) telt niet mee; die is nog niet ingediend.
+// Alleen op backup staging (ons/nieuwe-formulieren.js), waar ONS concepten kent.
+export function parseRegistrationDetails(json, opties) {
   if (!json || typeof json !== 'object') return null;
   // Andere calendar-items dan registraties uitsluiten (beheerscherm; standaard
   // afwezigheid 'unavailability' en aanwezigheid/locatie 'presence' zoals thuiswerken).
@@ -129,6 +132,7 @@ export function parseRegistrationDetails(json) {
   // Uitgesloten registratie-statussen (beheerscherm; standaard 'do_not_declare' = niet
   // declareren). We lezen alleen declaration.status (een enum, geen persoonsgegeven) —
   // nooit declaration.on_date (bevat een naam).
+  if (opties && opties.conceptTeltNiet && r.declaration && typeof r.declaration === 'object' && r.declaration.sent === false) return null;
   if (r.declaration && typeof r.declaration === 'object' && r.declaration.status != null) {
     const status = String(r.declaration.status), exS = _excludedStatuses();
     for (let y = 0; y < exS.length; y++) { if (status === String(exS[y])) return null; }

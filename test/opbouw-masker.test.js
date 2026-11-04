@@ -50,3 +50,10 @@ test('declaration: status en sent blijven leesbaar, on_date (kan een naam bevatt
   assert.deepEqual(o.registration.declaration, { sent: false, status: 'valid', on_date: 'tekst(37)' });
   assert.equal(o.registration.created_by, 'tekst(3)');
 });
+
+test('klassen en statussen in kleine letters blijven leesbaar', () => {
+  const o = opbouwVan({ classes: 'event declared not-past wont-declare', status: 'valid', type: 'registration', name: 'jan jansen' });
+  assert.equal(o.classes, 'event declared not-past wont-declare');
+  assert.equal(o.status, 'valid');
+  assert.equal(o.name, 'tekst(10)', 'een naam blijft afgeschermd, ook in kleine letters');
+});

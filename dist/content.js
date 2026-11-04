@@ -3520,9 +3520,9 @@
     REGISTRATION_SET: "registratieGezet",
     // { id, ok, reden? }
     READ_FORM: "leesFormulier",
-    // { id }  wat het open afspraakformulier bevat
+    // { id, uursoortOpties? }  wat het open afspraakformulier bevat; met uursoortOpties ook de keuzes van het uursoortveld op afspraakniveau
     FORM_READ: "formulierGelezen"
-    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
+    // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds, uursoort, uursoortOpties?: [{ id, naam, groep }] }
   };
 
   // src/content/core/page-bridge.js
@@ -3683,6 +3683,7 @@
       if (/^(\/|https?:\/\/)/.test(w) && w.length < 300) return adres(w);
       if (/^\d{4}-\d{2}-\d{2}(T[\d:.]+([+-]\d{2}:?\d{2}|Z)?)?$/.test(w) || /^\d{1,2}:\d{2}(:\d{2})?$/.test(w)) return w;
       if (ctx.open) return w.length <= 80 ? w : "tekst(" + w.length + ")";
+      if (ctx.sleutel && /class|status|state|type|kind|layer/i.test(ctx.sleutel) && /^[a-z0-9_ :-]{1,300}$/.test(w)) return w;
       if (ctx.inLijst && !/^[a-z0-9_.-]{1,30}$/.test(w)) return "tekst(" + w.length + ")";
       return w.length <= 40 ? schoon(w) : "tekst(" + w.length + ")";
     }
@@ -4066,7 +4067,7 @@
     });
     return out;
   }
-  function parseRegistrationDetails(json) {
+  function parseRegistrationDetails(json, opties) {
     if (!json || typeof json !== "object") return null;
     if (!json.registration) {
       const exT = _excludedCalendarTypes();
@@ -4076,6 +4077,7 @@
     }
     const r = json.registration ? json.registration : json;
     if (!r || typeof r !== "object") return null;
+    if (opties && opties.conceptTeltNiet && r.declaration && typeof r.declaration === "object" && r.declaration.sent === false) return null;
     if (r.declaration && typeof r.declaration === "object" && r.declaration.status != null) {
       const status = String(r.declaration.status), exS = _excludedStatuses();
       for (let y = 0; y < exS.length; y++) {
@@ -6149,8 +6151,8 @@
   function zetRegistratieNoShow(clientId, aan2, wachtMs) {
     return vraagFormulier(PAGE_COMMAND.SET_REGISTRATION, PAGE_COMMAND.REGISTRATION_SET, { noShow: { clientId: Number(clientId), aan: aan2 === true } }, wachtMs);
   }
-  function leesFormulier(wachtMs) {
-    return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, {}, wachtMs, true);
+  function leesFormulier(wachtMs, metOpties) {
+    return vraagFormulier(PAGE_COMMAND.READ_FORM, PAGE_COMMAND.FORM_READ, metOpties ? { uursoortOpties: true } : {}, wachtMs, true);
   }
   var LOG_MAX = 30;
   var formulierUitkomsten = [];
@@ -8111,6 +8113,13 @@
     return d && d.ok === true && /^\d{1,12}$/.test(String(d.userId)) ? String(d.userId) : null;
   }
 
+  // src/content/ons/nieuwe-formulieren.js
+  var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl"];
+  function opNieuwFormulierHost(host) {
+    const h = String(host == null ? location.hostname : host).toLowerCase();
+    return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
+  }
+
   // src/content/services/ons-api/week-cache.js
   var WEEK_TTL = 5 * 6e4;
   var geheugen = /* @__PURE__ */ Object.create(null);
@@ -8188,7 +8197,9 @@
     });
   }
   function fetchRegistrationDetails(inviteeId, occurrenceId) {
-    return getJson(_apiUrl("registrationDetails", { inviteeId, occurrenceId })).then(parseRegistrationDetails).catch(function() {
+    return getJson(_apiUrl("registrationDetails", { inviteeId, occurrenceId })).then(function(json) {
+      return parseRegistrationDetails(json, { conceptTeltNiet: opNieuwFormulierHost() });
+    }).catch(function() {
       return null;
     });
   }
@@ -9892,6 +9903,10 @@
     return /toevoegen|genodigd/.test(t) || /add|invitee|attendee/.test(qa);
   }
   function ensureClientExpanded(onResult, attempt = 0) {
+    if (opNieuwFormulierHost()) {
+      onResult(true);
+      return;
+    }
     invalidateClientEntries();
     const entries2 = findClientEntries();
     const allOpen = entries2.length && entries2.every((entry) => !!entry.uursoortTrigger || inviteeToggleExpanded(entry.toggle) === true);
@@ -10206,7 +10221,7 @@
       return !!txt && !/zoek naar uursoorten|selecteer uursoort|uursoort|geen resultaten|voer minstens|toont /.test(txt);
     };
     const entries2 = findClientEntries();
-    if (entries2.length) return computeAppointmentUursoortState() === "READY_TO_SAVE";
+    if (entries2.length && !opNieuwFormulierHost()) return computeAppointmentUursoortState() === "READY_TO_SAVE";
     const trigger = findNonClientUursoortTrigger() || getUursoortTrigger();
     if (hasTriggerValue(trigger)) return true;
     const clientLabels = deepQueryAll("div,span,p").filter((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent) === "client");
@@ -10315,8 +10330,9 @@
   }
   function chooseUursoort(text2, onResult, triggerArg = null, context = null) {
     const trigger = triggerArg || getUursoortTrigger();
+    const optieVan = () => context && Number(context.hourTypeId) > 0 ? Promise.resolve({ id: Number(context.hourTypeId), name: text2 }) : uursoortMetId(text2, context, trigger);
     eerstViaFormulier(
-      () => trigger ? uursoortMetId(text2, context, trigger).then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
+      () => trigger ? optieVan().then((optie) => optie ? zetUursoortViaFormulier(trigger, optie.id, optie.name) : false) : false,
       () => new Promise((klaar) => openTypePick(() => triggerArg || getUursoortTrigger(), text2, (ok) => {
         if (ok) setTimeout(clickEmptyModalSpot, 90);
         klaar(ok);
@@ -13039,7 +13055,40 @@
       (e) => !(exclude && exclude.has(typeof clean === "function" ? clean(e.name) : e.name)) && !entryUursoortIsSet(e)
     );
   }
+  function afspraakUursoortStap(afterAll) {
+    if (appointmentFlow.uursoortQueueActive) return;
+    appointmentFlow.uursoortQueueActive = true;
+    const myGen = appointmentFlow.uursoortQueueGen;
+    const stale = () => myGen !== appointmentFlow.uursoortQueueGen;
+    const klaar = () => {
+      if (stale()) return;
+      appointmentFlow.uursoortQueueActive = false;
+      setTimeout(afterAll, 60);
+    };
+    showLoadingState("Uursoorten laden...");
+    leesFormulier(void 0, true).then((f) => {
+      if (stale()) return;
+      if (f && f.uursoort != null) {
+        klaar();
+        return;
+      }
+      const opties = f && Array.isArray(f.uursoortOpties) ? f.uursoortOpties : [];
+      if (!opties.length) {
+        setStatus("Kies de uursoort in het veld Uursoort", false);
+        klaar();
+        return;
+      }
+      schermen.showAfspraakUursoort(opties, () => klaar(), () => {
+        appointmentFlow.uursoortQueueActive = false;
+        appointmentFlow.uursoortQueueGen++;
+      });
+    });
+  }
   function showUursoortQueue(contexts, afterAll) {
+    if (opNieuwFormulierHost()) {
+      afspraakUursoortStap(afterAll);
+      return;
+    }
     if (appointmentFlow.uursoortQueueActive) return;
     appointmentFlow.uursoortQueueActive = true;
     const myGen = appointmentFlow.uursoortQueueGen;
@@ -13158,7 +13207,7 @@
       appointmentFlow.knownClientNames.clear();
       return;
     }
-    maybePrefetchUursoorten();
+    if (!opNieuwFormulierHost()) maybePrefetchUursoorten();
     const firstSeed = !appointmentFlow.knownClientNames.size;
     const added = entries2.filter((entry) => !appointmentFlow.knownClientNames.has(entry.name));
     appointmentFlow.knownClientNames = new Set(currentNames);
@@ -13166,6 +13215,7 @@
     if (appointmentFlow.pendingChoice && appointmentFlow.pendingChoice.pickUursoort && !appointmentFlow.uursoortQueueActive && !appointmentFlow.appointmentFlowBusy) {
       setTitleForChoice(appointmentFlow.pendingChoice, () => {
       });
+      if (opNieuwFormulierHost()) return;
       const addedNames = added.map((e) => e.name).filter(Boolean);
       const state = computeAppointmentUursoortState();
       if (addedNames.length && (state === "MIXED" || state === "CHOICE")) {
@@ -18807,11 +18857,6 @@
   }
 
   // src/content/features/registratie-nieuw/index.js
-  var NIEUW_FORMULIER_HOSTS = ["impegno-backup-staging.onsagenda.nl"];
-  function opNieuwFormulierHost(host) {
-    const h = String(host == null ? location.hostname : host).toLowerCase();
-    return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
-  }
   function opNieuwRegistratieFormulier() {
     return opNieuwFormulierHost() && (!!vindRegistratieVenster() || isRegistrationEditOrNew());
   }
@@ -21162,7 +21207,9 @@
 
   // src/content/features/appointment/uursoort-screens.js
   function clientsMissingUursoort() {
-    return findClientEntries().filter((entry) => !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName2(entry.name)).filter(Boolean);
+    const nieuw = opNieuwFormulierHost();
+    if (nieuw && hasUursoortSelected()) return [];
+    return findClientEntries().filter((entry) => nieuw || !entryUursoortIsSet(entry)).map((entry) => entry.firstName || firstNameFromName2(entry.name)).filter(Boolean);
   }
   function missingUursoortText(names) {
     if (!names.length) return "Alle uursoorten zijn ingevuld.";
@@ -21218,6 +21265,37 @@
       return false;
     };
     checkNow();
+  }
+  function showAfspraakUursoort(opties, afterPick, onBack) {
+    const body = $body();
+    if (!body) return;
+    markScreen("afspraakUursoort");
+    renderScreen(body, "pickList", {
+      title: "Kies uursoort",
+      titleWeight: 600,
+      loading: false,
+      options: opties.map((o) => o.naam),
+      emptyMessage: "Geen uursoorten gevonden, kies hem in het veld Uursoort.",
+      emptyColor: "#b3261e",
+      tokens: ONSAH_TOKENS,
+      onBack: function() {
+        helperPanel.suppressAutoUntil = Date.now() + 1200;
+        if (onBack) onBack();
+        schermen.showChoices();
+      },
+      onPick: function(naam) {
+        safe(function() {
+          const o = opties.filter((x) => x.naam === naam)[0];
+          if (!o) return;
+          setStatus("Bezig...");
+          chooseUursoort(o.naam, (ok) => {
+            setStatus(ok ? `uursoort "${o.naam}" gezet` : `uursoort "${o.naam}" niet gezet, kies hem in het veld Uursoort`, ok);
+            afterPick(ok);
+          }, findNonClientUursoortTrigger() || getUursoortTrigger(), { hourTypeId: o.id });
+        }, "afspraak uursoort kiezen");
+      }
+    });
+    setStatus("Kies de uursoort");
   }
   function showUursoort(options, afterPick, clientContext = null) {
     const body = $body();
@@ -21294,6 +21372,7 @@
     showRegistrationTravelSelection,
     showUursoort,
     showUursoortQueue,
+    showAfspraakUursoort,
     toonRegistratieVenster,
     toonRegistratieVensterDeel,
     toonRegistratieVensterDeelDuur,

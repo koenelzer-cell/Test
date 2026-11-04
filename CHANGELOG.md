@@ -2,6 +2,15 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.317
+
+- Alleen voor het testpakket (backup staging):
+  - De afspraakhulp probeert niet langer een cliëntkaart te openen. Hij vraagt
+    één uursoort voor de hele afspraak, uit dezelfde lijst als het veld
+    Uursoort van ONS.
+  - Een registratie die als concept is opgeslagen, telt niet mee in de
+    weekcijfers zolang hij niet is ingediend.
+
 ## 1.6.316
 
 - Debug, Netwerk: ook 'Geregistreerd op/door …' en wie iets aanmaakte staan

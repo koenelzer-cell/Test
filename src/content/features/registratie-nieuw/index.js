@@ -15,14 +15,10 @@
 
 import { isRegistrationEditOrNew } from '../../ons/agenda-location.js';
 import { vindRegistratieVenster, vindRegistratieVensterSnel } from '../../ons/registratie-venster.js';
+import { NIEUW_FORMULIER_HOSTS, opNieuwFormulierHost } from '../../ons/nieuwe-formulieren.js';
 
-// Hosts met het nieuwe registratieformulier.
-export const NIEUW_FORMULIER_HOSTS = ['impegno-backup-staging.onsagenda.nl'];
-
-export function opNieuwFormulierHost(host) {
-  const h = String(host == null ? location.hostname : host).toLowerCase();
-  return NIEUW_FORMULIER_HOSTS.indexOf(h) >= 0;
-}
+// Hosts met het nieuwe formulier: ons/nieuwe-formulieren.js.
+export { NIEUW_FORMULIER_HOSTS, opNieuwFormulierHost };
 
 // Staat het nieuwe registratieformulier open? Het venster op de agenda, of
 // (voor het geval ONS het ook als pagina toont) /registrations/{id}/edit of

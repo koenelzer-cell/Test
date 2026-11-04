@@ -105,6 +105,6 @@ export const PAGE_COMMAND = {
   REGISTRATION_READ: 'registratieGelezen', // { id, ok, datum, begin, eind, afspraak, uursoort, direct, indirect, reisHeen, reisTerug, rapportVerplicht, rapportLengte, reistijdMag, clients: [{ id, noShow, uursoort }] }  geen namen of rapportagetekst
   SET_REGISTRATION: 'zetRegistratie', // { id, velden: { direct_time, indirect_time, travel_time_before, travel_time_after } }, { id, noShow: { clientId, aan } } of { id, rapport: aanhef } of { id, uursoort: id } of { id, eindNaBegin: minuten }  via de luisteraars van de kaarten (de aanhef via het tekstveld, de uursoort via onChangeActivity van ue-activity-select), nagekeken
   REGISTRATION_SET: 'registratieGezet', // { id, ok, reden? }
-  READ_FORM: 'leesFormulier',   // { id }  wat het open afspraakformulier bevat
-  FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds }
+  READ_FORM: 'leesFormulier',   // { id, uursoortOpties? }  wat het open afspraakformulier bevat; met uursoortOpties ook de keuzes van het uursoortveld op afspraakniveau
+  FORM_READ: 'formulierGelezen', // { id, ok, clients: [{ id, voornaam }], uursoorten: { clientId: hourTypeId|null }, labelIds, uursoort, uursoortOpties?: [{ id, naam, groep }] }
 };
