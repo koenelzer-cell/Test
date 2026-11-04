@@ -596,8 +596,18 @@ import { opbouwTekst } from '../shared/opbouw-masker.js';
     else if (soort === 'tijd') { w = String(w == null ? '' : w); if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(w)) { klaar({ ok: false, reden: 'ongeldige tijd' }); return; } }
     else { w = Number(w); if (!(w >= 0 && w < 1440)) { klaar({ ok: false, reden: 'ongeldig getal' }); return; } }
     const boom = formulierBoom(), c = boom && boom.details;
-    if (!c || !c.proxy || typeof c.proxy.onChange !== 'function') { klaar({ ok: false, reden: 'geen onChange' }); return; }
-    zetEnControleer(function () { c.proxy.onChange(w, veld); }, function (b) {
+    const onChange = c && c.proxy && typeof c.proxy.onChange === 'function' ? c.proxy.onChange : null;
+    // Vernieuwd formulier (testomgevingen): geen onChange meer; EventDetails
+    // meldt een wijziging als het hele model met update:event (zoals na het
+    // kiezen van een uursoort). Alleen voor de getallen (reistijd).
+    const opEvent = c && c.vnode && c.vnode.props && typeof c.vnode.props['onUpdate:event'] === 'function' ? c.vnode.props['onUpdate:event'] : null;
+    if (!c || (!onChange && !(opEvent && soort === 'getal'))) { klaar({ ok: false, reden: 'geen onChange' }); return; }
+    zetEnControleer(function () {
+      if (onChange) { onChange(w, veld); return; }
+      const nieuw = Object.assign({}, c.props.event);
+      nieuw[veld] = w;
+      opEvent(nieuw);
+    }, function (b) {
       const nu = b && b.details ? b.details.props.event[veld] : undefined;
       return soort === 'getal' ? Number(nu) === w : String(nu == null ? '' : nu) === w;
     }, klaar);

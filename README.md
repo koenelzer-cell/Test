@@ -414,6 +414,12 @@ Op `impegno-backup-staging.onsagenda.nl` en `impegno-staging-staging.onsagenda.n
   van het veld, met de keuzelijst als terugval. Staat er al een uursoort, dan
   slaat de hulp de stap over. Een later toegevoegde cliënt start geen
   wachtrij; 'uursoort gekozen' kijkt naar het ene veld.
+- **Reistijd in de afspraakhulp:** de velden heten daar Heenreis en
+  Terugreis (de hulp kent beide namen). `EventDetails` heeft er geen
+  `onChange` meer; de hulp zet de minuten zoals het formulier zelf een
+  wijziging meldt: het hele model met de nieuwe reistijd aan `update:event`
+  (main-world `zetVeld`, alleen voor de reistijd), nagekeken, met typen als
+  terugval.
 - **Weekcijfers:** een registratie die als concept is opgeslagen
   (`declaration.sent: false`) telt niet mee in Verhouding en Productie; die is
   nog niet ingediend.

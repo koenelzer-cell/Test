@@ -837,12 +837,20 @@
         }
       }
       const boom = formulierBoom(), c = boom && boom.details;
-      if (!c || !c.proxy || typeof c.proxy.onChange !== "function") {
+      const onChange = c && c.proxy && typeof c.proxy.onChange === "function" ? c.proxy.onChange : null;
+      const opEvent = c && c.vnode && c.vnode.props && typeof c.vnode.props["onUpdate:event"] === "function" ? c.vnode.props["onUpdate:event"] : null;
+      if (!c || !onChange && !(opEvent && soort === "getal")) {
         klaar({ ok: false, reden: "geen onChange" });
         return;
       }
       zetEnControleer(function() {
-        c.proxy.onChange(w, veld);
+        if (onChange) {
+          onChange(w, veld);
+          return;
+        }
+        const nieuw = Object.assign({}, c.props.event);
+        nieuw[veld] = w;
+        opEvent(nieuw);
       }, function(b) {
         const nu = b && b.details ? b.details.props.event[veld] : void 0;
         return soort === "getal" ? Number(nu) === w : String(nu == null ? "" : nu) === w;

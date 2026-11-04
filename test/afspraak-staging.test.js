@@ -126,3 +126,36 @@ test('elders (productie) blijft de cliëntkaart gewoon uitgeklapt worden', () =>
   api.ensureClientExpanded((ok) => { uitgeklapt = ok; });
   assert.equal(uitgeklapt, 'nog niet', 'niet meteen klaar: hij zoekt de kaart');
 });
+
+test('main-world: reistijd in het vernieuwde formulier (geen onChange) via update:event van EventDetails, met het hele model; nagekeken', async () => {
+  const dom = new JSDOM('<!doctype html><body><div id="content"><uc-modal><div id="details"><uc-combo-box data-qa="label_select"></uc-combo-box></div></uc-modal></div></body>',
+    { url: STAGING + '/invitees/42479/events/new', runScripts: 'outside-only' });
+  const w = dom.window, $ = (s) => w.document.querySelector(s);
+  const ontvangen = [];
+  const details = { type: { name: 'EventDetails' }, props: { event: { name: '', travel_time_before: 0, travel_time_after: 0, hour_type_id: 1135 } }, subTree: { el: $('#details'), children: [] } };
+  const vnode = { component: details, props: { 'onUpdate:event': (ev) => { ontvangen.push(ev); details.props.event = ev; } } };
+  details.vnode = vnode;
+  $('#content').__vue_app__ = { version: '3.5.43' };
+  $('#content')._vnode = { component: { type: { name: 'App' }, props: {}, subTree: { el: $('uc-modal'), children: [vnode] } } };
+  w.eval(MAIN);
+  const vraag = (velden) => new Promise((klaar) => {
+    const id = 'v' + Math.random();
+    const luister = (ev) => { const x = ev.data; if (x && x.type === 'veldGezet' && x.id === id) { w.removeEventListener('message', luister); klaar(x); } };
+    w.addEventListener('message', luister);
+    w.dispatchEvent(new w.MessageEvent('message', { data: { __onsah: true, dir: 'to-main', type: 'zetVeld', id, ...velden }, origin: w.location.origin, source: w }));
+    setTimeout(() => klaar(null), 600);
+  });
+  const r = await vraag({ veld: 'travel_time_before', waarde: 8 });
+  assert.equal(r.ok, true);
+  assert.deepEqual(kaal(ontvangen), [{ name: '', travel_time_before: 8, travel_time_after: 0, hour_type_id: 1135 }], 'het hele model, met alleen de reistijd anders');
+  const titel = await vraag({ veld: 'name', waarde: 'Gesprek' });
+  assert.deepEqual([titel.ok, titel.reden], [false, 'geen onChange'], 'tekst en tijden niet via deze route');
+});
+
+test('content: de reistijdvelden heten in het vernieuwde formulier Heenreis en Terugreis', () => {
+  const { api } = bootHelper({ url: STAGING + '/invitees/42479/events/new',
+    html: '<!doctype html><html><body><div data-test-rect="100,0,120,20">Heenreis</div><input id="heen" inputmode="decimal" data-test-rect="125,0,110,40">'
+      + '<div data-test-rect="100,150,120,20">Terugreis</div><input id="terug" inputmode="decimal" data-test-rect="125,150,110,40"></body></html>' });
+  assert.equal(api.appointmentTravelInput('heen').id, 'heen');
+  assert.equal(api.appointmentTravelInput('terug').id, 'terug');
+});

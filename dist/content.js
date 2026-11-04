@@ -5595,8 +5595,9 @@
   function appointmentTravelInput(kind) {
     const ov = overrideEl(kind === "heen" ? "afsTravelBefore" : "afsTravelAfter");
     if (ov) return ov;
-    const wanted = kind === "heen" ? "reistijd heen" : "reistijd terug";
-    const labels = deepQueryAll("label,div,span,p").filter((el) => visible(el) && !isOwnPopup(el) && clean(el.textContent || "") === wanted);
+    const namen = kind === "heen" ? ["reistijd heen", "heenreis"] : ["reistijd terug", "terugreis"];
+    const isNaam = (t) => namen.indexOf(clean(t || "")) >= 0;
+    const labels = deepQueryAll("label,div,span,p").filter((el) => visible(el) && !isOwnPopup(el) && isNaam(el.textContent));
     let best = null, bestScore = Infinity;
     for (const label of labels) {
       const lr = rect(label);
@@ -5618,11 +5619,11 @@
       if (isOwnPopup(inp)) return false;
       const label = clean(inp.getAttribute("aria-label") || "");
       const placeholder = clean(inp.getAttribute("placeholder") || "");
-      return label === wanted && (!placeholder || placeholder === "min");
+      return isNaam(label) && (!placeholder || placeholder === "min");
     });
     const direct = allDirect.find((inp) => visible(inp) && (/decimal/i.test(inp.getAttribute("inputmode") || "") || /spinbutton/i.test(inp.getAttribute("role") || ""))) || allDirect.find(visible) || allDirect[0];
     if (direct) return direct;
-    const host = deepQueryAll("[aria-label]").find((el) => !isOwnPopup(el) && clean(el.getAttribute("aria-label") || "") === wanted);
+    const host = deepQueryAll("[aria-label]").find((el) => !isOwnPopup(el) && isNaam(el.getAttribute("aria-label")));
     if (host && host.shadowRoot) {
       const inner = deepQueryAll("input", host.shadowRoot).find((inp) => !isOwnPopup(inp));
       if (inner) return inner;

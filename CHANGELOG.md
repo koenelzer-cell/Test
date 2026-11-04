@@ -2,6 +2,11 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.321
+
+- Alleen voor het testpakket: de afspraakhulp vult de reistijd weer in het
+  vernieuwde afspraakformulier (Heenreis en Terugreis).
+
 ## 1.6.320
 
 - Alleen voor het testpakket: alles wat op backup staging voor de vernieuwde

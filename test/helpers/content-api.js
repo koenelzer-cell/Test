@@ -25,7 +25,7 @@ import { agendaRegistrationsSectionEl } from '../../src/content/features/agenda-
 import { managedRichHtml, mkText, resolveText } from '../../src/content/ui/managed-text.js';
 import { firstByDataQa, inputBelongsToTrigger } from '../../src/content/ons/form-controls.js';
 import { collectClientUursoortOptionTexts } from '../../src/content/ons/uursoort-options.js';
-import { entryUursoortIsSet, entryUursoortText, findClientEntries, findRecurrenceField, findRecurrenceHeader, getEndTimeInput, getEtiketTrigger, getStartTimeInput, invalidateClientEntries, labelChips } from '../../src/content/ons/appointment-form.js';
+import { appointmentTravelInput, entryUursoortIsSet, entryUursoortText, findClientEntries, findRecurrenceField, findRecurrenceHeader, getEndTimeInput, getEtiketTrigger, getStartTimeInput, invalidateClientEntries, labelChips } from '../../src/content/ons/appointment-form.js';
 import { hasAppointmentDate, hasAppointmentStartTime } from '../../src/content/features/appointment/fields.js';
 import { removeLabelChipsByText, selectedAllLabelChipTexts, selectedKnownLabels, setLabelsExclusive } from '../../src/content/features/appointment/labels.js';
 import { enforceAppointmentEndTime, setAppointmentEndTimePlusMinutes, zetEindtijdAsync } from '../../src/content/features/appointment/end-time.js';
@@ -124,6 +124,7 @@ window.__onsHelperTestApi = {
   findClientEntries,
   uursoortContexts,
   showUursoortQueue,
+  appointmentTravelInput,
   ensureClientExpanded: _ensureClientExpanded,
   clientsMissingUursoortEntries,
   invalidateClientEntries,
