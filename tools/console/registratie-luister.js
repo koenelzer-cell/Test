@@ -14,7 +14,7 @@
 // (tekst onder gevoelige sleutels als 'tekst(n)', id's als 'id', nummers in
 // tekst als '{n}', tekst uit tekstvelden en de rapportage alleen als lengte).
 (() => {
-  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker/i;
+  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|on_date|_by$|door$|author|auteur/i;
   const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   const schoon = (t) => String(t).replace(/[0-9a-f]{10,}/gi, '{id}').replace(/\d{3,}/g, '{n}');
   const adres = (u) => { const [pad, zoek] = String(u).split('?'); return schoon(pad).replace(/\d+/g, '{n}') + (zoek ? '?' + zoek.split('&').map((d) => d.split('=')[0] + '=…').join('&') : ''); };

@@ -1,4 +1,5 @@
-// De uursoort in het vernieuwde ONS-registratievenster (versie 3): waar de
+// De uursoort in het vernieuwde ONS-registratievenster of afspraakformulier
+// (versie 4; werkt nu ook op een open afspraakformulier, EventDetails): waar de
 // lijst met uursoorten zit, waar de gekozen uursoort in de registratie staat
 // en hoe het venster een keuze doorgeeft. Vindt ook eigen elementen zoals
 // ue-activity-select, meldt welke status ONS kreeg bij het ophalen van de
@@ -20,7 +21,7 @@
 // persoonsgegevens); bij andere keuzelijsten (zoals de medewerker) alleen
 // het aantal en de opbouw.
 (() => {
-  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker/i;
+  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|on_date|_by$|door$|author|auteur/i;
   const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   const UURSOORT = /hour|activit|uursoort/i;
   const LABEL_SLEUTEL = /^(name|description|label|title|text|code|abbreviation)$/i;
@@ -105,14 +106,17 @@
         gezien.add(v);
         if (v.component) {
           const naam = naamVan(v.component.type);
-          if (/registration/i.test(naam) && /modal|form/i.test(naam)) kand.push(v);
+          if ((/registration/i.test(naam) && /modal|form/i.test(naam)) || naam === 'EventDetails' || (/event|appointment/i.test(naam) && /modal|form/i.test(naam))) kand.push(v);
           stapel.push(v.component.subTree);
         }
         if (Array.isArray(v.children)) v.children.forEach((x) => stapel.push(x));
         if (Array.isArray(v.dynamicChildren)) v.dynamicChildren.forEach((x) => stapel.push(x));
       }
     });
-    return kand.find((v) => /modal/i.test(naamVan(v.component.type))) || kand[0] || null;
+    // Eerst het registratievenster, anders het afspraakformulier.
+    const isReg = (v) => /registration/i.test(naamVan(v.component.type));
+    return kand.find((v) => isReg(v) && /modal/i.test(naamVan(v.component.type))) || kand.find(isReg)
+      || kand.find((v) => /modal/i.test(naamVan(v.component.type))) || kand.find((v) => naamVan(v.component.type) === 'EventDetails') || kand[0] || null;
   };
   // Alle vnodes in het venster, met de component waar ze in staan.
   const loop = (fn) => {
@@ -189,6 +193,17 @@
         });
         registratie[naam] = velden;
       }
+      // Het afspraakmodel (EventDetails: props.event): de uursoortvelden en per
+      // cliënt (zonder id: op volgorde) wat er bij client_information staat.
+      const ev = cp.event;
+      if (ev && typeof ev === 'object' && !registratie[naam + ' (afspraak)']) {
+        const velden = { sleutels: Object.keys(ev).slice(0, 60) };
+        Object.keys(ev).forEach((k) => { if (UURSOORT.test(k)) velden[k] = uursoortWaarde(ev[k]); });
+        const ci = ev.client_information && typeof ev.client_information === 'object' ? ev.client_information : null;
+        if (ci) Object.keys(ci).slice(0, 4).forEach((id, i) => { velden['client_information[' + i + ']'] = uursoortWaarde(ci[id]); });
+        velden.aantalClients = Array.isArray(ev.client_ids) ? ev.client_ids.length : (Array.isArray(ev.clients) ? ev.clients.length : undefined);
+        registratie[naam + ' (afspraak)'] = velden;
+      }
       const sleutels = Object.keys(props).concat(Object.keys(cp));
       if (!UURSOORT.test(naam) && !sleutels.some((s) => UURSOORT.test(s))) return;
       const c = { component: naam, inComponent: eigenaar, props: Object.keys(cp), luisteraars: Object.keys(props).filter((s) => /^on[A-Z:]/.test(s)) };
@@ -214,7 +229,7 @@
   // nummers of zoekwaarden).
   let netwerk = [];
   try {
-    netwerk = performance.getEntriesByType('resource').filter((e) => /activit|hour.?type/i.test(e.name)).slice(-10).map((e) => {
+    netwerk = performance.getEntriesByType('resource').filter((e) => /activit|hour.?type|product_list|product_selection/i.test(e.name)).slice(-10).map((e) => {
       const u = new URL(e.name, location.href);
       return { adres: (u.origin === location.origin ? '' : u.host) + schoon(u.pathname).replace(/\d+/g, '{n}'), zoek: [...u.searchParams.keys()], status: e.responseStatus || 'onbekend', seconden: Math.round(e.startTime / 1000) };
     });
@@ -223,7 +238,7 @@
   // opvroeg nog één keer lezen (zelfde site, alleen lezen), en de opbouw tonen.
   let uursoortlijst = 'niet opgevraagd';
   try {
-    const goed = performance.getEntriesByType('resource').filter((e) => /authorized\/activities/i.test(e.name) && e.responseStatus === 200 && new URL(e.name, location.href).origin === location.origin).pop();
+    const goed = performance.getEntriesByType('resource').filter((e) => /authorized\/activities|product_selection\/product_list/i.test(e.name) && e.responseStatus === 200 && new URL(e.name, location.href).origin === location.origin).pop();
     if (goed) {
       uursoortlijst = 'bezig';
       fetch(goed.name, { credentials: 'same-origin', headers: { accept: 'application/json' } }).then((resp) => {
@@ -296,7 +311,7 @@
   const tik = setInterval(pakIn, 300);
   const stop = () => { clearInterval(tik); clearTimeout(einde); gepatcht.forEach(([el, orig, eigen]) => { if (eigen) el.dispatchEvent = orig; else delete el.dispatchEvent; delete el.__onsahVerstuurt; }); gepatcht.length = 0; console.log('[onsah] gestopt, ' + regels.length + ' regels. onsahUursoort.kopieer() kopieert alles.'); };
   const einde = setTimeout(stop, 10 * 60 * 1000);
-  const uitkomst = () => ({ versie: 3, venster: gevonden, keuzelijsten: keuzelijsten.map((k) => Object.assign({}, k, { _el: undefined })), registratie, componenten, netwerk, uursoortlijst, gebeurtenissen: regels });
+  const uitkomst = () => ({ versie: 4, venster: gevonden, keuzelijsten: keuzelijsten.map((k) => Object.assign({}, k, { _el: undefined })), registratie, componenten, netwerk, uursoortlijst, gebeurtenissen: regels });
   window.onsahUursoort = {
     stop,
     uitkomst,
@@ -306,7 +321,7 @@
   const msg = gevonden
     ? keuzelijsten.length + ' keuzevelden gevonden, ' + uv.length + ' voor de uursoort' + (uv.length ? ' (' + uv.map((k) => k.element).join(', ') + ')' : '')
       + (netwerk.length ? '; uursoorten ophalen: status ' + netwerk.map((n) => n.status).join(', ') : '') + '. Kies NU een andere uursoort; daarna onsahUursoort.kopieer().'
-    : 'Geen registratievenster gevonden: open het venster en plak de code opnieuw.';
+    : 'Geen registratievenster of afspraakformulier gevonden: open het en plak de code opnieuw.';
   console.log('[onsah] ' + msg);
   return msg;
 })();

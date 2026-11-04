@@ -44,3 +44,9 @@ test('opbouwTekst: alleen JSON; ingekort tot het maximum', () => {
   const groot = opbouwTekst(JSON.stringify({ a: Array.from({ length: 3 }, () => ({ k: 'x'.repeat(30), l: 'y'.repeat(30), m: 'z'.repeat(30) })) }), 60);
   assert.match(groot, /…\(ingekort\)$/);
 });
+
+test('declaration: status en sent blijven leesbaar, on_date (kan een naam bevatten) niet', () => {
+  const o = opbouwVan({ registration: { declaration: { sent: false, status: 'valid', on_date: 'Geregistreerd door Jan op 04 november' }, created_by: 'Jan' } });
+  assert.deepEqual(o.registration.declaration, { sent: false, status: 'valid', on_date: 'tekst(37)' });
+  assert.equal(o.registration.created_by, 'tekst(3)');
+});

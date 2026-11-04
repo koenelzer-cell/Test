@@ -4,7 +4,8 @@
 // kunnen uitzoeken. Zelfde regels als de consolecode (tools/console/), iets
 // strenger:
 // - tekst onder een gevoelige sleutel (naam, cliënt, geboorte, adres,
-//   rapportage, omschrijving, label, gender, woonplaats, zorg …) wordt
+//   rapportage, omschrijving, label, gender, woonplaats, zorg, on_date met
+//   'Geregistreerd door …', created_by …) wordt
 //   'tekst(lengte)', en alles daaronder blijft gevoelig;
 // - tekst zonder sleutel (een plek in een lijst, zoals [["Jan", 9]]) wordt
 //   'tekst(lengte)', tenzij het een korte code is ('client', 'draft');
@@ -18,7 +19,7 @@
 // - lijsten: de eerste 3 en het aantal; een korte rij losse waarden (zoals
 //   [naam, id, [], false]) helemaal; hooguit 6 lagen diep, 45 sleutels.
 
-const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|postcode|zip|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|insertion|infix|tussenvoeg|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|iban|account/i;
+const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|postcode|zip|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|insertion|infix|tussenvoeg|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|iban|account|on_date|_by$|door$|author|auteur/i;
 const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
 const OPEN = /activit|hour/i;
 const MAX_DIEP = 6, MAX_LIJST = 3, MAX_SLEUTELS = 45;

@@ -235,7 +235,8 @@ ONS meestuurt) en van het antwoord, om een nieuwe structuur van ONS uit te
 zoeken. Alleen van deze site, zonder persoonsgegevens
 (`shared/opbouw-masker.js`): sleutels en soorten waarden; tekst onder een
 gevoelige sleutel (naam, cliënt, geboorte, adres, rapportage, omschrijving,
-gender, woonplaats, zorg …) en tekst op een plek in een lijst worden
+gender, woonplaats, zorg, `on_date` en `…_by` (kunnen een naam bevatten) …) en
+tekst op een plek in een lijst worden
 `tekst(lengte)`, id's `id`; codes, datums, tijden en uursoorten (onder een
 sleutel met activity of hour) blijven leesbaar; lijsten de eerste 3, een
 korte rij losse waarden helemaal. **Kopiëren** neemt de opbouw mee, onder
@@ -522,7 +523,9 @@ meegaat, plus wat de `uc-*`-velden zelf melden (`change`, `input`). Alles
 gaat ongewijzigd door naar ONS; na 10 minuten stopt het vanzelf. Dezelfde
 regels voor gegevens als hierboven.
 
-De uursoort: `tools/console/registratie-uursoort.js` in de console plakken
+De uursoort: `tools/console/registratie-uursoort.js` (werkt ook op een open
+afspraakformulier, `EventDetails`, met de uursoortvelden van het afspraakmodel
+en `product_selection/product_list`) in de console plakken
 als de uursoorten geladen zijn, dán een andere uursoort kiezen en
 `onsahUursoort.kopieer()` typen. Het geeft elk keuzeveld in het venster (ook
 eigen elementen zoals `ue-activity-select`, het uursoortveld in

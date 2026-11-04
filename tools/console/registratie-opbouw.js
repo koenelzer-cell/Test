@@ -15,7 +15,7 @@
 //   eerste woord met een hoofdletter dat geen formulierwoord is; anders '…';
 // - adressen (create_url …) zonder nummers, id's en zoekwaarden.
 (() => {
-  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker/i;
+  const GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|on_date|_by$|door$|author|auteur/i;
   const ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   const UI_WOORDEN = /^(uursoort|activiteit|datum|begintijd|eindtijd|direct|indirect|reistijd|heen|terug|zichtbaar|zoek|zoeken|open|toevoegen|verwijder|verwijderen|bewerken|sluiten|annuleren|opslaan|indienen|registreren|declareren|niet|medewerker|medewerkers|cliënt|cliënten|client|clienten|rapportage|rapport|expertise|toeslag|toeslagen|kostenplaats|digitale|begin|kies|selecteer|toon|nieuwe|nieuw|vandaag|aanwezig|afwezig|no-show|herstel|groep|duur|tijd|tijden|uren|minuten|vlag|markeer)\b/i;
   const schoon = (t) => String(t).replace(/[0-9a-f]{10,}/gi, '{id}').replace(/\d{3,}/g, '{n}');

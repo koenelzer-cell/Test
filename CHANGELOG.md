@@ -2,6 +2,11 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.316
+
+- Debug, Netwerk: ook 'Geregistreerd op/door …' en wie iets aanmaakte staan
+  nu afgeschermd in de opbouw. Voor medewerkers verandert er niets.
+
 ## 1.6.315
 
 - Alleen voor het testpakket, in het vernieuwde registratievenster:

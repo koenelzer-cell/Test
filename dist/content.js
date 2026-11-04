@@ -3661,7 +3661,7 @@
   }
 
   // src/shared/opbouw-masker.js
-  var GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|postcode|zip|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|insertion|infix|tussenvoeg|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|iban|account/i;
+  var GEVOELIG = /name|naam|client|person|birth|geboort|bsn|ident|external|number|nummer|_no$|adres|address|street|straat|postcode|zip|phone|telefoon|mail|comment|opmerk|report|rapport|tekst|text|body|content|note|notitie|titel|title|descr|omschrijv|summary|samenvat|initial|voorletter|insertion|infix|tussenvoeg|sortable|avatar|label$|gender|geslacht|pronoun|town|city|woonplaats|plaats|care_|allocation|insur|verzeker|iban|account|on_date|_by$|door$|author|auteur/i;
   var ID_SLEUTEL = /(^|[_ ])ids?$|(^| )external/i;
   var OPEN = /activit|hour/i;
   var MAX_DIEP = 6;

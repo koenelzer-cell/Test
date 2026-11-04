@@ -161,3 +161,24 @@ test('cliëntgegevens die meekomen bij een gebeurtenis (cliënt toevoegen) blijv
   assert.doesNotMatch(t, /Tamara|female|Groningen|SHE_HER|2014|2025|1990|11142/);
   assert.match(t, /"care_allocations":\[\{"begin_date":"tekst\(10\)"/, 'de opbouw blijft zichtbaar');
 });
+
+test('versie 4: werkt ook op een open afspraakformulier (EventDetails), met de uursoortvelden van het afspraakmodel', () => {
+  const dom = new JSDOM('<!doctype html><body><div id="content"><uc-modal><div id="form"><uc-select data-qa="hour_type_select" aria-label="Uursoort"></uc-select></div></uc-modal></div></body>', { url: 'https://impegno-backup-staging.onsagenda.nl/invitees/1/events/new', runScripts: 'outside-only' });
+  const w = dom.window, $ = (s) => w.document.querySelector(s);
+  const event = { name: 'Gesprek', client_ids: [11142, 9], hour_type_id: 1136, client_information: { 11142: { hour_type_id: 1136, activity_ids: [] }, 9: { hour_type_id: null } } };
+  const details = { type: { name: 'EventDetails' }, props: { event }, subTree: { el: $('#form'), children: [
+    { type: 'uc-select', el: $('uc-select'), props: { 'data-qa': 'hour_type_select', modelValue: 1136, options: [{ id: 1136, name: 'Diagnostiek (GGZ 18+)' }] } },
+  ] } };
+  $('#content').__vue_app__ = { version: '3.5.43' };
+  $('#content')._vnode = { component: { type: { name: 'App' }, props: {}, subTree: { el: $('uc-modal'), children: [{ component: details, props: {} }] } } };
+  w.copy = () => {};
+  const melding = w.eval(CODE);
+  assert.match(melding, /1 voor de uursoort \(uc-select\)/);
+  const u = w.onsahUursoort.uitkomst();
+  const a = JSON.parse(JSON.stringify(u.registratie['EventDetails (afspraak)']));
+  assert.equal(a.hour_type_id, 1136);
+  assert.deepEqual([a['client_information[0]'], a['client_information[1]']], [{ hour_type_id: null }, { hour_type_id: 1136, activity_ids: [] }], 'per cliënt op volgorde, zonder cliënt-id');
+  assert.equal(a.aantalClients, 2);
+  assert.doesNotMatch(JSON.stringify(u), /Gesprek|11142/);
+  w.onsahUursoort.stop();
+});
