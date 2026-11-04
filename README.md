@@ -476,6 +476,15 @@ meegaat, plus wat de `uc-*`-velden zelf melden (`change`, `input`). Alles
 gaat ongewijzigd door naar ONS; na 10 minuten stopt het vanzelf. Dezelfde
 regels voor gegevens als hierboven.
 
+De uursoort: `tools/console/registratie-uursoort.js` in de console plakken
+als de uursoorten geladen zijn, dan een uursoort kiezen en
+`onsahUursoort.kopieer()` typen. Het geeft elke keuzelijst in het venster
+(met welke component, welke props en op welke gebeurtenissen Vue luistert)
+en de componenten die met een uursoort te maken hebben, en noteert wat er
+doorgegeven wordt bij het kiezen. Alleen bij een uursoortlijst staan de
+eerste vijf namen leesbaar; bij andere lijsten (zoals de medewerker) alleen
+het aantal en de opbouw.
+
 ### Zijpaneel
 
 Terwijl de agenda en het zijpaneel open staan, laadt de extensie op de
