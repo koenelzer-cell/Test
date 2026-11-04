@@ -11,7 +11,7 @@ test('op de host met het nieuwe formulier: oude registratiehulp uit, nieuwe modu
   const { api } = bootHelper({ url: 'https://impegno-backup-staging.onsagenda.nl/registrations/07eaa0c43ea6c/edit?redirect_to_calendar=true' });
   await tick();
   assert.equal(api.opNieuwFormulierHost('impegno-backup-staging.onsagenda.nl'), true);
-  assert.equal(api.opNieuwFormulierHost('impegno-staging-staging.onsagenda.nl'), true, 'ook staging-staging');
+  assert.equal(api.opNieuwFormulierHost('impegno-staging-staging.onsagenda.nl'), false, 'staging-staging werkt op de oude manier');
   assert.equal(api.opNieuwFormulierHost('impegno-staging-staging.ons-dossier.nl'), false, 'het dossier niet');
   assert.notEqual(api.getHelperPanel().activeMode, 'registrations', 'de oude registratiehulp start niet');
   assert.equal(api.nieuweRegistratiehulpActief(), true);

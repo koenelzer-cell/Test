@@ -2,6 +2,12 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.322
+
+- Alleen voor het testpakket: op impegno-staging-staging werkt de hulp weer
+  op de oude manier; de aanpassingen voor de vernieuwde formulieren gelden
+  alleen op backup staging.
+
 ## 1.6.321
 
 - Alleen voor het testpakket: de afspraakhulp vult de reistijd weer in het
