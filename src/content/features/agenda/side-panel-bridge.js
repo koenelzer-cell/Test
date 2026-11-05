@@ -37,6 +37,7 @@ import { currentAgendaDate } from '../../ons/agenda-location.js';
 import { extensionVersion } from '../../../shared/version.js';
 import { MSG } from '../../../shared/messages.js';
 import { describeWorkHours } from '../../../shared/work-hours.js';
+import { isDebugWachtwoord } from '../../../shared/debug-wachtwoord.js';
 
 /* ===== De Agendahulp in het zijpaneel =====
    Het zijpaneel tekent hetzelfde paneel (agendapanel.js), maar kan de
@@ -115,8 +116,9 @@ function agPanelState() {
     routeEnabled: routeEnabled(),
     // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
     features: panelFeatures(),
-    // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
-    debugWachtwoord: /^[0-9a-f]{64}$/.test(String((APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord) || '')) ? APP_CONFIG.debug.wachtwoord : '',
+    // Afgeleide (PBKDF2, of de oude SHA-256) van het wachtwoord voor de knop
+    // Debug (Info); leeg = geen knop.
+    debugWachtwoord: isDebugWachtwoord(APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord) ? String(APP_CONFIG.debug.wachtwoord) : '',
     afspraakTypes: afspraakTypesVoorPaneel(),
     // Rijtijden en kaart (routesProxy) leest het zijpaneel zelf uit config.json
     // en het beleid (shared/routes-config.js), niet uit deze toestand.

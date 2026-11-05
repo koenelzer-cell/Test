@@ -218,9 +218,13 @@ zone tot de laatste).
 
 Voor ontwikkeling, in plaats van het tabblad Network van DevTools. Onder
 **Info** staat onderaan een kleine knop **Debug**, alleen als de beheerder een
-wachtwoord instelde (beheerscherm, pagina **Debug** onder Controleren; in de
-configuratie staat alleen de SHA-256 van het wachtwoord, `debug.wachtwoord`).
-Het wachtwoord houdt nieuwsgierigen buiten, het is geen echte beveiliging.
+wachtwoord instelde (beheerscherm, pagina **Debug** onder Controleren). In de
+configuratie (`debug.wachtwoord`) staat nooit het wachtwoord zelf, alleen een
+afgeleide: PBKDF2 met SHA-256, 600.000 rondes en een willekeurig zout
+(`pbkdf2-sha256$rondes$zout$hash`, `shared/debug-wachtwoord.js`). Het
+narekenen duurt even; zolang staat de knop op **Controleren**. De oude vorm
+(alleen SHA-256) werkt nog, tot de beheerder het wachtwoord opnieuw instelt
+en publiceert; het beheerscherm wijst daarop.
 Met het juiste wachtwoord opent **Netwerk**: elk verzoek, live en het nieuwste
 boven, met tijd (tot op de seconde), van wie het komt, methode, status (rood
 bij een fout of 'mislukt' zonder antwoord), duur, grootte (als de server die
@@ -263,7 +267,8 @@ seconde wat er nieuw is, en het ONS-tabblad houdt het na elke vraag 15
 seconden aan. Daarna meldt de main-world niets meer en gooit het tabblad de
 lijst weg. Het tabblad houdt de laatste 300 verzoeken bij, het zijpaneel ook;
 alles alleen in het geheugen, niets wordt opgeslagen of verstuurd. Debug
-blijft open tot je **Debug sluiten** kiest of het zijpaneel sluit, ook als je
+blijft open tot je **Debug sluiten** kiest, het zijpaneel sluit of je een
+kwartier niets doet in het zijpaneel (dan gaat het weer op slot), ook als je
 in ONS naar een andere pagina gaat. Verzoeken die ONS doet voordat de hulp op
 een nieuwe pagina geladen is (de eerste paar bij het laden), en die van
 andere tabbladen, staan er niet in. Adressen kunnen cliëntgegevens bevatten
@@ -589,6 +594,23 @@ opnieuw, steeds later en met wat toeval. Zegt ONS dat het te druk is (429 of
 503), dan niet opnieuw, en stopt het vooraf laden tot de tijd uit
 `Retry-After` voorbij is (anders een minuut; tussen 10 seconden en 10
 minuten). Opslaan (POST) nooit opnieuw.
+
+Geen eindeloos draaiende knop (`shared/tijdslimiet.js`): een opvraging bij
+ONS zonder antwoord binnen 20 seconden wordt afgebroken en geeft een fout
+(niet opnieuw: ONS is dan traag). Opslaan krijgt 60 seconden, want dat mag
+even duren; daarna zegt de fout dat het toch opgeslagen kan zijn en dat je
+eerst in de agenda kijkt voor je het opnieuw probeert. Rijtijden bij Google
+of de eigen routes-server: ook 20 seconden.
+
+Wie wegloopt, laat niets open staan (`sidepanel/inactief.js`): na een
+kwartier niets doen in het zijpaneel (geen klik, toets of scroll) gaat Debug
+op slot. Na een half uur is alles leeg wat je opvroeg en invulde (planhulp,
+open registraties, afspraak maken, route, de logs van Debug) en staat het
+zijpaneel weer op de startpagina; alleen de keuzes van de planhulp (duur,
+weken) blijven. Loopt er op dat moment nog iets (ophalen, opslaan), dan wacht
+het tot dat klaar is. Wat je in ONS zelf doet, telt hier niet mee. De klik
+die het merkt, doet verder niets, zodat je niet per ongeluk iets op de
+startpagina aanklikt.
 
 Lukken niet alle kopieën van de planhulp, dan blijft de melding linksonder
 staan (tot je hem sluit), met de knop **Mislukte opnieuw proberen**.
@@ -935,5 +957,7 @@ en oker).
 
 De extensie stuurt niets naar externe servers. Alle serveraanroepen gaan naar
 ONS zelf via relatieve paden binnen de bestaande sessie; `host_permissions` in
-het manifest beperkt de toegang tot de ONS-domeinen. Zie
-[SECURITY.md](SECURITY.md).
+het manifest beperkt de toegang tot de ONS-domeinen. Wat de hulp klaarzet in
+de sessionStorage van het tabblad (een afspraak uit de planhulp, kopieën, een
+registratie vanuit een afspraak) gaat weg zodra het verlopen is, bij de
+volgende paginawissel in ONS. Zie [SECURITY.md](SECURITY.md).

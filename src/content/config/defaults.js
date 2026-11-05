@@ -149,8 +149,9 @@ export const DEFAULT_APP_CONFIG = {
   declarabiliteitRules: [],
   // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
   support: { topdeskUrl: 'https://impegno.topdesk.net/' },
-  // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen de SHA-256
-  // van 'onsah-debug:' + wachtwoord (beheer, pagina Debug). Leeg = geen knop.
+  // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen een
+  // afgeleide, 'pbkdf2-sha256$rondes$zout$hash' (beheer, pagina Debug; de oude
+  // vorm, 64 hex SHA-256, werkt ook nog). Leeg = geen knop.
   debug: { wachtwoord: '' },
   // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
   // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar

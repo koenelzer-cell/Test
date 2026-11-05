@@ -9,20 +9,35 @@
 // toeval (backoff met jitter). Zegt ONS dat het te druk is (429 of 503), dan
 // niet opnieuw, en stopt het vooraf laden tot de tijd uit Retry-After (of
 // een minuut) voorbij is (onsTeDruk). Een POST nooit opnieuw.
+//
+// Tijdslimiet: een GET zonder antwoord binnen 20 seconden wordt afgebroken
+// (niet opnieuw: ONS is dan traag, nog een verzoek maakt het drukker). Een
+// POST krijgt 60 seconden, want opslaan mag even duren; daarna een fout die
+// zegt dat het toch opgeslagen kan zijn, zodat niemand het dubbel maakt.
 
 import { logVerzoek, netwerklogAan, netwerklogAntwoorden } from './netwerklog.js';
 import { opbouwTekst } from '../../../shared/opbouw-masker.js';
 import { meldFout } from '../../core/foutbuffer.js';
+import { metTijdslimiet, isTijdslimiet, TIJDSLIMIET_MS } from '../../../shared/tijdslimiet.js';
+
+export const POST_TIJDSLIMIET_MS = 60000;
+let limieten = { get: TIJDSLIMIET_MS, post: POST_TIJDSLIMIET_MS };
+// Alleen voor tests: kortere limieten.
+export function _zetTijdslimieten(get, post) { limieten = { get: get || TIJDSLIMIET_MS, post: post || POST_TIJDSLIMIET_MS }; }
+function haalMetLimiet(pad, init) {
+  const ms = (init.method || 'GET') === 'POST' ? limieten.post : limieten.get;
+  return metTijdslimiet(function (u, i) { return fetch(u, i); }, pad, init, ms);
+}
 
 // Het soort adres voor de foutbuffer: zonder zoekdeel en zonder nummers.
 function soortAdres(pad) { return String(pad).split('?')[0].replace(/\d+/g, '{n}').slice(0, 70); }
 
 // Een verzoek van de hulp, met het netwerklog (Debug) als dat aan staat.
 async function haal(pad, init) {
-  if (!netwerklogAan()) return fetch(pad, init);
+  if (!netwerklogAan()) return haalMetLimiet(pad, init);
   const t0 = performance.now(), methode = init.method || 'GET';
   try {
-    const r = await fetch(pad, init);
+    const r = await haalMetLimiet(pad, init);
     // Met antwoorden (Debug): ook de afgeschermde opbouw van antwoord en verzoek.
     let antwoord = '', verzoek = '';
     if (netwerklogAntwoorden()) {
@@ -74,7 +89,7 @@ export async function getJson(url) {
       meldFout('GET ' + soortAdres(pad), new Error('HTTP ' + response.status + ', ONS is druk: even geen vooraf laden'));
       throw new Error('HTTP ' + response.status);
     }
-    const nogEens = !!fout || (!!response && OPNIEUW.indexOf(response.status) >= 0);
+    const nogEens = (!!fout && !isTijdslimiet(fout)) || (!!response && OPNIEUW.indexOf(response.status) >= 0);
     if (nogEens && poging < MAX_OPNIEUW && !onsTeDruk()) { await wacht(poging); continue; }
     if (fout) { meldFout('GET ' + soortAdres(pad), fout); throw fout; }
     if (!response.ok) { if (response.status !== 404) meldFout('GET ' + soortAdres(pad), new Error('HTTP ' + response.status)); throw new Error('HTTP ' + response.status); }
@@ -95,9 +110,18 @@ export async function postJson(url, body) {
   const pad = alleenOns(url);
   const token = csrfToken();
   if (token) headers['X-CSRF-Token'] = token;
-  const response = await haal(pad, {
-    method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(body),
-  });
+  let response;
+  try {
+    response = await haal(pad, {
+      method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(body),
+    });
+  } catch (e) {
+    if (!isTijdslimiet(e)) throw e;
+    meldFout('POST ' + soortAdres(pad), e);
+    const fout = new Error('ONS gaf binnen ' + Math.round(limieten.post / 1000) + ' seconden geen antwoord. Kijk in de agenda of het toch is opgeslagen voor je het opnieuw probeert.');
+    fout.name = 'TimeoutError';
+    throw fout;
+  }
   if (response.status === 429 || response.status === 503) pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
   if (!response.ok) { meldFout('POST ' + soortAdres(pad), new Error('HTTP ' + response.status)); throw new Error('HTTP ' + response.status); }
   return response;

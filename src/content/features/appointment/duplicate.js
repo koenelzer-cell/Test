@@ -55,12 +55,17 @@ function takePending(pendingText) {
 }
 // Weg van het afspraakformulier zonder op te slaan: de momenten vervallen,
 // zodat een latere, losse afspraak niet ineens kopieën krijgt. (Even wachten:
-// vlak na het klaarzetten is het formulier nog niet open.)
+// vlak na het klaarzetten is het formulier nog niet open.) Verlopen momenten
+// (na een half uur) ook op het formulier zelf weg.
 export function forgetStaleDuplicates() {
   try {
-    if (/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) return;
-    const p = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-    if (p && Date.now() - p.ts > 10000) sessionStorage.removeItem(KEY);
+    const raw = sessionStorage.getItem(KEY);
+    if (!raw) return;
+    let p = null;
+    try { p = JSON.parse(raw); } catch (e) { p = null; }
+    const leeftijd = p && p.ts > 0 ? Date.now() - p.ts : Infinity;
+    const opFormulier = /\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search);
+    if (leeftijd > GELDIG_MS || (!opFormulier && leeftijd > 10000)) sessionStorage.removeItem(KEY);
   } catch (e) {}
 }
 

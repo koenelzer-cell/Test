@@ -52,7 +52,8 @@ export const BEWAARD = {
   // Info, Debug: ontgrendeld tot het zijpaneel sluit, ook na een paginawissel
   // in ONS. Netwerk: de verzoeken (alleen hier in het geheugen), het filter en
   // pauze; sinds en sessie: tot waar het content-script al gevraagd is.
-  debug: { stand: 'dicht', invoer: '', fout: false },
+  // bezig: het wachtwoord wordt nagerekend (PBKDF2).
+  debug: { stand: 'dicht', invoer: '', fout: false, bezig: false },
   // antwoorden: ook de afgeschermde opbouw van antwoord en verzoek; open: welke rijen die tonen.
   netwerk: { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0, antwoorden: true, open: {} },
   // Debug, Formulier: de laatste uitkomsten van de route via het ONS-formulier (Vue).
@@ -71,6 +72,37 @@ export function legeResultaten() {
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
   BEWAARD.route = { date: '', busy: false, result: null, error: '' };
+}
+
+// Debug weer op slot (na een kwartier niets doen in het zijpaneel). Op zijn
+// plek, want Info houdt een verwijzing naar dit object.
+export function debugOpSlot() {
+  Object.assign(BEWAARD.debug, { stand: 'dicht', invoer: '', fout: false, bezig: false });
+}
+
+// Na een half uur niets doen in het zijpaneel: alles wat er is ingevuld en
+// opgehaald weg, Debug dicht en de logs van Debug leeg, terug naar start.
+// Zoals bij een vers geopend zijpaneel; alleen de keuzes van de planhulp
+// (duur, weken) blijven. Logs op hun plek leegmaken (Info verwijst ernaar).
+export function wisAlles() {
+  legeResultaten();
+  BEWAARD.pagina = 'hoofd';
+  Object.assign(BEWAARD.quick, { date: '', time: '', minutes: '15', busy: false, error: '', overlap: '' });
+  BEWAARD.maak = null;
+  BEWAARD.agendaMelding = null;
+  debugOpSlot();
+  Object.assign(BEWAARD.netwerk, { items: [], sinds: 0, sessie: '', pauze: false, vanaf: 0, filter: '', bron: 'alles', gekopieerd: false, nr: 0, antwoorden: true, open: {} });
+  Object.assign(BEWAARD.formulier, { items: [], gekopieerd: false });
+  Object.assign(BEWAARD.fouten, { items: [], gekopieerd: false });
+  Object.assign(BEWAARD.regvenster, { bezig: false, uitkomst: null, direct: '', indirect: '' });
+  FORMULIER_TITELS = [];
+}
+
+// Loopt er nog iets (ophalen, opslaan)? Dan nog niet leegmaken.
+export function ietsBezig() {
+  const b = BEWAARD;
+  return !!((b.range && b.range.busy) || (b.prod && b.prod.busy) || (b.plan && b.plan.busy) || (b.ratio && b.ratio.busy) ||
+    (b.route && b.route.busy) || (b.quick && b.quick.busy) || (b.maak && b.maak.busy) || b.debug.bezig || b.regvenster.bezig);
 }
 
 // Index van een gekozen moment (planhulp), of -1.

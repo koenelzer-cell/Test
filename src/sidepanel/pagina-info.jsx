@@ -5,8 +5,8 @@
 // de reden als dat niet lukte).
 
 import { ChipKnop, HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt } from './ui.jsx';
-import { debugHash } from '../shared/sha256.js';
-import { BEWAARD } from './bewaard.js';
+import { isDebugWachtwoord, debugWachtwoordSoort, klopOudDebugWachtwoord, klopDebugWachtwoord } from '../shared/debug-wachtwoord.js';
+import { BEWAARD, debugOpSlot } from './bewaard.js';
 import { maskeerZoek } from '../shared/netwerk-masker.js';
 
 // Legenda, rondleidingen en versie als lijsten, zoals op het startscherm.
@@ -171,7 +171,7 @@ export function maakInfo(ctx) {
       if (ctx.pagina === 'info') renderPagina();
     });
   }
-  function debugLoopt() { return debug.stand === 'open' && /^[0-9a-f]{64}$/.test(debugWachtwoord()) && ctx.pagina === 'info'; }
+  function debugLoopt() { return debug.stand === 'open' && isDebugWachtwoord(debugWachtwoord()) && ctx.pagina === 'info'; }
   function stopNetwerk() {
     if (timer) clearInterval(timer);
     timer = null;
@@ -399,13 +399,28 @@ export function maakInfo(ctx) {
       </>
     );
   }
+  // De oude vorm (SHA-256) meteen; de nieuwe (PBKDF2) kost even rekenwerk,
+  // dan staat de knop zolang op 'Controleren'.
   function ontgrendel() {
-    if (debugHash(debug.invoer) === debugWachtwoord()) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
-    else debug.fout = true;
+    if (debug.bezig) return;
+    const opgeslagen = debugWachtwoord(), invoer = debug.invoer;
+    // ok: true, false of 'kan niet' (de browser kan het niet narekenen).
+    const klaar = function (ok) {
+      debug.bezig = false;
+      // Intussen gesloten (Escape, of op slot na niets doen): niet alsnog openen.
+      if (debug.stand !== 'vraag') { renderPagina(); return; }
+      if (ok === true) { debug.stand = 'open'; debug.invoer = ''; debug.fout = false; }
+      else debug.fout = ok === 'kan niet' ? 'Het wachtwoord kan hier niet worden nagekeken.' : true;
+      renderPagina();
+    };
+    if (debugWachtwoordSoort(opgeslagen) !== 'pbkdf2') { klaar(klopOudDebugWachtwoord(invoer, opgeslagen)); return; }
+    if (!(typeof crypto !== 'undefined' && crypto.subtle)) { klaar('kan niet'); return; }
+    debug.bezig = true; debug.fout = false;
     renderPagina();
+    klopDebugWachtwoord(invoer, opgeslagen).then(klaar, function () { klaar('kan niet'); });
   }
   function debugDeel() {
-    if (!/^[0-9a-f]{64}$/.test(debugWachtwoord())) return null;
+    if (!isDebugWachtwoord(debugWachtwoord())) return null;
     const klein = { border: '0', background: 'transparent', color: T.inkSoft, cursor: 'pointer', fontSize: '12px', padding: '4px 2px' };
     if (debug.stand === 'dicht') {
       return (
@@ -421,9 +436,9 @@ export function maakInfo(ctx) {
             <Invoer type="password" waarde={debug.invoer} placeholder="Wachtwoord" aria-label="Wachtwoord voor Debug" data-info-debug-wachtwoord="" autoComplete="off" autoFocus
               onWaarde={function (v) { debug.invoer = v; debug.fout = false; }}
               onKeyDown={function (e) { if (e.key === 'Enter') { e.preventDefault(); ontgrendel(); } if (e.key === 'Escape') { debug.stand = 'dicht'; debug.invoer = ''; renderPagina(); } }} />
-            <Knop tekst="Openen" data-info-debug-open="" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }} onClick={ontgrendel} />
+            <Knop tekst={debug.bezig ? 'Controleren' : 'Openen'} disabled={!!debug.bezig} data-info-debug-open="" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }} onClick={ontgrendel} />
           </div>
-          {debug.fout ? <Regel toon="let" tekst="Onjuist wachtwoord" data-info-debug-fout="" /> : null}
+          {debug.fout ? <Regel toon="let" tekst={debug.fout === true ? 'Onjuist wachtwoord' : String(debug.fout)} data-info-debug-fout="" /> : null}
         </div>
       );
     }
@@ -478,5 +493,8 @@ export function maakInfo(ctx) {
     );
   }
 
-  return { pageInfo, stopNetwerk, zorgVoorNetwerk };
+  // Na een kwartier niets doen (de schil, inactief.js): Debug op slot.
+  function vergrendelDebug() { debugOpSlot(); stopNetwerk(); }
+
+  return { pageInfo, stopNetwerk, vergrendelDebug, zorgVoorNetwerk };
 }

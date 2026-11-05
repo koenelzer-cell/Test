@@ -61,14 +61,17 @@ export function plannedAppointmentMinutes() {
   return _geplandeDuur;
 }
 export function clearPlannedAppointmentMinutes() { _geplandeDuur = null; }
+// Verlopen of onbruikbaar: meteen weg uit sessionStorage, niet alleen negeren.
 function readPending() {
-  try {
-    const p = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-    if (!p || !p.date || !p.time || (Date.now() - p.ts) > GELDIG_MS) return null;
-    return p;
-  } catch (e) { return null; }
+  let p = null;
+  try { p = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { p = undefined; }
+  if (p === null) return null;
+  if (!p || !p.date || !p.time || !(Date.now() - p.ts <= GELDIG_MS)) { clearPending(); return null; }
+  return p;
 }
 function clearPending() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
+// Bij elke navigatie: een verlopen klaargezette afspraak meteen weg.
+export function forgetStalePendingAppointment() { readPending(); }
 
 // 'YYYY-MM-DD' -> 'dd-mm-jjjj' (zoals het datumveld van ONS hem toont).
 export function onsDateText(ymd) {

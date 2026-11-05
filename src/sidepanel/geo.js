@@ -7,6 +7,11 @@
 //
 // Zonder server: rechtstreeks met de Routes-sleutel uit het beheerscherm
 // (proxy = { key }), of via de eigen routes-proxy (proxy = { url, token }).
+// Elk verzoek stopt na 20 seconden zonder antwoord (metTijdslimiet).
+
+import { metTijdslimiet } from '../shared/tijdslimiet.js';
+
+function standaardFetch(url, init) { return fetch(url, init); }
 
 // '2611 eb' -> '2611EB', anders ''.
 export function normPostcode(v) {
@@ -18,7 +23,7 @@ export function normPostcode(v) {
    staat precies deze extensie toe; geen extra toestemming. */
 
 function postProxy(proxy, pad, body, fetchFn) {
-  return (fetchFn || fetch)(proxy.url + pad, {
+  return metTijdslimiet(fetchFn || standaardFetch, proxy.url + pad, {
     method: 'POST', credentials: 'omit',
     headers: { 'Content-Type': 'application/json', 'X-Agendahulp-Token': proxy.token },
     body: JSON.stringify(body)
@@ -30,7 +35,7 @@ function postProxy(proxy, pad, body, fetchFn) {
 export const ROUTES_ORIGIN = 'https://routes.googleapis.com/*';
 const PC6 = /^[1-9]\d{3}[A-Z]{2}$/;
 function postGoogle(key, url, mask, body, fetchFn) {
-  return (fetchFn || fetch)(url, {
+  return metTijdslimiet(fetchFn || standaardFetch, url, {
     method: 'POST', credentials: 'omit',
     headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': mask },
     body: JSON.stringify(body)

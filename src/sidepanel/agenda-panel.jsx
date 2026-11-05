@@ -41,7 +41,8 @@
 
 import { Component, Fragment } from 'react';
 import { flushSync } from 'react-dom';
-import { BEWAARD, legeResultaten } from './bewaard.js';
+import { BEWAARD, ietsBezig, legeResultaten, wisAlles } from './bewaard.js';
+import { activiteit, stilteStappen } from './inactief.js';
 import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, TekstKnop, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
 import { AgendaWeekPanel } from './week-kaart.jsx';
 import { sluitRondleiding } from './rondleiding.jsx';
@@ -435,6 +436,38 @@ export function create(render, actions) {
   Object.assign(ctx, maakInfo(ctx));
   Object.assign(ctx, maakRondleidingen(ctx));
 
+  // Niets doen in het zijpaneel (inactief.js): na een kwartier Debug op slot,
+  // na een half uur alles leeg en terug naar start. Elke 30 s nakijken, en
+  // bij een klik of toets eerst nakijken en dan pas de tijd opnieuw laten
+  // lopen. Wist een klik het paneel, dan doet die klik verder niets (de knop
+  // waar hij op viel is er niet meer).
+  let slikKlik = 0;
+  function stilte(viaInvoer) {
+    if (weg) return;
+    const stap = stilteStappen(ietsBezig());
+    if (stap.slot) ctx.vergrendelDebug();
+    if (stap.leeg) {
+      wisAlles();
+      ctx.range = BEWAARD.range; ctx.prod = BEWAARD.prod; ctx.ratio = BEWAARD.ratio; ctx.plan = BEWAARD.plan;
+      ctx.onsGezien = {};
+      if (viaInvoer) slikKlik = Date.now();
+      naarPagina('hoofd');
+      return;
+    }
+    if (stap.slot) teken();
+  }
+  function bijInvoer() { stilte(true); activiteit(); }
+  function naReset(e) {
+    if (!slikKlik) return;
+    const vers = Date.now() - slikKlik < 1500;
+    slikKlik = 0;
+    if (vers) { e.preventDefault(); e.stopPropagation(); }
+  }
+  const INVOER = ['pointerdown', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+  INVOER.forEach(function (t) { document.addEventListener(t, bijInvoer, { capture: true, passive: true }); });
+  document.addEventListener('click', naReset, true);
+  const stilteTimer = setInterval(function () { stilte(false); }, 30000);
+
   zorgVoorStijl(document);
   teken();
   setTimeout(ctx.misschienRondleiding, 0);
@@ -494,6 +527,9 @@ export function create(render, actions) {
     },
     destroy: function () {
       weg = true;
+      clearInterval(stilteTimer);
+      INVOER.forEach(function (t) { document.removeEventListener(t, bijInvoer, true); });
+      document.removeEventListener('click', naReset, true);
       sluitRondleiding();
       ctx.stopOpen();
       ctx.stopNetwerk();

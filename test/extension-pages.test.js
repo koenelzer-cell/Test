@@ -2384,6 +2384,102 @@ test('zijpaneel: knop Debug onder Info alleen met een wachtwoord in de configura
   assert.ok(document.querySelector('[data-info-debug]'));
 });
 
+test('zijpaneel: Debug met een PBKDF2-wachtwoord: even Controleren, fout blijft dicht, goed gaat open', async () => {
+  const { maakDebugWachtwoord } = await import('../src/shared/debug-wachtwoord.js');
+  const { webcrypto } = await import('node:crypto');
+  const W = await maakDebugWachtwoord('geheim123', 2000);
+  const { document, dom } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, debugWachtwoord: W });
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  const veld = () => document.querySelector('[data-info-debug-wachtwoord]');
+  const knopOpen = () => document.querySelector('[data-info-debug-open]');
+  const wacht = async (f) => { for (let i = 0; i < 300 && !f(); i++) await tick(); return f(); };
+  // Kan de browser niet narekenen (geen crypto.subtle): dat zeggen, niet 'Onjuist wachtwoord'.
+  Object.defineProperty(dom.window, 'crypto', { configurable: true, value: {} });
+  typ(veld(), 'geheim123');
+  knopOpen().click();
+  assert.equal(document.querySelector('[data-info-debug-fout]').textContent, 'Het wachtwoord kan hier niet worden nagekeken.');
+  Object.defineProperty(dom.window, 'crypto', { configurable: true, value: webcrypto });
+  typ(veld(), 'fout');
+  knopOpen().click();
+  assert.equal(knopOpen().textContent, 'Controleren', 'narekenen kost even');
+  assert.equal(knopOpen().disabled, true);
+  assert.ok(await wacht(() => document.querySelector('[data-info-debug-fout]')), 'fout wachtwoord');
+  assert.equal(document.querySelector('[data-info-debug-open-deel]'), null);
+  assert.equal(knopOpen().textContent, 'Openen');
+  typ(veld(), 'geheim123');
+  knopOpen().click();
+  assert.ok(await wacht(() => document.querySelector('[data-info-debug-open-deel]')), 'open na het juiste wachtwoord');
+  // Escape tijdens het narekenen: niet alsnog openen.
+  document.querySelector('[data-info-debug-dicht]').click();
+  document.querySelector('[data-info-debug]').click();
+  typ(veld(), 'geheim123');
+  knopOpen().click();
+  veld().dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(!!document.querySelector('[data-info-debug-open-deel]'), false, 'gesloten blijft gesloten');
+});
+
+test('zijpaneel: na een kwartier niets doen gaat Debug op slot, na een half uur is alles leeg en staat het paneel op start', async () => {
+  const { createHash } = await import('node:crypto');
+  const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  const { document, dom, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: [
+      { date: '2026-10-08', startMin: 630, endMin: 720, minutes: 90 },
+    ] } }),
+    'ag-netwerklog': (msg, cb) => cb({ ok: true, sessie: 'a', items: [] }),
+  }, { ...AGENDA_STATE_TOOLS, debugWachtwoord: HASH, features: { plannerDirect: false } });
+  const echt = dom.window.Date.now.bind(dom.window.Date);
+  let later = 0;
+  dom.window.Date.now = () => echt() + later;
+  const doe = (soort) => document.body.dispatchEvent(new dom.window.Event(soort, { bubbles: true }));
+  await tick();
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  document.querySelector('[data-info-debug]').click();
+  typ(document.querySelector('[data-info-debug-wachtwoord]'), 'geheim123');
+  document.querySelector('[data-info-debug-open]').click();
+  assert.ok(document.querySelector('[data-info-debug-open-deel]'));
+  // Na 14 minuten iets doen: nog open, en de tijd loopt opnieuw.
+  later = 14 * 60000;
+  doe('pointerdown');
+  assert.ok(document.querySelector('[data-info-debug-open-deel]'), 'na 14 min nog open');
+  // Dan een kwartier niets: op slot, Info blijft open.
+  later += 15 * 60000 + 1000;
+  doe('keydown');
+  assert.equal(!!document.querySelector('[data-info-debug-open-deel]'), false, 'na een kwartier op slot');
+  assert.ok(document.querySelector('[data-info-debug]'), 'weer alleen de knop');
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Over de Agendahulp', 'pagina blijft');
+  // Planhulp: een lijst ophalen.
+  document.querySelector('[data-terug]').click();
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const vragen = () => verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  const eerst = vragen();
+  assert.ok(eerst >= 1);
+  assert.ok(document.querySelector('[data-dag="2026-10-08"]'), 'de lijst staat er');
+  // Een half uur niets: terug naar start, alles leeg. De klik die het merkt, doet verder niets.
+  later += 31 * 60000;
+  doe('pointerdown');
+  const klik = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
+  document.body.dispatchEvent(klik);
+  assert.equal(klik.defaultPrevented, true, 'de eerste klik na het leegmaken wordt opgevangen');
+  assert.equal(document.querySelector('[data-terug]').style.display, 'none', 'startpagina: geen terugpijl');
+  assert.equal(!!document.querySelector('[data-dag="2026-10-08"]'), false, 'de lijst is weg');
+  // Weer naar Planhulp: opnieuw ophalen, want de lijst is weg.
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  assert.equal(vragen(), eerst + 1, 'opnieuw opgehaald');
+  // Info: Debug is dicht.
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.equal(!!document.querySelector('[data-info-debug-open-deel]'), false);
+  assert.ok(document.querySelector('[data-info-debug]'));
+});
+
 test('zijpaneel: Formulier onder Debug toont wat de hulp via Vue deed, met reden en de opbouw in Kopiëren', async () => {
   const { createHash } = await import('node:crypto');
   const HASH = createHash('sha256').update('onsah-debug:geheim123').digest('hex');

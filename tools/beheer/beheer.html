@@ -824,7 +824,7 @@
       <label class="beheer-veld" style="margin-top:10px;max-width:360px"><span>Nieuw wachtwoord</span><input id="debugWachtwoord" type="password" autocomplete="new-password" spellcheck="false" oninput="zetDebugWachtwoord(event)"></label>
       <p class="veld-uitleg" id="debugWachtwoordStand"></p>
       <div class="acties-rij"><button class="knop klein rood" type="button" id="debugWachtwoordWeg" onclick="wisDebugWachtwoord()">Wachtwoord weghalen</button></div>
-      <p class="veld-uitleg">Alleen een versleutelde vorm (hash) gaat mee naar de extensie, niet het wachtwoord zelf. Het houdt nieuwsgierigen buiten; echte beveiliging is het niet. Zonder wachtwoord staat er geen knop Debug.</p>
+      <p class="veld-uitleg">Alleen een versleutelde vorm gaat mee naar de extensie (PBKDF2 met een willekeurig zout), niet het wachtwoord zelf. Kies een wachtwoord dat je nergens anders gebruikt. Na een kwartier niets doen in het zijpaneel gaat Debug weer op slot. Zonder wachtwoord staat er geen knop Debug.</p>
     </div>
   </section>
 
@@ -1245,7 +1245,7 @@ const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 // De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
-const MANAGER_VERSION = '1.6.322';
+const MANAGER_VERSION = '1.6.323';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -2884,32 +2884,58 @@ function zonderGeheimen(cfg) {
   return kopie;
 }
 // ===== Debug =====
-// Wachtwoord voor de knop Debug in het zijpaneel: alleen de SHA-256-hash van
-// 'onsah-debug:' + wachtwoord gaat mee (debug.wachtwoord); het zijpaneel rekent
-// hetzelfde uit (src/shared/sha256.js).
-let debugHash = '', debugHashBewaard = '';
-async function hashDebugWachtwoord(w) {
-  const data = new TextEncoder().encode('onsah-debug:' + w);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+// Wachtwoord voor de knop Debug in het zijpaneel: alleen een afgeleide gaat
+// mee (debug.wachtwoord): PBKDF2 met SHA-256, 600.000 rondes en een
+// willekeurig zout, als 'pbkdf2-sha256$rondes$zout$hash'. Het zijpaneel rekent
+// hetzelfde na (src/shared/debug-wachtwoord.js). De oude vorm (64 hex,
+// SHA-256 van 'onsah-debug:' + wachtwoord) blijft geldig tot er een nieuw
+// wachtwoord is ingesteld.
+let debugHash = '', debugHashBewaard = '', debugHashNr = 0, debugHashBezig = false;
+const DEBUG_RONDES = 600000;
+function isDebugWachtwoord(v) {
+  const s = String(v || ''), m = /^pbkdf2-sha256\$(\d{4,8})\$([0-9a-f]{32})\$([0-9a-f]{64})$/.exec(s);
+  return m ? Number(m[1]) >= 1000 && Number(m[1]) <= 10000000 : /^[0-9a-f]{64}$/.test(s);
+}
+async function hashDebugWachtwoord(w, rondes) {
+  const n = rondes > 0 ? rondes : DEBUG_RONDES;
+  const hex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+  const zout = crypto.getRandomValues(new Uint8Array(16));
+  const sleutel = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(w)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: zout, iterations: n }, sleutel, 256);
+  return 'pbkdf2-sha256$' + n + '$' + hex(zout) + '$' + hex(bits);
 }
 function toonDebugStand() {
-  const el = $('#debugWachtwoordStand'); if (el) el.textContent = debugHash ? 'Er is een wachtwoord ingesteld. Typ een nieuw om het te vervangen.' : 'Nog geen wachtwoord: er staat geen knop Debug in het zijpaneel.';
+  const oud = /^[0-9a-f]{64}$/.test(debugHash);
+  const el = $('#debugWachtwoordStand');
+  if (el) el.textContent = debugHashBezig ? 'Wachtwoord wordt versleuteld.'
+    : !debugHash ? 'Nog geen wachtwoord: er staat geen knop Debug in het zijpaneel.'
+    : oud ? 'Er is een wachtwoord ingesteld, in de oude, zwakkere vorm. Stel het opnieuw in en publiceer, dan wordt het sterker versleuteld.'
+    : 'Er is een wachtwoord ingesteld. Typ een nieuw om het te vervangen.';
   const weg = $('#debugWachtwoordWeg'); if (weg) weg.disabled = !debugHash;
 }
 function renderDebug(d) {
   d = Object.assign({}, DEFAULTS.debug, d || {});
-  debugHash = debugHashBewaard = /^[0-9a-f]{64}$/.test(String(d.wachtwoord || '')) ? d.wachtwoord : '';
+  debugHashNr++; debugHashBezig = false;
+  debugHash = debugHashBewaard = isDebugWachtwoord(d.wachtwoord) ? String(d.wachtwoord) : '';
   const el = $('#debugWachtwoord'); if (el) el.value = '';
   toonDebugStand();
 }
 function readDebug() { return { wachtwoord: debugHash }; }
+// Elke toets: opnieuw versleutelen (kost even rekenwerk); alleen de uitkomst
+// van de laatste invoer telt, en pas dan is de pagina gewijzigd.
 async function zetDebugWachtwoord(ev) {
-  const w = String(ev.target.value || '');
-  debugHash = w ? await hashDebugWachtwoord(w) : debugHashBewaard;
+  const w = String(ev.target.value || ''), nr = ++debugHashNr;
+  if (!w) { debugHashBezig = false; debugHash = debugHashBewaard; toonDebugStand(); markDirty(ev); return; }
+  debugHashBezig = true; toonDebugStand();
+  let uit = '';
+  try { uit = await hashDebugWachtwoord(w); } catch (e) { uit = ''; }
+  if (nr !== debugHashNr) return;
+  debugHashBezig = false;
+  if (uit) debugHash = uit;
   toonDebugStand(); markDirty(ev);
 }
 function wisDebugWachtwoord() {
+  debugHashNr++; debugHashBezig = false;
   debugHash = ''; const el = $('#debugWachtwoord'); if (el) el.value = '';
   toonDebugStand(); markDirty();
 }

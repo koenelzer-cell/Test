@@ -214,7 +214,7 @@ test('beheer: sleutels afgeschermd, niet in het supportpakket of de storingscont
   expect(fouten).toEqual([]);
 });
 
-test('beheer: pagina Debug, wachtwoord voor de knop Debug (alleen de hash); de meetteller is weg', async ({ page }) => {
+test('beheer: pagina Debug, wachtwoord voor de knop Debug (alleen PBKDF2 met zout); de meetteller is weg', async ({ page }) => {
   const fouten = await open(page);
   await page.evaluate(() => showSettingsPage('debug'));
   expect(await pagina(page)).toBe('debug');
@@ -222,11 +222,23 @@ test('beheer: pagina Debug, wachtwoord voor de knop Debug (alleen de hash); de m
   await page.locator('#debugWachtwoord').fill('geheim123');
   await expect(page.locator('#debugWachtwoordStand')).toContainText('Er is een wachtwoord ingesteld');
   const cfg = await page.evaluate(() => buildConfigFromDOM());
-  expect(cfg.debug.wachtwoord).toMatch(/^[0-9a-f]{64}$/);
+  // PBKDF2 met SHA-256, 600.000 rondes en een willekeurig zout.
+  const m = /^pbkdf2-sha256\$600000\$([0-9a-f]{32})\$([0-9a-f]{64})$/.exec(cfg.debug.wachtwoord);
+  expect(m).not.toBeNull();
   expect(JSON.stringify(cfg)).not.toContain('geheim123');
-  const { createHash } = await import('node:crypto');
-  expect(cfg.debug.wachtwoord).toBe(createHash('sha256').update('onsah-debug:geheim123').digest('hex'));
+  const { pbkdf2Sync, createHash } = await import('node:crypto');
+  expect(m[2]).toBe(pbkdf2Sync('geheim123', Buffer.from(m[1], 'hex'), 600000, 32, 'sha256').toString('hex'));
   expect(await page.evaluate(() => zonderGeheimen(buildConfigFromDOM()).debug.wachtwoord)).toBe('[verborgen, ingevuld]');
+  // Twee keer hetzelfde wachtwoord: een ander zout, dus een andere waarde.
+  await page.locator('#debugWachtwoord').fill('');
+  await page.locator('#debugWachtwoord').fill('geheim123');
+  await expect(page.locator('#debugWachtwoordStand')).toContainText('Er is een wachtwoord ingesteld');
+  expect(await page.evaluate(() => buildConfigFromDOM().debug.wachtwoord)).not.toBe(cfg.debug.wachtwoord);
+  // De oude vorm (SHA-256) blijft staan, met een tip om hem te vernieuwen.
+  const oud = createHash('sha256').update('onsah-debug:geheim123').digest('hex');
+  await page.evaluate((h) => renderDebug({ wachtwoord: h }), oud);
+  await expect(page.locator('#debugWachtwoordStand')).toContainText('oude, zwakkere vorm');
+  expect(await page.evaluate(() => buildConfigFromDOM().debug.wachtwoord)).toBe(oud);
   // Weghalen.
   await page.locator('#debugWachtwoordWeg').click();
   expect(await page.evaluate(() => buildConfigFromDOM().debug.wachtwoord)).toBe('');

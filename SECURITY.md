@@ -176,7 +176,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
 - **Opslag:**
   - `sessionStorage` van de ONS-pagina (weg bij het sluiten van het tabblad):
     de registratievorm bij "Registreren" vanuit een afspraak (registratie-id,
-    vorm, label, tijden — geen cliëntgegevens).
+    vorm, label, tijden — geen cliëntgegevens), het moment dat de planhulp
+    klaarzet voor het afspraakformulier en de momenten voor kopieën. Verlopen
+    gaat meteen weg bij de volgende paginawissel (`syncWithUrl`): een afspraak
+    na twee minuten, kopieën na een half uur (buiten het formulier na tien
+    seconden), een registratie zonder registratie-id na tien minuten (met id
+    blijft hij voor die registratie, tot indienen of een andere registratie).
   - `localStorage` van de ONS-pagina: aan/uit-schakelaars.
   - `chrome.storage.local`: voorkeuren, de lijst registratievormen voor het
     menu, en een *momentopname* van de week voor de herinnering — uitsluitend
@@ -188,9 +193,22 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   (die kan een voornaam bevatten). Dit bericht blijft binnen de extensie en
   wordt niet opgeslagen.
 - **Knop Debug** (Info): alleen als de beheerder een wachtwoord instelde; in
-  de configuratie staat alleen de SHA-256 daarvan (`debug.wachtwoord`), en
-  het supportpakket en de storingscontrole tonen ook die niet. Het houdt
-  nieuwsgierigen buiten, het is geen echte beveiliging.
+  de configuratie staat alleen een afgeleide (`debug.wachtwoord`): PBKDF2
+  met SHA-256, 600.000 rondes en een willekeurig zout per wachtwoord
+  (`src/shared/debug-wachtwoord.js`, het beheerscherm maakt hem met
+  `crypto.subtle`). Raden kost zo per poging veel rekenwerk, ook met
+  config.json in handen. De oude vorm (één SHA-256 zonder zout) werkt nog tot
+  het wachtwoord opnieuw is ingesteld. Het supportpakket en de
+  storingscontrole tonen geen van beide. Na een kwartier niets doen in het
+  zijpaneel gaat Debug weer op slot (`src/sidepanel/inactief.js`).
+- **Zijpaneel na niets doen:** na een half uur zonder klik, toets of scroll in
+  het zijpaneel is alles leeg wat er werd opgevraagd en ingevuld (ook de logs
+  van Debug en de titels voor het formulier) en staat het op de startpagina.
+- **Tijdslimiet op verzoeken** (`src/shared/tijdslimiet.js`): naar ONS 20
+  seconden voor opvragen, 60 voor opslaan (daarna een melding dat het toch
+  opgeslagen kan zijn, zodat niemand het dubbel maakt); naar Google Routes of
+  de eigen routes-server 20 seconden. Het verzoek wordt dan afgebroken
+  (AbortController).
 - **Netwerk** (Info, Debug): voor ontwikkeling
   elk verzoek van ONS zelf, de hulp en het zijpaneel met methode, adres,
   status, duur en grootte. Zoekwaarden in het adres worden `…` (een zoekterm

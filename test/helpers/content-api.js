@@ -57,7 +57,7 @@ import { capturePendingRegistrationLabel, loadPendingRegistrationLabel, matchReg
 import { ctxForcedVorm, pushRegistrationForms, startRegistrationWithForm } from '../../src/content/features/registration/context-menu.js';
 import { pickClientIdFromSearch } from '../../src/content/services/ons-api/clients.js';
 import { getEmployeeIdAsync } from '../../src/content/services/ons-api/employee.js';
-import { getJson, postJson, onsTeDruk, _wisTeDruk, _zetWachtBasis, pauzeNa } from '../../src/content/services/ons-api/http.js';
+import { getJson, postJson, onsTeDruk, _wisTeDruk, _zetWachtBasis, _zetTijdslimieten, pauzeNa } from '../../src/content/services/ons-api/http.js';
 import { preloadPanelData } from '../../src/content/features/agenda/preload.js';
 import { agendaPage as _agendaPage } from '../../src/content/features/agenda/state.js';
 import { netwerklogAan, netwerklogSessie, netwerklogSinds } from '../../src/content/services/ons-api/netwerklog.js';
@@ -72,7 +72,8 @@ import { createEvents, eventOptions } from '../../src/content/features/agenda/ev
 import { controleerOns } from '../../src/content/services/ons-api/formaat.js';
 import { searchClientsForPlan, searchEmployeesForPlan } from '../../src/content/features/agenda/client-lookup.js';
 import { currentInviteeIds, jumpToDay as _jumpToDayVoorTest, newEventUrl } from '../../src/content/features/agenda/navigation.js';
-import { onsDateText } from '../../src/content/features/appointment/prefill.js';
+import { onsDateText, applyPendingAppointment, forgetStalePendingAppointment } from '../../src/content/features/appointment/prefill.js';
+import { forgetStaleDuplicates } from '../../src/content/features/appointment/duplicate.js';
 import { findFreeGaps, reservationBlocks, reservationsOverlapping } from '../../src/content/domain/free-slots.js';
 import { _forgetHolidays, checkColleagues, findFreeSlots } from '../../src/content/features/agenda/free-slots.js';
 import { parseHolidays } from '../../src/content/domain/holidays.js';
@@ -82,7 +83,7 @@ import { _clearPreloadCache, cachedFreeSlots, cachedOpenRange, forgetFreeSlots, 
 import { plannedProductionRow, productionWeekRow } from '../../src/content/features/agenda/production.js';
 import { plannedRatioRows } from '../../src/content/features/agenda/week-ratio.js';
 import { _regToMin } from '../../src/content/features/registration/fields.js';
-import { clearPendingRegistration, PENDING_REG_KEY } from '../../src/content/features/registration/pending-store.js';
+import { clearPendingRegistration, forgetStalePendingRegistration, PENDING_REG_KEY } from '../../src/content/features/registration/pending-store.js';
 import { appointmentCoreApplied, appointmentReadyToSave, appointmentSaveStageStillValid } from '../../src/content/features/appointment/gereed.js';
 
 import { classifyOccurrence, isDeclared, occurrenceIsPast, occurrenceOverdue24h } from '../../src/content/features/agenda/occurrences.js';
@@ -174,6 +175,7 @@ window.__onsHelperTestApi = {
   __setPendingRegistration: function (o) { try { if (o == null) sessionStorage.removeItem(PENDING_REG_KEY); else sessionStorage.setItem(PENDING_REG_KEY, JSON.stringify(o)); } catch (e) {} },
   __setCurrentRegistrationId: setRegistrationIdOverride,
   clearPendingRegistration,
+  forgetStalePendingRegistration,
   getRegistrationRestoreState: function () { try { return { fromAppointment: registrationFlow.registrationFromAppointment, autoApplied: registrationFlow.registrationAutoApplied, restoredToReport: registrationFlow.registrationRestoredToReport, activeChoiceLabel: (registrationFlow.activeRegistrationChoice && registrationFlow.activeRegistrationChoice.label) || null, autoChoiceLabel: (registrationFlow.registrationAutoChoice && registrationFlow.registrationAutoChoice.label) || null, pending: (function () { try { return sessionStorage.getItem(PENDING_REG_KEY); } catch (e) { return null; } })() }; } catch (e) { return null; } },
   persistRegistrationTimes,
   restoreRegistrationExtras,
@@ -245,6 +247,7 @@ window.__onsHelperTestApi = {
   onsTeDruk,
   _wisTeDruk,
   _zetWachtBasis,
+  _zetTijdslimieten,
   pauzeNa,
   preloadPanelData,
   _agendaPage,
@@ -319,6 +322,9 @@ window.__onsHelperTestApi = {
   searchEmployeesForPlan,
   checkColleagues,
   onsDateText,
+  applyPendingAppointment,
+  forgetStalePendingAppointment,
+  forgetStaleDuplicates,
   findFreeGaps, reservationBlocks, reservationsOverlapping,
   findFreeSlots,
   _forgetHolidays,

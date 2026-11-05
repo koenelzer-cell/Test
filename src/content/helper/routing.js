@@ -3,6 +3,8 @@
 
 import { startVanuitPlanhulp } from './planner-form.js';
 import { forgetStaleDuplicates } from '../features/appointment/duplicate.js';
+import { forgetStalePendingAppointment } from '../features/appointment/prefill.js';
+import { forgetStalePendingRegistration } from '../features/registration/pending-store.js';
 import { APP_CONFIG, CONFIG } from '../config/app-config.js';
 import { isRegistrationEditOrNew } from '../ons/agenda-location.js';
 import {
@@ -40,7 +42,10 @@ function activationDomainsOk() {
 let planhulpVoorHref = null;
 
 export function syncWithUrl() {
+  // Klaargezette gegevens in sessionStorage die verlopen zijn: meteen weg.
   forgetStaleDuplicates();
+  forgetStalePendingAppointment();
+  forgetStalePendingRegistration();
   if (!helperConfigReady) return;
   // (#2 uitrol) Centrale kill-switch heeft voorrang op de build-scope.
   if (!RUNTIME_CONFIG.enabled || !activationDomainsOk()) {

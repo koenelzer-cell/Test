@@ -2832,8 +2832,9 @@
     declarabiliteitRules: [],
     // Support: instelbaar meldkanaal (TOPdesk) voor de 'Meld probleem'-knop en de infolink.
     support: { topdeskUrl: "https://impegno.topdesk.net/" },
-    // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen de SHA-256
-    // van 'onsah-debug:' + wachtwoord (beheer, pagina Debug). Leeg = geen knop.
+    // Wachtwoord voor de knop Debug in het zijpaneel (Info): alleen een
+    // afgeleide, 'pbkdf2-sha256$rondes$zout$hash' (beheer, pagina Debug; de oude
+    // vorm, 64 hex SHA-256, werkt ook nog). Leeg = geen knop.
     debug: { wachtwoord: "" },
     // Verlof aanvragen (knop in het zijpaneel): legt de onbeschikbaarheid
     // vast in ONS en opent daarna AFAS in een nieuw tabblad om het verlof daar
@@ -3737,15 +3738,52 @@
     return s.length > m ? s.slice(0, m) + "…(ingekort)" : s;
   }
 
+  // src/shared/tijdslimiet.js
+  var TIJDSLIMIET_MS = 2e4;
+  function metTijdslimiet(fetchFn, url, init, ms) {
+    const limiet = ms > 0 ? ms : TIJDSLIMIET_MS;
+    if (typeof AbortController !== "function") return fetchFn(url, init);
+    const ac = new AbortController();
+    let timer = null;
+    const verlopen = new Promise(function(_, weiger) {
+      timer = setTimeout(function() {
+        try {
+          ac.abort();
+        } catch (e) {
+        }
+        const fout = new Error("Geen antwoord binnen " + Math.round(limiet / 1e3) + " seconden");
+        fout.name = "TimeoutError";
+        weiger(fout);
+      }, limiet);
+    });
+    const verzoek = Promise.resolve().then(function() {
+      return fetchFn(url, Object.assign({}, init, { signal: ac.signal }));
+    });
+    return Promise.race([verzoek, verlopen]).finally(function() {
+      clearTimeout(timer);
+    });
+  }
+  function isTijdslimiet(fout) {
+    return !!fout && fout.name === "TimeoutError";
+  }
+
   // src/content/services/ons-api/http.js
+  var POST_TIJDSLIMIET_MS = 6e4;
+  var limieten = { get: TIJDSLIMIET_MS, post: POST_TIJDSLIMIET_MS };
+  function haalMetLimiet(pad, init) {
+    const ms = (init.method || "GET") === "POST" ? limieten.post : limieten.get;
+    return metTijdslimiet(function(u, i) {
+      return fetch(u, i);
+    }, pad, init, ms);
+  }
   function soortAdres(pad) {
     return String(pad).split("?")[0].replace(/\d+/g, "{n}").slice(0, 70);
   }
   async function haal(pad, init) {
-    if (!netwerklogAan()) return fetch(pad, init);
+    if (!netwerklogAan()) return haalMetLimiet(pad, init);
     const t0 = performance.now(), methode = init.method || "GET";
     try {
-      const r = await fetch(pad, init);
+      const r = await haalMetLimiet(pad, init);
       let antwoord = "", verzoek = "";
       if (netwerklogAntwoorden()) {
         try {
@@ -3807,7 +3845,7 @@
         meldFout("GET " + soortAdres(pad), new Error("HTTP " + response.status + ", ONS is druk: even geen vooraf laden"));
         throw new Error("HTTP " + response.status);
       }
-      const nogEens = !!fout || !!response && OPNIEUW.indexOf(response.status) >= 0;
+      const nogEens = !!fout && !isTijdslimiet(fout) || !!response && OPNIEUW.indexOf(response.status) >= 0;
       if (nogEens && poging < MAX_OPNIEUW && !onsTeDruk()) {
         await wacht(poging);
         continue;
@@ -3832,12 +3870,21 @@
     const pad = alleenOns(url);
     const token = csrfToken();
     if (token) headers["X-CSRF-Token"] = token;
-    const response = await haal(pad, {
-      method: "POST",
-      credentials: "same-origin",
-      headers,
-      body: JSON.stringify(body)
-    });
+    let response;
+    try {
+      response = await haal(pad, {
+        method: "POST",
+        credentials: "same-origin",
+        headers,
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      if (!isTijdslimiet(e)) throw e;
+      meldFout("POST " + soortAdres(pad), e);
+      const fout = new Error("ONS gaf binnen " + Math.round(limieten.post / 1e3) + " seconden geen antwoord. Kijk in de agenda of het toch is opgeslagen voor je het opnieuw probeert.");
+      fout.name = "TimeoutError";
+      throw fout;
+    }
     if (response.status === 429 || response.status === 503) pauzeTot = Math.max(pauzeTot, Date.now() + pauzeNa(response));
     if (!response.ok) {
       meldFout("POST " + soortAdres(pad), new Error("HTTP " + response.status));
@@ -6964,19 +7011,27 @@
     return _geplandeDuur;
   }
   function readPending() {
+    let p = null;
     try {
-      const p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
-      if (!p || !p.date || !p.time || Date.now() - p.ts > GELDIG_MS) return null;
-      return p;
+      p = JSON.parse(sessionStorage.getItem(KEY2) || "null");
     } catch (e) {
+      p = void 0;
+    }
+    if (p === null) return null;
+    if (!p || !p.date || !p.time || !(Date.now() - p.ts <= GELDIG_MS)) {
+      clearPending();
       return null;
     }
+    return p;
   }
   function clearPending() {
     try {
       sessionStorage.removeItem(KEY2);
     } catch (e) {
     }
+  }
+  function forgetStalePendingAppointment() {
+    readPending();
   }
   function onsDateText(ymd4) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd4 || ""));
@@ -7096,9 +7151,17 @@
   }
   function forgetStaleDuplicates() {
     try {
-      if (/\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search)) return;
-      const p = JSON.parse(sessionStorage.getItem(KEY3) || "null");
-      if (p && Date.now() - p.ts > 1e4) sessionStorage.removeItem(KEY3);
+      const raw = sessionStorage.getItem(KEY3);
+      if (!raw) return;
+      let p = null;
+      try {
+        p = JSON.parse(raw);
+      } catch (e) {
+        p = null;
+      }
+      const leeftijd = p && p.ts > 0 ? Date.now() - p.ts : Infinity;
+      const opFormulier = /\/events\/new(?:[/?#]|$)/.test(location.pathname + location.search);
+      if (leeftijd > GELDIG_MS2 || !opFormulier && leeftijd > 1e4) sessionStorage.removeItem(KEY3);
     } catch (e) {
     }
   }
@@ -13879,6 +13942,25 @@
     } catch (e) {
     }
   }
+  var REG_GELDIG_MS = 10 * 60 * 1e3;
+  function forgetStalePendingRegistration() {
+    try {
+      const raw = sessionStorage.getItem(PENDING_REG_KEY);
+      if (!raw) return;
+      let d = null;
+      try {
+        d = JSON.parse(raw);
+      } catch (e) {
+        d = null;
+      }
+      if (!d || typeof d !== "object") {
+        clearPendingRegistration();
+        return;
+      }
+      if (!d.id && !(Date.now() - d.ts <= REG_GELDIG_MS)) clearPendingRegistration();
+    } catch (e) {
+    }
+  }
 
   // src/content/features/registration/report.js
   function registrationTextHasNoShowCue(text2) {
@@ -14271,14 +14353,18 @@
     } catch (e) {
       data = null;
     }
-    if (!data || !data.label && !data.vorm && !data.forcedVorm) return;
+    if (!data || !data.label && !data.vorm && !data.forcedVorm) {
+      clearPendingRegistration();
+      return;
+    }
     const curId = currentRegistrationId();
     if (data.id && curId) {
       if (data.id !== curId) {
         clearPendingRegistration();
         return;
       }
-    } else if (!data.ts || Date.now() - data.ts > 10 * 60 * 1e3) {
+    } else if (!data.ts || Date.now() - data.ts > REG_GELDIG_MS) {
+      if (!data.id) clearPendingRegistration();
       return;
     }
     if (data.forcedVorm) {
@@ -18945,6 +19031,8 @@
   var planhulpVoorHref = null;
   function syncWithUrl() {
     forgetStaleDuplicates();
+    forgetStalePendingAppointment();
+    forgetStalePendingRegistration();
     if (!helperConfigReady) return;
     if (!RUNTIME_CONFIG.enabled || !activationDomainsOk()) {
       planhulpVoorHref = null;
@@ -19930,6 +20018,22 @@
     });
   }
 
+  // src/shared/debug-wachtwoord.js
+  var NIEUW = /^pbkdf2-sha256\$(\d{4,8})\$([0-9a-f]{32})\$([0-9a-f]{64})$/;
+  var OUD = /^[0-9a-f]{64}$/;
+  function debugWachtwoordSoort(opgeslagen) {
+    const s = String(opgeslagen == null ? "" : opgeslagen);
+    const m = NIEUW.exec(s);
+    if (m) {
+      const n = Number(m[1]);
+      return n >= 1e3 && n <= 1e7 ? "pbkdf2" : "";
+    }
+    return OUD.test(s) ? "sha256" : "";
+  }
+  function isDebugWachtwoord(opgeslagen) {
+    return debugWachtwoordSoort(opgeslagen) !== "";
+  }
+
   // src/content/features/agenda/side-panel-bridge.js
   var PANEL_FEATURES = ["weekRatio", "production", "openRegistrations", "quickRegister", "planner", "plannerCopies", "plannerDistance", "plannerDirect", "routeLink"];
   function panelFeatures() {
@@ -20005,8 +20109,9 @@
       routeEnabled: routeEnabled(),
       // Schakelaars uit het beheerscherm voor de zijpaneelfuncties (true = aan).
       features: panelFeatures(),
-      // Hash van het wachtwoord voor de knop Debug (Info); leeg = geen knop.
-      debugWachtwoord: /^[0-9a-f]{64}$/.test(String(APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord || "")) ? APP_CONFIG.debug.wachtwoord : "",
+      // Afgeleide (PBKDF2, of de oude SHA-256) van het wachtwoord voor de knop
+      // Debug (Info); leeg = geen knop.
+      debugWachtwoord: isDebugWachtwoord(APP_CONFIG.debug && APP_CONFIG.debug.wachtwoord) ? String(APP_CONFIG.debug.wachtwoord) : "",
       afspraakTypes: afspraakTypesVoorPaneel(),
       // Rijtijden en kaart (routesProxy) leest het zijpaneel zelf uit config.json
       // en het beleid (shared/routes-config.js), niet uit deze toestand.

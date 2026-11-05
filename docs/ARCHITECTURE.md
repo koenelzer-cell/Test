@@ -58,7 +58,8 @@ Agendahulp:
 |---|---|
 | `agenda-panel.jsx` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, tekenen (`renderPagina`), `update`, het vangnet bij een fout |
 | `pagina-plan.jsx`, `pagina-maken.jsx`, `pagina-open.jsx`, `pagina-snel.jsx`, `pagina-route.jsx`, `pagina-clienttijd.jsx`, `pagina-verhouding.jsx`, `pagina-info.jsx`, `rondleidingen.jsx` | één pagina per bestand, elk een functie `maakX(ctx)` met de acties van de pagina en zijn weergave (`pageX()` geeft React-elementen terug) |
-| `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen) |
+| `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen); `wisAlles()` en `debugOpSlot()` na niets doen |
+| `inactief.js` | niets doen in het zijpaneel: `activiteit()` (de schil meldt elke klik, toets en scroll, met capture op `document`) en `stilteStappen()`: na 15 min Debug op slot (`ctx.vergrendelDebug`), na 30 min `wisAlles()` en naar start, niet zolang er iets loopt (`ietsBezig()`); de schil kijkt elke 30 s en bij elke invoer |
 | `ui.jsx`, `kiezers.jsx`, `productie-grafiek.jsx`, `week-kaart.jsx`, `opbouw-kaart.jsx`, `verhouding-kaarten.jsx` | bouwstenen (kleuren, typografie, knoppen, kaarten, iconen, invoerveld); datum- en tijdkiezer; de grafiek; weekkaart, opbouw en verhouding |
 | `rondleiding.jsx`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | de rondleiding (eigen kleine root over het paneel), efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
 
@@ -195,7 +196,7 @@ Alle sleutels staan met hun plek in `src/shared/storage-keys.js`. De plekken:
 | `chrome.storage.local` | lokale testconfig, momentopname, herinnering (instellingen en de laatst afgehandelde), registratievormen. De oude meetteller (`onsHelper.meetteller`, tot 1.6.305) ruimt de service worker bij installeren of bijwerken op |
 | `chrome.storage.managed` | bedrijfsbeleid (alleen lezen; schema in `managed_schema.json`) |
 | localStorage van de ONS-pagina | aan/uit-schakelaars, geleerde vorm van ONS-verzoeken |
-| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, het lipje (weg bij sluiten tabblad) |
+| sessionStorage van de ONS-pagina | registratie vanuit een afspraak, planhulp naar het formulier, het lipje (weg bij sluiten tabblad); verlopen gaat bij elke paginawissel weg (`syncWithUrl`: `forgetStaleDuplicates`, `forgetStalePendingAppointment`, `forgetStalePendingRegistration`) |
 | localStorage van het zijpaneel | vertrekpunt van Route van de dag, geziene rondleidingen |
 
 Een nieuwe sleutel komt eerst in dat bestand. Bestaande namen en plekken
@@ -254,7 +255,10 @@ same-origin, sessiecookie van de medewerker. Endpoints (sjablonen in
 `endpoints.js`, overschrijfbaar via `config.apiEndpoints`, alleen paden die met
 één `/` beginnen; `//domein` en `/\domein` tellen niet). `alleenOns()` in
 `http.js` weigert daarnaast elk adres dat niet op de ONS-origin uitkomt,
-voordat er iets (sessie, CSRF-token) weggaat. Wat terugkomt wordt voor gebruik nagekeken met valibot
+voordat er iets (sessie, CSRF-token) weggaat. Elk verzoek heeft een
+tijdslimiet (`shared/tijdslimiet.js`, `metTijdslimiet`: AbortController en
+een TimeoutError): GET 20 s (niet opnieuw), POST 60 s (met een melding dat
+het toch opgeslagen kan zijn); de routesverzoeken in `sidepanel/geo.js` 20 s. Wat terugkomt wordt voor gebruik nagekeken met valibot
 (`services/ons-api/formaat.js`, `controleerOns`): klopt de vorm van de
 weekagenda, de uursoortenlijst, de afspraaktypes of de cliëntzoekresultaten
 niet meer, dan meldt de hulp 'ONS geeft … in een andere vorm terug' in plaats

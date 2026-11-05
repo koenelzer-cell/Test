@@ -11,7 +11,7 @@ import { safe } from '../../screen/status.js';
 import { _regToMin, clickRegistrationTravelTimeButton, registrationDirectTimeInput, registrationIndirectTimeInput, registrationTravelInput, scheduleReapplyRegistrationSplit, setRegistrationTimeSplit, setRegistrationTravelTotalMinutes } from './fields.js';
 import { ensureActiveRegistrationReportPrefix } from './report.js';
 import { ctxForcedVorm } from './context-menu.js';
-import { clearPendingRegistration, PENDING_REG_KEY } from './pending-store.js';
+import { clearPendingRegistration, PENDING_REG_KEY, REG_GELDIG_MS } from './pending-store.js';
 
 // ===== Afspraaklabel -> registratievorm =====
 // Id (occurrence) van de HUIDIGE registratie uit de URL — robuust voor beide vormen:
@@ -110,12 +110,18 @@ export function loadPendingRegistrationLabel() {
   let raw = null; try { raw = sessionStorage.getItem(PENDING_REG_KEY); } catch (e) { return; }
   if (!raw) return;
   let data = null; try { data = JSON.parse(raw); } catch (e) { data = null; }
-  if (!data || (!data.label && !data.vorm && !data.forcedVorm)) return;
+  // Onleesbaar of zonder iets om te herstellen: weg.
+  if (!data || (!data.label && !data.vorm && !data.forcedVorm)) { clearPendingRegistration(); return; }
   const curId = currentRegistrationId();
   // Andere registratie dan waarvoor we iets onthielden -> vergeten. Zo herstelt een
   // net afgeronde/vorige registratie NIET op een nieuwe, lege registratie.
   if (data.id && curId) { if (data.id !== curId) { clearPendingRegistration(); return; } }
-  else if (!data.ts || (Date.now() - data.ts) > 10 * 60 * 1000) { return; }
+  else if (!data.ts || (Date.now() - data.ts) > REG_GELDIG_MS) {
+    // Verlopen: weg in plaats van alleen negeren. Met een registratie-id blijft
+    // het staan, want voor die registratie geldt het nog (herstel na verversen).
+    if (!data.id) clearPendingRegistration();
+    return;
+  }
   // Expliciet gekozen via het rechtermuismenu: dit is een VERSE koppeling, geen
   // herstel. Daarom via registrationAutoChoice -> de volledige auto-apply
   // (reistijd, rapportageprefix, portievragen) draait gewoon. Staat bewust

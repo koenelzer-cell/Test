@@ -2,6 +2,21 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.323
+
+- Geeft ONS geen antwoord, dan blijft een knop niet eindeloos draaien: na 20
+  seconden krijg je een melding. Bij opslaan na 60 seconden, met de vraag
+  eerst in de agenda te kijken of het toch is opgeslagen.
+- Doe je een half uur niets in het zijpaneel, dan is wat je opvroeg en
+  invulde weg en staat het zijpaneel weer op de startpagina. Wie van de
+  computer wegloopt, laat zo geen lijsten open staan.
+- Beheer: het wachtwoord voor Debug wordt sterker versleuteld. Stel het
+  opnieuw in en publiceer; het oude blijft werken tot dan. Debug gaat na een
+  kwartier niets doen weer op slot.
+- Wat de hulp even onthoudt tussen pagina's in ONS (een tijdstip uit de
+  planhulp, kopieën, een registratie vanuit een afspraak) wordt opgeruimd
+  zodra het verlopen is.
+
 ## 1.6.322
 
 - Alleen voor het testpakket: op impegno-staging-staging werkt de hulp weer
