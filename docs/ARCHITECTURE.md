@@ -61,7 +61,7 @@ Agendahulp:
 | `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen); `wisAlles()` en `debugOpSlot()` na niets doen |
 | `inactief.js` | niets doen in het zijpaneel: `activiteit()` (de schil meldt elke klik, toets en scroll, met capture op `document`) en `stilteStappen()`: na 15 min Debug op slot (`ctx.vergrendelDebug`), na 30 min `wisAlles()` en naar start, niet zolang er iets loopt (`ietsBezig()`); de schil kijkt elke 30 s en bij elke invoer |
 | `ui.jsx`, `kiezers.jsx`, `productie-grafiek.jsx`, `week-kaart.jsx`, `opbouw-kaart.jsx`, `verhouding-kaarten.jsx` | bouwstenen (kleuren, typografie, knoppen, kaarten, iconen, invoerveld, de beweging van uitklappen: `UITKLAP`, `overgang`, `alleenOpen`); datum- en tijdkiezer; de grafiek; weekkaart, opbouw en verhouding; `Schakelaar` (Detail) |
-| `week-dagen.jsx` | planhulp, Weekplanning, Detail: de afspraken in de dagen van het raster (`AfspraakBlokken`, `AfspraakLegenda`; `maakWeekDagen(ctx)`: `zorgVoorWeekAfspraken` vanuit `zorgVoorRaster`, `afsprakenPerDag`, `zetDetail`); toestand in `BEWAARD.weekDagen`, Detail aan of uit in `PANEL_LOCAL.WEEK_DETAIL` |
+| `week-dagen.jsx` | planhulp, Weekplanning, Detail (aan: uitklappen en afspraken; uit: het raster zoals altijd): de afspraken in de dagen van het raster (`AfspraakBlokken` met `banen` voor afspraken die tegelijk vallen, `AfspraakLegenda`; `maakWeekDagen(ctx)`: `zorgVoorWeekAfspraken` vanuit `zorgVoorRaster`, `afsprakenPerDag`, `zetDetail`); toestand in `BEWAARD.weekDagen`, Detail aan of uit in `PANEL_LOCAL.WEEK_DETAIL` |
 | `rondleiding.jsx`, `multi-plan.js`, `geo.js`, `feestdagen.js`, `qr.js` | de rondleiding (eigen kleine root over het paneel), efficiënter indelen, Google Routes/Maps, feestdagen, QR-code |
 
 Hoe het tekent: de toestand staat niet in React maar in `ctx` (de laatste
@@ -181,9 +181,11 @@ zijpaneel ──ag-netwerklog {sinds, antwoorden} (elke seconde, alleen Info met
     met antwoorden per verzoek ook de afgeschermde opbouw van JSON-antwoord en -verzoek van deze site,
     shared/opbouw-masker.js, hooguit 6000 tekens per stuk)
 zijpaneel ──ag-week-dagen {date, vers} (Weekplanning met Detail aan, per week)──▶ content ──{maandag, startMin, endMin, days}──▶ zijpaneel
-   (features/agenda/week-dagen.js: de lagen events, unavailabilities, outlook_appointments en planned_visits uit het
-    weekgeheugen, dezelfde als de vrije tijd; domain/week-dagen.js: per afspraak tijden, reistijd, soort, status en
-    afspraaktype, uursoort of soort; Outlook 'vrij' niet, reserveringen niet; geen titel, onderwerp of cliënt)
+   (features/agenda/week-dagen.js: de lagen events, unavailabilities, outlook_appointments en planned_visits, dezelfde
+    als de vrije tijd; events en unavailabilities vers via haalWeekMetTitels (formaat.js weekEntriesMetTitels: titel
+    alleen bij een rij zonder cliënt, nooit in het weekgeheugen), de rest uit het weekgeheugen; domain/week-dagen.js:
+    per afspraak tijden, reistijd, soort, status en label, 'Cliëntafspraak' of zonder cliënt de titel; Outlook 'vrij'
+    niet, reserveringen niet; nooit de titel bij een cliënt, nooit een Outlook-onderwerp)
 zijpaneel ──ag-formulierlog, ag-foutlog (elke seconde, alleen Info met Debug open)──▶ content ──{items}──▶ zijpaneel
    (ag-foutlog: core/foutbuffer.js, de laatste 100 stil opgevangen fouten: safe(), mislukte
     ONS-verzoeken, onverwachte fouten in de hulp; alleen geheugen)

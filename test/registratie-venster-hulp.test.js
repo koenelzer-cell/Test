@@ -371,14 +371,15 @@ test('uursoort kiezen via de eigen lijst van het veld: de keuzelijst gaat niet o
 test('Indienen houdt zijn kleur bij aanwijzen en indrukken; zonder rapportage zet hij de cursor in het rapportageveld', async () => {
   const t = opzet({ registratieUursoort: { external_id: '1145' } });
   (await wachtOp(() => t.knop(/^MDO/))).click();
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  // Ruim wachten: met de hele suite tegelijk is de machine soms traag.
+  assert.ok(await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000), 'de melding over de rapportage');
   const indienen = t.paneel().querySelector('[data-registratievenster-indienen]');
   const grijs = indienen.style.background;
   assert.match(grijs, /201, 193, 189|#c9c1bd/i);
   ['mouseenter', 'mousedown', 'mouseup', 'mouseleave'].forEach((type) => indienen.dispatchEvent(new t.window.MouseEvent(type, { bubbles: true })));
   assert.equal(indienen.style.background, grijs, 'geen roze of rood meer na aanwijzen en indrukken');
   indienen.click();
-  await wachtOp(() => t.rapportFocus() > 0, 3000);
+  await wachtOp(() => t.rapportFocus() > 0, 10000);
   assert.equal(t.rapportFocus(), 1, 'de cursor staat in het rapportageveld');
   assert.equal(t.ingediend(), 0);
 });

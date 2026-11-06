@@ -119,9 +119,15 @@ for (const breedte of [340, 420]) {
       await expect(page.locator('[data-plan-kalender]')).toHaveCount(0);
       await page.locator('[data-plan-weergave="raster"]').click();
       await expect(page.locator('[data-raster]').first()).toBeVisible();
-      await expect(page.locator('[data-raster-open]')).toHaveCount(1);
-      await page.waitForTimeout(700);
+      // Detail uit: de Weekplanning zoals altijd, alle dagen even breed.
+      await expect(page.locator('[data-raster-open]')).toHaveCount(0);
       await controleer(page, testInfo, 'plan-weekplanning');
+      // Detail aan: de afspraken, één dag open en de rest smal.
+      await page.locator('[data-plan-detail]').click();
+      await expect(page.locator('[data-raster-open]')).toHaveCount(1);
+      await expect(page.locator('[data-afspraak-blok]').first()).toBeAttached();
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'plan-weekplanning-detail');
       // Een smalle dag uitklappen en daar een begintijd kiezen.
       const smal = page.locator('[data-raster-kies]').last();
       const datum = await smal.getAttribute('data-raster-kies');
@@ -132,11 +138,6 @@ for (const breedte of [340, 420]) {
       // De open dag is breed, de rest smal (de animatie is klaar).
       const breedtes = await page.locator('[data-raster-kolom]').evaluateAll((els) => els.map((e) => [e.hasAttribute('data-raster-open'), Math.round(e.getBoundingClientRect().width)]));
       for (const [open, w] of breedtes) expect(open ? w > 100 : w <= 30, JSON.stringify(breedtes)).toBe(true);
-      // Detail: de afspraken zelf in de dagen.
-      await page.locator('[data-plan-detail]').click();
-      await expect(page.locator('[data-afspraak-blok]').first()).toBeAttached();
-      await page.waitForTimeout(700);
-      await controleer(page, testInfo, 'plan-weekplanning-detail');
       await page.locator('[data-raster-kies]').first().click();
       await page.waitForTimeout(700);
       await controleer(page, testInfo, 'plan-weekplanning-detail-andere-dag');
@@ -153,6 +154,7 @@ for (const breedte of [340, 420]) {
       await page.locator('[data-hulp="plan"]').click();
       await page.locator('[data-dag][data-start]').first().click();
       await page.locator('[data-plan-weergave="raster"]').click();
+      await page.locator('[data-plan-detail]').click();
       await expect(page.locator('[data-raster-kies]').first()).toBeAttached();
       // Scroll zo dat het raster onder de vaste balk (gekozen momenten) valt,
       // en kijk wat er bovenop ligt: de balk, niet een tikvlak of de nu-lijn.

@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.326
+
+- Weekplanning met Detail uit is weer zoals vroeger: alle dagen even breed en
+  meteen een begintijd kiezen. Uitklappen per dag gebeurt alleen met Detail aan.
+- Afspraken die tegelijk vallen, staan naast elkaar.
+- In een afspraak staat het label; zonder label 'Cliëntafspraak'. Zit er geen
+  cliënt aan (bijvoorbeeld teamoverleg), dan de titel.
+- Toch op een bezet moment plannen: dubbelklik in het grijs of op een
+  afspraak. ONS kijkt daarna na of het overlapt.
+
 ## 1.6.325
 
 - De knop Detail staat niet meer op het startscherm, maar in de Weekplanning

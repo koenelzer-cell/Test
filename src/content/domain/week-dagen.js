@@ -6,16 +6,27 @@
 //
 // PRIVACY: per afspraak alleen tijden, reistijd, de soort (direct, indirect of
 // niet-cliënttijd), of hij geregistreerd is, en een naam: bij een afspraak het
-// afspraaktype uit het beheerscherm (via het label) of anders de uursoort, bij
-// de rest de soort ('Afwezig', 'Outlook', 'Gepland bezoek'). Nooit een titel
-// of onderwerp, geen cliënt, geen opmerking.
+// label uit ONS, zonder label 'Cliëntafspraak'; alleen als er geen cliënt aan
+// zit mag de titel (teamoverleg, scholing), bij afwezigheid ook. Anders de
+// soort ('Afwezig', 'Outlook', 'Gepland bezoek'). Nooit de titel van een
+// afspraak met een cliënt, nooit het onderwerp van Outlook, geen cliënt, geen
+// opmerking.
 
-import { _entryMinutes, agendaEntryType, computeDirectIndirect } from './agenda-entries.js';
+import { _agEntryLabels, _entryMinutes, computeDirectIndirect } from './agenda-entries.js';
 import { classifyAgendaEntry } from './open-registrations.js';
 import { maandagVan, plusDagen } from '../../shared/datum.js';
 
 const DAG = 24 * 60;
 const LAAG_NAAM = { unavailabilities: 'Afwezig', outlook_appointments: 'Outlook', planned_visits: 'Gepland bezoek' };
+
+// De titel van een afspraak zoals ONS hem stuurt (ruwe rij), maar alleen als
+// er geen cliënt aan zit: met een cliënt kan de titel een cliëntnaam bevatten.
+// Anders ''.
+export function titelZonderClient(rij) {
+  if (!rij || typeof rij !== 'object') return '';
+  if (Array.isArray(rij.clients) && rij.clients.length) return '';
+  return String(rij.name || rij.title || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
 
 // De laag in ONS: uit het ophalen (e.layer), anders uit het soort.
 export function laagVan(e) {
@@ -51,8 +62,10 @@ export function weekDagItem(e, opts) {
     if (!(minuten > 0)) return null;
     startMin = opts.startMin != null ? opts.startMin : minutenVanDag(e.startMs);
   }
+  // Een titel alleen zonder cliënt (zie titelZonderClient); Outlook nooit.
+  const titel = !e.clientPresent && laag !== 'outlook_appointments' && e.titel ? String(e.titel).slice(0, 80) : '';
   if (laag !== 'events') {
-    return { startMin: startMin, minutes: minuten, travelBefore: 0, travelAfter: 0, soort: 'overig', status: '', naam: LAAG_NAAM[laag] || 'Bezet', bron: laag, heleDag: heleDag };
+    return { startMin: startMin, minutes: minuten, travelBefore: 0, travelAfter: 0, soort: 'overig', status: '', naam: titel || LAAG_NAAM[laag] || 'Bezet', bron: laag, heleDag: heleDag };
   }
   const di = computeDirectIndirect(e, opts.forms);
   const soort = !e.clientPresent ? 'overig' : (di.indirectMin > di.directMin ? 'indirect' : 'direct');
@@ -60,8 +73,9 @@ export function weekDagItem(e, opts) {
   // voorbij en geregistreerd, voorbij en nog open, of nog gepland.
   const c = heleDag ? null : classifyAgendaEntry(Object.assign({}, e, { type: 'event' }), opts.now != null ? opts.now : Date.now(), 24 * 3600000);
   const status = !c ? '' : (!c.past ? 'gepland' : (c.declared ? 'ok' : 'open'));
-  let naam = agendaEntryType(e, opts.choices);
-  if (naam === 'Niet-gedefinieerd') naam = (e.hourType && String(e.hourType).trim()) || (e.clientPresent ? 'Cliëntafspraak' : 'Afspraak');
+  // De naam: het label uit ONS; zonder label 'Cliëntafspraak', of zonder
+  // cliënt de titel (anders 'Afspraak'). Met een cliënt nooit de titel.
+  const naam = _agEntryLabels(e)[0] || (e.clientPresent ? 'Cliëntafspraak' : (titel || 'Afspraak'));
   return {
     startMin: startMin, minutes: minuten,
     travelBefore: heleDag ? 0 : Math.max(0, Math.round(Number(e.travelBefore) || 0)),

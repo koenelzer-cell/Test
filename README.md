@@ -744,16 +744,24 @@ en oker).
   met vrije tijd), met 'van tot' in het groen; de andere dagen zijn smal, met
   de vrije tijd en gekozen momenten als dunne streepjes. Tik een smalle dag
   om hem uit te klappen en
-  tik dan in het groen op de begintijd. Met de knop **Detail** (rechts boven
-  het raster, alleen bij één agenda) staan ook de afspraken zelf in de dagen:
-  alles wat tijd bezet houdt, met of zonder label (afspraken, afwezigheid,
-  Outlook, geplande bezoeken). In de open dag een blok met het afspraaktype,
-  anders de uursoort of de soort ('Cliëntafspraak', 'Afwezig', 'Outlook'), de
-  tijden en de reistijd ervoor en erna; een roze stip bij nog registreren,
-  gestippeld wat nog gepland staat, gestreept een hele dag afwezig. In de
-  smalle dagen dunne streepjes. Nooit een titel, onderwerp of cliënt. Detail
-  onthoudt het zijpaneel op dit apparaat; de afspraken komen uit dezelfde
-  weekgegevens als de vrije tijd (`ag-week-dagen`). Feestdagen
+  tik dan in het groen op de begintijd. Dat uitklappen hoort bij de knop
+  **Detail** (rechts boven het raster, alleen bij één agenda). Uit: de
+  Weekplanning zoals altijd, alle dagen even breed en meteen een begintijd
+  kiezen. Aan: één dag open en de rest smal, en in de dagen ook de afspraken
+  zelf: alles wat tijd bezet houdt, met of zonder label (afspraken,
+  afwezigheid, Outlook, geplande bezoeken). In de open dag een blok met het
+  label uit ONS, zonder label 'Cliëntafspraak'; zit er geen cliënt aan, dan de
+  titel (bijvoorbeeld 'Teamoverleg'), bij afwezigheid ook. De titel van een
+  afspraak met een cliënt en het onderwerp van een Outlook-afspraak komen er
+  nooit in. Verder de tijden en de reistijd ervoor en erna; een roze stip bij
+  nog registreren, gestippeld wat nog gepland staat, gestreept een hele dag
+  afwezig. Afspraken die tegelijk vallen staan naast elkaar. In de smalle
+  dagen dunne streepjes. Toch op een bezet moment plannen: dubbelklik in het
+  grijs of op een afspraak; dat kwartier wordt gekozen en ONS kijkt het na
+  (oranje bij overlap). Detail onthoudt het zijpaneel op dit apparaat; de
+  afspraken komen uit dezelfde weekgegevens als de vrije tijd
+  (`ag-week-dagen`), afspraken en afwezigheid vers en met de titel buiten het
+  weekgeheugen. Feestdagen
   (één keer per pagina uit ONS, `GET /calendar/holidays`) zijn geen vrije
   tijd: in het raster is de hele kolom de feestdag, met een eigen kleur en
   tekening per feestdag (bijv. kroon en vlaggetjes op Koningsdag, kerstboom

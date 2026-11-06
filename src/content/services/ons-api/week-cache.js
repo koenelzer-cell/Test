@@ -12,7 +12,7 @@
 import { maandagVan } from '../../../shared/datum.js';
 import { _apiUrl } from './endpoints.js';
 import { getJson } from './http.js';
-import { weekEntries } from './formaat.js';
+import { weekEntries, weekEntriesMetTitels } from './formaat.js';
 
 const WEEK_TTL = 5 * 60000;
 let geheugen = Object.create(null);
@@ -41,4 +41,12 @@ export function haalWeek(sjabloon, inviteeId, dag, opties) {
   nieuw.belofte.catch(() => { if (geheugen[k] === nieuw) delete geheugen[k]; });
   geheugen[k] = nieuw;
   return nieuw.belofte.then(kopie);
+}
+
+// Detail in de Weekplanning: de week vers, met bij afspraken zonder cliënt de
+// titel. Niet uit en niet in het geheugen: de titel gaat alleen mee in dit
+// ene antwoord.
+export function haalWeekMetTitels(sjabloon, inviteeId, dag) {
+  const maandag = maandagVan(dag) || dag;
+  return getJson(_apiUrl(sjabloon, { inviteeId, date: maandag })).then(weekEntriesMetTitels);
 }

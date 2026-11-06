@@ -50,7 +50,7 @@
       const it = function (u, m, duur, soort, status, naam, reis, bron) { return { startMin: u * 60 + m, minutes: duur, travelBefore: reis || 0, travelAfter: reis || 0, soort: soort, status: status, naam: naam, bron: bron || 'events', heleDag: false }; };
       return { ok: true, result: { maandag: ma, startMin: 480, endMin: 1020, days: [
         { date: ma, open: 0, items: [it(8, 30, 60, 'overig', 'ok', 'Teamoverleg'), it(10, 0, 60, 'direct', 'ok', 'Huisbezoek', 20), it(13, 0, 45, 'direct', 'ok', 'Behandeling'), it(14, 0, 30, 'indirect', 'ok', 'Verslaglegging')] },
-        { date: plus(ma, 1), open: 1, items: [it(9, 0, 90, 'direct', 'ok', 'Intake'), it(11, 0, 60, 'direct', 'open', 'Cliëntafspraak', 15), it(13, 30, 60, 'overig', '', 'Outlook', 0, 'outlook_appointments')] },
+        { date: plus(ma, 1), open: 1, items: [it(9, 0, 90, 'direct', 'ok', 'JG Intake'), it(9, 30, 60, 'overig', '', 'Teamoverleg'), it(11, 0, 60, 'direct', 'open', 'Cliëntafspraak', 15), it(13, 30, 60, 'overig', '', 'Outlook', 0, 'outlook_appointments')] },
         { date: plus(ma, 2), open: 0, items: [{ startMin: 0, minutes: 1440, travelBefore: 0, travelAfter: 0, soort: 'overig', status: '', naam: 'Afwezig', bron: 'unavailabilities', heleDag: true }] },
         { date: plus(ma, 3), open: 2, items: [it(8, 30, 60, 'direct', 'open', 'Huisbezoek', 25), it(10, 30, 60, 'direct', 'open', 'Gesprek school', 20)] },
         { date: plus(ma, 4), open: 0, items: [it(11, 0, 60, 'direct', 'gepland', 'Huisbezoek', 15), it(15, 0, 45, 'direct', 'gepland', 'Behandeling'), it(16, 0, 30, 'overig', '', 'Afspraak')] }

@@ -120,7 +120,8 @@ test('de uursoortlijst die het uursoortveld ophaalt: alleen id en naam, zonder d
   assert.deepEqual(JSON.parse(JSON.stringify(r.uursoorten)), [
     { id: 1145, naam: 'Behandeling (GGZ 18+)', aanbevolen: true }, { id: 1146, naam: 'Diagnostiek (GGZ 18+)', aanbevolen: true }, { id: 1089, naam: 'Detachering', aanbevolen: false },
   ]);
-  assert.doesNotMatch(JSON.stringify(r), /BEH-GGZ|4645/);
+  // Zonder het willekeurige berichtid (dat kan toevallig '4645' bevatten).
+  assert.doesNotMatch(JSON.stringify(Object.assign({}, r, { id: '' })), /BEH-GGZ|4645/);
 });
 
 test('uursoort zetten: het change-activity-event met de id als tekst aan onChangeActivity van het uursoortveld, nagekeken', async () => {

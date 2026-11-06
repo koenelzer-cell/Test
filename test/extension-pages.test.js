@@ -811,7 +811,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [{ date: ymd(ma10), time: '10:30' }], eigen: [] });
 });
 
-test('planhulp Weekplanning: één dag staat open met het raster, de rest is smal; een smalle dag aantikken klapt hem uit', async () => {
+test('planhulp Weekplanning: met Detail staat één dag open met het raster, de rest is smal; een smalle dag aantikken klapt hem uit', async () => {
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7); // volgende week
   const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
@@ -827,7 +827,14 @@ test('planhulp Weekplanning: één dag staat open met het raster, de rest is sma
   document.querySelector('[data-week-verder]').click();
   await tick();
   const open = () => [...document.querySelectorAll('[data-raster-open]')].map((k) => k.getAttribute('data-raster-kolom'));
-  assert.deepEqual(open(), [dag(1)], 'de eerste dag met vrije tijd staat open');
+  // Detail uit: de Weekplanning zoals altijd, alle dagen even breed, niets uit te klappen.
+  assert.deepEqual(open(), [], 'Detail uit: geen dag open of dicht');
+  assert.equal(document.querySelectorAll('[data-raster-kies]').length, 0);
+  assert.deepEqual([...document.querySelectorAll('[data-raster-kolom]')].map((k) => k.style.flexGrow), ['1', '1', '1', '1', '1']);
+  assert.equal(document.querySelector('[data-raster-kolom="' + dag(3) + '"] [data-start="09:00"]').tabIndex, 0, 'meteen kiesbaar');
+  assert.doesNotMatch(document.querySelector('[data-raster]').textContent, /10:30 tot 12:00/, 'geen van-tot in de smalle oude kolommen');
+  document.querySelector('[data-plan-detail]').click();
+  assert.deepEqual(open(), [dag(1)], 'Detail aan: de eerste dag met vrije tijd staat open');
   assert.equal(document.querySelector('[data-raster]').style.isolation, 'isolate', 'nu-lijn en tikvlakken blijven onder de balk onderaan');
   assert.equal(document.querySelectorAll('[data-raster-kolom]').length, 5);
   const di = document.querySelector('[data-raster-kolom="' + dag(1) + '"]');
@@ -863,7 +870,8 @@ test('planhulp Weekplanning: knop Detail toont alle afspraken in de dagen; uit a
   const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
   const blok = (startMin, minutes, soort, status, naam, extra) => ({ startMin, minutes, travelBefore: 0, travelAfter: 0, soort, status, naam, bron: 'events', heleDag: false, ...extra });
   const week = { maandag: dag(0), startMin: 480, endMin: 1020, days: [
-    { date: dag(0), open: 0, items: [blok(540, 60, 'direct', 'gepland', 'Huisbezoek', { travelBefore: 15, travelAfter: 15 }), blok(660, 30, 'direct', 'gepland', 'Cliëntafspraak')] },
+    { date: dag(0), open: 0, items: [blok(540, 60, 'direct', 'gepland', 'Huisbezoek', { travelBefore: 15, travelAfter: 15 }), blok(660, 30, 'direct', 'gepland', 'Cliëntafspraak'),
+      blok(900, 60, 'overig', '', 'Teamoverleg'), blok(930, 60, 'direct', 'gepland', 'JG Intake')] },
     { date: dag(1), open: 0, items: [blok(600, 60, 'overig', '', 'Outlook', { bron: 'outlook_appointments' })] },
     { date: dag(2), open: 0, items: [blok(0, 1440, 'overig', '', 'Afwezig', { bron: 'unavailabilities', heleDag: true })] },
     { date: dag(3), open: 0, items: [] }, { date: dag(4), open: 0, items: [] }] };
@@ -888,7 +896,12 @@ test('planhulp Weekplanning: knop Detail toont alle afspraken in de dagen; uit a
   assert.deepEqual(vragen().map((m) => m.date), [dag(0)]);
   const ma1 = document.querySelector('[data-raster-kolom="' + dag(0) + '"]');
   assert.ok(ma1.hasAttribute('data-raster-open'), 'maandag (vrije tijd) staat open');
-  assert.equal(ma1.querySelectorAll('[data-afspraak-blok]').length, 2, 'ook de afspraak zonder label');
+  assert.equal(ma1.querySelectorAll('[data-afspraak-blok]').length, 4, 'ook de afspraak zonder label');
+  // Tegelijk: naast elkaar.
+  const b1 = ma1.querySelector('[data-afspraak-blok="15:00"]'), b2 = ma1.querySelector('[data-afspraak-blok="15:30"]');
+  assert.deepEqual([b1.getAttribute('data-baan'), b2.getAttribute('data-baan')], ['1/2', '2/2']);
+  assert.deepEqual([b1.style.left, b2.style.left], ['0%', '50%']);
+  assert.equal(ma1.querySelector('[data-afspraak-blok="09:00"]').getAttribute('data-baan'), null, 'alleen: volle breedte');
   assert.match(ma1.textContent, /Huisbezoek09:00 tot 10:00/);
   assert.match(ma1.textContent, /Cliëntafspraak11:00/, 'kort blok: alleen de begintijd');
   assert.equal(ma1.querySelectorAll('[data-afspraak-reis]').length, 2, 'reistijd ervoor en erna');
@@ -897,6 +910,12 @@ test('planhulp Weekplanning: knop Detail toont alle afspraken in de dagen; uit a
   assert.equal(document.querySelector('[data-raster-kolom="' + dag(1) + '"] [data-afspraak-blok]').getAttribute('data-bron'), 'outlook_appointments');
   assert.equal(document.querySelector('[data-raster-kolom="' + dag(2) + '"] [data-afspraak-blok]').getAttribute('data-afspraak-blok'), 'hele dag');
   assert.ok(document.querySelector('[data-afspraak-legenda]'), 'legenda van de afspraken');
+  // Dubbelklik op een afspraak (of in het grijs): toch daar plannen, op dat kwartier; ONS kijkt het na.
+  const lijf = ma1.querySelector('[data-raster-dag]');
+  lijf.dispatchEvent(new lijf.ownerDocument.defaultView.MouseEvent('dblclick', { bubbles: true, clientY: 60 * 0.75 + 20 }));
+  assert.ok(document.querySelector('[data-raster-gekozen="' + dag(0) + ' 09:15"]'), 'gekozen op 09:15, over Huisbezoek heen');
+  assert.ok(verzonden.some((m) => m.type === 'ag-slot-check' && m.date === dag(0) && m.startMin === 555), 'ONS kijkt na');
+  document.querySelector('[data-raster-gekozen="' + dag(0) + ' 09:15"]').click();
   // Smalle dag uitklappen: blokken met tekst.
   document.querySelector('[data-raster-kies="' + dag(1) + '"]').click();
   assert.match(document.querySelector('[data-raster-kolom="' + dag(1) + '"]').textContent, /Outlook10:00 tot 11:00/);

@@ -7,7 +7,8 @@
 // eisen alleen de structuur die de hulp gebruikt; extra velden mogen.
 
 import * as v from 'valibot';
-import { mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
+import { mapAgendaEntry, mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
+import { titelZonderClient } from '../../domain/week-dagen.js';
 
 const OBJECT = v.looseObject({});
 const LIJST = v.array(OBJECT);
@@ -49,4 +50,17 @@ export function controleerOns(soort, json) {
 // entries/week -> schone entries (domain/agenda-entries.js), na controle.
 export function weekEntries(json) {
   return mapAgendaWeekResponse(controleerOns('weekagenda', json));
+}
+// Hetzelfde, met bij afspraken zonder cliënt de titel erbij (titel). Alleen
+// voor Detail in de Weekplanning; komt nooit in het weekgeheugen.
+export function weekEntriesMetTitels(json) {
+  const schoon = controleerOns('weekagenda', json);
+  const rijen = Array.isArray(schoon) ? schoon : ((schoon && Array.isArray(schoon.data)) ? schoon.data : []);
+  return rijen.map(function (r) {
+    const e = mapAgendaEntry(r);
+    if (!e) return null;
+    const t = e.clientPresent ? '' : titelZonderClient(r);
+    if (t) e.titel = t;
+    return e;
+  }).filter(Boolean).sort(function (a, b) { return (a.startMs || 0) - (b.startMs || 0); });
 }

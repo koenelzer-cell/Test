@@ -632,14 +632,28 @@ export function maakPlanhulp(ctx) {
     const datums = [0, 1, 2, 3, 4].map(function (i) { return ymdVan(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i)); });
     const openDatum = (ctx.plan.rasterOpen && datums.indexOf(ctx.plan.rasterOpen) >= 0) ? ctx.plan.rasterOpen
       : (datums.filter(function (dt) { return !feest[dt] && (d.per[dt] || []).length; })[0] || (datums.indexOf(vandaagYmd) >= 0 ? vandaagYmd : datums[0]));
+    // Uitklappen alleen met Detail aan; uit is het raster zoals altijd: alle
+    // dagen even breed en meteen een begintijd kiezen.
+    const uitklap = detail;
     const dagLijf = function (date, isOpen) {
       const open = alleenOpen(isOpen);
       const lijnen = [];
       for (let uu = ws + 60; uu < we; uu += 60) lijnen.push(<div key={'u' + uu} style={Object.assign({ position: 'absolute', left: '0', right: '0', top: ((uu - ws) * PX) + 'px', height: '1px', backgroundColor: 'rgba(32,29,31,.16)', pointerEvents: 'none', zIndex: '1' }, open)} />);
       const rand = isOpen ? '2px' : '6px';
       const schuif = overgang('left ' + UITKLAP + ', right ' + UITKLAP + ', background-color 300ms ease, border-color 300ms ease');
+      // Dubbelklik op een afspraak of in het grijs: toch daar plannen (op het
+      // kwartier waar je klikt). ONS kijkt het daarna na (overlap in oranje).
+      const toch = function (e) {
+        if (e.target && e.target.closest && e.target.closest('[data-raster-vrij],[data-raster-gekozen]')) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        let m = ws + Math.floor((e.clientY - r.top) / PX / 15) * 15;
+        m = Math.max(ws, Math.min(we - duur, m));
+        if (date < vandaagYmd || (date === vandaagYmd && m < nuMin) || momentIndex(date, m) >= 0) return;
+        tikMoment(date, m, duur);
+      };
       return (
-        <div data-raster-dag={date} style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', backgroundColor: isOpen ? '#ece7e5' : '#f4f0ee', transition: overgang('background-color 300ms ease') }}>
+        <div data-raster-dag={date} onDoubleClick={isOpen ? toch : undefined} title={isOpen ? 'Dubbelklik in het grijs of op een afspraak om daar toch te plannen' : undefined}
+          style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', backgroundColor: isOpen ? '#ece7e5' : '#f4f0ee', transition: overgang('background-color 300ms ease') }}>
           {(d.per[date] || []).map(function (g) {
             const stroken = [];
             // Elke mogelijke begintijd is een strookje van een kwartier: tik = kiezen.
@@ -656,7 +670,7 @@ export function maakPlanhulp(ctx) {
                   return <div key={'r' + k} title={'Reservering: ' + reserveringTekst([r])} style={Object.assign({ position: 'absolute', left: '0', right: '0', top: ((a - g.startMin) * PX) + 'px', height: ((b - a) * PX) + 'px', backgroundColor: '#fdf3e2', color: '#8a5a00', fontSize: '9px', fontWeight: '800', padding: '1px 3px', boxSizing: 'border-box', pointerEvents: 'none' }, open)}>R</div>;
                 })}
                 {/* Open: van en tot in het groen. */}
-                {g.endMin - g.startMin >= 30 ? <span aria-hidden="true" style={Object.assign({ position: 'absolute', left: '4px', right: '2px', top: '1px', fontSize: '10px', lineHeight: '12px', fontWeight: '600', color: '#24684a', whiteSpace: 'nowrap', overflow: 'hidden', pointerEvents: 'none', zIndex: '1' }, open)}>{hm(g.startMin) + ' tot ' + hm(g.endMin)}</span> : null}
+                {uitklap && g.endMin - g.startMin >= 30 ? <span aria-hidden="true" style={Object.assign({ position: 'absolute', left: '4px', right: '2px', top: '1px', fontSize: '10px', lineHeight: '12px', fontWeight: '600', color: '#24684a', whiteSpace: 'nowrap', overflow: 'hidden', pointerEvents: 'none', zIndex: '1' }, open)}>{hm(g.startMin) + ' tot ' + hm(g.endMin)}</span> : null}
                 {stroken}
               </div>
             );
@@ -691,12 +705,12 @@ export function maakPlanhulp(ctx) {
       );
     };
     const kolommen = datums.map(function (date, i) {
-      const isOpen = date === openDatum;
+      const isOpen = !uitklap || date === openDatum;
       const dag = datumUitYmd(date);
       const fh = feest[date], fst = fh ? feestdagStijl(fh.name) : null;
       const isVandaag = date === vandaagYmd;
       return (
-        <div key={date} data-raster-kolom={date} data-raster-open={isOpen ? '' : undefined}
+        <div key={date} data-raster-kolom={date} data-raster-open={uitklap && isOpen ? '' : undefined}
           style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '26px', flexBasis: '26px', flexShrink: 1, flexGrow: isOpen ? 1 : 0, transition: overgang('flex-grow ' + UITKLAP) }}>
           <div data-raster-vandaag={isVandaag ? '' : undefined} title={fst ? fh.name : isVandaag ? 'Vandaag' : undefined}
             style={Object.assign({ height: '34px', boxSizing: 'border-box', textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' },
@@ -759,7 +773,7 @@ export function maakPlanhulp(ctx) {
           })}
         </div>
         {detail ? <AfspraakLegenda /> : null}
-        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd. De afspraak duurt ' + fmtMin(duur) + '.'}</Txt>
+        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{(uitklap ? 'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd.' : 'Tik in het groen op de begintijd.') + ' De afspraak duurt ' + fmtMin(duur) + '. ' + (uitklap ? 'Toch over een afspraak plannen: dubbelklik erop.' : 'Toch op een bezet moment plannen: dubbelklik in het grijs.')}</Txt>
       </div>
     );
   }
