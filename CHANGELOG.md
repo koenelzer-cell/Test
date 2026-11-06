@@ -2,6 +2,14 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.325
+
+- De knop Detail staat niet meer op het startscherm, maar in de Weekplanning
+  van de planhulp. Aan: in de dagen staan ook je afspraken zelf, niet alleen
+  bezet en vrij.
+- Detail laat alle afspraken zien, ook die zonder label, en ook afwezigheid,
+  Outlook-afspraken en geplande bezoeken.
+
 ## 1.6.324
 
 - Startscherm: met de knop Detail naast de week klap je de week uit tot de

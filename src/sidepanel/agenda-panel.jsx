@@ -216,11 +216,7 @@ function Week({ ctx }) {
       </>
     );
   } else {
-    // Detail (de dagen uitklappen): bij één agenda en een weekweergave.
-    const enkel = !(w.perInvitee && w.perInvitee.length > 1) && (w.opts || {}).scope !== 'dag' && !!ctx.actions.onWeekDays;
-    const wd = BEWAARD.weekDagen;
-    inhoud = <AgendaWeekPanel summary={w.summary} opts={Object.assign({}, w.opts || {}, { perInvitee: w.perInvitee || null })} onOpenClientTime={function () { ctx.naarPagina('clienttijd'); }}
-      detail={enkel && wd.detail} onDetail={enkel ? ctx.zetDetail : null} dagen={enkel && (wd.detail || wd.result) ? ctx.weekDagenBlok() : null} />;
+    inhoud = <AgendaWeekPanel summary={w.summary} opts={Object.assign({}, w.opts || {}, { perInvitee: w.perInvitee || null })} onOpenClientTime={function () { ctx.naarPagina('clienttijd'); }} />;
     vaag = bezig;
     if (bezig) strook = <LaadBalk />;
   }
@@ -372,7 +368,6 @@ export function create(render, actions) {
     if (ctx.pagina === 'plan' && ctx.plan.weergave === 'raster') ctx.zorgVoorRaster();
     if (ctx.pagina === 'maken') ctx.zorgVoorMaken();
     if (ctx.pagina === 'info') ctx.zorgVoorNetwerk();
-    if (ctx.pagina === 'hoofd') ctx.zorgVoorWeekDagen();
   }
 
   // Schakelaar uit het beheerscherm (state.features; ontbreekt = aan).

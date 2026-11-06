@@ -3459,7 +3459,7 @@
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_WEEK_DAYS: "ag-week-dagen",
-    // { date } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam }] }] } | error }  startscherm, Detail: afspraken per dag (afspraaktype of uursoort, geen titel of cliënt)
+    // { date, vers } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam, bron, heleDag }] }] } | error }  planhulp, Weekplanning, Detail: alles wat tijd bezet per dag (afspraaktype, uursoort of soort; geen titel of cliënt)
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
@@ -20021,29 +20021,55 @@
   }
 
   // src/content/domain/week-dagen.js
-  function minutenVanDag2(ms) {
+  var DAG = 24 * 60;
+  var LAAG_NAAM = { unavailabilities: "Afwezig", outlook_appointments: "Outlook", planned_visits: "Gepland bezoek" };
+  function laagVan(e) {
+    if (e.layer) return e.layer;
+    if (e.type === "unavailability") return "unavailabilities";
+    if (e.type === "outlook_appointment") return "outlook_appointments";
+    if (e.type === "planned_visit") return "planned_visits";
+    if (e.type === "reservation") return "reservations";
+    return "events";
+  }
+  function minutenVanDag2(ms, dagStart) {
     const d = new Date(ms);
+    if (dagStart != null) return Math.round((ms - dagStart) / 6e4);
     return d.getHours() * 60 + d.getMinutes();
   }
   function weekDagItem(e, opts) {
     opts = opts || {};
-    if (!e || e.type !== "event" || e.allDay || !e.date || e.startMs == null) return null;
-    const minuten2 = Math.round(_entryMinutes(e));
-    if (!(minuten2 > 0)) return null;
+    if (!e || !e.date || e.type === "holiday") return null;
+    const laag = laagVan(e);
+    if (laag === "reservations") return null;
+    const toon = String(e.showAs || "").toLowerCase();
+    if (toon === "free" || toon === "workingelsewhere") return null;
+    const heleDag = !!e.allDay || laag === "unavailabilities" && (e.startMs == null || e.endMs == null);
+    let startMin = 0, minuten2 = DAG;
+    if (!heleDag) {
+      if (e.startMs == null) return null;
+      minuten2 = Math.round(opts.minuten != null ? opts.minuten : _entryMinutes(e));
+      if (!(minuten2 > 0)) return null;
+      startMin = opts.startMin != null ? opts.startMin : minutenVanDag2(e.startMs);
+    }
+    if (laag !== "events") {
+      return { startMin, minutes: minuten2, travelBefore: 0, travelAfter: 0, soort: "overig", status: "", naam: LAAG_NAAM[laag] || "Bezet", bron: laag, heleDag };
+    }
     const di = computeDirectIndirect(e, opts.forms);
     const soort = !e.clientPresent ? "overig" : di.indirectMin > di.directMin ? "indirect" : "direct";
-    const c = classifyAgendaEntry(e, opts.now != null ? opts.now : Date.now(), 24 * 36e5);
+    const c = heleDag ? null : classifyAgendaEntry(Object.assign({}, e, { type: "event" }), opts.now != null ? opts.now : Date.now(), 24 * 36e5);
     const status = !c ? "" : !c.past ? "gepland" : c.declared ? "ok" : "open";
     let naam = agendaEntryType(e, opts.choices);
     if (naam === "Niet-gedefinieerd") naam = e.hourType && String(e.hourType).trim() || (e.clientPresent ? "Cliëntafspraak" : "Afspraak");
     return {
-      startMin: minutenVanDag2(e.startMs),
+      startMin,
       minutes: minuten2,
-      travelBefore: Math.max(0, Math.round(Number(e.travelBefore) || 0)),
-      travelAfter: Math.max(0, Math.round(Number(e.travelAfter) || 0)),
+      travelBefore: heleDag ? 0 : Math.max(0, Math.round(Number(e.travelBefore) || 0)),
+      travelAfter: heleDag ? 0 : Math.max(0, Math.round(Number(e.travelAfter) || 0)),
       soort,
       status,
-      naam: String(naam).slice(0, 60)
+      naam: String(naam).slice(0, 60),
+      bron: "events",
+      heleDag
     };
   }
   function weekDagen(entries2, opts) {
@@ -20055,19 +20081,33 @@
       dagen.push(d);
       perDatum[d.date] = d;
     }
+    const zet = function(dag, it) {
+      if (!dag || !it) return;
+      dag.items.push(it);
+      if (it.status === "open") dag.open++;
+    };
     (Array.isArray(entries2) ? entries2 : []).forEach(function(e) {
-      if (!e) return;
+      if (!e || !e.date) return;
       if (e.id != null) {
-        const k = String(e.id) + "|" + (e.date || "");
+        const k = laagVan(e) + "|" + String(e.id) + "|" + e.date;
         if (gezien[k]) return;
         gezien[k] = 1;
       }
-      const dag = perDatum[e.date];
-      if (!dag) return;
-      const it = weekDagItem(e, opts);
-      if (!it) return;
-      dag.items.push(it);
-      if (it.status === "open") dag.open++;
+      if (!e.allDay && e.startMs != null && e.endMs != null && new Date(e.endMs - 1).toDateString() !== new Date(e.startMs).toDateString()) {
+        const d0 = new Date(e.startMs);
+        for (let k = 0; k < 62; k++) {
+          const dag = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
+          const dStart = dag.getTime();
+          if (dStart >= e.endMs) break;
+          const datum = plusDagen(e.date, k);
+          if (!perDatum[datum]) continue;
+          const s = Math.max(0, minutenVanDag2(e.startMs, dStart)), en = Math.min(DAG, minutenVanDag2(e.endMs, dStart));
+          if (en <= s) continue;
+          zet(perDatum[datum], weekDagItem(Object.assign({}, e, { date: datum }), Object.assign({}, opts, { startMin: s, minuten: en - s })));
+        }
+        return;
+      }
+      zet(perDatum[e.date], weekDagItem(e, opts));
     });
     let van = 8 * 60, tot2 = 17 * 60;
     dagen.forEach(function(d) {
@@ -20075,8 +20115,9 @@
         return a.startMin - b.startMin;
       });
       d.items.forEach(function(it) {
+        if (it.heleDag) return;
         van = Math.min(van, Math.floor(Math.max(0, it.startMin - it.travelBefore) / 60) * 60);
-        tot2 = Math.max(tot2, Math.ceil(Math.min(24 * 60, it.startMin + it.minutes + it.travelAfter) / 60) * 60);
+        tot2 = Math.max(tot2, Math.ceil(Math.min(DAG, it.startMin + it.minutes + it.travelAfter) / 60) * 60);
       });
     });
     return {
@@ -20090,12 +20131,23 @@
   }
 
   // src/content/features/agenda/week-dagen.js
+  var LAGEN2 = [["weekEvents", "events"], ["weekUnavailabilities", "unavailabilities"], ["weekOutlook", "outlook_appointments"], ["weekPlannedVisits", "planned_visits"]];
   function weekDagenVoor(date, vers) {
     const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
     if (!id) return Promise.reject(new Error("Geen agenda gevonden."));
     const d = agendaYmd(date) || currentAgendaDate();
-    return haalWeek("weekEvents", id, d, { vers: !!vers }).then(function(entries2) {
-      return weekDagen(entries2, { datum: d });
+    return Promise.all(LAGEN2.map(function(l, i) {
+      const p = haalWeek(l[0], id, d, { vers: !!vers }).then(function(lijst) {
+        return lijst.map(function(e) {
+          e.layer = l[1];
+          return e;
+        });
+      });
+      return i === 0 ? p : p.catch(function() {
+        return [];
+      });
+    })).then(function(lagen) {
+      return weekDagen([].concat.apply([], lagen), { datum: d });
     });
   }
 

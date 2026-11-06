@@ -1,5 +1,5 @@
-// Detail op het startscherm: de afspraken van een week per dag, zonder titel
-// of cliënt.
+// Detail in de Weekplanning: alles wat in een week tijd bezet houdt, per dag,
+// zonder titel of cliënt.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { weekDagen, weekDagItem } from '../src/content/domain/week-dagen.js';
@@ -17,7 +17,7 @@ const NU = t(6, 10, 40); // vrijdag 6 november, 10:40
 test('één afspraak: tijden, reistijd, soort, status en een naam zonder titel of cliënt', () => {
   const it = weekDagItem(afspraak({ id: 1, d: 3, u: 11, duur: 60, reis: 15, labels: [{ name: 'JG Huisbezoek' }], classes: 'event not-declared' }),
     { now: NU, choices: [{ label: 'Huisbezoek', etiketten: ['JG Huisbezoek'] }] });
-  assert.deepEqual(it, { startMin: 660, minutes: 60, travelBefore: 15, travelAfter: 15, soort: 'direct', status: 'open', naam: 'Huisbezoek' });
+  assert.deepEqual(it, { startMin: 660, minutes: 60, travelBefore: 15, travelAfter: 15, soort: 'direct', status: 'open', naam: 'Huisbezoek', bron: 'events', heleDag: false });
   assert.doesNotMatch(JSON.stringify(it), /Jan|Gesprek/);
   // Geregistreerd, gepland, niet-cliënttijd, uursoort als naam.
   assert.equal(weekDagItem(afspraak({ id: 2, d: 3, u: 9, duur: 30, classes: 'event declared' }), { now: NU }).status, 'ok');
@@ -31,9 +31,37 @@ test('één afspraak: tijden, reistijd, soort, status en een naam zonder titel o
   assert.equal(pauze.naam, 'Afspraak');
   // Label 'indirect': indirect.
   assert.equal(weekDagItem(afspraak({ id: 6, d: 4, u: 15, duur: 60, labels: [{ name: 'Indirect overleg' }] }), { now: NU }).soort, 'indirect');
-  // Geen afspraak, hele dag of zonder tijd: niet in de dagweergave.
-  assert.equal(weekDagItem({ type: 'unavailability', date: '2026-11-03', startMs: t(3, 9) }, { now: NU }), null);
-  assert.equal(weekDagItem(Object.assign(afspraak({ id: 7, d: 3, u: 9, duur: 60 }), { allDay: true }), { now: NU }), null);
+  // Zonder label en zonder uursoort, met cliënt: ook tonen.
+  const zonderLabel = weekDagItem(afspraak({ id: 8, d: 5, u: 10, duur: 60, classes: 'event not-declared' }), { now: NU });
+  assert.deepEqual([zonderLabel.naam, zonderLabel.soort, zonderLabel.status], ['Cliëntafspraak', 'direct', 'open']);
+  // Een afspraak uit de laag events met een ander soort: ook tonen, met status.
+  assert.equal(weekDagItem(Object.assign(afspraak({ id: 9, d: 3, u: 9, duur: 60, classes: 'event declared' }), { type: 'appointment', layer: 'events' }), { now: NU }).status, 'ok');
+  // Hele dag: over de hele dag, zonder status.
+  const heel = weekDagItem(Object.assign(afspraak({ id: 7, d: 3, u: 9, duur: 60 }), { allDay: true }), { now: NU });
+  assert.deepEqual([heel.heleDag, heel.startMin, heel.minutes, heel.status], [true, 0, 1440, '']);
+});
+
+test('andere lagen: afwezig, Outlook (niet als vrij) en geplande bezoeken, zonder onderwerp; reserveringen niet', () => {
+  const met = (o) => Object.assign({ id: 1, date: '2026-11-04', startMs: t(4, 13), endMs: t(4, 14), allDay: false, subject: 'Tandarts Jan', name: 'Privé' }, o);
+  const afw = weekDagItem(met({ type: 'unavailability', layer: 'unavailabilities' }), { now: NU });
+  assert.deepEqual(afw, { startMin: 780, minutes: 60, travelBefore: 0, travelAfter: 0, soort: 'overig', status: '', naam: 'Afwezig', bron: 'unavailabilities', heleDag: false });
+  assert.equal(weekDagItem(met({ type: 'unavailability', layer: 'unavailabilities', startMs: null, endMs: null }), { now: NU }).heleDag, true, 'zonder tijden: hele dag');
+  const outlook = weekDagItem(met({ type: 'outlook_appointment', layer: 'outlook_appointments', showAs: 'busy' }), { now: NU });
+  assert.equal(outlook.naam, 'Outlook');
+  assert.doesNotMatch(JSON.stringify(outlook), /Tandarts|Jan|Privé/);
+  assert.equal(weekDagItem(met({ type: 'outlook_appointment', showAs: 'free' }), { now: NU }), null, 'Outlook vrij: niet bezet');
+  assert.equal(weekDagItem(met({ type: 'outlook_appointment', showAs: 'workingElsewhere' }), { now: NU }), null);
+  assert.equal(weekDagItem(met({ layer: 'planned_visits', type: 'planned_visit' }), { now: NU }).naam, 'Gepland bezoek');
+  assert.equal(weekDagItem(met({ layer: 'reservations', type: 'reservation' }), { now: NU }), null, 'reservering bezet niets');
+});
+
+test('afwezig over meerdere dagen: op elke dag die hij raakt', () => {
+  const r = weekDagen([{ id: 5, type: 'unavailability', layer: 'unavailabilities', date: '2026-11-03', startMs: t(3, 12), endMs: t(5, 10), allDay: false }], { datum: '2026-11-03', now: NU });
+  const per = Object.fromEntries(r.days.map((d) => [d.date, d.items.map((i) => [i.startMin, i.minutes])]));
+  assert.deepEqual(per['2026-11-03'], [[720, 720]]);
+  assert.deepEqual(per['2026-11-04'], [[0, 1440]]);
+  assert.deepEqual(per['2026-11-05'], [[0, 600]]);
+  assert.deepEqual(per['2026-11-06'], []);
 });
 
 test('de week: ma tot en met vr altijd, weekend alleen met afspraken; venster op hele uren, minstens 8 tot 17', () => {

@@ -657,22 +657,6 @@ roze alleen voor de hoofdknop, gekozen opties en tellers, links in tekstkleur.
 Direct, indirect en reistijd hebben overal dezelfde kleuren (blauwgrijs, oud roze
 en oker).
 
-Met de knop **Detail** naast de week (alleen bij één agenda) klapt de
-weekkaart dicht en staan de dagen naast elkaar. De dag die je aantikt wordt
-breed en toont het rooster van die dag: elke afspraak als blok met het
-afspraaktype (of de uursoort) en de tijden, reistijd ervoor en erna, een roze
-stip bij afspraken die nog geregistreerd moeten worden, gestippeld wat nog
-gepland staat, en op vandaag een dunne roze lijn op nu. De andere dagen worden
-smal en rustig: dunne blokjes, de dag verticaal onderaan en een roze teller
-als er nog iets te registreren is. Eronder staat hoeveel er nog te
-registreren of gepland is, met **Naar dag**. Bij aanzetten staat vandaag
-open, of in een andere week de eerste dag met afspraken. Detail onthoudt
-het zijpaneel op dit apparaat. De hulp haalt de afspraken uit de week die ze
-al kent (`ag-week-dagen`, uit het weekgeheugen); verandert het weekoverzicht,
-dan haalt ze ze opnieuw op. Nooit de titel of een cliënt: alleen tijden,
-reistijd, soort, status en het afspraaktype of de uursoort. Wie in het
-systeem minder beweging heeft ingesteld, krijgt geen animatie.
-
 - **Cliënttijd** (via 'Opbouw en productieverloop' in het weekoverzicht): de opbouw van de
   week (direct, indirect, reistijd, niet-cliënttijd) en het **productieverloop**:
   kies een periode (standaard acht weken terug tot vier weken vooruit, hooguit
@@ -759,8 +743,17 @@ systeem minder beweging heeft ingesteld, krijgt geen animatie.
   reservering, roze gekozen. Eén dag staat open en breed (eerst de eerste dag
   met vrije tijd), met 'van tot' in het groen; de andere dagen zijn smal, met
   de vrije tijd en gekozen momenten als dunne streepjes. Tik een smalle dag
-  om hem uit te klappen (dezelfde beweging als Detail op het startscherm) en
-  tik dan in het groen op de begintijd. Feestdagen
+  om hem uit te klappen en
+  tik dan in het groen op de begintijd. Met de knop **Detail** (rechts boven
+  het raster, alleen bij één agenda) staan ook de afspraken zelf in de dagen:
+  alles wat tijd bezet houdt, met of zonder label (afspraken, afwezigheid,
+  Outlook, geplande bezoeken). In de open dag een blok met het afspraaktype,
+  anders de uursoort of de soort ('Cliëntafspraak', 'Afwezig', 'Outlook'), de
+  tijden en de reistijd ervoor en erna; een roze stip bij nog registreren,
+  gestippeld wat nog gepland staat, gestreept een hele dag afwezig. In de
+  smalle dagen dunne streepjes. Nooit een titel, onderwerp of cliënt. Detail
+  onthoudt het zijpaneel op dit apparaat; de afspraken komen uit dezelfde
+  weekgegevens als de vrije tijd (`ag-week-dagen`). Feestdagen
   (één keer per pagina uit ONS, `GET /calendar/holidays`) zijn geen vrije
   tijd: in het raster is de hele kolom de feestdag, met een eigen kleur en
   tekening per feestdag (bijv. kroon en vlaggetjes op Koningsdag, kerstboom

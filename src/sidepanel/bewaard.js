@@ -4,7 +4,7 @@
 
 import { PANEL_LOCAL } from '../shared/storage-keys.js';
 
-// Detail op het startscherm: een voorkeur van dit apparaat (localStorage).
+// Detail in de Weekplanning: een voorkeur van dit apparaat (localStorage).
 function leesWeekDetail() {
   try { return localStorage.getItem(PANEL_LOCAL.WEEK_DETAIL) === '1'; } catch (e) { return false; }
 }
@@ -69,10 +69,9 @@ export const BEWAARD = {
   fouten: { items: [], gekopieerd: false },
   // Debug, Registratievenster: laatste uitkomst en de getallen om te zetten.
   regvenster: { bezig: false, uitkomst: null, direct: '', indirect: '' },
-  // Startscherm, Detail (week-dagen.jsx): aan of uit, de afspraken per dag
-  // van de bekeken week (key: welke week en stand van het weekoverzicht) en
-  // de dag die open staat.
-  weekDagen: { detail: leesWeekDetail(), key: '', busy: false, result: null, error: '', open: '' }
+  // Planhulp, Weekplanning, Detail (week-dagen.jsx): aan of uit en de
+  // afspraken per dag van de bekeken week (key: week en agenda).
+  weekDagen: { detail: leesWeekDetail(), key: '', busy: false, result: null, error: '' }
 };
 export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
@@ -84,7 +83,7 @@ export function legeResultaten() {
   BEWAARD.balkOpen = false;
   BEWAARD.route = { date: '', busy: false, result: null, error: '' };
   // De afspraken per dag; Detail aan of uit blijft (een voorkeur).
-  Object.assign(BEWAARD.weekDagen, { key: '', busy: false, result: null, error: '', open: '' });
+  Object.assign(BEWAARD.weekDagen, { key: '', busy: false, result: null, error: '' });
 }
 
 // Debug weer op slot (na een kwartier niets doen in het zijpaneel). Op zijn

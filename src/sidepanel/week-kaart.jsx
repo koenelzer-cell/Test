@@ -1,5 +1,5 @@
 import { RATIO_COLORS } from './verhouding-kaarten.jsx';
-import { FONT, T, fmtMin, overgang, werkweekTekst } from './ui.jsx';
+import { T, fmtMin, werkweekTekst } from './ui.jsx';
 
 // Het weekoverzicht op het startscherm van het zijpaneel, uit een
 // summarizeAgendaWeek-resultaat.
@@ -69,32 +69,7 @@ function WeekKaart({ s, onOpen, naam }) {
   );
 }
 
-// Schakelaar Detail: de week als kaart of als dagen die uitklappen.
-function DetailSchakelaar({ aan, onWissel }) {
-  const beweeg = overgang('transform 240ms cubic-bezier(.22,.8,.24,1)');
-  return (
-    <button type="button" role="switch" aria-checked={aan ? 'true' : 'false'} data-week-detail="" onClick={function () { onWissel(!aan); }}
-      title={aan ? 'Terug naar de weekkaart' : 'De dagen van de week uitklappen'}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 30, padding: '0 2px 0 6px', border: 0, background: 'transparent', cursor: 'pointer', font: '600 12px ' + FONT, color: T.inkSoft, whiteSpace: 'nowrap', flex: 'none' }}>
-      Detail
-      <span style={{ position: 'relative', display: 'block', width: 30, height: 18, borderRadius: 9, backgroundColor: aan ? T.brand : '#cfc7ca', transition: overgang('background-color 240ms ease') }}>
-        <span style={{ position: 'absolute', top: 2, left: 2, display: 'block', width: 14, height: 14, borderRadius: 7, backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transform: 'translateX(' + (aan ? 12 : 0) + 'px)', transition: beweeg }} />
-      </span>
-    </button>
-  );
-}
-
-// Een deel dat in- en uitklapt in de hoogte (weekkaart of dagen). Dicht: niet
-// te bereiken met Tab en niet voorgelezen.
-function Klap({ open, children, ...rest }) {
-  return (
-    <div {...rest} style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: overgang('grid-template-rows 420ms cubic-bezier(.22,.8,.24,1)') }}>
-      <div aria-hidden={open ? undefined : 'true'} {...(open ? {} : { inert: true })} style={{ overflow: 'hidden', minHeight: 0, opacity: open ? 1 : 0, transition: overgang('opacity 260ms ease') }}>{children}</div>
-    </div>
-  );
-}
-
-export function AgendaWeekPanel({ summary, opts, onOpenClientTime, detail, onDetail, dagen }) {
+export function AgendaWeekPanel({ summary, opts, onOpenClientTime }) {
   const s = summary || {
     count: 0, totalMinutes: 0, clientMinutes: 0, nonClientMinutes: 0,
     directMinutes: 0, indirectMinutes: 0, unknownMinutes: 0, travelMinutes: 0, byType: [],
@@ -106,24 +81,18 @@ export function AgendaWeekPanel({ summary, opts, onOpenClientTime, detail, onDet
   const personen = (o.perInvitee && o.perInvitee.length > 1) ? o.perInvitee : [{ id: '', name: '', summary: s }];
   return (
     <div data-ons-week-panel="1" style={{ fontSize: 13, color: T.ink }}>
-      <div style={{ display: 'flex', alignItems: onDetail ? 'center' : 'baseline', gap: 8, margin: '0 2px 8px' }}>
-        {/* Met de knop Detail erbij: de datums onder de titel, anders ernaast. */}
-        <div style={{ display: 'flex', flexDirection: onDetail ? 'column' : 'row', alignItems: onDetail ? 'flex-start' : 'baseline', gap: onDetail ? 1 : 8, minWidth: 0, flex: '1 1 auto' }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: T.ink, whiteSpace: 'nowrap' }}>{titel}</span>
-          {datums ? <span style={{ fontSize: 12, color: T.inkSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{datums}</span> : null}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '0 2px 8px' }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{titel}</span>
+        {datums ? <span style={{ fontSize: 12, color: T.inkSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{datums}</span> : null}
+        <span style={{ flex: '1 1 auto' }} />
         <span data-week-label="" style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, background: T.lineSoft, borderRadius: 6, padding: '1px 7px', whiteSpace: 'nowrap' }}>{o.headerHint || 'indicatief'}</span>
-        {onDetail ? <DetailSchakelaar aan={!!detail} onWissel={onDetail} /> : null}
       </div>
-      <Klap open={!detail} data-week-kaarten="">
-        {personen.map((p, i) => (
-          <div key={p.id || i} data-persoon={p.id || undefined} style={{ marginTop: i ? 12 : 0 }}>
-            {p.name ? <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, margin: '0 2px 6px' }}>{p.name}</div> : null}
-            <WeekKaart s={p.summary || {}} onOpen={onOpenClientTime} naam={p.name} />
-          </div>
-        ))}
-      </Klap>
-      {onDetail ? <Klap open={!!detail} data-week-detail-deel="">{dagen}</Klap> : null}
+      {personen.map((p, i) => (
+        <div key={p.id || i} data-persoon={p.id || undefined} style={{ marginTop: i ? 12 : 0 }}>
+          {p.name ? <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, margin: '0 2px 6px' }}>{p.name}</div> : null}
+          <WeekKaart s={p.summary || {}} onOpen={onOpenClientTime} naam={p.name} />
+        </div>
+      ))}
     </div>
   );
 }

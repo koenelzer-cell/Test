@@ -44,15 +44,16 @@
     'ag-foutlog': function () { return { ok: true, items: [{ tijd: Date.now() - 2000, plek: 'GET /calendar/invitee/{n}/entries/week', melding: 'HTTP 500' }] }; },
     'ag-netwerklog': function (msg) { return { ok: true, sessie: 'e2e', items: netwerk.filter(function (it) { return it.id > (msg.sinds || 0); }) }; },
     'ag-free-slots': vrij,
-    // Detail op het startscherm: de afspraken van deze week per dag.
-    'ag-week-dagen': function () {
-      const it = function (u, m, duur, soort, status, naam, reis) { return { startMin: u * 60 + m, minutes: duur, travelBefore: reis || 0, travelAfter: reis || 0, soort: soort, status: status, naam: naam }; };
-      return { ok: true, result: { maandag: maandag, startMin: 480, endMin: 1020, days: [
-        { date: maandag, open: 0, items: [it(8, 30, 60, 'overig', 'ok', 'Teamoverleg'), it(10, 0, 60, 'direct', 'ok', 'Huisbezoek', 20), it(13, 0, 45, 'direct', 'ok', 'Behandeling'), it(14, 0, 30, 'indirect', 'ok', 'Verslaglegging')] },
-        { date: plus(maandag, 1), open: 1, items: [it(9, 0, 90, 'direct', 'ok', 'Intake'), it(11, 0, 60, 'direct', 'open', 'Huisbezoek', 15), it(13, 30, 60, 'indirect', 'ok', 'MDO')] },
-        { date: plus(maandag, 2), open: 0, items: [it(12, 0, 120, 'overig', 'ok', 'Scholing')] },
-        { date: plus(maandag, 3), open: 2, items: [it(8, 30, 60, 'direct', 'open', 'Huisbezoek', 25), it(10, 30, 60, 'direct', 'open', 'Gesprek school', 20)] },
-        { date: plus(maandag, 4), open: 0, items: [it(11, 0, 60, 'direct', 'gepland', 'Huisbezoek', 15), it(15, 0, 45, 'direct', 'gepland', 'Behandeling'), it(16, 0, 30, 'overig', '', 'Afspraak')] }
+    // Weekplanning, Detail: de afspraken van de gevraagde week per dag.
+    'ag-week-dagen': function (msg) {
+      const ma = msg.date || maandag;
+      const it = function (u, m, duur, soort, status, naam, reis, bron) { return { startMin: u * 60 + m, minutes: duur, travelBefore: reis || 0, travelAfter: reis || 0, soort: soort, status: status, naam: naam, bron: bron || 'events', heleDag: false }; };
+      return { ok: true, result: { maandag: ma, startMin: 480, endMin: 1020, days: [
+        { date: ma, open: 0, items: [it(8, 30, 60, 'overig', 'ok', 'Teamoverleg'), it(10, 0, 60, 'direct', 'ok', 'Huisbezoek', 20), it(13, 0, 45, 'direct', 'ok', 'Behandeling'), it(14, 0, 30, 'indirect', 'ok', 'Verslaglegging')] },
+        { date: plus(ma, 1), open: 1, items: [it(9, 0, 90, 'direct', 'ok', 'Intake'), it(11, 0, 60, 'direct', 'open', 'Cliëntafspraak', 15), it(13, 30, 60, 'overig', '', 'Outlook', 0, 'outlook_appointments')] },
+        { date: plus(ma, 2), open: 0, items: [{ startMin: 0, minutes: 1440, travelBefore: 0, travelAfter: 0, soort: 'overig', status: '', naam: 'Afwezig', bron: 'unavailabilities', heleDag: true }] },
+        { date: plus(ma, 3), open: 2, items: [it(8, 30, 60, 'direct', 'open', 'Huisbezoek', 25), it(10, 30, 60, 'direct', 'open', 'Gesprek school', 20)] },
+        { date: plus(ma, 4), open: 0, items: [it(11, 0, 60, 'direct', 'gepland', 'Huisbezoek', 15), it(15, 0, 45, 'direct', 'gepland', 'Behandeling'), it(16, 0, 30, 'overig', '', 'Afspraak')] }
       ] } };
     },
     // ONS meldt overlap aan het begin van het tweede blok (09:30).

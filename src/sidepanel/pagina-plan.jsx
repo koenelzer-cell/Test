@@ -4,9 +4,10 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
+import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, Schakelaar, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
 import { feestdagAnimatie, feestdagIcoonSvg, feestdagSlingerSvg, feestdagStijl } from './feestdagen.js';
 import { MaandKalender } from './kiezers.jsx';
+import { AfspraakBlokken, AfspraakLegenda } from './week-dagen.jsx';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
 
 const PLAN_STAP = 24;
@@ -570,7 +571,10 @@ export function maakPlanhulp(ctx) {
     if (!ctx.plan.rasterWeek || ctx.plan.rasterWeek < huidigeWeek) ctx.plan.rasterWeek = huidigeWeek;
     const rs = ctx.plan.raster;
     if ((!rs || rs.key !== ctx.plan.rasterWeek + '|' + ctx.plan.minutes) && actions.onFreeSlots) laadRaster();
+    // Detail: ook de afspraken van deze week (alleen bij één agenda).
+    if (!meerAgendas()) ctx.zorgVoorWeekAfspraken(ctx.plan.rasterWeek);
   }
+  function meerAgendas() { return String((ctx.state && ctx.state.inviteeIds) || '').indexOf(',') >= 0; }
   function laadRaster() {
     const vandaag = ymdVan(new Date());
     const ma = ctx.plan.rasterWeek, vr = ymdVan(new Date(datumUitYmd(ma).getFullYear(), datumUitYmd(ma).getMonth(), datumUitYmd(ma).getDate() + 4));
@@ -614,6 +618,11 @@ export function maakPlanhulp(ctx) {
     const PX = 0.75, hoog = (we - ws) * PX;
     const feest = feestdagPer(res);
     const nuD = new Date(), vandaagYmd = ymdVan(nuD), nuMin = nuD.getHours() * 60 + nuD.getMinutes();
+    // Detail: de afspraken in de dagen (alles wat tijd bezet houdt).
+    const metDetail = !meerAgendas();
+    const detail = metDetail && ctx.detailAan();
+    const afspraken = detail ? ctx.afsprakenPerDag(ctx.plan.rasterWeek) : null;
+    const wd = BEWAARD.weekDagen;
     const uurLabels = [];
     // Uurlabel midden op de uurlijn.
     for (let u = ws; u < we; u += 60) uurLabels.push(<span key={u} style={{ position: 'absolute', top: Math.max(0, (u - ws) * PX - 7) + 'px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', lineHeight: '14px' }}>{String(u / 60)}</span>);
@@ -652,6 +661,8 @@ export function maakPlanhulp(ctx) {
               </div>
             );
           })}
+          {/* Detail: de afspraken zelf (open met tekst, dicht dunne streepjes). */}
+          {afspraken && afspraken[date] ? <AfspraakBlokken items={afspraken[date].items} ws={ws} we={we} px={PX} hoog={hoog} isOpen={isOpen} /> : null}
           {/* Gekozen momenten (roze); tik om los te laten. Dicht: een dun roze streepje. */}
           {BEWAARD.momenten.filter(function (mo) { return mo.date === date; }).map(function (mo) {
             return (
@@ -725,8 +736,14 @@ export function maakPlanhulp(ctx) {
             Vandaag
           </KaleKnop>
         </div>
-        {rs && rs.busy ? <LaadBalk style={{ margin: '0 0 8px' }} /> : null}
+        {metDetail ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', margin: '0 0 6px' }}>
+            <Schakelaar tekst="Detail" aan={detail} onWissel={ctx.zetDetail} data-plan-detail="" title={detail ? 'Alleen bezet en vrij' : 'Ook de afspraken zelf tonen'} />
+          </div>
+        ) : null}
+        {(rs && rs.busy) || (detail && wd.busy) ? <LaadBalk style={{ margin: '0 0 8px' }} /> : null}
         {rs && rs.error ? <FoutStrook tekst={rs.error} style={{ margin: '0 0 8px' }} knop="Opnieuw" onKnop={function () { ctx.plan.raster = null; renderPagina(); }} /> : null}
+        {detail && !wd.busy && wd.error ? <FoutStrook tekst={wd.error} style={{ margin: '0 0 8px' }} knop="Opnieuw" onKnop={function () { ctx.zorgVoorWeekAfspraken(ctx.plan.rasterWeek, true); renderPagina(); }} /> : null}
         {/* Eigen laag (isolation): de nu-lijn en de tikvlakken blijven onder de
             vaste balk onderaan (gekozen momenten), ook als je scrolt. */}
         <div data-raster="" style={{ display: 'flex', gap: '3px', fontSize: '11px', isolation: 'isolate' }}>
@@ -741,6 +758,7 @@ export function maakPlanhulp(ctx) {
             return <span key={l[1]}><i style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: l[0], marginRight: '4px', verticalAlign: '-1px' }} />{l[1]}</span>;
           })}
         </div>
+        {detail ? <AfspraakLegenda /> : null}
         <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd. De afspraak duurt ' + fmtMin(duur) + '.'}</Txt>
       </div>
     );

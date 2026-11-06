@@ -659,6 +659,20 @@ export function Wissel({ opties, gekozen, attr, onKies, style }) {
     </div>
   );
 }
+// Schakelaar met tekst ervoor (Detail in de Weekplanning): aan roze.
+export function Schakelaar({ tekst, aan, onWissel, title, ...rest }) {
+  const ring = useFocusRing();
+  return (
+    <button type="button" role="switch" aria-checked={aan ? 'true' : 'false'} title={title} {...ring.props} {...rest} onClick={function () { onWissel(!aan); }}
+      style={Object.assign({ display: 'inline-flex', alignItems: 'center', gap: '7px', minHeight: '30px', padding: '0 4px 0 6px', border: '0', borderRadius: '8px', backgroundColor: 'transparent', cursor: 'pointer', font: '600 12px ' + FONT, color: T.inkSoft, whiteSpace: 'nowrap', flex: 'none' }, ring.stijl)}>
+      {tekst}
+      <span style={{ position: 'relative', display: 'block', width: '30px', height: '18px', borderRadius: '9px', backgroundColor: aan ? T.brand : '#cfc7ca', transition: overgang('background-color 240ms ease') }}>
+        <span style={{ position: 'absolute', top: '2px', left: '2px', display: 'block', width: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transform: 'translateX(' + (aan ? 12 : 0) + 'px)', transition: overgang('transform 240ms cubic-bezier(.22,.8,.24,1)') }} />
+      </span>
+    </button>
+  );
+}
+
 // Tekstknop met icoon (Terug, Lijst bijwerken): licht, geen rand.
 export function TekstKnop({ icoon, tekst, onClick, disabled, style, icoonStijl, ...rest }) {
   const [over, hover] = useHover();

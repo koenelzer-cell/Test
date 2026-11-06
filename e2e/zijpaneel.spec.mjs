@@ -82,20 +82,7 @@ for (const breedte of [340, 420]) {
 
     test('startscherm en hulpmiddelen', async ({ page }, testInfo) => {
       await controleer(page, testInfo, 'start');
-      // Detail: de week als dagen; een smalle dag aantikken klapt hem uit.
-      await page.locator('[data-week-detail]').click();
-      await expect(page.locator('[data-weekdag]')).toHaveCount(5);
-      await expect(page.locator('[data-weekdag-open]')).toHaveCount(1);
-      await page.waitForTimeout(700);
-      await controleer(page, testInfo, 'start-detail');
-      await page.locator('[data-weekdag-kies]').last().click();
-      await page.waitForTimeout(700);
-      await controleer(page, testInfo, 'start-detail-andere-dag');
-      // De open dag is breed, de rest smal (de animatie is klaar).
-      const breedtes = await page.locator('[data-weekdag]').evaluateAll((els) => els.map((e) => [e.hasAttribute('data-weekdag-open'), Math.round(e.getBoundingClientRect().width)]));
-      for (const [open, w] of breedtes) expect(open ? w > 100 : w <= 30, JSON.stringify(breedtes)).toBe(true);
-      await page.locator('[data-week-detail]').click();
-      await expect(page.locator('[data-week-client]')).toBeVisible();
+      await expect(page.locator('[data-week-detail]')).toHaveCount(0);
       await expect(page.locator('[data-hulp="open"] [data-hulp-teller]')).toHaveText('3');
       for (const [soort, titel] of [['open', 'open'], ['snel', 'snel'], ['route', 'route'], ['verhouding', 'verhouding']]) {
         await page.locator('[data-hulp="' + soort + '"]').click();
@@ -142,6 +129,17 @@ for (const breedte of [340, 420]) {
       await expect(page.locator('[data-raster-kolom="' + datum + '"][data-raster-open]')).toHaveCount(1);
       await page.waitForTimeout(700);
       await controleer(page, testInfo, 'plan-weekplanning-andere-dag');
+      // De open dag is breed, de rest smal (de animatie is klaar).
+      const breedtes = await page.locator('[data-raster-kolom]').evaluateAll((els) => els.map((e) => [e.hasAttribute('data-raster-open'), Math.round(e.getBoundingClientRect().width)]));
+      for (const [open, w] of breedtes) expect(open ? w > 100 : w <= 30, JSON.stringify(breedtes)).toBe(true);
+      // Detail: de afspraken zelf in de dagen.
+      await page.locator('[data-plan-detail]').click();
+      await expect(page.locator('[data-afspraak-blok]').first()).toBeAttached();
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'plan-weekplanning-detail');
+      await page.locator('[data-raster-kies]').first().click();
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'plan-weekplanning-detail-andere-dag');
       const begin = page.locator('[data-raster-kolom="' + datum + '"] [data-start]').first();
       if (await begin.count()) {
         await begin.click();

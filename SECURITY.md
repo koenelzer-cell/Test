@@ -192,6 +192,12 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
   lijst nog te registreren afspraken, met de afspraaktitel zoals ONS die toont
   (die kan een voornaam bevatten). Dit bericht blijft binnen de extensie en
   wordt niet opgeslagen.
+- **Detail in de Weekplanning** (`ag-week-dagen`): per afspraak alleen tijden,
+  reistijd, soort (direct, indirect, niet-cliënttijd), of hij geregistreerd is
+  en een naam: het afspraaktype, de uursoort of de soort ('Afwezig',
+  'Outlook'). Nooit de titel, het onderwerp van een Outlook-afspraak of een
+  cliënt (`src/content/domain/week-dagen.js`, getest). Alleen in het geheugen
+  van het zijpaneel.
 - **Knop Debug** (Info): alleen als de beheerder een wachtwoord instelde; in
   de configuratie staat alleen een afgeleide (`debug.wachtwoord`): PBKDF2
   met SHA-256, 600.000 rondes en een willekeurig zout per wachtwoord
