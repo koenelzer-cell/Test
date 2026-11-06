@@ -4,7 +4,7 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, T, Txt, Wissel, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, useHover, vanTot, ymdVan } from './ui.jsx';
+import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
 import { feestdagAnimatie, feestdagIcoonSvg, feestdagSlingerSvg, feestdagStijl } from './feestdagen.js';
 import { MaandKalender } from './kiezers.jsx';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
@@ -133,12 +133,13 @@ function FeestdagKolom({ h, hoog, start, week }) {
 /* ── Kleine bouwstenen ── */
 
 // Een begintijd in het weekraster: een strookje van een kwartier.
-function RasterStrook({ date, m, duur, top, onKies }) {
+// Alleen in de open dag (actief); in een smalle dag niet te bereiken.
+function RasterStrook({ date, m, duur, top, actief, onKies }) {
   const [over, hover] = useHover();
   return (
-    <button type="button" {...hover} title={hm(m) + ' tot ' + hm(m + duur) + ' kiezen'} aria-label={dayLabel(date) + ' ' + hm(m) + ' kiezen'} data-dag={date} data-start={hm(m)}
+    <button type="button" {...hover} tabIndex={actief ? 0 : -1} title={hm(m) + ' tot ' + hm(m + duur) + ' kiezen'} aria-label={dayLabel(date) + ' ' + hm(m) + ' kiezen'} data-dag={date} data-start={hm(m)}
       onClick={onKies}
-      style={{ position: 'absolute', left: '0', right: '0', top: top + 'px', height: (15 * 0.75) + 'px', border: '0', padding: '0', background: over ? 'rgba(204,8,125,.18)' : 'transparent', cursor: 'pointer' }} />
+      style={{ position: 'absolute', left: '0', right: '0', top: top + 'px', height: (15 * 0.75) + 'px', border: '0', padding: '0', backgroundColor: over && actief ? 'rgba(204,8,125,.18)' : 'transparent', cursor: 'pointer', pointerEvents: actief ? 'auto' : 'none' }} />
   );
 }
 
@@ -594,6 +595,7 @@ export function maakPlanhulp(ctx) {
     const naarWeek = function (delta) {
       const m = datumUitYmd(ctx.plan.rasterWeek);
       ctx.plan.rasterWeek = ymdVan(new Date(m.getFullYear(), m.getMonth(), m.getDate() + 7 * delta));
+      ctx.plan.rasterOpen = '';
       renderPagina();
     };
     // Weeknavigatie: vooruit zonder maximum.
@@ -615,40 +617,50 @@ export function maakPlanhulp(ctx) {
     const uurLabels = [];
     // Uurlabel midden op de uurlijn.
     for (let u = ws; u < we; u += 60) uurLabels.push(<span key={u} style={{ position: 'absolute', top: Math.max(0, (u - ws) * PX - 7) + 'px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', lineHeight: '14px' }}>{String(u / 60)}</span>);
-    const kolommen = [];
-    for (let i = 0; i < 5; i++) {
-      const dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
-      const date = ymdVan(dag);
-      if (feest[date]) { kolommen.push(<FeestdagKolom key={date} h={feest[date]} hoog={hoog} start={ctx.feestStart} week={ctx.plan.rasterWeek} />); continue; }
+    // De dagen naast elkaar: één staat open (breed, met het raster om een
+    // begintijd te kiezen), de rest is smal en rustig. Tik een smalle dag om
+    // hem uit te klappen (dezelfde beweging als Detail op het startscherm).
+    const datums = [0, 1, 2, 3, 4].map(function (i) { return ymdVan(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i)); });
+    const openDatum = (ctx.plan.rasterOpen && datums.indexOf(ctx.plan.rasterOpen) >= 0) ? ctx.plan.rasterOpen
+      : (datums.filter(function (dt) { return !feest[dt] && (d.per[dt] || []).length; })[0] || (datums.indexOf(vandaagYmd) >= 0 ? vandaagYmd : datums[0]));
+    const dagLijf = function (date, isOpen) {
+      const open = alleenOpen(isOpen);
       const lijnen = [];
-      for (let uu = ws + 60; uu < we; uu += 60) lijnen.push(<div key={'u' + uu} style={{ position: 'absolute', left: '0', right: '0', top: ((uu - ws) * PX) + 'px', height: '1px', background: 'rgba(32,29,31,.16)', pointerEvents: 'none', zIndex: '1' }} />);
-      kolommen.push(
-        <div key={date} data-raster-dag={date} style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', background: '#ece7e5' }}>
+      for (let uu = ws + 60; uu < we; uu += 60) lijnen.push(<div key={'u' + uu} style={Object.assign({ position: 'absolute', left: '0', right: '0', top: ((uu - ws) * PX) + 'px', height: '1px', backgroundColor: 'rgba(32,29,31,.16)', pointerEvents: 'none', zIndex: '1' }, open)} />);
+      const rand = isOpen ? '2px' : '6px';
+      const schuif = overgang('left ' + UITKLAP + ', right ' + UITKLAP + ', background-color 300ms ease, border-color 300ms ease');
+      return (
+        <div data-raster-dag={date} style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', backgroundColor: isOpen ? '#ece7e5' : '#f4f0ee', transition: overgang('background-color 300ms ease') }}>
           {(d.per[date] || []).map(function (g) {
             const stroken = [];
             // Elke mogelijke begintijd is een strookje van een kwartier: tik = kiezen.
             for (let m = g.startMin; m + duur <= g.endMin; m += 15) {
-              stroken.push(<RasterStrook key={m} date={date} m={m} duur={duur} top={(m - g.startMin) * PX} onKies={function () { tikMoment(date, m, duur); }} />);
+              stroken.push(<RasterStrook key={m} date={date} m={m} duur={duur} top={(m - g.startMin) * PX} actief={isOpen} onKies={function () { tikMoment(date, m, duur); }} />);
             }
             return (
               <div key={g.startMin} data-raster-vrij={hm(g.startMin) + '-' + hm(g.endMin)}
-                style={{ position: 'absolute', left: '2px', right: '2px', top: ((g.startMin - ws) * PX) + 'px', height: ((g.endMin - g.startMin) * PX) + 'px', background: '#e6f4ec', border: '1px dashed #7cc19c', borderRadius: '5px', boxSizing: 'border-box' }}>
+                style={{ position: 'absolute', left: rand, right: rand, top: ((g.startMin - ws) * PX) + 'px', height: ((g.endMin - g.startMin) * PX) + 'px', boxSizing: 'border-box',
+                  backgroundColor: isOpen ? '#e6f4ec' : '#bfe3cd', border: '1px ' + (isOpen ? 'dashed #7cc19c' : 'solid transparent'), borderRadius: isOpen ? '5px' : '3px', transition: schuif }}>
                 {(g.reservations || []).map(function (r, k) {
                   const a = Math.max(r.startMin, g.startMin), b = Math.min(r.endMin, g.endMin);
                   if (b <= a) return null;
-                  return <div key={'r' + k} title={'Reservering: ' + reserveringTekst([r])} style={{ position: 'absolute', left: '0', right: '0', top: ((a - g.startMin) * PX) + 'px', height: ((b - a) * PX) + 'px', background: '#fdf3e2', color: '#8a5a00', fontSize: '9px', fontWeight: '800', padding: '1px 3px', boxSizing: 'border-box', pointerEvents: 'none' }}>R</div>;
+                  return <div key={'r' + k} title={'Reservering: ' + reserveringTekst([r])} style={Object.assign({ position: 'absolute', left: '0', right: '0', top: ((a - g.startMin) * PX) + 'px', height: ((b - a) * PX) + 'px', backgroundColor: '#fdf3e2', color: '#8a5a00', fontSize: '9px', fontWeight: '800', padding: '1px 3px', boxSizing: 'border-box', pointerEvents: 'none' }, open)}>R</div>;
                 })}
+                {/* Open: van en tot in het groen. */}
+                {g.endMin - g.startMin >= 30 ? <span aria-hidden="true" style={Object.assign({ position: 'absolute', left: '4px', right: '2px', top: '1px', fontSize: '10px', lineHeight: '12px', fontWeight: '600', color: '#24684a', whiteSpace: 'nowrap', overflow: 'hidden', pointerEvents: 'none', zIndex: '1' }, open)}>{hm(g.startMin) + ' tot ' + hm(g.endMin)}</span> : null}
                 {stroken}
               </div>
             );
           })}
-          {/* Gekozen momenten (roze); tik om los te laten. */}
+          {/* Gekozen momenten (roze); tik om los te laten. Dicht: een dun roze streepje. */}
           {BEWAARD.momenten.filter(function (mo) { return mo.date === date; }).map(function (mo) {
             return (
-              <button key={'m' + mo.startMin} type="button" data-raster-gekozen={date + ' ' + hm(mo.startMin)} title={mo.ons === true ? 'ONS meldt overlap; tik om los te laten' : 'Gekozen; tik om los te laten'}
+              <button key={'m' + mo.startMin} type="button" tabIndex={isOpen ? 0 : -1} data-raster-gekozen={date + ' ' + hm(mo.startMin)} title={mo.ons === true ? 'ONS meldt overlap; tik om los te laten' : 'Gekozen; tik om los te laten'}
                 onClick={function () { tikMoment(date, mo.startMin, duur); }}
-                style={{ position: 'absolute', left: '2px', right: '2px', top: ((mo.startMin - ws) * PX) + 'px', height: (duur * PX) + 'px', border: '0', borderRadius: '5px',
-                  background: mo.ons === true ? T.warn : T.brand, color: '#fff', font: '700 10px ' + FONT, textAlign: 'left', padding: '2px 4px', cursor: 'pointer', zIndex: '2' }}>{hm(mo.startMin) + ' ✓'}</button>
+                style={{ position: 'absolute', left: rand, right: rand, top: ((mo.startMin - ws) * PX) + 'px', height: (duur * PX) + 'px', border: '0', borderRadius: isOpen ? '5px' : '3px',
+                  backgroundColor: mo.ons === true ? T.warn : T.brand, color: '#fff', font: '700 10px ' + FONT, textAlign: 'left', padding: '2px 4px', cursor: 'pointer', zIndex: '2', overflow: 'hidden', whiteSpace: 'nowrap', transition: schuif }}>
+                <span style={Object.assign({ display: 'block', overflow: 'hidden' }, open)}>{hm(mo.startMin) + ' ✓'}</span>
+              </button>
             );
           })}
           {/* Vandaag: wat voorbij is gestreept, met een stip en lijn op nu. */}
@@ -657,16 +669,40 @@ export function maakPlanhulp(ctx) {
               background: 'repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 4px, transparent 4px 8px)' }} />
           ) : null}
           {date === vandaagYmd && nuMin > ws && nuMin < we ? (
-            <div data-raster-nu={hm(nuMin)} title={'Nu ' + hm(nuMin)} style={{ position: 'absolute', left: '-2px', right: '0', top: ((nuMin - ws) * PX - 1) + 'px', height: '2px', background: T.brand, pointerEvents: 'none', zIndex: '3' }}>
-              <i style={{ position: 'absolute', left: '-3px', top: '-3px', width: '8px', height: '8px', borderRadius: '4px', background: T.brand }} />
+            <div data-raster-nu={hm(nuMin)} title={'Nu ' + hm(nuMin)} style={{ position: 'absolute', left: '-2px', right: '0', top: ((nuMin - ws) * PX) + 'px', height: '1px', backgroundColor: T.brand, pointerEvents: 'none', zIndex: '3' }}>
+              <i style={{ position: 'absolute', left: '-2px', top: '-2.5px', width: '6px', height: '6px', borderRadius: '3px', backgroundColor: T.brand }} />
             </div>
           ) : null}
           {lijnen}
           {/* Geen vrije tijd: 'Bezet' (of 'Voorbij' voor eerdere dagen); niet tijdens het laden. */}
-          {!(d.per[date] || []).length && !(rs && rs.busy) ? <div style={{ position: 'absolute', top: '4px', left: '0', right: '0', textAlign: 'center', color: T.inkSoft, fontSize: '10px' }}>{date < ymdVan(new Date()) ? 'Voorbij' : 'Bezet'}</div> : null}
+          {!(d.per[date] || []).length && !(rs && rs.busy) ? <div style={Object.assign({ position: 'absolute', top: '4px', left: '0', right: '0', textAlign: 'center', color: T.inkSoft, fontSize: '10px', overflow: 'hidden' }, open)}>{date < ymdVan(new Date()) ? 'Voorbij' : 'Bezet'}</div> : null}
         </div>
       );
-    }
+    };
+    const kolommen = datums.map(function (date, i) {
+      const isOpen = date === openDatum;
+      const dag = datumUitYmd(date);
+      const fh = feest[date], fst = fh ? feestdagStijl(fh.name) : null;
+      const isVandaag = date === vandaagYmd;
+      return (
+        <div key={date} data-raster-kolom={date} data-raster-open={isOpen ? '' : undefined}
+          style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '26px', flexBasis: '26px', flexShrink: 1, flexGrow: isOpen ? 1 : 0, transition: overgang('flex-grow ' + UITKLAP) }}>
+          <div data-raster-vandaag={isVandaag ? '' : undefined} title={fst ? fh.name : isVandaag ? 'Vandaag' : undefined}
+            style={Object.assign({ height: '34px', boxSizing: 'border-box', textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' },
+              isVandaag ? { backgroundColor: T.brand, borderRadius: '6px', paddingTop: '2px' } : null)}>
+            {['ma', 'di', 'wo', 'do', 'vr'][i]}
+            <div style={{ color: isVandaag ? '#fff' : (fst ? fst.kop : T.ink), fontWeight: '700' }}>{String(dag.getDate())}</div>
+            {fst ? <i style={{ display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', backgroundColor: fst.stip }} /> : null}
+          </div>
+          {fh ? <FeestdagKolom h={fh} hoog={hoog} start={ctx.feestStart} week={ctx.plan.rasterWeek} /> : dagLijf(date, isOpen)}
+          {/* Dicht: de hele dag is één knop om hem uit te klappen. */}
+          {!isOpen ? (
+            <button type="button" data-raster-kies={date} aria-expanded="false" aria-label={dagLang(date) + ' uitklappen'} onClick={function () { ctx.plan.rasterOpen = date; renderPagina(); }}
+              style={{ position: 'absolute', top: '0', left: '0', right: '0', bottom: '0', width: '100%', margin: '0', padding: '0', border: '0', backgroundColor: 'transparent', cursor: 'pointer', borderRadius: '6px', zIndex: '4' }} />
+          ) : null}
+        </div>
+      );
+    });
     const legenda = [['#ece7e5', 'Bezet'], ['#e6f4ec', 'Vrij'], ['#fdf3e2', 'Reservering'], [T.brand, 'Gekozen']];
     if (Object.keys(feest).length) legenda.push(['linear-gradient(135deg,#ff9a33,#cfe8fd,#24684a)', 'Feestdag']);
     return (
@@ -680,7 +716,7 @@ export function maakPlanhulp(ctx) {
           </div>
           {pijl('›', 1, 'data-week-verder')}
           <KaleKnop disabled={hier} data-week-vandaag="" title={hier ? 'Je bekijkt de week van vandaag' : 'Naar de week van vandaag'}
-            onClick={function () { if (ctx.plan.rasterWeek !== huidigeWeek) { ctx.plan.rasterWeek = huidigeWeek; renderPagina(); } }}
+            onClick={function () { if (ctx.plan.rasterWeek !== huidigeWeek) { ctx.plan.rasterWeek = huidigeWeek; ctx.plan.rasterOpen = ''; renderPagina(); } }}
             style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 9px', marginLeft: '4px', whiteSpace: 'nowrap',
               border: '1px solid ' + (hier ? T.line : T.brand), borderRadius: '8px', background: '#fff', color: hier ? '#b9b0b4' : T.brand, font: '600 12px ' + FONT, cursor: hier ? 'default' : 'pointer' }}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -691,23 +727,13 @@ export function maakPlanhulp(ctx) {
         </div>
         {rs && rs.busy ? <LaadBalk style={{ margin: '0 0 8px' }} /> : null}
         {rs && rs.error ? <FoutStrook tekst={rs.error} style={{ margin: '0 0 8px' }} knop="Opnieuw" onKnop={function () { ctx.plan.raster = null; renderPagina(); }} /> : null}
-        <div data-raster="" style={{ display: 'grid', gridTemplateColumns: '26px repeat(5, 1fr)', gap: '3px', fontSize: '11px' }}>
-          <div />
-          {['ma', 'di', 'wo', 'do', 'vr'].map(function (n, i) {
-            const dag = new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + i);
-            const fh = feest[ymdVan(dag)], fst = fh ? feestdagStijl(fh.name) : null;
-            const isVandaag = ymdVan(dag) === vandaagYmd;
-            return (
-              <div key={n} data-raster-vandaag={isVandaag ? '' : undefined} title={fst ? fh.name : isVandaag ? 'Vandaag' : undefined}
-                style={Object.assign({ textAlign: 'center', color: isVandaag ? '#fff' : (fst ? fst.kop : T.inkSoft), fontWeight: '600', lineHeight: '1.2' },
-                  isVandaag ? { background: T.brand, borderRadius: '6px', padding: '1px 0' } : null)}>
-                {n}
-                <div style={{ color: isVandaag ? '#fff' : (fst ? fst.kop : T.ink), fontWeight: '700' }}>{String(dag.getDate())}</div>
-                {fst ? <i style={{ display: 'block', width: '6px', height: '6px', borderRadius: '3px', margin: '2px auto 0', background: fst.stip }} /> : null}
-              </div>
-            );
-          })}
-          <div style={{ position: 'relative', height: hoog + 'px' }}>{uurLabels}</div>
+        {/* Eigen laag (isolation): de nu-lijn en de tikvlakken blijven onder de
+            vaste balk onderaan (gekozen momenten), ook als je scrolt. */}
+        <div data-raster="" style={{ display: 'flex', gap: '3px', fontSize: '11px', isolation: 'isolate' }}>
+          <div style={{ flex: '0 0 22px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div style={{ height: '34px' }} />
+            <div style={{ position: 'relative', height: hoog + 'px' }}>{uurLabels}</div>
+          </div>
           {kolommen}
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '11px', color: T.inkSoft, marginTop: '8px' }}>
@@ -715,7 +741,7 @@ export function maakPlanhulp(ctx) {
             return <span key={l[1]}><i style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: l[0], marginRight: '4px', verticalAlign: '-1px' }} />{l[1]}</span>;
           })}
         </div>
-        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{'Tik in het groen op de begintijd; de afspraak duurt ' + fmtMin(duur) + '.'}</Txt>
+        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd. De afspraak duurt ' + fmtMin(duur) + '.'}</Txt>
       </div>
     );
   }

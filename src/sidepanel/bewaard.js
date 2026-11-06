@@ -2,6 +2,13 @@
 // opgebouwd (paginawissel in ONS): ingevulde velden, resultaten, gekozen
 // momenten. Alleen in het geheugen van het zijpaneel.
 
+import { PANEL_LOCAL } from '../shared/storage-keys.js';
+
+// Detail op het startscherm: een voorkeur van dit apparaat (localStorage).
+function leesWeekDetail() {
+  try { return localStorage.getItem(PANEL_LOCAL.WEEK_DETAIL) === '1'; } catch (e) { return false; }
+}
+
 // Titels voor het ONS-formulier (Afspraak maken, ONS Afspraakformulier): per
 // moment, alleen hier in het geheugen. Het content-script vraagt de titel op
 // zodra het formulier open is (MSG.AGENDA_FORM_TITLE); zo hoeft een titel met
@@ -61,7 +68,11 @@ export const BEWAARD = {
   // Debug, Fouten: de laatst gelezen fouten uit het tabblad.
   fouten: { items: [], gekopieerd: false },
   // Debug, Registratievenster: laatste uitkomst en de getallen om te zetten.
-  regvenster: { bezig: false, uitkomst: null, direct: '', indirect: '' }
+  regvenster: { bezig: false, uitkomst: null, direct: '', indirect: '' },
+  // Startscherm, Detail (week-dagen.jsx): aan of uit, de afspraken per dag
+  // van de bekeken week (key: welke week en stand van het weekoverzicht) en
+  // de dag die open staat.
+  weekDagen: { detail: leesWeekDetail(), key: '', busy: false, result: null, error: '', open: '' }
 };
 export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
@@ -72,6 +83,8 @@ export function legeResultaten() {
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
   BEWAARD.route = { date: '', busy: false, result: null, error: '' };
+  // De afspraken per dag; Detail aan of uit blijft (een voorkeur).
+  Object.assign(BEWAARD.weekDagen, { key: '', busy: false, result: null, error: '', open: '' });
 }
 
 // Debug weer op slot (na een kwartier niets doen in het zijpaneel). Op zijn
@@ -102,7 +115,7 @@ export function wisAlles() {
 export function ietsBezig() {
   const b = BEWAARD;
   return !!((b.range && b.range.busy) || (b.prod && b.prod.busy) || (b.plan && b.plan.busy) || (b.ratio && b.ratio.busy) ||
-    (b.route && b.route.busy) || (b.quick && b.quick.busy) || (b.maak && b.maak.busy) || b.debug.bezig || b.regvenster.bezig);
+    (b.route && b.route.busy) || (b.quick && b.quick.busy) || (b.maak && b.maak.busy) || b.debug.bezig || b.regvenster.bezig || b.weekDagen.busy);
 }
 
 // Index van een gekozen moment (planhulp), of -1.

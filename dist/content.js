@@ -3458,6 +3458,8 @@
     // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
     AGENDA_WEEK_RATIO: "ag-week-ratio",
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
+    AGENDA_WEEK_DAYS: "ag-week-dagen",
+    // { date } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam }] }] } | error }  startscherm, Detail: afspraken per dag (afspraaktype of uursoort, geen titel of cliënt)
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week
     // CS -> SP (uitgezonden)
@@ -20018,6 +20020,85 @@
     });
   }
 
+  // src/content/domain/week-dagen.js
+  function minutenVanDag2(ms) {
+    const d = new Date(ms);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  function weekDagItem(e, opts) {
+    opts = opts || {};
+    if (!e || e.type !== "event" || e.allDay || !e.date || e.startMs == null) return null;
+    const minuten2 = Math.round(_entryMinutes(e));
+    if (!(minuten2 > 0)) return null;
+    const di = computeDirectIndirect(e, opts.forms);
+    const soort = !e.clientPresent ? "overig" : di.indirectMin > di.directMin ? "indirect" : "direct";
+    const c = classifyAgendaEntry(e, opts.now != null ? opts.now : Date.now(), 24 * 36e5);
+    const status = !c ? "" : !c.past ? "gepland" : c.declared ? "ok" : "open";
+    let naam = agendaEntryType(e, opts.choices);
+    if (naam === "Niet-gedefinieerd") naam = e.hourType && String(e.hourType).trim() || (e.clientPresent ? "Cliëntafspraak" : "Afspraak");
+    return {
+      startMin: minutenVanDag2(e.startMs),
+      minutes: minuten2,
+      travelBefore: Math.max(0, Math.round(Number(e.travelBefore) || 0)),
+      travelAfter: Math.max(0, Math.round(Number(e.travelAfter) || 0)),
+      soort,
+      status,
+      naam: String(naam).slice(0, 60)
+    };
+  }
+  function weekDagen(entries2, opts) {
+    opts = opts || {};
+    const maandag = maandagVan(opts.datum) || opts.datum;
+    const dagen = [], perDatum = /* @__PURE__ */ Object.create(null), gezien = /* @__PURE__ */ Object.create(null);
+    for (let i = 0; i < 7; i++) {
+      const d = { date: plusDagen(maandag, i), open: 0, items: [] };
+      dagen.push(d);
+      perDatum[d.date] = d;
+    }
+    (Array.isArray(entries2) ? entries2 : []).forEach(function(e) {
+      if (!e) return;
+      if (e.id != null) {
+        const k = String(e.id) + "|" + (e.date || "");
+        if (gezien[k]) return;
+        gezien[k] = 1;
+      }
+      const dag = perDatum[e.date];
+      if (!dag) return;
+      const it = weekDagItem(e, opts);
+      if (!it) return;
+      dag.items.push(it);
+      if (it.status === "open") dag.open++;
+    });
+    let van = 8 * 60, tot2 = 17 * 60;
+    dagen.forEach(function(d) {
+      d.items.sort(function(a, b) {
+        return a.startMin - b.startMin;
+      });
+      d.items.forEach(function(it) {
+        van = Math.min(van, Math.floor(Math.max(0, it.startMin - it.travelBefore) / 60) * 60);
+        tot2 = Math.max(tot2, Math.ceil(Math.min(24 * 60, it.startMin + it.minutes + it.travelAfter) / 60) * 60);
+      });
+    });
+    return {
+      maandag,
+      startMin: van,
+      endMin: tot2,
+      days: dagen.filter(function(d, i) {
+        return i < 5 || d.items.length > 0;
+      })
+    };
+  }
+
+  // src/content/features/agenda/week-dagen.js
+  function weekDagenVoor(date, vers) {
+    const id = currentInviteeId() || resolveInviteeId() || agendaPage._agLastInviteeId;
+    if (!id) return Promise.reject(new Error("Geen agenda gevonden."));
+    const d = agendaYmd(date) || currentAgendaDate();
+    return haalWeek("weekEvents", id, d, { vers: !!vers }).then(function(entries2) {
+      return weekDagen(entries2, { datum: d });
+    });
+  }
+
   // src/shared/debug-wachtwoord.js
   var NIEUW = /^pbkdf2-sha256\$(\d{4,8})\$([0-9a-f]{32})\$([0-9a-f]{64})$/;
   var OUD = /^[0-9a-f]{64}$/;
@@ -20392,6 +20473,19 @@
             }, function(e) {
               try {
                 sendResponse({ ok: false, error: e && e.message || "Ophalen mislukt." });
+              } catch (e2) {
+              }
+            });
+            return true;
+          case MSG.AGENDA_WEEK_DAYS:
+            weekDagenVoor(msg.date, !!msg.vers).then(function(result) {
+              try {
+                sendResponse({ ok: true, result });
+              } catch (e) {
+              }
+            }, function(e) {
+              try {
+                sendResponse({ ok: false, error: e && e.message || "Afspraken ophalen mislukt." });
               } catch (e2) {
               }
             });

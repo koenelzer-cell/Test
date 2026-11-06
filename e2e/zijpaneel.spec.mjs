@@ -82,6 +82,20 @@ for (const breedte of [340, 420]) {
 
     test('startscherm en hulpmiddelen', async ({ page }, testInfo) => {
       await controleer(page, testInfo, 'start');
+      // Detail: de week als dagen; een smalle dag aantikken klapt hem uit.
+      await page.locator('[data-week-detail]').click();
+      await expect(page.locator('[data-weekdag]')).toHaveCount(5);
+      await expect(page.locator('[data-weekdag-open]')).toHaveCount(1);
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'start-detail');
+      await page.locator('[data-weekdag-kies]').last().click();
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'start-detail-andere-dag');
+      // De open dag is breed, de rest smal (de animatie is klaar).
+      const breedtes = await page.locator('[data-weekdag]').evaluateAll((els) => els.map((e) => [e.hasAttribute('data-weekdag-open'), Math.round(e.getBoundingClientRect().width)]));
+      for (const [open, w] of breedtes) expect(open ? w > 100 : w <= 30, JSON.stringify(breedtes)).toBe(true);
+      await page.locator('[data-week-detail]').click();
+      await expect(page.locator('[data-week-client]')).toBeVisible();
       await expect(page.locator('[data-hulp="open"] [data-hulp-teller]')).toHaveText('3');
       for (const [soort, titel] of [['open', 'open'], ['snel', 'snel'], ['route', 'route'], ['verhouding', 'verhouding']]) {
         await page.locator('[data-hulp="' + soort + '"]').click();
@@ -118,7 +132,47 @@ for (const breedte of [340, 420]) {
       await expect(page.locator('[data-plan-kalender]')).toHaveCount(0);
       await page.locator('[data-plan-weergave="raster"]').click();
       await expect(page.locator('[data-raster]').first()).toBeVisible();
+      await expect(page.locator('[data-raster-open]')).toHaveCount(1);
+      await page.waitForTimeout(700);
       await controleer(page, testInfo, 'plan-weekplanning');
+      // Een smalle dag uitklappen en daar een begintijd kiezen.
+      const smal = page.locator('[data-raster-kies]').last();
+      const datum = await smal.getAttribute('data-raster-kies');
+      await smal.click();
+      await expect(page.locator('[data-raster-kolom="' + datum + '"][data-raster-open]')).toHaveCount(1);
+      await page.waitForTimeout(700);
+      await controleer(page, testInfo, 'plan-weekplanning-andere-dag');
+      const begin = page.locator('[data-raster-kolom="' + datum + '"] [data-start]').first();
+      if (await begin.count()) {
+        await begin.click();
+        await expect(page.locator('[data-raster-gekozen^="' + datum + '"]')).toHaveCount(1);
+      }
+    });
+
+    test('planhulp: de balk onderaan ligt boven het weekraster, ook na scrollen', async ({ page }) => {
+      // Laag venster, zodat het raster onder de balk door kan scrollen.
+      await page.setViewportSize({ width: breedte, height: 430 });
+      await page.locator('[data-hulp="plan"]').click();
+      await page.locator('[data-dag][data-start]').first().click();
+      await page.locator('[data-plan-weergave="raster"]').click();
+      await expect(page.locator('[data-raster-kies]').first()).toBeAttached();
+      // Scroll zo dat het raster onder de vaste balk (gekozen momenten) valt,
+      // en kijk wat er bovenop ligt: de balk, niet een tikvlak of de nu-lijn.
+      const uit = await page.evaluate(() => {
+        const voet = [...document.querySelectorAll('#paneel *')].find((e) => getComputedStyle(e).position === 'sticky');
+        const scroller = [...document.querySelectorAll('#paneel *')].find((e) => /auto|scroll/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight);
+        const kolom = document.querySelector('[data-raster-kies]');
+        if (!voet || !scroller || !kolom || !voet.getBoundingClientRect().height) return 'geen balk of niets te scrollen';
+        scroller.scrollTop += kolom.getBoundingClientRect().top - (voet.getBoundingClientRect().top - 40);
+        const k = kolom.getBoundingClientRect(), v = voet.getBoundingClientRect();
+        const y = Math.max(k.top, v.top) + 10;
+        if (y > Math.min(k.bottom, v.bottom)) return 'raster valt niet onder de balk';
+        const nu = document.querySelector('[data-raster-nu]');
+        if (nu) nu.style.pointerEvents = 'auto';
+        const bovenop = document.elementFromPoint(k.left + k.width / 2, y);
+        return voet.contains(bovenop) ? 'balk' : 'iets uit het raster: ' + (bovenop && bovenop.outerHTML.slice(0, 80));
+      });
+      expect(uit).toBe('balk');
     });
 
     test('afspraak maken: zelfde, per afspraak anders en niet cliëntgebonden', async ({ page }, testInfo) => {

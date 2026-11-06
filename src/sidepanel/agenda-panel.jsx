@@ -45,6 +45,7 @@ import { BEWAARD, ietsBezig, legeResultaten, wisAlles } from './bewaard.js';
 import { activiteit, stilteStappen } from './inactief.js';
 import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, TekstKnop, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
 import { AgendaWeekPanel } from './week-kaart.jsx';
+import { maakWeekDagen } from './week-dagen.jsx';
 import { sluitRondleiding } from './rondleiding.jsx';
 import { maakPlanhulp } from './pagina-plan.jsx';
 import { maakAfspraakMaken } from './pagina-maken.jsx';
@@ -215,7 +216,11 @@ function Week({ ctx }) {
       </>
     );
   } else {
-    inhoud = <AgendaWeekPanel summary={w.summary} opts={Object.assign({}, w.opts || {}, { perInvitee: w.perInvitee || null })} onOpenClientTime={function () { ctx.naarPagina('clienttijd'); }} />;
+    // Detail (de dagen uitklappen): bij één agenda en een weekweergave.
+    const enkel = !(w.perInvitee && w.perInvitee.length > 1) && (w.opts || {}).scope !== 'dag' && !!ctx.actions.onWeekDays;
+    const wd = BEWAARD.weekDagen;
+    inhoud = <AgendaWeekPanel summary={w.summary} opts={Object.assign({}, w.opts || {}, { perInvitee: w.perInvitee || null })} onOpenClientTime={function () { ctx.naarPagina('clienttijd'); }}
+      detail={enkel && wd.detail} onDetail={enkel ? ctx.zetDetail : null} dagen={enkel && (wd.detail || wd.result) ? ctx.weekDagenBlok() : null} />;
     vaag = bezig;
     if (bezig) strook = <LaadBalk />;
   }
@@ -367,6 +372,7 @@ export function create(render, actions) {
     if (ctx.pagina === 'plan' && ctx.plan.weergave === 'raster') ctx.zorgVoorRaster();
     if (ctx.pagina === 'maken') ctx.zorgVoorMaken();
     if (ctx.pagina === 'info') ctx.zorgVoorNetwerk();
+    if (ctx.pagina === 'hoofd') ctx.zorgVoorWeekDagen();
   }
 
   // Schakelaar uit het beheerscherm (state.features; ontbreekt = aan).
@@ -435,6 +441,7 @@ export function create(render, actions) {
   Object.assign(ctx, maakRoute(ctx));
   Object.assign(ctx, maakInfo(ctx));
   Object.assign(ctx, maakRondleidingen(ctx));
+  Object.assign(ctx, maakWeekDagen(ctx));
 
   // Niets doen in het zijpaneel (inactief.js): na een kwartier Debug op slot,
   // na een half uur alles leeg en terug naar start. Elke 30 s nakijken, en

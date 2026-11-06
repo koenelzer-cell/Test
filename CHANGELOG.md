@@ -2,6 +2,18 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.324
+
+- Startscherm: met de knop Detail naast de week klap je de week uit tot de
+  dagen. Tik een dag aan: die wordt breed en toont je afspraken van die dag,
+  met reistijd, wat nog geregistreerd moet worden en wat nog gepland staat.
+  De andere dagen worden smal, met een roze teller als er nog iets open staat.
+- Planhulp, Weekplanning: dezelfde beweging. Eén dag staat open om een
+  begintijd te kiezen, de andere zijn smal; tik een dag om hem uit te klappen.
+- De roze lijn voor nu is dunner.
+- De roze lijn voor nu schoof in de Weekplanning over de balk met gekozen
+  momenten heen als je scrolde. Dat is opgelost.
+
 ## 1.6.323
 
 - Geeft ONS geen antwoord, dan blijft een knop niet eindeloos draaien: na 20

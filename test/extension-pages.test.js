@@ -796,7 +796,7 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.equal(document.querySelector('[data-week-terug]').style.visibility, 'hidden', 'niet terug voor deze week');
   const dag = document.querySelector('[data-raster-dag="' + vanaf + '"]');
   assert.ok(dag.querySelector('[data-raster-vrij="10:30-12:00"]'));
-  assert.equal([...dag.children].filter((c) => c.style.height === '1px').length, 8, 'een streepje op elk uur (9 t/m 16)');
+  assert.equal([...dag.children].filter((c) => c.style.height === '1px' && !c.hasAttribute('data-raster-nu')).length, 8, 'een streepje op elk uur (9 t/m 16), de nu-lijn niet meegeteld');
   const leeg = ymd(plusDagen(new Date(vanaf + 'T00:00:00'), 1));
   if (leeg <= ymd(plusDagen(ma, 4))) assert.match(document.querySelector('[data-raster-dag="' + leeg + '"]').textContent, /Bezet/, 'dag zonder vrije tijd: Bezet');
   // Tien weken vooruit klikken: geen maximum, elke week een eigen aanvraag.
@@ -809,6 +809,52 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.ok(document.querySelector('[data-raster-gekozen="' + ymd(ma10) + ' 10:30"]'), 'kiezen in een week ver vooruit');
   knop(document, 'Afspraak maken op 2 momenten').click();
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [{ date: ymd(ma10), time: '10:30' }], eigen: [] });
+});
+
+test('planhulp Weekplanning: één dag staat open met het raster, de rest is smal; een smalle dag aantikken klapt hem uit', async () => {
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7); // volgende week
+  const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
+  const { document } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: msg.from === dag(0)
+      ? [{ date: dag(1), startMin: 630, endMin: 720, minutes: 90 }, { date: dag(3), startMin: 540, endMin: 600, minutes: 60 }] : [] } }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  document.querySelector('[data-week-verder]').click();
+  await tick();
+  const open = () => [...document.querySelectorAll('[data-raster-open]')].map((k) => k.getAttribute('data-raster-kolom'));
+  assert.deepEqual(open(), [dag(1)], 'de eerste dag met vrije tijd staat open');
+  assert.equal(document.querySelector('[data-raster]').style.isolation, 'isolate', 'nu-lijn en tikvlakken blijven onder de balk onderaan');
+  assert.equal(document.querySelectorAll('[data-raster-kolom]').length, 5);
+  const di = document.querySelector('[data-raster-kolom="' + dag(1) + '"]');
+  assert.equal(di.style.flexGrow, '1');
+  assert.equal(document.querySelector('[data-raster-kolom="' + dag(3) + '"]').style.flexGrow, '0', 'de rest smal');
+  assert.match(di.textContent, /10:30 tot 12:00/, 'open: van en tot in het groen');
+  assert.equal(di.querySelector('[data-raster-kies]'), null, 'de open dag is geen knop');
+  assert.equal(di.querySelector('[data-start="10:30"]').tabIndex, 0, 'begintijden kiesbaar');
+  const do_ = document.querySelector('[data-raster-kolom="' + dag(3) + '"]');
+  assert.equal(do_.querySelector('[data-start="09:00"]').tabIndex, -1, 'smalle dag: begintijden niet met Tab');
+  assert.equal(do_.querySelector('[data-start="09:00"]').style.pointerEvents, 'none');
+  assert.match(do_.querySelector('[data-raster-kies]').getAttribute('aria-label'), / uitklappen$/);
+  // Een smalle dag aantikken: die klapt uit.
+  do_.querySelector('[data-raster-kies]').click();
+  assert.deepEqual(open(), [dag(3)]);
+  assert.equal(document.querySelector('[data-raster-kolom="' + dag(3) + '"] [data-start="09:00"]').tabIndex, 0);
+  // Begintijd kiezen in de open dag: roze; ook als de dag dichtklapt blijft het streepje.
+  document.querySelector('[data-raster-kolom="' + dag(3) + '"] [data-start="09:00"]').click();
+  assert.ok(document.querySelector('[data-raster-gekozen="' + dag(3) + ' 09:00"]'));
+  document.querySelector('[data-raster-kolom="' + dag(1) + '"] [data-raster-kies]').click();
+  const gekozen = document.querySelector('[data-raster-gekozen="' + dag(3) + ' 09:00"]');
+  assert.equal(gekozen.tabIndex, -1, 'in een smalle dag niet met Tab');
+  assert.equal(gekozen.style.left, '6px', 'dun streepje');
+  // Andere week: weer de eerste dag met vrije tijd (hier geen: maandag).
+  document.querySelector('[data-week-verder]').click();
+  await tick();
+  assert.deepEqual(open(), [dag(7)]);
 });
 
 test('zijpaneel: planhulp A - meerdere momenten, reserveringen (R), wissen in de balk, kopieën (zonder direct maken)', async () => {
@@ -2343,6 +2389,89 @@ test('zijpaneel: meldingen compact - pil bij meerdere agenda\'s, foutstrook met 
   const balk = document.querySelector('[role="status"]');
   assert.equal(balk.textContent, 'Afspraak ook gemaakt op di 13 okt 09:00.');
   assert.equal(balk.style.background, 'rgb(32, 29, 31)', 'donkere balk');
+});
+
+test('startscherm: knop Detail klapt de week uit tot dagen; een dag aantikken klapt hem open, de rest wordt smal', async () => {
+  const WEEK = { summary: { count: 6, clientMinutes: 300, nonClientMinutes: 60, totalMinutes: 360, directMinutes: 240, indirectMinutes: 60, travelMinutes: 30, byType: [] },
+    opts: { week: 41, date: '2026-10-07', scope: 'week', headerHint: 'geregistreerd' }, clientRows: [], overigRows: [] };
+  const dagen = { maandag: '2026-10-05', startMin: 480, endMin: 1020, days: [
+    { date: '2026-10-05', open: 0, items: [] },
+    { date: '2026-10-06', open: 1, items: [
+      { startMin: 540, minutes: 90, travelBefore: 0, travelAfter: 0, soort: 'direct', status: 'ok', naam: 'Intake' },
+      { startMin: 660, minutes: 60, travelBefore: 15, travelAfter: 15, soort: 'direct', status: 'open', naam: 'Huisbezoek' }] },
+    { date: '2026-10-07', open: 0, items: [{ startMin: 600, minutes: 60, travelBefore: 0, travelAfter: 0, soort: 'indirect', status: 'ok', naam: 'MDO' }] },
+    { date: '2026-10-08', open: 2, items: [
+      { startMin: 510, minutes: 60, travelBefore: 0, travelAfter: 0, soort: 'direct', status: 'open', naam: 'Behandeling' },
+      { startMin: 720, minutes: 30, travelBefore: 0, travelAfter: 0, soort: 'direct', status: 'open', naam: 'Behandeling' },
+      { startMin: 840, minutes: 90, travelBefore: 0, travelAfter: 0, soort: 'overig', status: 'gepland', naam: 'Intervisie' }] },
+    { date: '2026-10-09', open: 0, items: [] }] };
+  const { document, verzonden } = zijpaneelMetTools({
+    'ag-week-dagen': (msg, cb) => cb({ ok: true, result: dagen }),
+  }, { ...AGENDA_STATE_TOOLS, inviteeId: '1', week: WEEK });
+  await tick();
+  const schakel = () => document.querySelector('[data-week-detail]');
+  const vragen = () => verzonden.filter((m) => m.type === 'ag-week-dagen');
+  assert.equal(schakel().getAttribute('role'), 'switch');
+  assert.equal(schakel().getAttribute('aria-checked'), 'false', 'standaard uit');
+  assert.ok(document.querySelector('[data-week-client]'), 'de weekkaart');
+  assert.equal(vragen().length, 0, 'uit: niets ophalen');
+  schakel().click();
+  assert.equal(schakel().getAttribute('aria-checked'), 'true');
+  assert.deepEqual(vragen().map((m) => [m.date, m.vers]), [['2026-10-07', false]]);
+  assert.equal(document.querySelector('[data-week-kaarten] > div').getAttribute('aria-hidden'), 'true', 'de weekkaart klapt dicht');
+  assert.equal(document.querySelectorAll('[data-weekdag]').length, 5, 'ma tot en met vr');
+  // Open: de eerste dag met afspraken (vandaag valt buiten deze week).
+  const open = () => [...document.querySelectorAll('[data-weekdag-open]')].map((d) => d.getAttribute('data-weekdag'));
+  assert.deepEqual(open(), ['2026-10-06']);
+  const di = document.querySelector('[data-weekdag="2026-10-06"]');
+  assert.equal(di.style.flexGrow, '1', 'de open dag is breed');
+  assert.equal(document.querySelector('[data-weekdag="2026-10-08"]').style.flexGrow, '0', 'de rest smal');
+  assert.match(di.textContent, /Dinsdag 6 oktober/);
+  assert.match(di.textContent, /Huisbezoek11:00 tot 12:00/);
+  assert.equal(di.querySelectorAll('[data-weekdag-reis]').length, 2, 'reistijd ervoor en erna');
+  assert.equal(di.querySelectorAll('[data-weekdag-open-stip]').length, 1, 'roze stip: nog registreren');
+  assert.equal(di.querySelector('[data-weekdag-kies]'), null, 'de open dag is geen knop');
+  assert.equal(document.querySelector('[data-weekdag="2026-10-08"] [data-weekdag-teller]').textContent, '2', 'dichte dag: roze teller');
+  assert.match(document.querySelector('[data-weekdag="2026-10-08"] [data-weekdag-kies]').getAttribute('aria-label'), /^Donderdag 8 oktober: 3 afspraken, 2 nog te registreren\. Uitklappen$/);
+  assert.equal(document.querySelector('[data-weekdag-samenvatting]').textContent, '1 nog te registreren');
+  // Een andere dag aantikken.
+  document.querySelector('[data-weekdag-kies="2026-10-08"]').click();
+  assert.deepEqual(open(), ['2026-10-08']);
+  assert.equal(document.querySelector('[data-weekdag="2026-10-08"] [data-weekdag-blok="14:00"]').getAttribute('data-status'), 'gepland');
+  assert.equal(document.querySelector('[data-weekdag-samenvatting]').textContent, '2 nog te registreren, 1 gepland');
+  document.querySelector('[data-weekdag-naar]').click();
+  assert.deepEqual(verzonden.filter((m) => m.type === 'ag-jump-day').map((m) => m.date), ['2026-10-08'], 'Naar dag');
+  // Lege dag openklappen.
+  document.querySelector('[data-weekdag-kies="2026-10-05"]').click();
+  assert.match(document.querySelector('[data-weekdag="2026-10-05"]').textContent, /Geen afspraken/);
+  // Het weekoverzicht verandert (iets geregistreerd): opnieuw ophalen, vers, en de gekozen dag blijft.
+  env_update(document, { ...AGENDA_STATE_TOOLS, inviteeId: '1', week: { ...WEEK, summary: { ...WEEK.summary, count: 7 } } });
+  await tick();
+  assert.deepEqual(vragen().map((m) => m.vers), [false, true]);
+  assert.deepEqual(open(), ['2026-10-05']);
+  // Uit: weer de weekkaart.
+  schakel().click();
+  assert.equal(schakel().getAttribute('aria-checked'), 'false');
+  assert.equal(document.querySelector('[data-week-kaarten] > div').getAttribute('aria-hidden'), null);
+  assert.equal(document.querySelector('[data-week-detail-deel] > div').getAttribute('aria-hidden'), 'true');
+});
+
+test('startscherm: Detail niet bij meerdere agenda\'s; een fout bij ophalen met Opnieuw', async () => {
+  const sum = { count: 1, clientMinutes: 60, nonClientMinutes: 0, totalMinutes: 60, directMinutes: 60, indirectMinutes: 0, travelMinutes: 0, byType: [] };
+  const opts = { week: 41, date: '2026-10-07', scope: 'week', headerHint: 'geregistreerd' };
+  const twee = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, week: { summary: sum, opts, perInvitee: [{ id: '1', name: 'A', summary: sum }, { id: '2', name: 'B', summary: sum }] } });
+  await tick();
+  assert.equal(twee.document.querySelector('[data-week-detail]'), null, 'meerdere agenda\'s: geen Detail');
+  let keer = 0;
+  const { document } = zijpaneelMetTools({
+    'ag-week-dagen': (msg, cb) => { keer++; cb(keer === 1 ? { ok: false, error: 'HTTP 500' } : { ok: true, result: { maandag: '2026-10-05', startMin: 480, endMin: 1020, days: [{ date: '2026-10-05', open: 0, items: [] }] } }); },
+  }, { ...AGENDA_STATE_TOOLS, inviteeId: '1', week: { summary: sum, opts } });
+  await tick();
+  document.querySelector('[data-week-detail]').click();
+  assert.match(document.querySelector('[data-week-detail-deel]').textContent, /HTTP 500/);
+  knop(document, 'Opnieuw').click();
+  assert.equal(keer, 2);
+  assert.equal(document.querySelectorAll('[data-weekdag]').length, 1);
 });
 
 test('zijpaneel: knop Debug onder Info alleen met een wachtwoord in de configuratie; fout wachtwoord, Enter, Debug sluiten', async () => {

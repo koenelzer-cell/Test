@@ -24,6 +24,25 @@ export const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 // grafiek productieverloop. Het roze is gedempt, zodat het niet op een knop lijkt.
 export const SERIE = { direct: '#2f5d7c', indirect: '#b4507a', travel: '#d6a24c' };
 
+// Uitklappen (dagen op het startscherm, Weekplanning): breedte en rooster
+// bewegen mee; wie minder beweging wil (systeeminstelling), krijgt geen animatie.
+export const UITKLAP = '480ms cubic-bezier(.22,.8,.24,1)';
+export function zonderBeweging() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+}
+export function overgang(s) { return zonderBeweging() ? 'none' : s; }
+// Inhoud die alleen bij een open dag hoort: faden, iets later dan het
+// uitklappen (dan staat hij niet in een smal paneel te dringen), en dicht ook
+// echt weg (visibility): niet voor te lezen en niet te bereiken. extra: andere
+// overgangen van hetzelfde element (left bij de blokjes).
+export function alleenOpen(open, extra) {
+  const st = { opacity: open ? 1 : 0, visibility: open ? 'visible' : 'hidden' };
+  if (zonderBeweging()) return extra ? Object.assign(st, { transition: 'none' }) : st;
+  const t = open ? 'opacity 260ms ease 170ms, visibility 0s linear 0s' : 'opacity 200ms ease, visibility 0s linear 200ms';
+  st.transition = extra ? extra + ', ' + t : t;
+  return st;
+}
+
 // Het hele paneel opnieuw tekenen (zie agenda-panel.jsx). Een bouwsteen die
 // zelf de toestand wijzigt (een invoerveld), vraagt het hierlangs.
 export const TekenContext = createContext(null);

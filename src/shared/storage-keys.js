@@ -43,4 +43,5 @@ export const PAGE_SESSION = {
 export const PANEL_LOCAL = {
   ROUTE_START: 'onsah.routeVertrekpunt',   // vertrekpunt voor Route van de dag
   TOUR_DONE: 'onsHelper.rondleiding.',     // + naam van de rondleiding: '1' als hij gezien is
+  WEEK_DETAIL: 'onsah.weekDetail',        // startscherm: knop Detail aan ('1') of uit
 };

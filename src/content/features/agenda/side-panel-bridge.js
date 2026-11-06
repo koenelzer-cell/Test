@@ -24,6 +24,7 @@ import { searchClientsForPlan, searchEmployeesForPlan } from './client-lookup.js
 import { createEvents, eventOptions } from './event-create.js';
 import { checkColleagues, checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
+import { weekDagenVoor } from './week-dagen.js';
 import { APP_CONFIG, choiceLabels, effectiveChoices } from '../../config/app-config.js';
 
 export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
@@ -288,6 +289,13 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Ophalen mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_WEEK_DAYS:
+          weekDagenVoor(msg.date, !!msg.vers).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Afspraken ophalen mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_PRODUCTION:
