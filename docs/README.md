@@ -26,6 +26,7 @@ documentatie aan in dezelfde commit als de code ("docs as code").
 
 | Document | Waarover |
 |---|---|
+| [gebruikers/handleiding.md](gebruikers/handleiding.md) | De volledige gebruikershandleiding, met schermafbeeldingen |
 | [gebruikers/snelstart.md](gebruikers/snelstart.md) | Installeren en de eerste keer gebruiken |
 | [gebruikers/faq.md](gebruikers/faq.md) | Veelgestelde vragen en wat te doen als iets niet werkt |
 
@@ -36,6 +37,21 @@ documentatie aan in dezelfde commit als de code ("docs as code").
 | [privacy/permissies-uitgelegd.md](privacy/permissies-uitgelegd.md) | Per permissie in gewone taal waarom de extensie hem nodig heeft |
 | [privacy/privacybeleid-basis.md](privacy/privacybeleid-basis.md) | Wat er in het privacybeleid en de winkelvermelding moet staan |
 
+## Als PDF
+
+De gebruikershandleiding en een technische documentatie (samengesteld uit
+README.md, de documenten in deze map en SECURITY.md) zijn als PDF te maken:
+
+```bash
+npm run build
+npm run docs:schermen   # schermafbeeldingen van het zijpaneel (nepgegevens) naar gebruikers/afbeeldingen/
+npm run docs:pdf        # release/ONSAgendahulp-<versie>-handleiding.pdf en -technische-documentatie.pdf
+```
+
+In een cloudsessie: `PW_CHROMIUM=/opt/pw-browsers/chromium` ervoor. De
+schermafbeeldingen gebruiken de nep-antwoorden van de e2e-tests
+(`e2e/nep-chrome.js`), dus geen echte cliëntgegevens.
+
 ## Onderhoud
 
 - Verandert er een permissie, een opslagsleutel of een verbinding naar buiten?
@@ -43,6 +59,7 @@ documentatie aan in dezelfde commit als de code ("docs as code").
   `privacy/permissies-uitgelegd.md`, `privacy/privacybeleid-basis.md` en
   `SECURITY.md`.
 - Verandert er iets dat medewerkers merken? Werk `README.md` (functies),
-  `CHANGELOG.md` en zo nodig `gebruikers/` bij.
+  `CHANGELOG.md` en zo nodig `gebruikers/` bij (de handleiding, en de
+  schermafbeeldingen met `npm run docs:schermen`).
 - `[INVULLEN: ...]` markeert iets dat nog ingevuld moet worden. Zoek er voor
   een release op: `grep -rn "INVULLEN" docs`.

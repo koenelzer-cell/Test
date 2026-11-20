@@ -19,6 +19,8 @@ npm test             # build, then all tests (node:test + jsdom, no browser or O
 npm run test:e2e     # build, then the side panel in real Chromium (Playwright, e2e/)
 npm run release      # bump patch version, build, check, test, zip -> ONSAgendahulp-x.y.z.zip
 npm run release -- --minor | --major | --dry
+npm run docs:schermen  # side panel screenshots for the user manual (fake data)
+npm run docs:pdf       # user manual + technical documentation as PDF in release/
 ```
 
 Single test file or test: build first (tests load `dist/`), then
