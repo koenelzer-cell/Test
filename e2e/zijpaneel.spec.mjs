@@ -108,6 +108,25 @@ for (const breedte of [340, 420]) {
       // ONS kijkt na nadat de lijst er staat; de waarschuwing komt er later bij.
       await expect(page.locator('[data-ons-overlap][data-start="09:30"]')).toHaveCount(1);
       await controleer(page, testInfo, 'plan-lijst');
+      // Eigen duur: het klokje en de regel met - en +; past ook op 340 px.
+      await page.locator('[data-plan-duur-eigen]').click();
+      await expect(page.locator('[data-plan-duur-waarde]')).toHaveText('2 u 30 m');
+      await page.locator('[data-plan-duur-plus]').click();
+      await expect(page.locator('[data-plan-duur-waarde]')).toHaveText('2 u 45 m');
+      await controleer(page, testInfo, 'plan-eigen-duur');
+      // Op de duur tikken: zelf typen, tot op de minuut; te lang geeft een uitleg.
+      await page.locator('[data-plan-duur-waarde]').click();
+      await expect(page.locator('[data-plan-duur-typen]')).toBeFocused();
+      await page.locator('[data-plan-duur-typen]').fill('9:30');
+      await page.locator('[data-plan-duur-typen]').press('Enter');
+      await expect(page.locator('[data-plan-duur-fout]')).toBeVisible();
+      await controleer(page, testInfo, 'plan-eigen-duur-fout');
+      await page.locator('[data-plan-duur-typen]').fill('0:20');
+      await page.locator('[data-plan-duur-typen]').press('Enter');
+      await expect(page.locator('[data-plan-duur-waarde]')).toHaveText('20 m');
+      await expect(page.locator('[data-plan-duur-fout]')).toHaveCount(0);
+      await page.locator('[data-plan-duur="60"]').click();
+      await expect(page.locator('[data-plan-duur-waarde]')).toHaveCount(0);
       await page.locator('[data-plan-meer]').click();
       await expect(page.locator('[data-plan-meer]')).toBeVisible();
       await controleer(page, testInfo, 'plan-meer-geladen');

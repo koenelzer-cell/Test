@@ -2,6 +2,17 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.327
+
+- Planhulp: met het klokje naast de duur kies je zelf hoe lang de afspraak
+  duurt, van 5 minuten tot 8 uur. Min en plus gaan per kwartier; tik op de
+  duur om hem zelf te typen, tot op de minuut (bijvoorbeeld 1:07 of 0:20).
+  Werkt in de lijst, de Weekplanning en bij Afspraak maken.
+- Weekplanning: de knop Vandaag is een zachte pil zonder rand en de pijlen om
+  te bladeren zijn dezelfde knoppen als bij Verhouding.
+- Afspraak maken: bij de uursoort staat bovenaan 'Geen uursoort'. Die staat
+  nooit vooraf aan; kies je hem, dan maakt de hulp de afspraak zonder uursoort.
+
 ## 1.6.326
 
 - Weekplanning met Detail uit is weer zoals vroeger: alle dagen even breed en

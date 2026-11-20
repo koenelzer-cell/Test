@@ -73,17 +73,21 @@ function reistijd(v) { const n = Math.round(Number(v)); return n > 0 ? Math.min(
 //   -> { event } of null als iets ontbreekt.
 // Niet cliëntgebonden: geen clients maar hourTypeId; de uursoort staat dan op
 // de afspraak zelf (hour_type_id) en client_present is false.
+// 'Geen uursoort' (zelf gekozen in de planhulp; ONS staat het toe): bij een
+// cliënt { id, geenUursoort: true }, niet cliëntgebonden spec.geenUursoort;
+// dan hour_type_id null. Zonder uursoort én zonder die keuze: onvolledig.
 export function buildEventPayload(spec, meta) {
   spec = spec || {};
   const start = spec.startMin, eind = start + spec.minutes;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(spec.date || '')) || !(start >= 0) || !(spec.minutes > 0) || eind >= 24 * 60) return null;
   const emp = (spec.employeeIds || []).map(Number).filter(function (x) { return x > 0; });
-  const zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
-  const cl = (spec.clients || []).filter(function (c) { return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0; });
+  const metUursoort = function (x) { return Number(x.hourTypeId) > 0 || x.geenUursoort === true; };
+  const zonderClient = !(spec.clients || []).length && metUursoort(spec);
+  const cl = (spec.clients || []).filter(function (c) { return c && Number(c.id) > 0 && metUursoort(c); });
   if (!emp.length) return null;
   if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
   const info = {};
-  cl.forEach(function (c) { info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] }; });
+  cl.forEach(function (c) { info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId) > 0 ? Number(c.hourTypeId) : null, care_order_external_id: null, activity_ids: [] }; });
   // Zelf ingevulde locatie (custom_location): gewone tekst, zoals het
   // formulier van ONS hem stuurt; dan geen locatie uit de lijst.
   const eigenLocatie = String(spec.customLocation == null ? '' : spec.customLocation).replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -103,7 +107,7 @@ export function buildEventPayload(spec, meta) {
     employees: [],
     group: null,
     groups: [],
-    hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
+    hour_type_id: zonderClient && Number(spec.hourTypeId) > 0 ? Number(spec.hourTypeId) : null,
     label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
     labels: [],
     location: null,

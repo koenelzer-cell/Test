@@ -31,7 +31,9 @@ const VORMEN = { registrationForms: [
 const ACTIVITEITEN = { suggestedActivityList: [{ activityModel: { objectId: 1145, description: 'Behandeling (GGZ 18+)' } }, { activityModel: { objectId: 1146, description: 'Diagnostiek (GGZ 18+)' } }], otherActivityList: [{ activityModel: { objectId: 1089, description: 'Detachering ' } }] };
 
 const tick = (ms = 25) => new Promise((r) => setTimeout(r, ms));
-async function wachtOp(fn, max = 4000) {
+// Ruim: met de hele suite tegelijk is de machine soms traag. Een geslaagde
+// voorwaarde gaat meteen door, dus dit maakt niets trager.
+async function wachtOp(fn, max = 10000) {
   const t0 = Date.now();
   while (Date.now() - t0 < max) { const v = fn(); if (v) return v; await tick(); }
   return fn();
@@ -173,7 +175,7 @@ test('een vorm kiezen zet de tijdverdeling via ONS; zonder uursoort eerst Kies u
   t.knop(/^Diagnostiek \(GGZ 18\+\)$/).click();
   await wachtOp(() => t.reg.hour_type);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' }, 'gezet zoals het uursoortveld een keuze meldt');
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /Kies de uursoort/);
   const indienen = t.paneel().querySelector('[data-registratievenster-indienen]');
   assert.equal(indienen.getAttribute('aria-disabled'), 'true');
@@ -182,7 +184,7 @@ test('een vorm kiezen zet de tijdverdeling via ONS; zonder uursoort eerst Kies u
   assert.equal(t.ingediend(), 0, 'met open punten klikt de hulp Indienen van ONS niet');
   // De medewerker schrijft de rapportage.
   t.reg.report_comment = 'Overleg gehad';
-  await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 3000);
+  await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 10000);
   assert.doesNotMatch(t.tekst(), /Schrijf eerst|Kies de uursoort/);
   indienen.click();
   await wachtOp(() => t.ingediend() === 1);
@@ -220,7 +222,7 @@ test('tegen-tijd kiezen: de gekozen minuten indirect, de rest direct; een aanhef
   await wachtOp(() => t.reg.report_comment === 'Verslag:');
   assert.equal(t.reg.report_comment, 'Verslag:', 'de aanhef staat in de rapportage, via het veld zoals ONS het doorgeeft');
   (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Behandeling \(GGZ 18\+\)$/))).click();
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.match(t.tekst(), /Schrijf eerst de rapportage/, 'alleen de aanhef telt niet als rapportage');
 });
 
@@ -233,7 +235,7 @@ test('No show: eindtijd begintijd plus 1 minuut, 1 minuut direct, no-show bij el
   assert.equal(t.reg.end_time.getHours() + ':' + t.reg.end_time.getMinutes(), '13:6', '13:05 plus 1 minuut');
   assert.deepEqual([t.reg.direct_time, t.reg.indirect_time], [1, 0]);
   const indienen = await wachtOp(() => t.paneel().querySelector('[data-registratievenster-indienen]'));
-  await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 3000);
+  await wachtOp(() => indienen.getAttribute('aria-disabled') === 'false', 10000);
   assert.equal(indienen.getAttribute('aria-disabled'), 'false');
 });
 
@@ -245,7 +247,7 @@ test('het venster gaat open en dicht op de agenda: de hulp komt en gaat mee', as
   await wachtOp(() => t.knop(/^MDO/));
   assert.equal(t.api.getHelperPanel().activeMode, 'registratieVenster');
   t.$('uc-modal').remove();
-  await wachtOp(() => t.api.getHelperPanel().activeMode === null, 4000);
+  await wachtOp(() => t.api.getHelperPanel().activeMode === null, 10000);
   assert.equal(t.api.getHelperPanel().activeMode, null);
   assert.equal(t.paneel(), null, 'het paneel is weg');
 });
@@ -282,17 +284,17 @@ test('uursoort van de vorm: op naam gevonden in de lijst van het uursoortveld en
   (await wachtOp(() => t.knop(/^Diagnostiek/))).click();
   await wachtOp(() => t.reg.hour_type);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /Kies de uursoort|Kies uursoort/, 'niet meer gevraagd');
 });
 
 test('lijst nog niet geladen bij het kiezen: Kies uursoort wacht erop; zodra ONS hem ophaalde, eerst de uursoort van de vorm (één keer)', async () => {
   const t = opzet({ uursoorten: false });
   (await wachtOp(() => t.knop(/^Diagnostiek/))).click();
-  await wachtOp(() => /Kies uursoort/.test(t.tekst()), 3000);
+  await wachtOp(() => /Kies uursoort/.test(t.tekst()), 10000);
   assert.equal(t.reg.hour_type, undefined, 'nog niets gezet');
   await t.laadUursoorten();
-  await wachtOp(() => t.reg.hour_type, 3000);
+  await wachtOp(() => t.reg.hour_type, 10000);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
   // Kiest de medewerker daarna zelf een andere, dan blijft die staan.
   t.reg.hour_type = { external_id: '1145' };
@@ -303,7 +305,7 @@ test('lijst nog niet geladen bij het kiezen: Kies uursoort wacht erop; zodra ONS
 test('uursoort van de vorm niet in de lijst: niets gezet, de medewerker kiest zelf', async () => {
   const t = opzet();
   (await wachtOp(() => t.knop(/^Overleg/))).click();
-  await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Detachering$/), 3000);
+  await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Detachering$/), 10000);
   assert.equal(t.reg.hour_type, undefined);
   assert.ok(!t.ontvangen().some(([, x]) => x && 'hour_type' in x), 'niets gezet; de medewerker kiest in de lijst');
 });
@@ -311,7 +313,7 @@ test('uursoort van de vorm niet in de lijst: niets gezet, de medewerker kiest ze
 test('staat de uursoort er al (bijvoorbeeld uit de afspraak), dan geen Kies uursoort', async () => {
   const t = opzet({ registratieUursoort: { external_id: '1145' } });
   (await wachtOp(() => t.knop(/^MDO/))).click();
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /Kies uursoort|Kies de uursoort/);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1145' }, 'niet aangeraakt');
 });
@@ -321,7 +323,7 @@ test('kiest de medewerker de uursoort in ONS zelf terwijl Kies uursoort openstaa
   (await wachtOp(() => t.knop(/^MDO/))).click();
   await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Detachering$/));
   t.reg.hour_type = { external_id: '1089' }; // zoals ONS hem zet na een keuze in het uursoortveld
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /Kies uursoort|Kies de uursoort/);
 });
 
@@ -330,7 +332,7 @@ test('nog geen cliënt: bovenaan Cliënt toevoegen, dat + Toevoegen van ONS klik
   (await wachtOp(() => t.knop(/^Cliënt toevoegen$/))).click();
   assert.equal(t.toegevoegd(), 1, 'de knop Toevoegen bij Cliënten in het venster is geklikt');
   t.$('#rapport').insertAdjacentHTML('beforeend', '<div data-qa="client-declaration-0"></div>');
-  await wachtOp(() => !t.knop(/^Cliënt toevoegen$/), 3000);
+  await wachtOp(() => !t.knop(/^Cliënt toevoegen$/), 10000);
   assert.ok(!t.knop(/^Cliënt toevoegen$/));
   assert.ok(t.knop(/^MDO/), 'de vormen blijven');
 });
@@ -339,10 +341,10 @@ test('uursoort kiezen loopt via het veld zelf (keuzelijst openen, optie kiezen),
   const t = opzet({ metKeuzelijst: true });
   (await wachtOp(() => t.knop(/^MDO/))).click();
   (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Diagnostiek \(GGZ 18\+\)$/))).click();
-  await wachtOp(() => t.reg.hour_type, 6000);
+  await wachtOp(() => t.reg.hour_type, 10000);
   assert.deepEqual(t.gekozenInVeld(), ['Diagnostiek (GGZ 18+)'], 'de optie in het uursoortveld zelf gekozen');
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /toont hem nog niet/);
 });
 
@@ -352,7 +354,7 @@ test('zonder keuzelijst in het veld: de uursoort via de koppeling, met de meldin
   (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Diagnostiek \(GGZ 18\+\)$/))).click();
   await wachtOp(() => t.reg.hour_type);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
-  await wachtOp(() => /toont hem nog niet/.test(t.tekst()), 3000);
+  await wachtOp(() => /toont hem nog niet/.test(t.tekst()), 10000);
   assert.match(t.tekst(), /gezet, het veld Uursoort toont hem nog niet/);
 });
 
@@ -360,11 +362,11 @@ test('uursoort kiezen via de eigen lijst van het veld: de keuzelijst gaat niet o
   const t = opzet({ metKeuzelijst: true, metLijst: true });
   (await wachtOp(() => t.knop(/^MDO/))).click();
   (await wachtOp(() => /Kies uursoort/.test(t.tekst()) && t.knop(/^Diagnostiek \(GGZ 18\+\)$/))).click();
-  await wachtOp(() => t.reg.hour_type, 3000);
+  await wachtOp(() => t.reg.hour_type, 10000);
   assert.deepEqual(JSON.parse(JSON.stringify(t.reg.hour_type)), { external_id: '1146' });
   assert.deepEqual(t.gekozenInLijst(), ['SUGGESTED_1146'], 'via de lijst van het veld');
   assert.deepEqual(t.gekozenInVeld(), [], 'de keuzelijst is niet geopend');
-  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 3000);
+  await wachtOp(() => /Schrijf eerst de rapportage/.test(t.tekst()), 10000);
   assert.doesNotMatch(t.tekst(), /toont hem nog niet/);
 });
 

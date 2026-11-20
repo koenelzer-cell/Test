@@ -103,8 +103,10 @@ export async function createEvents(events, post) {
       date: e.date, startMin: e.startMin, minutes: e.minutes, employeeIds: ids.concat(collegas),
       // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
       // de uursoort op de afspraak zelf.
-      clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]),
-      hourTypeId: e.nietClient === true ? e.hourTypeId : null, labelId: e.labelId, name: e.name,
+      // Per cliënt alleen id, uursoort en of er bewust geen uursoort is.
+      clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }])
+        .map(function (c) { return { id: c && c.id, hourTypeId: c && c.hourTypeId, geenUursoort: !!(c && c.geenUursoort === true) }; }),
+      hourTypeId: e.nietClient === true ? e.hourTypeId : null, geenUursoort: e.nietClient === true && e.geenUursoort === true, labelId: e.labelId, name: e.name,
       clientPresent: e.clientPresent !== false,
       travelBefore: e.travelBefore, travelAfter: e.travelAfter, locationId: e.locationId, customLocation: e.customLocation
     }, meta);

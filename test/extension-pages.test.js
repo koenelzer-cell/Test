@@ -1697,10 +1697,162 @@ test('zijpaneel: keuzelijst in hulpstijl - zoeken bij een lange lijst, pijltjes 
   document.querySelector('[data-paneel-titel]').dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
   assert.equal(document.querySelector('[data-keuze-lijst]'), null);
   assert.equal(knop().value, '108');
-  // De uursoort gebruikt dezelfde lijst, met Onlangs gebruikt en Toegestaan.
+  // De uursoort gebruikt dezelfde lijst, met Geen uursoort bovenaan (niet gekozen), Onlangs gebruikt en Toegestaan.
   await kiesClient(document, dom, 'dup0', 'Tamara');
   document.querySelector('[data-maak-uursoort="11142"]').click();
-  assert.deepEqual(lijstInhoud(document), ['Onlangs gebruikt: JW BG H10 Individuele BG midde']);
+  assert.deepEqual(lijstInhoud(document), [': Geen uursoort', 'Onlangs gebruikt: JW BG H10 Individuele BG midde']);
+});
+
+test('planhulp: eigen duur met het klokje, per kwartier tot 8 uur; ook in de Weekplanning en bij Afspraak maken', async () => {
+  const { document, dom, verzonden } = maakPaneel();
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  const klok = () => document.querySelector('[data-plan-duur-eigen]');
+  const waarde = () => document.querySelector('[data-plan-duur-waarde]');
+  assert.equal(klok().textContent, '', 'alleen een klokje');
+  assert.ok(klok().querySelector('svg'));
+  assert.equal(klok().getAttribute('aria-label'), 'Eigen duur');
+  assert.equal(waarde(), null, 'nog geen regel met - en +');
+  klok().click();
+  assert.equal(klok().getAttribute('aria-pressed'), 'true');
+  assert.equal(document.querySelector('[data-plan-duur="120"]').getAttribute('aria-pressed'), 'false');
+  assert.equal(waarde().textContent, '2 u 30 m');
+  assert.equal(zoek().minutes, 150, 'meteen gezocht met 2,5 uur');
+  const n = verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  document.querySelector('[data-plan-duur-plus]').click();
+  document.querySelector('[data-plan-duur-plus]').click();
+  assert.equal(waarde().textContent, '3 u', 'meteen in beeld');
+  assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').length, n, 'nog niet gezocht');
+  await new Promise((r) => setTimeout(r, 520));
+  assert.equal(zoek().minutes, 180, 'na even niets aanklikken: zoeken met 3 uur');
+  assert.equal(verzonden.filter((m) => m.type === 'ag-free-slots').length, n + 1, 'één keer');
+  // Het klokje blijft gekozen; bij 8 uur kan + niet verder.
+  for (let i = 0; i < 25; i++) document.querySelector('[data-plan-duur-plus]').click();
+  assert.equal(waarde().textContent, '8 u');
+  assert.equal(document.querySelector('[data-plan-duur-plus]').disabled, true);
+  await new Promise((r) => setTimeout(r, 520));
+  assert.equal(zoek().minutes, 480);
+  // Weekplanning: dezelfde duur.
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  assert.equal(zoek().minutes, 480, 'het raster zoekt ook met 8 uur');
+  assert.ok(waarde(), 'de regel staat er ook in de Weekplanning');
+  document.querySelector('[data-plan-duur-min]').click();
+  await new Promise((r) => setTimeout(r, 520));
+  await tick();
+  assert.equal(zoek().minutes, 465, 'het raster haalt opnieuw op');
+  // Een vaste keuze: de regel gaat weg.
+  document.querySelector('[data-plan-duur="60"]').click();
+  assert.equal(waarde(), null);
+  assert.equal(klok().getAttribute('aria-pressed'), 'false');
+  // Afspraak maken neemt de eigen duur over.
+  document.querySelector('[data-plan-weergave="lijst"]').click();
+  await tick();
+  klok().click();
+  await tick();
+  document.querySelector('[data-dag="2026-10-12"][data-start="10:00"]').click();
+  knop(document, 'Afspraak maken').click();
+  await tick();
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.startMin, e.minutes]), [[600, 150]]);
+});
+
+test('planhulp: eigen duur zelf typen tot op de minuut, ook korter dan een half uur; 2 uur blijft eigen', async () => {
+  const { document, dom, verzonden } = maakPaneel();
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  const win = dom.window;
+  const zoek = () => verzonden.filter((m) => m.type === 'ag-free-slots').at(-1);
+  const aantal = () => verzonden.filter((m) => m.type === 'ag-free-slots').length;
+  const klok = () => document.querySelector('[data-plan-duur-eigen]');
+  const waarde = () => document.querySelector('[data-plan-duur-waarde]');
+  const veld = () => document.querySelector('[data-plan-duur-typen]');
+  const fout = () => document.querySelector('[data-plan-duur-fout]');
+  const toets = (el, key) => el.dispatchEvent(new win.KeyboardEvent('keydown', { key, bubbles: true }));
+  klok().click();
+  assert.equal(zoek().minutes, 150);
+  // Op de tijd tikken: een veld met de duur om verder te typen.
+  waarde().click();
+  assert.ok(veld(), 'typveld');
+  assert.equal(waarde(), null);
+  assert.equal(veld().value, '2:30');
+  typ(veld(), '0:20');
+  toets(veld(), 'Enter');
+  await tick();
+  assert.equal(veld(), null, 'Enter neemt hem over');
+  assert.equal(waarde().textContent, '20 m');
+  assert.equal(zoek().minutes, 20, 'gezocht met 20 minuten');
+  // Plus vanaf 20 minuten: naar het volgende hele kwartier.
+  document.querySelector('[data-plan-duur-plus]').click();
+  assert.equal(waarde().textContent, '30 m');
+  await new Promise((r) => setTimeout(r, 520));
+  assert.equal(zoek().minutes, 30);
+  // Onzin of te lang: rood met uitleg, er wordt niet gezocht.
+  const n = aantal();
+  waarde().click();
+  typ(veld(), 'abc');
+  toets(veld(), 'Enter');
+  assert.ok(veld(), 'blijft typen');
+  assert.ok(fout(), 'uitleg');
+  assert.equal(veld().style.borderColor, 'rgb(163, 36, 31)', 'rode rand');
+  typ(veld(), '9:00');
+  assert.equal(fout(), null, 'uitleg weg zodra je typt');
+  toets(veld(), 'Enter');
+  assert.ok(fout(), 'langer dan 8 uur kan niet');
+  // Escape: terug zonder iets over te nemen.
+  toets(veld(), 'Escape');
+  assert.equal(veld(), null);
+  assert.equal(fout(), null);
+  assert.equal(waarde().textContent, '30 m');
+  assert.equal(aantal(), n, 'niet gezocht');
+  // Precies 2 uur getypt: het klokje blijft gekozen, de vaste keuze niet.
+  waarde().click();
+  typ(veld(), '2');
+  toets(veld(), 'Enter');
+  await tick();
+  assert.equal(zoek().minutes, 120);
+  assert.equal(waarde().textContent, '2 u');
+  assert.equal(klok().getAttribute('aria-pressed'), 'true');
+  assert.equal(document.querySelector('[data-plan-duur="120"]').getAttribute('aria-pressed'), 'false');
+  // 1 uur en 7 minuten werkt ook in de Weekplanning.
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  waarde().click();
+  typ(veld(), '1:07');
+  toets(veld(), 'Enter');
+  await tick();
+  assert.equal(waarde().textContent, '1 u 7 m');
+  assert.equal(zoek().minutes, 67, 'het raster zoekt met 67 minuten');
+});
+
+test('Afspraak maken: Geen uursoort bovenaan, niet vooraf gekozen; gekozen gaat de afspraak zonder uursoort naar ONS', async () => {
+  const { document, dom, verzonden } = maakPaneel();
+  await tweeMomenten(document);
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  const veld = () => document.querySelector('[data-maak-uursoort="11142"]');
+  assert.equal(veld().textContent, 'Uursoort', 'niets gekozen');
+  assert.ok(document.querySelector('[data-uursoort-ontbreekt="11142"]'), 'uitroepteken: nog kiezen');
+  assert.equal(document.querySelector('[data-maak-knop]').disabled, true);
+  veld().click();
+  const opties = [...document.querySelectorAll('[data-keuze-lijst] [role="option"]')];
+  assert.equal(opties[0].textContent, 'Geen uursoort', 'bovenaan');
+  assert.equal(opties[0].getAttribute('aria-selected'), 'false');
+  assert.equal(opties[0].style.color, 'rgb(107, 99, 103)', 'grijs');
+  opties[0].click();
+  assert.equal(veld().textContent, 'Geen uursoort');
+  assert.equal(document.querySelector('[data-uursoort-ontbreekt="11142"]'), null);
+  assert.equal(document.querySelector('[data-maak-knop]').disabled, false);
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => e.clients), [[{ id: '11142', hourTypeId: null, geenUursoort: true }], [{ id: '11142', hourTypeId: null, geenUursoort: true }]]);
 });
 
 const TYPES_BEHEER = [

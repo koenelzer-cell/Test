@@ -4,13 +4,18 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { AgendaPil, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, Schakelaar, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
+import { AgendaPil, CHEV_LINKS, CHEV_RECHTS, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, ICON_KLOK, ICON_MIN, ICON_PLUS, Icoon, Invoer, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, Schakelaar, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
 import { feestdagAnimatie, feestdagIcoonSvg, feestdagSlingerSvg, feestdagStijl } from './feestdagen.js';
 import { MaandKalender } from './kiezers.jsx';
 import { AfspraakBlokken, AfspraakLegenda } from './week-dagen.jsx';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
+import { DUUR_MAX, DUUR_MIN, duurInvoer, geldigeDuur, kwartierStap, leesDuur } from '../shared/duur.js';
 
 const PLAN_STAP = 24;
+// Duur: vaste keuzes, en met het klokje een eigen duur: min en plus per
+// kwartier, of op de tijd tikken en tot op de minuut typen (5 minuten tot 8 uur).
+const VASTE_DUUR = [[30, '30m', '30 minuten'], [45, '45m', '45 minuten'], [60, '1u', '1 uur'], [90, '1,5u', '1,5 uur'], [120, '2u', '2 uur']];
+const EIGEN_START = 150;
 // Meer laden: elke klik één week verder, zonder grens. Alleen dat nieuwe
 // stuk wordt opgehaald en onder de lijst gezet. Toonde de lijst nog niet
 // alles van de periode (afgekapt), dan vanaf de dag van het laatste blok,
@@ -173,6 +178,27 @@ export function maakPlanhulp(ctx) {
   }
   // Dagen aan- of uitvinken: meteen zichtbaar (filter in het paneel), het
   // nieuwe zoeken pas als je even niets meer aanklikt.
+  // Eigen duur met - en +: meteen in beeld, het nieuwe zoeken pas als je even
+  // niets meer aanklikt (anders bij elke tik een zoekactie).
+  let duurTimer = null;
+  function eigenDuur(m) {
+    ctx.plan.eigenKlad = Math.max(DUUR_MIN, Math.min(DUUR_MAX, m));
+    renderPagina();
+    clearTimeout(duurTimer);
+    duurTimer = setTimeout(function () {
+      if (ctx.plan.eigenKlad == null) return;
+      ctx.plan.minutes = ctx.plan.eigenKlad; ctx.plan.eigenKlad = null;
+      ctx.plan.result = null; ctx.plan.limit = PLAN_STAP; startPlan();
+    }, 450);
+  }
+  // De getypte duur overnemen: goed, dan meteen zoeken; anders rood en blijven typen.
+  function duurGetypt() {
+    const m = leesDuur(ctx.plan.eigenTekst);
+    if (!geldigeDuur(m)) { ctx.plan.eigenFout = true; renderPagina(); return; }
+    ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; ctx.plan.eigenKlad = null;
+    if (m === ctx.plan.minutes) { renderPagina(); return; }
+    ctx.plan.minutes = m; ctx.plan.result = null; ctx.plan.limit = PLAN_STAP; startPlan();
+  }
   let dagenTimer = null;
   function dagenGewijzigd() {
     renderPagina();
@@ -373,9 +399,57 @@ export function maakPlanhulp(ctx) {
           extra={Object.assign({ flex: '1 1 0', minWidth: '0', height: '30px', fontSize: '12.5px', border: '1px solid ' + (aan ? T.brand : T.line) }, extra)} {...props} />
       );
     };
-    instRij('Duur', [[30, '30m', '30 minuten'], [45, '45m', '45 minuten'], [60, '1u', '1 uur'], [90, '1,5u', '1,5 uur'], [120, '2u', '2 uur']].map(function (d) {
-      return keuze(d[0], d[1], d[2], ctx.plan.minutes === d[0], function () { ctx.plan.minutes = d[0]; opnieuw(); }, ['data-plan-duur', String(d[0])]);
-    }));
+    // Duur: de vaste keuzes en een klokje voor een eigen duur. Met het klokje
+    // gekozen (of een duur die geen vaste keuze is) staat eronder een regel
+    // met - en + per kwartier; daar staat de duur. Lijst en Weekplanning
+    // zoeken allebei met deze duur.
+    const vast = VASTE_DUUR.some(function (d) { return d[0] === ctx.plan.minutes; });
+    const eigen = !!ctx.plan.eigenOpen || !vast;
+    instRij('Duur', VASTE_DUUR.map(function (d) {
+      return keuze(d[0], d[1], d[2], !eigen && ctx.plan.minutes === d[0], function () {
+        clearTimeout(duurTimer); ctx.plan.eigenKlad = null; ctx.plan.eigenOpen = false; ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; ctx.plan.minutes = d[0]; opnieuw();
+      }, ['data-plan-duur', String(d[0])]);
+    }).concat([keuze('eigen', '', 'Eigen duur', eigen, function () {
+      if (eigen) return;
+      ctx.plan.eigenOpen = true; ctx.plan.minutes = EIGEN_START; opnieuw();
+    }, ['data-plan-duur-eigen', ''], { flex: '0 0 auto', minWidth: '34px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+    { 'aria-expanded': eigen ? 'true' : 'false', children: <Icoon d={ICON_KLOK} size={16} /> })]));
+    if (eigen) {
+      const nu = ctx.plan.eigenKlad != null ? ctx.plan.eigenKlad : ctx.plan.minutes;
+      const stap = function (teken, label, attr, uit) {
+        return (
+          <KaleKnop key={attr} {...{ [attr]: '' }} aria-label={label} title={label} disabled={uit} onClick={function () { eigenDuur(kwartierStap(nu, teken === '+' ? 1 : -1)); }}
+            style={{ flex: '0 0 auto', width: '36px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '1px solid ' + (uit ? T.line : T.brand), backgroundColor: '#fff', color: uit ? '#b9b0b4' : T.brand, cursor: uit ? 'default' : 'pointer', padding: '0' }}>
+            <Icoon d={teken === '+' ? ICON_PLUS : ICON_MIN} size={16} />
+          </KaleKnop>
+        );
+      };
+      instRij('Eigen', [
+        stap('-', 'Korter', 'data-plan-duur-min', nu <= DUUR_MIN),
+        // Op de tijd tikken: zelf typen, tot op de minuut (Enter of ernaast
+        // klikken neemt hem over, Escape niet).
+        ctx.plan.eigenTypen ? (
+          <span key="typ" style={{ flex: '1 1 auto', minWidth: '0', display: 'flex' }}>
+            <Invoer waarde={ctx.plan.eigenTekst || ''} onWaarde={function (v) { ctx.plan.eigenTekst = v; ctx.plan.eigenFout = false; }} autoFocus
+              aria-label="Duur, uren en minuten" placeholder="2:45" data-plan-duur-typen="" autoComplete="off" inputMode="numeric"
+              onKeyDown={function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); duurGetypt(); }
+                if (e.key === 'Escape') { e.preventDefault(); ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; renderPagina(); }
+              }}
+              onBlur={function () { if (ctx.plan.eigenTypen) duurGetypt(); }}
+              style={{ textAlign: 'center', font: '700 15px ' + FONT, border: '1px solid ' + (ctx.plan.eigenFout ? T.bad : T.line) }} />
+          </span>
+        ) : (
+          <KaleKnop key="duur" data-plan-duur-waarde="" aria-live="polite" aria-label={'Duur ' + fmtMin(nu) + ', zelf invullen'} title="Tik om de duur zelf in te vullen, tot op de minuut"
+            onClick={function () { clearTimeout(duurTimer); ctx.plan.eigenTekst = duurInvoer(nu); ctx.plan.eigenTypen = true; ctx.plan.eigenFout = false; renderPagina(); }}
+            style={{ flex: '1 1 auto', minWidth: '0', height: '32px', border: '0', borderRadius: '8px', backgroundColor: 'transparent', cursor: 'text', fontSize: '15px', fontWeight: '700', color: T.ink, fontVariantNumeric: 'tabular-nums', padding: '0' }}>{fmtMin(nu)}</KaleKnop>
+        ),
+        stap('+', 'Langer', 'data-plan-duur-plus', nu >= DUUR_MAX)
+      ]);
+      if (ctx.plan.eigenFout) {
+        rijen.push(<div key="duurfout" data-plan-duur-fout="" style={{ fontSize: '11.5px', color: T.bad, padding: '0 0 8px 62px', marginTop: '-6px' }}>Bijvoorbeeld 2:45 of 0:20, tussen 0:05 en 8:00.</div>);
+      }
+    }
     if (lijst) {
       const per = [[1, '1 wk', '1 week'], [2, '2 wk', '2 weken'], [4, '4 wk', '4 weken']].map(function (w) {
         return keuze(w[0], w[1], w[2], !ctx.plan.tot && !ctx.plan.totOpen && ctx.plan.weeks === w[0], function () { ctx.plan.weeks = w[0]; ctx.plan.tot = ''; ctx.plan.totOpen = false; opnieuw(); }, ['data-plan-weken', String(w[0])]);
@@ -603,11 +677,17 @@ export function maakPlanhulp(ctx) {
       renderPagina();
     };
     // Weeknavigatie: vooruit zonder maximum.
-    const pijl = function (tekst, delta, attr) {
+    // Zelfde pijlknoppen als bij Verhouding: rond vlak bij hover, het pijlicoon van het zijpaneel.
+    const pijl = function (delta, attr) {
       const verborgen = delta < 0 && ctx.plan.rasterWeek <= huidigeWeek;
+      const label = delta < 0 ? 'Vorige week' : 'Volgende week';
       return (
-        <button type="button" {...{ [attr]: '' }} aria-label={delta < 0 ? 'Vorige week' : 'Volgende week'} onClick={function () { naarWeek(delta); }}
-          style={{ border: '0', background: 'transparent', color: T.ink, cursor: 'pointer', font: '700 16px ' + FONT, padding: '0 6px', visibility: verborgen ? 'hidden' : 'visible' }}>{tekst}</button>
+        <KaleKnop {...{ [attr]: '' }} aria-label={label} title={label} tabIndex={verborgen ? -1 : undefined} hoverStijl={{ backgroundColor: T.lineSoft }}
+          onClick={function () { naarWeek(delta); }}
+          style={{ flex: 'none', width: '32px', height: '32px', padding: '0', border: '0', borderRadius: '8px', backgroundColor: 'transparent', color: T.ink, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', visibility: verborgen ? 'hidden' : 'visible' }}>
+          <Icoon d={delta < 0 ? CHEV_LINKS : CHEV_RECHTS} size={22} />
+        </KaleKnop>
       );
     };
     // Vandaag: terug naar de huidige week (grijs als je daar al bent).
@@ -733,20 +813,19 @@ export function maakPlanhulp(ctx) {
     return (
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0 6px' }}>
-          {pijl('‹', -1, 'data-week-terug')}
+          {pijl(-1, 'data-week-terug')}
           {/* 'Week 42' met eronder '12 tot en met 16 oktober'. */}
           <div data-week-titel="" style={{ textAlign: 'center', flex: '1 1 auto', minWidth: '0' }}>
             <div style={{ fontWeight: '700', fontSize: '13px', color: T.ink }}>{'Week ' + isoWeek(ctx.plan.rasterWeek)}</div>
             <div style={{ fontSize: '11.5px', color: T.inkSoft }}>{werkweekNl(ctx.plan.rasterWeek, true)}</div>
           </div>
-          {pijl('›', 1, 'data-week-verder')}
+          {pijl(1, 'data-week-verder')}
+          {/* Vandaag als zachte pil zonder rand; in de week van vandaag grijs en uit. */}
           <KaleKnop disabled={hier} data-week-vandaag="" title={hier ? 'Je bekijkt de week van vandaag' : 'Naar de week van vandaag'}
+            hoverStijl={hier ? null : { backgroundColor: '#f9e0ee' }}
             onClick={function () { if (ctx.plan.rasterWeek !== huidigeWeek) { ctx.plan.rasterWeek = huidigeWeek; ctx.plan.rasterOpen = ''; renderPagina(); } }}
-            style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 9px', marginLeft: '4px', whiteSpace: 'nowrap',
-              border: '1px solid ' + (hier ? T.line : T.brand), borderRadius: '8px', background: '#fff', color: hier ? '#b9b0b4' : T.brand, font: '600 12px ' + FONT, cursor: hier ? 'default' : 'pointer' }}>
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <rect x="2" y="3" width="12" height="11" rx="2" /><path d="M2 7h12M5 1.5v3M11 1.5v3" /><circle cx="8" cy="10.5" r="1.4" fill="currentColor" stroke="none" />
-            </svg>
+            style={{ flex: 'none', height: '28px', padding: '0 12px', marginLeft: '6px', whiteSpace: 'nowrap', border: '0', borderRadius: '14px',
+              backgroundColor: hier ? T.lineSoft : T.brandWash, color: hier ? '#b9b0b4' : T.brand, font: '600 12px ' + FONT, cursor: hier ? 'default' : 'pointer' }}>
             Vandaag
           </KaleKnop>
         </div>

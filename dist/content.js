@@ -3437,7 +3437,7 @@
     AGENDA_EVENT_OPTIONS: "ag-event-options",
     // { clientIds, medewerker?, locaties? } -> { ok, labels: [{ id, name }], hourTypes: { clientId: [{ id, name, recent }] }, metaKnown, employeeHourTypes?, locations?: [{ id, name, groep, kan }], locationsError? }
     AGENDA_CREATE_EVENTS: "ag-create-events",
-    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
+    // { events: [{ date, startMin, minutes, clients: [{ id, hourTypeId, geenUursoort? }], labelId, locationId?, customLocation?, medewerkers?, name, travelBefore, travelAfter }] } -> { ok, results: [{ ok, error? }] }
     AGENDA_RELOAD: "ag-reload",
     //                 agenda verversen (na afspraken maken)
     AGENDA_CLIENT_SEARCH: "ag-client-search",
@@ -7410,15 +7410,18 @@
     const emp = (spec.employeeIds || []).map(Number).filter(function(x) {
       return x > 0;
     });
-    const zonderClient = !(spec.clients || []).length && Number(spec.hourTypeId) > 0;
+    const metUursoort = function(x) {
+      return Number(x.hourTypeId) > 0 || x.geenUursoort === true;
+    };
+    const zonderClient = !(spec.clients || []).length && metUursoort(spec);
     const cl = (spec.clients || []).filter(function(c) {
-      return c && Number(c.id) > 0 && Number(c.hourTypeId) > 0;
+      return c && Number(c.id) > 0 && metUursoort(c);
     });
     if (!emp.length) return null;
     if (!zonderClient && (!cl.length || cl.length !== (spec.clients || []).length)) return null;
     const info = {};
     cl.forEach(function(c) {
-      info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId), care_order_external_id: null, activity_ids: [] };
+      info[Number(c.id)] = { hour_type_id: Number(c.hourTypeId) > 0 ? Number(c.hourTypeId) : null, care_order_external_id: null, activity_ids: [] };
     });
     const eigenLocatie = String(spec.customLocation == null ? "" : spec.customLocation).replace(/\s+/g, " ").trim().slice(0, 200);
     const locatieId = !eigenLocatie && /^\d{1,12}$/.test(String(spec.locationId == null ? "" : spec.locationId)) && Number(spec.locationId) > 0 ? Number(spec.locationId) : null;
@@ -7439,7 +7442,7 @@
       employees: [],
       group: null,
       groups: [],
-      hour_type_id: zonderClient ? Number(spec.hourTypeId) : null,
+      hour_type_id: zonderClient && Number(spec.hourTypeId) > 0 ? Number(spec.hourTypeId) : null,
       label_ids: Number(spec.labelId) > 0 ? [Number(spec.labelId)] : [],
       labels: [],
       location: null,
@@ -9684,8 +9687,12 @@
         employeeIds: ids.concat(collegas),
         // Eén of meer cliënten, elk met een eigen uursoort; of geen cliënt en
         // de uursoort op de afspraak zelf.
-        clients: e.nietClient === true ? [] : Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }],
+        // Per cliënt alleen id, uursoort en of er bewust geen uursoort is.
+        clients: e.nietClient === true ? [] : (Array.isArray(e.clients) ? e.clients.slice(0, 10) : [{ id: e.clientId, hourTypeId: e.hourTypeId }]).map(function(c) {
+          return { id: c && c.id, hourTypeId: c && c.hourTypeId, geenUursoort: !!(c && c.geenUursoort === true) };
+        }),
         hourTypeId: e.nietClient === true ? e.hourTypeId : null,
+        geenUursoort: e.nietClient === true && e.geenUursoort === true,
         labelId: e.labelId,
         name: e.name,
         clientPresent: e.clientPresent !== false,

@@ -702,8 +702,18 @@ en oker).
 - **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder een compacte tabel met drie regels: Duur
-  (30m, 45m, 1u, 1,5u, 2u), Vooruit (1, 2 of 4 wk, of het kalendertje voor een
-  eigen datum) en Dagen. Per regel staat het label links en de keuzes even
+  (30m, 45m, 1u, 1,5u, 2u en een klokje voor een eigen duur), Vooruit (1, 2 of
+  4 wk, of het kalendertje voor een eigen datum) en Dagen. Het klokje kiest
+  2 u 30 m en zet eronder een regel 'Eigen' met min en plus: naar het vorige
+  of volgende hele kwartier (van 20 m naar 30 m of 15 m), van 5 minuten tot
+  8 uur. Daar staat de gekozen duur; tik je erop, dan typ je hem zelf, tot op
+  de minuut ('1:07', '0:20', '2,5', '45m' of '3' voor 3 uur). Enter of
+  ernaast klikken neemt hem over, Escape niet; onzin of langer dan 8 uur
+  geeft een rode rand met een voorbeeld. Het klokje blijft roze zolang de
+  regel open is, ook bij een duur die ook een vaste keuze is (zoals 2 uur).
+  De duur staat meteen in beeld, het zoeken volgt als je even niets meer
+  aanklikt. Lijst, Weekplanning en Afspraak maken gebruiken dezelfde duur.
+  Een tik op een vaste duur haalt de regel weer weg. Per regel staat het label links en de keuzes even
   breed op één regel; gekozen is roze, ook bij de dagen. Voluit staat in
   aria-label en title. Het kalendertje klapt onder de tabel een maandkalender
   open ('Zoek tot en met'); een dag kiezen zoekt meteen en klapt hem dicht, de
@@ -737,8 +747,9 @@ en oker).
   10:30 tot 12:00') de begintijden er direct onder (eerste 8, 'Nog n tijden' voor de
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
   tikken = loslaten, ook over meerdere dagen. *Weekplanning*: een mini-agenda
-  ma-vr per week (bladeren met ‹ ›, de knop 'Vandaag' brengt je terug naar
-  de huidige week; vandaag heeft een roze kop, wat al voorbij is staat
+  ma-vr per week (bladeren met de pijlknoppen links en rechts van de week, de
+  zachtroze pil 'Vandaag' brengt je terug naar de huidige week en is grijs als
+  je die al bekijkt; vandaag heeft een roze kop, wat al voorbij is staat
   gestreept en een dunne roze lijn met stip toont het huidige tijdstip): grijs bezet, groen vrij, oranje
   reservering, roze gekozen. Eén dag staat open en breed (eerst de eerste dag
   met vrije tijd), met 'van tot' in het groen; de andere dagen zijn smal, met
@@ -895,7 +906,12 @@ en oker).
   kopje ('Onlangs gebruikt', 'Toegestaan'; bij locaties de groep uit ONS),
   de gekozen keuze in roze met een vinkje en grijs wat niet te kiezen is.
   Vanaf negen keuzes staat er een zoekveld boven. Pijltjes en Enter kiezen,
-  Escape of ernaast klikken sluit de lijst.
+  Escape of ernaast klikken sluit de lijst. Bij de uursoort (per cliënt en bij
+  een niet-cliëntgebonden afspraak) staat bovenaan **Geen uursoort**, in grijs.
+  Die is nooit vooraf gekozen: zolang er niets gekozen is, staat het
+  uitroepteken er en kan Afspraak maken in ONS niet. Gekozen gaat de afspraak
+  zonder uursoort naar ONS (`hour_type_id` leeg; dat staat ONS toe). Via het
+  ONS Afspraakformulier wordt bij Geen uursoort niets ingevuld.
 - **Medewerkers** (kaart bij Afspraak maken, onder Voor alle afspraken): 'Jij'
   (of 'n open agenda's') en de collega's die je erbij zet. Met **+ Medewerker**
   zoek je een collega op naam, met dezelfde zoekfunctie als ONS bij

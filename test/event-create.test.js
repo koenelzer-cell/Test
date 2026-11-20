@@ -84,3 +84,21 @@ test('cliënten niet aanwezig: client_present false, standaard true', () => {
   assert.equal(buildEventPayload(basis).event.client_present, true);
   assert.equal(buildEventPayload({ ...basis, clientPresent: false }).event.client_present, false);
 });
+
+test('Geen uursoort (zelf gekozen): cliënt zonder uursoort en niet cliëntgebonden zonder uursoort; zonder die keuze onvolledig', () => {
+  const basis = { date: '2026-11-24', startMin: 600, minutes: 150, employeeIds: ['42479'], labelId: 47, name: 'Afspraak' };
+  const met = buildEventPayload(Object.assign({ clients: [{ id: '11142', geenUursoort: true }, { id: '333', hourTypeId: 5 }] }, basis));
+  assert.deepEqual(met.event.client_ids, [11142, 333]);
+  assert.deepEqual(met.event.client_information['11142'], { hour_type_id: null, care_order_external_id: null, activity_ids: [] });
+  assert.equal(met.event.client_information['333'].hour_type_id, 5);
+  assert.equal(met.event.hour_type_id, null);
+  // Zonder uursoort en zonder de keuze Geen uursoort: onvolledig, zoals altijd.
+  assert.equal(buildEventPayload(Object.assign({ clients: [{ id: '11142' }] }, basis)), null);
+  assert.equal(buildEventPayload(Object.assign({ clients: [{ id: '11142', hourTypeId: 0, geenUursoort: 'ja' }] }, basis)), null, 'alleen echt true telt');
+  // Niet cliëntgebonden zonder uursoort.
+  const nc = buildEventPayload(Object.assign({ clients: [], geenUursoort: true }, basis));
+  assert.deepEqual([nc.event.client_ids, nc.event.hour_type_id, nc.event.client_present], [[], null, false]);
+  assert.equal(buildEventPayload(Object.assign({ clients: [] }, basis)), null);
+  // Langer dan 2 uur: gewoon (tot 2,5 uur hier).
+  assert.match(met.event.end_time, /T12:30:00/);
+});

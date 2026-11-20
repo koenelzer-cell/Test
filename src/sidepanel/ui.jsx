@@ -169,6 +169,10 @@ export const ICON_ROUTE = 'M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 
 // Vraagteken in een rondje (rondleiding).
 export const ICON_HELP = 'M11 18h2v-2h-2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5a4 4 0 0 0-4-4z';
 export const ICON_RATIO = 'M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0h10v4H11z';
+// Klok (eigen duur in de planhulp), min en plus (een kwartier korter of langer).
+export const ICON_KLOK = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 3v6.4l4.6 2.8 1-1.7-3.6-2.2V7z';
+export const ICON_MIN = 'M5 11h14v2H5z';
+export const ICON_PLUS = 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z';
 export const ICON_KALENDER = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5z';
 
 /* ── Bouwstenen ────────────────────────────────────────────────────────── */
@@ -380,7 +384,7 @@ function MenuOptie({ o, gekozen, actief, onKies }) {
     <div role="option" aria-selected={gekozen ? 'true' : 'false'} aria-disabled={o.uit ? 'true' : undefined} data-optie={String(o.id)} {...hover}
       onMouseDown={function (e) { e.preventDefault(); }} onClick={o.uit ? undefined : onKies}
       style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', cursor: o.uit ? 'default' : 'pointer', borderTop: o.apart ? '1px solid ' + T.line : '0',
-        background: licht ? T.brandWash : 'transparent', color: o.uit ? '#b3aaae' : gekozen ? T.brand : T.ink, fontSize: '13px', lineHeight: '1.3', fontWeight: gekozen ? '600' : '400' }}>
+        background: licht ? T.brandWash : 'transparent', color: o.uit ? '#b3aaae' : gekozen ? T.brand : o.zacht ? T.inkSoft : T.ink, fontSize: '13px', lineHeight: '1.3', fontWeight: gekozen ? '600' : '400' }}>
       <span style={{ flex: '1 1 auto', minWidth: '0' }}>{o.name}</span>
       {o.noot ? <span style={{ flex: '0 0 auto', fontSize: '11px', color: T.inkSoft, fontWeight: '400' }}>{o.noot}</span> : null}
       {gekozen ? <Icoon d={VINK} size={14} style={{ flex: '0 0 auto' }} /> : null}
@@ -393,7 +397,7 @@ function MenuOptie({ o, gekozen, actief, onKies }) {
 // in roze met een vinkje, grijs wat niet te kiezen is (uit), een lijn boven
 // een keuze apart. Vanaf zoekVanaf keuzes eerst een zoekveld. Pijltjes,
 // Enter en Escape werken; klikken ernaast sluit de lijst.
-//   opties: [{ id, name, groep?, uit?, noot?, apart? }]
+//   opties: [{ id, name, groep?, uit?, noot?, apart?, zacht? (grijs, zoals 'Geen uursoort') }]
 //   leeg: tekst zonder keuze; leegKiesbaar: ook als keuze bovenaan.
 //   stijl: voor het vak om het veld (breedte); de rest (data-*, aria-label)
 //   komt op het veld zelf, met value = de keuze.

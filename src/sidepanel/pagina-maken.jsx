@@ -64,6 +64,10 @@ function KaartKnop({ icoon, tekst, kleur, vol, onClick, ...rest }) {
 function clientsVan(mk, it) { return mk.nietClient ? [] : (mk.modus === 'dup' ? mk.clients : it.clients).filter(function (c) { return c.clientId; }); }
 // Niet cliëntgebonden afspraak: alleen een uursoort (uit de lijst van de
 // medewerker zonder cliënt); de naam van de afspraak is die uursoort.
+// 'Geen uursoort': een eigen keuze bovenaan de uursoortlijst, nooit vooraf
+// gekozen. De afspraak gaat dan zonder uursoort naar ONS (dat mag in ONS).
+const GEEN_UURSOORT = 'geen';
+const GEEN_OPTIE = { id: GEEN_UURSOORT, name: 'Geen uursoort', zacht: true };
 function ncNaam(mk) { const t = (Array.isArray(mk.ncTypes) ? mk.ncTypes : []).filter(function (x) { return String(x.id) === String(mk.ncUursoort); })[0]; return t ? t.name : ''; }
 // Titel: eigen titel van deze afspraak, anders (Zelfde cliënt(en)) de titel
 // voor alle afspraken, anders type en voornamen.
@@ -562,7 +566,7 @@ export function maakAfspraakMaken(ctx) {
       );
     };
     if (uursoort) return <div key={sleutel}>{rij(uursoort)}</div>;
-    const opts = types.map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Toegestaan' }; });
+    const opts = [GEEN_OPTIE].concat(types.map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Toegestaan' }; }));
     // Nog geen uursoort: een uitroepteken achter het veld.
     const ontbreekt = (
       <span title="Kies een uursoort" data-uursoort-ontbreekt={mk.uursoort[c.clientId] ? undefined : c.clientId}
@@ -633,7 +637,7 @@ export function maakAfspraakMaken(ctx) {
       if (mk.ncTypes === 'laden' || mk.ncTypes == null) uursoort = ncRij(<span style={{ fontSize: '12px', color: T.inkSoft }}>uursoorten…</span>);
       else if (!mk.ncTypes.length) uursoort = ncRij(<span data-maak-nc-leeg="" style={{ fontSize: '12px', color: T.warn, fontWeight: '600' }}>{mk.ncFout || 'ONS geeft geen uursoorten zonder cliënt.'}</span>);
       else {
-        const ncOpts = mk.ncTypes.map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Uursoorten' }; });
+        const ncOpts = [GEEN_OPTIE].concat(mk.ncTypes.map(function (t) { return { id: t.id, name: t.name, groep: t.recent ? 'Onlangs gebruikt' : 'Uursoorten' }; }));
         uursoort = (
           <KeuzeMenu data-maak-nc-uursoort="" opties={ncOpts} waarde={mk.ncUursoort || ''} leeg="Kies een uursoort" aria-label="Uursoort" onKies={function (v) { mk.ncUursoort = v; renderPagina(); }}>
             {function (veld, lijst) { return <>{ncRij(veld)}{lijst}</>; }}
@@ -931,9 +935,15 @@ export function maakAfspraakMaken(ctx) {
     const lijst = mk.items.map(function (it) {
       const mee = meeMet(mk, it);
       const extra = Object.assign({}, mee.length ? { medewerkers: mee } : null, locatieVoorOns(mk, it));
-      if (mk.nietClient) return Object.assign({ date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' }, extra);
+      if (mk.nietClient) {
+        const geen = mk.ncUursoort === GEEN_UURSOORT;
+        return Object.assign({ date: it.date, startMin: it.startMin, minutes: it.minutes, nietClient: true, hourTypeId: geen ? null : Number(mk.ncUursoort), name: ncNaam(mk) || 'Afspraak' }, geen ? { geenUursoort: true } : null, extra);
+      }
       return Object.assign(extra, { date: it.date, startMin: it.startMin, minutes: it.minutes,
-        clients: clientsVan(mk, it).map(function (c) { return { id: c.clientId, hourTypeId: Number(mk.uursoort[c.clientId]) }; }),
+        clients: clientsVan(mk, it).map(function (c) {
+          const u = mk.uursoort[c.clientId];
+          return u === GEEN_UURSOORT ? { id: c.clientId, hourTypeId: null, geenUursoort: true } : { id: c.clientId, hourTypeId: Number(u) };
+        }),
         labelId: it.labelId ? Number(it.labelId) : null, name: String(titelVan(mk, it) || '').trim() || 'Afspraak',
         clientPresent: aanwezigVan(mk, it),
         travelBefore: reisVan(mk, it) ? it.reisHeen || 0 : 0, travelAfter: reisVan(mk, it) ? it.reisTerug || 0 : 0 });
@@ -960,12 +970,12 @@ export function maakAfspraakMaken(ctx) {
       const naam = !mk.nietClient && it.labelId ? typeNaamVan(mk, it.labelId) : '';
       if (naam) uit.label = { id: Number(it.labelId), name: naam };
       if (mk.nietClient) {
-        if (mk.ncUursoort) uit.uursoortAfspraak = { hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) };
+        if (mk.ncUursoort && mk.ncUursoort !== GEEN_UURSOORT) uit.uursoortAfspraak = { hourTypeId: Number(mk.ncUursoort), name: ncNaam(mk) };
         return uit;
       }
       const us = clientsVan(mk, it).map(function (c) {
         const id = mk.uursoort[c.clientId];
-        if (!id) return null;
+        if (!id || id === GEEN_UURSOORT) return null;
         const t = (Array.isArray(mk.hourTypes[c.clientId]) ? mk.hourTypes[c.clientId] : []).filter(function (x) { return String(x.id) === String(id); })[0];
         return { clientId: String(c.clientId), hourTypeId: Number(id), name: t ? t.name : '' };
       }).filter(Boolean);

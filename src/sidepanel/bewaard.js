@@ -77,7 +77,7 @@ export function legeResultaten() {
   BEWAARD.range = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '', afgewerkt: {}, bijwerken: false, laatst: 0 };
   BEWAARD.prod = { from: '', to: '', busy: false, done: 0, total: 0, result: null, error: '' };
   BEWAARD.ratio = { offset: 0, busy: false, result: null, error: '', voor: '' };
-  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: '' };
+  BEWAARD.plan = { minutes: BEWAARD.plan ? BEWAARD.plan.minutes : 60, eigenOpen: BEWAARD.plan ? !!BEWAARD.plan.eigenOpen : false, weeks: BEWAARD.plan ? BEWAARD.plan.weeks : 2, tot: BEWAARD.plan ? BEWAARD.plan.tot : '', dagen: BEWAARD.plan ? BEWAARD.plan.dagen : null, busy: false, result: null, error: '' };
   BEWAARD.momenten = [];
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
