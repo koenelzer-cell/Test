@@ -16,7 +16,7 @@ export function maakSnelRegistreren(ctx) {
       <div>
         <Txt kind="help" style={{ margin: '0 2px 10px' }}>Opent het registratieformulier van ONS met datum en tijd ingevuld. Voor een afspraak: open de afspraak zelf, dan wordt de registratie eraan gekoppeld.</Txt>
         {/* Datum, begintijd en duur in één kaart; onderin wat er geopend wordt. */}
-        <Kaart>
+        <Kaart data-tour="snel-moment">
           <KiezerGroep>{function (k) {
             return (
               <>
@@ -29,7 +29,7 @@ export function maakSnelRegistreren(ctx) {
             );
           }}</KiezerGroep>
           {/* Duur als chips; daarnaast een eigen aantal minuten. */}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+          <div data-tour="snel-duur" style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
             <FieldLabel tekst="Duur">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 {VAST.map(function (m) {

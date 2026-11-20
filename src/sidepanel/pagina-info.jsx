@@ -4,7 +4,7 @@
 // zijpaneel, live) en Formulier (wat de hulp via het ONS-formulier deed, met
 // de reden als dat niet lukte).
 
-import { ChipKnop, HulpRij, ICON_HELP, ICON_PLAN, Invoer, Knop, Regel, SectionHead, T, Txt } from './ui.jsx';
+import { ChipKnop, Invoer, Knop, Regel, SectionHead, T, Txt } from './ui.jsx';
 import { isDebugWachtwoord, debugWachtwoordSoort, klopOudDebugWachtwoord, klopDebugWachtwoord } from '../shared/debug-wachtwoord.js';
 import { BEWAARD, debugOpSlot } from './bewaard.js';
 import { maskeerZoek } from '../shared/netwerk-masker.js';
@@ -100,7 +100,7 @@ export function formulierTekst(items, versie) {
 }
 
 export function maakInfo(ctx) {
-  const { fAan, naarPagina, renderPagina } = ctx;
+  const { renderPagina } = ctx;
   // Debug: dicht, het wachtwoordveld open, of ontgrendeld (tot het zijpaneel
   // sluit). In BEWAARD, zodat een paginawissel in ONS het niet weer op slot zet.
   const debug = BEWAARD.debug;
@@ -462,7 +462,7 @@ export function maakInfo(ctx) {
         <Txt kind="help" style={{ margin: '0 2px 12px' }}>Gebruik de Agendahulp voor een duidelijk agenda-overzicht.</Txt>
         <SectionHead tekst="Legenda" eerste sub={(ctx.state && ctx.state.windowLabel) || '08:00 tot 17:00'} />
         {legenda.length ? (
-          <div style={LIJST_KAART}>
+          <div data-tour="info-legenda" style={LIJST_KAART}>
             {legenda.map(function (item, i) {
               return (
                 <div key={i} style={regel(i === 0)}>
@@ -476,13 +476,8 @@ export function maakInfo(ctx) {
         {ctx.state && ctx.state.workHours ? (
           <Txt kind="help" data-info-werktijden="" style={{ margin: '8px 2px 0' }}>{'Je werktijden: ' + ctx.state.workHours + '. Aanpassen kan in de popup van de extensie (het icoon in de werkbalk).'}</Txt>
         ) : null}
-        <SectionHead tekst="Rondleiding" />
-        <div style={LIJST_KAART}>
-          <HulpRij soort="info" icoon={ICON_HELP} titel="Rondleiding zijpaneel" eerste data-info-rondleiding="zijpaneel" onClick={function () { ctx.startHoofdRondleiding(); }} />
-          {fAan('planner') ? <HulpRij soort="plan" icoon={ICON_PLAN} titel="Rondleiding Planhulp" data-info-rondleiding="planhulp" onClick={function () { naarPagina('plan'); ctx.startPlanRondleiding(); }} /> : null}
-        </div>
         <SectionHead tekst="Over" />
-        <div style={LIJST_KAART}>
+        <div data-tour="info-versie" style={LIJST_KAART}>
           <div style={regel(true)}>
             <span style={{ flex: '1 1 auto', fontWeight: '600' }}>Versie</span>
             <span style={{ color: T.inkSoft, fontVariantNumeric: 'tabular-nums' }}>{(ctx.state && ctx.state.version) || ''}</span>

@@ -16,10 +16,15 @@ const BRAND = '#cc087d';
 const LETTER = 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 const SLEUTEL = PANEL_LOCAL.TOUR_DONE;
 
-export function rondleidingGedaan(naam) {
-  try { return localStorage.getItem(SLEUTEL + naam) === '1'; } catch (e) { return true; }
+// versie: alleen gedaan als hij bij deze versie van de extensie gezien is
+// (de rondleiding van het startscherm komt bij elke nieuwe versie terug).
+export function rondleidingGedaan(naam, versie) {
+  try {
+    const v = localStorage.getItem(SLEUTEL + naam);
+    return versie ? v === versie : v != null && v !== '';
+  } catch (e) { return true; }
 }
-function markeer(naam) { try { localStorage.setItem(SLEUTEL + naam, '1'); } catch (e) {} }
+function markeer(naam, versie) { try { localStorage.setItem(SLEUTEL + naam, versie || '1'); } catch (e) {} }
 
 let actief = null;
 export function rondleidingActief() { return !!actief; }
@@ -143,7 +148,7 @@ function Rondleiding({ opts, st, naar, sluit }) {
   );
 }
 
-// opts: { naam, kop ('Rondleiding'), stapLabel ('Stap'), stappen: [{ titel, tekst, knop?,
+// opts: { naam, versie? (onthouden als gezien bij deze versie), kop ('Rondleiding'), stapLabel ('Stap'), stappen: [{ titel, tekst, knop?,
 //   vind?: () => Element | Element[] (geen = welkom in het midden),
 //   breedte?: () => Element (spotlight zo breed als dit element),
 //   voor?: () => void (pagina klaarzetten), als?: () => bool }], onEinde?: (klaar) => void,
@@ -195,7 +200,7 @@ export function startRondleiding(opts) {
     doc.removeEventListener('keydown', toets, true);
     root.unmount();
     if (host.parentNode) host.parentNode.removeChild(host);
-    markeer(opts.naam);
+    markeer(opts.naam, opts.versie);
     if (opts.onEinde) { try { opts.onEinde(klaar); } catch (e) {} }
   }
   const zelf = { sluit: sluit };

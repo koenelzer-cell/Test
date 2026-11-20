@@ -65,7 +65,7 @@ export function maakVerhouding(ctx) {
     return (
       <div>
         {/* Weekkiezer als kaart: pijlen links en rechts, week en datums in het midden. */}
-        <Kaart style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 6px', margin: '0 0 10px' }}>
+        <Kaart data-tour="verhouding-week" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 6px', margin: '0 0 10px' }}>
           <BladerKnop icoon={CHEV_LINKS} label="Vorige week" onClick={function () { ctx.ratio.offset--; laadRatio(); }} />
           <div style={{ flex: '1 1 auto', textAlign: 'center', minWidth: '0' }}>
             {/* Het weeknummer staat er meteen, ook tijdens het laden. */}
@@ -74,7 +74,7 @@ export function maakVerhouding(ctx) {
           </div>
           <BladerKnop icoon={CHEV_RECHTS} label="Volgende week" onClick={function () { ctx.ratio.offset++; laadRatio(); }} />
         </Kaart>
-        {inhoud}
+        <div data-tour="verhouding-kaarten">{inhoud}</div>
       </div>
     );
   }

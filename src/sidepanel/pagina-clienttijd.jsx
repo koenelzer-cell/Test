@@ -75,8 +75,8 @@ export function maakClienttijd(ctx) {
     return (
       <div>
         <SectionHead tekst={'Opbouw ' + weekNaam()} eerste sub="" label={wo.headerHint || ''} />
-        {opbouw()}
-        {fAan('production') ? productie() : null}
+        <div data-tour="clienttijd-opbouw">{opbouw()}</div>
+        {fAan('production') ? <div data-tour="clienttijd-productie">{productie()}</div> : null}
       </div>
     );
   }

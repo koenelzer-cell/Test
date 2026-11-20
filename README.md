@@ -691,15 +691,21 @@ en oker).
   keuzevenster van de browser. Een datumveld toont 'vr 16 okt'; het jaar
   staat er alleen bij als het niet dit jaar is, zodat twee velden naast
   elkaar ook in een smal paneel passen.
-- **Rondleidingen**: bij de eerste keer openen een korte rondleiding door het
-  zijpaneel (aan/uit, weekoverzicht, open registraties, planhulp, route,
-  verlof, i-knop), en bij de eerste keer Planhulp een eigen rondleiding (lijst
-  en weekplanning, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
-  weekplanning, afspraak maken). Een onderdeel dat uit staat, wordt
-  overgeslagen; na afloop staat alles terug zoals het was. Opnieuw starten via
-  de i-knop, of in de Planhulp met de vraagteken-knop naast de i-knop
-  bovenin (titel 'Rondleiding door de Planhulp'). Of hij gedaan is, staat
-  alleen in het zijpaneel zelf (localStorage).
+- **Rondleidingen**: elk scherm heeft bovenin, naast de i-knop, een knop met
+  een vraagteken (zelfde stijl, titel 'Rondleiding' plus de naam van het
+  scherm). Die start de rondleiding van dat scherm: startscherm (aan/uit,
+  weekoverzicht, open registraties, planhulp, route, verlof, het vraagteken
+  zelf en de i-knop), Planhulp (lijst en weekplanning, duur, vooruit, dagen,
+  begintijd kiezen, gekozen momenten, weekplanning, afspraak maken), Afspraak
+  maken (zelfde of per afspraak anders, voor alle afspraken, de kaart, de
+  eindtijd, medewerkers, maken), Open registraties, Snel registreren, Route
+  van de dag, Cliënttijd, Verhouding per uursoort en Over de Agendahulp. Een
+  onderdeel dat uit staat of (nog) niet in beeld is, wordt overgeslagen; na
+  afloop staat alles terug zoals het was. Alleen de rondleiding van het
+  startscherm start vanzelf: bij elke nieuwe versie één keer (het zijpaneel
+  onthoudt bij welke versie hij gezien is, in localStorage). De stap
+  'Rondleiding per scherm' wijst op het vraagteken. Onder de i-knop staan
+  geen rondleidingknoppen meer.
 - **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
   'Vooruit' in de lijst), daaronder een compacte tabel met drie regels: Duur

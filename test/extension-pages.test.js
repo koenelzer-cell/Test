@@ -2551,12 +2551,10 @@ test('zijpaneel: Info noemt de eigen werktijden als die zijn ingesteld', async (
   assert.match(document.body.textContent, /Legendaeigen werktijden/);
 });
 
-test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () => {
+test('zijpaneel: rondleiding zijpaneel via het vraagteken op het startscherm, stap voor stap', async () => {
   const { document } = zijpaneelMetTools(null);
   await tick();
-  document.querySelector('[aria-label="Legenda en versie"]').click();
-  await tick();
-  document.querySelector('[data-info-rondleiding="zijpaneel"]').click();
+  document.querySelector('[data-rondleiding-knop="hoofd"]').click();
   await new Promise((r) => setTimeout(r, 100));
   const tour = () => document.querySelector('[data-rondleiding="zijpaneel"]');
   assert.ok(tour(), 'rondleiding open');
@@ -2568,9 +2566,82 @@ test('zijpaneel: rondleiding zijpaneel via de i-knop, stap voor stap', async () 
     for (let w = 0; w < 30 && tour() && tour().hasAttribute('data-rondleiding-bezig'); w++) await new Promise((r) => setTimeout(r, 20));
   }
   assert.equal(tour(), null, 'na Klaar dicht');
-  assert.ok(titels.includes('Aan of uit') && titels.includes('Planhulp') && titels.includes('Later nog eens?'), titels.join(' | '));
+  assert.ok(titels.includes('Aan of uit') && titels.includes('Planhulp') && titels.includes('Rondleiding per scherm') && titels.includes('Legenda en versie'), titels.join(' | '));
   assert.ok(!titels.some((t) => /[·–—]/.test(t)), 'geen puntjes of streepjes');
   assert.ok(document.querySelector('[data-paneel-titel]') === null || !/Legenda/.test(document.querySelector('[data-paneel-titel]').textContent), 'terug op de hoofdpagina');
+});
+
+test('rondleidingen: op elk scherm een vraagteken met een eigen rondleiding; onder het i-tje geen rondleidingknoppen meer', async () => {
+  const { document } = maakPaneel();
+  await tick();
+  const tour = () => document.querySelector('[data-rondleiding]');
+  const doorloop = async (naam) => {
+    const knopje = document.querySelector('[data-rondleiding-knop="' + naam + '"]');
+    assert.ok(knopje, naam + ': vraagteken in de kop');
+    assert.match(knopje.getAttribute('aria-label'), /^Rondleiding /);
+    knopje.click();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(tour() && tour().getAttribute('data-rondleiding'), naam, naam + ': rondleiding open');
+    const titels = [];
+    for (let n = 0; n < 15 && tour(); n++) {
+      titels.push(tour().querySelector('[data-rondleiding-titel]').textContent);
+      assert.doesNotMatch(tour().textContent, /[·–—]/, naam + ': geen puntjes of streepjes');
+      tour().querySelector('[data-rondleiding-volgende]').click();
+      for (let w = 0; w < 30 && tour() && tour().hasAttribute('data-rondleiding-bezig'); w++) await new Promise((r) => setTimeout(r, 20));
+    }
+    assert.equal(tour(), null, naam + ': na Klaar dicht');
+    return titels;
+  };
+  for (const [kop, naam, stap] of [['Open registraties', 'open', 'Kies een periode'], ['Snel registreren', 'snel', 'Hoe lang'], ['Route van de dag', 'route', 'Dag en vertrekpunt'], ['Verhouding per uursoort', 'verhouding', 'Andere week']]) {
+    navKnop(document, kop).click();
+    await tick();
+    const titels = await doorloop(naam);
+    assert.equal(titels[0], kop, naam + ': welkom');
+    assert.ok(titels.includes(stap), naam + ': ' + titels.join(' | '));
+    assert.equal(document.querySelector('[data-paneel-titel]').textContent, kop, naam + ': blijft op het scherm');
+    document.querySelector('[data-terug]').click();
+    await tick();
+  }
+  // Info: een eigen rondleiding; de knoppen voor de rondleidingen staan er niet meer.
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-info-rondleiding]'), null);
+  assert.doesNotMatch(document.body.textContent, /Rondleiding Planhulp|Rondleiding zijpaneel/);
+  // (Zonder legenda in de toestand slaat de rondleiding die stap over.)
+  assert.deepEqual(await doorloop('info'), ['Over de Agendahulp', 'Versie']);
+  // Afspraak maken: de eigen rondleiding van dat scherm.
+  document.querySelector('[aria-label="Legenda en versie"]').click();
+  await tweeMomenten(document);
+  const maken = await doorloop('maken');
+  assert.ok(['Afspraak maken', 'Voor alle afspraken', 'Elke afspraak', 'Eindtijd'].every((t) => maken.includes(t)), maken.join(' | '));
+});
+
+test('rondleidingen: alleen die van het startscherm start vanzelf, bij elke nieuwe versie één keer', async () => {
+  const opslag = () => {
+    const m = new Map();
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m };
+  };
+  const ls = opslag();
+  ls.setItem('onsHelper.rondleiding.zijpaneel', '1'); // gezien bij een vorige versie
+  const een = zijpaneelMetTools(null);
+  Object.defineProperty(een.dom.window, 'localStorage', { value: ls, configurable: true });
+  await tick();
+  env_update(een.document, { ...AGENDA_STATE_TOOLS });
+  await new Promise((r) => setTimeout(r, 800));
+  const tour = (d) => d.querySelector('[data-rondleiding="zijpaneel"]');
+  assert.ok(tour(een.document), 'nieuwe versie: de rondleiding van het startscherm opent vanzelf');
+  een.document.dispatchEvent(new een.dom.window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.equal(ls.getItem('onsHelper.rondleiding.zijpaneel'), '0.0.0', 'gezien bij deze versie');
+  // Dezelfde versie: niet nog eens; de Planhulp start nooit vanzelf.
+  const twee = maakPaneel();
+  Object.defineProperty(twee.dom.window, 'localStorage', { value: ls, configurable: true });
+  await tick();
+  env_update(twee.document, { ...AGENDA_STATE_TOOLS, routesProxy: { key: 'ROUTESSLEUTEL_1' } });
+  await new Promise((r) => setTimeout(r, 800));
+  assert.equal(tour(twee.document), null, 'zelfde versie: niet vanzelf');
+  navKnop(twee.document, 'Planhulp').click();
+  await new Promise((r) => setTimeout(r, 600));
+  assert.equal(twee.document.querySelector('[data-rondleiding]'), null, 'Planhulp: niet vanzelf');
 });
 
 test('zijpaneel: rondleiding Planhulp met knop, weekraster en afspraak maken, daarna alles terug', async () => {

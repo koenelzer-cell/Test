@@ -191,7 +191,7 @@ export function maakRoute(ctx) {
       <div>
         <Txt kind="help" style={{ margin: '0 2px 10px' }}>Je afspraken met een cliënt van een dag (niet op een kantoorlocatie) op volgorde van begintijd. ‘Kaart tonen’ en ‘Route openen’ sturen de adressen naar Google, net als de kaartlink in ONS.</Txt>
         {/* Dag en vertrekpunt naast elkaar in één kaart. */}
-        <Kaart>
+        <Kaart data-tour="route-dag">
           <KiezerGroep>{function (k) {
             return (
               <>

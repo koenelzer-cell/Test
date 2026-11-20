@@ -2,6 +2,18 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.330
+
+- Elk scherm heeft nu bovenin een vraagteken naast het i-tje, met een korte
+  rondleiding van dat scherm: Open registraties, Snel registreren, Route van
+  de dag, Cliënttijd, Verhouding per uursoort, Afspraak maken en Over de
+  Agendahulp. Op het startscherm start het vraagteken de algemene
+  rondleiding.
+- Alleen de rondleiding van het startscherm opent vanzelf, één keer bij elke
+  nieuwe versie. Hij wijst je op het vraagteken voor de rondleiding per
+  scherm. De Planhulp start zijn rondleiding niet meer vanzelf.
+- Onder het i-tje staan geen knoppen voor de rondleidingen meer.
+
 ## 1.6.329
 
 - Afspraak maken: compactere kaarten. Nummer, dag en tijd staan op één

@@ -125,10 +125,11 @@ function Kop({ ctx }) {
       </span>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginLeft: '8px' }}>
         <AanUit aan={!!(ctx.state && ctx.state.enabled)} zetRef={function (n) { ctx.el.onoff = n; }} onKlik={ctx.wisselAan} />
-        {/* Planhulp: de rondleiding naast het i-tje, in dezelfde knop. */}
-        {ctx.pagina === 'plan' && ctx.fAan('planner') ? (
-          <KaleKnop data-plan-rondleiding="" title="Rondleiding door de Planhulp" aria-label="Rondleiding door de Planhulp"
-            onClick={function (e) { e.preventDefault(); e.stopPropagation(); ctx.startPlanRondleiding(); }}
+        {/* De rondleiding van dit scherm: vraagteken naast het i-tje, in dezelfde knop. */}
+        {ctx.heeftRondleiding(ctx.pagina) ? (
+          <KaleKnop ref={function (n) { ctx.el.hulp = n; }} data-rondleiding-knop={ctx.pagina} data-plan-rondleiding={ctx.pagina === 'plan' ? '' : undefined}
+            title={'Rondleiding ' + (opHoofd ? 'zijpaneel' : (PAGINA_TITEL[ctx.pagina] || ''))} aria-label={'Rondleiding ' + (opHoofd ? 'zijpaneel' : (PAGINA_TITEL[ctx.pagina] || ''))}
+            onClick={function (e) { e.preventDefault(); e.stopPropagation(); ctx.startSchermRondleiding(ctx.pagina); }}
             style={{
               background: T.lineSoft, border: '1px solid ' + T.line, borderRadius: '8px', color: T.inkSoft,
               cursor: 'pointer', width: '28px', height: '28px', padding: '0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'

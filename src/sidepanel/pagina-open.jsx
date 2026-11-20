@@ -88,7 +88,7 @@ export function maakOpenRegistraties(ctx) {
     }
     const open = t.count - t.done;
     return (
-      <div style={{ marginTop: '12px' }}>
+      <div data-tour="open-lijst" style={{ marginTop: '12px' }}>
         {/* Samenvatting als kaart: hoeveel er nog open staat, te laat, en een balk. */}
         <Kaart style={{ marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px', margin: '0 0 8px' }}>
@@ -150,7 +150,7 @@ export function maakOpenRegistraties(ctx) {
       <div>
         <Txt kind="help" style={{ margin: '0 2px 10px' }}>Afgelopen afspraken in deze periode die nog niet geregistreerd zijn (hooguit 26 weken).</Txt>
         {/* Periode en Controleren samen in één kaart. */}
-        <Kaart>
+        <Kaart data-tour="open-periode">
           <KiezerGroep>{function (k) {
             return (
               <>
@@ -171,7 +171,7 @@ export function maakOpenRegistraties(ctx) {
             {rangeResult(ctx.range.result)}
             {/* Afwerklijst bijwerken: gebeurt vanzelf als je terugkomt in het
                 zijpaneel; deze knop doet het meteen. */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', margin: '12px 2px 0' }}>
+            <div data-tour="open-bijwerken" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', margin: '12px 2px 0' }}>
               <Txt kind="help" style={{ flex: '1 1 auto' }}>Registreer je een afspraak of zet je hem op ‘niet registreren’, dan wordt hij hier afgevinkt.</Txt>
               <TekstKnop icoon={ICON_VERVERS} tekst={ctx.range.bijwerken ? 'Bijwerken…' : 'Bijwerken'} disabled={ctx.range.bijwerken} style={{ flex: '0 0 auto' }} onClick={function () { hercontrole(); }} />
             </div>
