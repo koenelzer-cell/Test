@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ONS Agendahulp: a Manifest V3 browser extension (Chrome/Edge) on top of ONS Agenda and ONS Dossier (`impegno.onsagenda.nl`, `impegno.ons-dossier.nl`). The user, code comments, UI text, README and commit messages are all in **Dutch**; keep it that way.
 
-Read `docs/ARCHITECTURE.md` before larger changes (components, layers, messages, storage, config layers, every ONS endpoint, ONS-specific workarounds, privacy). `README.md` describes every feature as it behaves now and must be updated with each feature change.
+Read `docs/ARCHITECTURE.md` before larger changes (components, layers, messages, storage, config layers, every ONS endpoint, ONS-specific workarounds, privacy). `README.md` describes every feature as it behaves now and must be updated with each feature change. The rest of the documentation is indexed in `docs/README.md`; when a permission, storage key or external call changes, also update `docs/techniek/permissies-en-opslag.md`, `docs/privacy/` and `SECURITY.md`.
 
 ## Commands
 

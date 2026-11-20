@@ -6,6 +6,17 @@ ongeregistreerde tijd bijhoudt.
 
 Hoe het in elkaar zit: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
+## Documentatie
+
+| Voor wie | Document |
+|---|---|
+| Medewerkers | [Snelstart](docs/gebruikers/snelstart.md), [Veelgestelde vragen en problemen](docs/gebruikers/faq.md) |
+| Ontwikkelaars | Dit bestand (bouwen, laden, uitbrengen, alle functies), [architectuuroverzicht met diagram](docs/techniek/architectuur-overzicht.md), [volledige architectuur](docs/ARCHITECTURE.md), [permissies en opslag](docs/techniek/permissies-en-opslag.md) |
+| Uitbrengen | [Test- en releasechecklist](docs/release/checklist.md), [uitrol](docs/UITROL.md), [changelog-sjabloon](docs/release/changelog-template.md), [CHANGELOG.md](CHANGELOG.md) |
+| Privacy en winkel | [Permissies uitgelegd](docs/privacy/permissies-uitgelegd.md), [basis privacybeleid](docs/privacy/privacybeleid-basis.md), [beveiliging en gegevensverwerking](SECURITY.md) |
+
+Overzicht van alle documenten: [docs/README.md](docs/README.md).
+
 ## Belangrijk: er is een bouwstap
 
 Alle broncode staat in `src/`. De browser laadt die niet rechtstreeks, maar
@@ -114,7 +125,7 @@ beheerscherm). Gaat er iets mis, dan verandert er niets. Eerdere ZIP's in
 | `scripts/` | bouwen, controleren, uitbrengen |
 | `test/` | testsuite (jsdom) |
 | `e2e/` | het zijpaneel in een echte Chromium (Playwright) |
-| `docs/` | architectuur, uitrol (`UITROL.md`) en het verslag van de herstructurering |
+| `docs/` | documentatie: architectuur, uitrol (`UITROL.md`), techniek, release, gebruikers en privacy (overzicht in `docs/README.md`) |
 | `CHANGELOG.md` | wat er per versie veranderde, in gewone taal |
 
 ## Instellingen
@@ -1021,9 +1032,12 @@ en oker).
 
 ## Gegevens
 
-De extensie stuurt niets naar externe servers. Alle serveraanroepen gaan naar
-ONS zelf via relatieve paden binnen de bestaande sessie; `host_permissions` in
-het manifest beperkt de toegang tot de ONS-domeinen. Wat de hulp klaarzet in
+Alle aanroepen naar ONS gaan via relatieve paden binnen de bestaande sessie;
+`host_permissions` in het manifest beperkt de toegang tot de ONS-domeinen. De
+enige verbindingen naar buiten zijn Google Routes (alleen postcodes, met een
+sleutel van de beheerder en na toestemming) en Google Maps (de adressen van
+één dag, alleen na een klik op Kaart tonen of Route openen); zie
+[docs/techniek/permissies-en-opslag.md](docs/techniek/permissies-en-opslag.md). Wat de hulp klaarzet in
 de sessionStorage van het tabblad (een afspraak uit de planhulp, kopieën, een
 registratie vanuit een afspraak) gaat weg zodra het verlopen is, bij de
 volgende paginawissel in ONS. Zie [SECURITY.md](SECURITY.md).
