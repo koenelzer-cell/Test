@@ -48,7 +48,8 @@ export const BEWAARD = {
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
   plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '' },
-  // Planhulp: gekozen momenten [{ date, startMin }] voor één afspraak die na
+  // Planhulp: gekozen momenten [{ date, startMin, minutes }] (minutes: de duur
+  // van dat moment; slepen of een andere eindtijd) voor één afspraak die na
   // het opslaan wordt gekopieerd; kopie: uitslag van de laatste kopieerronde.
   momenten: [],
   kopie: null,

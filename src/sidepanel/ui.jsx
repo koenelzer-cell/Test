@@ -613,22 +613,75 @@ export function hm(min) { return ('0' + Math.floor(min / 60)).slice(-2) + ':' + 
 /* ── Knoppen voor kiezers en keuzes ────────────────────────────────────── */
 
 // Kleine keuzeknop (duur, dag, tijd): gekozen = roze vlak.
-export function ChipKnop({ tekst, gekozen, onClick, extra, children, ...rest }) {
+// disabled: grijze tekst, geen hover (bijv. Vandaag in de week van vandaag).
+export function ChipKnop({ tekst, gekozen, onClick, extra, children, disabled, ...rest }) {
   const [over, hover] = useHover();
   const ring = useFocusRing();
   const stijl = Object.assign({
-    height: '32px', padding: '0', borderRadius: '8px', boxSizing: 'border-box', cursor: 'pointer',
+    height: '32px', padding: '0', borderRadius: '8px', boxSizing: 'border-box', cursor: disabled ? 'default' : 'pointer',
     border: '1px solid ' + (gekozen ? T.brand : 'transparent'), background: gekozen ? T.brand : 'transparent',
     // Losse font-eigenschappen, geen 'font': die zou bij opnieuw tekenen
     // fontSize, fontWeight en fontVariantNumeric uit extra terugzetten.
     color: gekozen ? '#fff' : T.ink, fontFamily: FONT, fontSize: '13px', lineHeight: '1', fontWeight: gekozen ? '600' : '400', fontVariantNumeric: 'tabular-nums',
     transition: 'background .12s ease, border-color .12s ease'
-  }, extra, over && !gekozen ? { background: T.brandWash } : null, ring.stijl);
+  }, extra, over && !gekozen && !disabled ? { background: T.brandWash } : null, disabled ? { color: '#b9b0b4' } : null, ring.stijl);
   return (
-    <button type="button" {...hover} {...ring.props} style={stijl}
-      onClick={function (e) { e.preventDefault(); e.stopPropagation(); onClick(); }} {...rest}>
+    <button type="button" disabled={disabled} {...hover} {...ring.props} style={stijl}
+      onClick={function (e) { e.preventDefault(); e.stopPropagation(); if (!disabled) onClick(); }} {...rest}>
       {children}{tekst}
     </button>
+  );
+}
+// Min en plus: zoals de keuzeknoppen (wit, grijze rand), iets smaller.
+export const STAP_STIJL = { flex: '0 0 auto', width: '36px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12.5px', border: '1px solid ' + T.line };
+// Min, waarde en plus (eigen duur in de planhulp, eindtijd bij Afspraak
+// maken). Tik op de waarde om hem zelf te typen: Enter of ernaast klikken
+// neemt hem over, Escape niet; wat niet te lezen is, krijgt een rode rand.
+// Het typen staat in staat ({ typen, tekst, fout }, in ctx of BEWAARD), zodat
+// het een nieuwe opbouw van het paneel overleeft.
+//   toon: wat er staat ('2 u 30 m'); invoer: de tekst om verder te typen ('2:30')
+//   lees(tekst) -> getal of null; onKies(getal); onStap(-1 | 1)
+//   attr(soort) -> data-attributen (soort: min, plus, waarde, typen)
+//   labels: { min, plus, waarde, typen, voorbeeld }
+// Geeft drie elementen naast elkaar (in een flex-rij van de pagina).
+export function StapKiezer({ staat, toon, invoer, lees, onKies, onStap, minUit, plusUit, attr, labels }) {
+  const teken = useContext(TekenContext);
+  const opnieuw = function () { if (teken) teken(); };
+  const neemOver = function () {
+    const w = lees(staat.tekst || '');
+    if (w == null) { staat.fout = true; opnieuw(); return; }
+    staat.typen = false; staat.fout = false;
+    onKies(w);
+    opnieuw();
+  };
+  const stap = function (r, uit, soort, label) {
+    return (
+      <ChipKnop key={soort} {...attr(soort)} aria-label={label} title={label} disabled={uit} onClick={function () { onStap(r); }} extra={STAP_STIJL}>
+        <Icoon d={r > 0 ? ICON_PLUS : ICON_MIN} size={16} />
+      </ChipKnop>
+    );
+  };
+  return (
+    <>
+      {stap(-1, minUit, 'min', labels.min)}
+      {staat.typen ? (
+        <span key="typ" style={{ flex: '1 1 auto', minWidth: '0', display: 'flex' }}>
+          <Invoer waarde={staat.tekst || ''} onWaarde={function (v) { staat.tekst = v; staat.fout = false; }} autoFocus
+            aria-label={labels.typen} placeholder={labels.voorbeeld} autoComplete="off" inputMode="numeric" {...attr('typen')}
+            onKeyDown={function (e) {
+              if (e.key === 'Enter') { e.preventDefault(); neemOver(); }
+              if (e.key === 'Escape') { e.preventDefault(); staat.typen = false; staat.fout = false; opnieuw(); }
+            }}
+            onBlur={function () { if (staat.typen) neemOver(); }}
+            style={{ textAlign: 'center', height: '30px', font: '700 15px ' + FONT, border: '1px solid ' + (staat.fout ? T.bad : T.line) }} />
+        </span>
+      ) : (
+        <KaleKnop key="waarde" {...attr('waarde')} aria-live="polite" aria-label={labels.waarde} title="Tik om zelf in te vullen, tot op de minuut"
+          onClick={function () { staat.tekst = invoer; staat.typen = true; staat.fout = false; opnieuw(); }}
+          style={{ flex: '1 1 auto', minWidth: '0', height: '30px', border: '0', borderRadius: '8px', backgroundColor: 'transparent', cursor: 'text', fontSize: '15px', fontWeight: '700', color: T.ink, fontVariantNumeric: 'tabular-nums', padding: '0' }}>{toon}</KaleKnop>
+      )}
+      {stap(1, plusUit, 'plus', labels.plus)}
+    </>
   );
 }
 // Veld dat een kiezer opent (datum, tijd): tekst links, icoon rechts.

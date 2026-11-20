@@ -30,7 +30,31 @@ export function duurInvoer(m) { return Math.floor(m / 60) + ':' + String(m % 60)
 
 // Min en plus: naar het vorige of volgende hele kwartier, binnen de grenzen.
 export function kwartierStap(m, richting) {
-  if (richting > 0) return Math.min(DUUR_MAX, Math.floor(m / 15) * 15 + 15);
-  const lager = m % 15 ? m - (m % 15) : m - 15;
-  return Math.max(DUUR_MIN, lager);
+  return Math.max(DUUR_MIN, Math.min(DUUR_MAX, naarKwartier(m, richting)));
+}
+
+// Naar het vorige of volgende hele kwartier, zonder grenzen (een eindtijd).
+export function naarKwartier(m, richting) {
+  if (richting > 0) return Math.floor(m / 15) * 15 + 15;
+  return m % 15 ? m - (m % 15) : m - 15;
+}
+
+// Een tijd van de dag lezen: '11:30', '11.30', '11u30', '1130', '11' -> minuten
+// na middernacht (tot en met 24:00), of null.
+export function leesTijd(tekst) {
+  const t = String(tekst == null ? '' : tekst).trim().toLowerCase().replace(/\s+/g, '').replace(/uur$/, 'u');
+  let m = /^(\d{1,2})(?:[:.u](\d{1,2})?)?$/.exec(t) || /^(\d{1,2})(\d{2})$/.exec(t);
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2] || 0);
+  if (min > 59 || h > 24 || (h === 24 && min)) return null;
+  return h * 60 + min;
+}
+
+// Valt een afspraak (start tot eind, minuten) buiten het vrije blok waarin hij
+// begint? -> de minuut vanaf waar je bezet bent, of null (past, of onbekend
+// omdat er geen vrij blok bekend is waarin hij begint).
+//   gaps: [{ date, startMin, endMin }] (vrije blokken uit de planhulp)
+export function bezetVanaf(gaps, date, start, eind) {
+  const g = (gaps || []).filter(function (x) { return x && x.date === date && x.startMin <= start && start < x.endMin; })[0];
+  return g && eind > g.endMin ? g.endMin : null;
 }

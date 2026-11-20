@@ -40,7 +40,7 @@ export const MSG = {
   AGENDA_OPEN_LEAVE: 'ag-open-leave',   //                 verlofdialoog openen in de pagina
   AGENDA_CHECK_RANGE: 'ag-check-range', // { from, to } -> { ok, result | error }  open registraties in een periode
   AGENDA_QUICK_REGISTER: 'ag-quick-register', // { date, time, minutes, force } -> { ok, overlap?, error? }
-  AGENDA_NEW_EVENT: 'ag-new-event',     // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+  AGENDA_NEW_EVENT: 'ag-new-event',     // { date, time, minutes, extra?: [{ date, time, minutes? }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
   AGENDA_FORM_TITLE: 'ag-form-title', // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
   AGENDA_DUPLICATES_DONE: 'ag-duplicates-done', // content -> zijpaneel: { made, failed, reason }  kopieën van een afspraak
   AGENDA_DAY_ROUTE: 'ag-day-route',     // { date, origin } -> { ok, result: { persons: [{ stops, missing, urls }] } | error }  route van de dag

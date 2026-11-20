@@ -43,12 +43,15 @@ export function inspectEventPayload(payload) {
 }
 
 // Kopie van het verzoek op een ander moment.
-//   moment: { date: 'YYYY-MM-DD', startMin } -> nieuw verzoek, of null als het
-//   niet kan (ongeldig moment, of de afspraak zou over middernacht lopen).
+//   moment: { date: 'YYYY-MM-DD', startMin, minutes? } -> nieuw verzoek, of
+//   null als het niet kan (ongeldig moment, of de afspraak zou over middernacht
+//   lopen). minutes: een eigen duur voor deze kopie (planhulp: een andere
+//   eindtijd); zonder duurt hij even lang als de opgeslagen afspraak.
 export function duplicateEventPayload(payload, moment) {
   const info = inspectEventPayload(payload);
   if (!info.ok || !moment || !/^\d{4}-\d{2}-\d{2}$/.test(String(moment.date || ''))) return null;
-  const start = moment.startMin, eind = start + info.minutes;
+  const eigen = parseInt(moment.minutes, 10);
+  const start = moment.startMin, eind = start + (eigen > 0 && eigen <= 24 * 60 ? eigen : info.minutes);
   if (!(start >= 0) || eind > 24 * 60) return null;
   const van = isoLocalWithOffset(moment.date, start);
   const tot = eind === 24 * 60 ? null : isoLocalWithOffset(moment.date, eind);

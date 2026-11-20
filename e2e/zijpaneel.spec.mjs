@@ -167,6 +167,35 @@ for (const breedte of [340, 420]) {
       }
     });
 
+    test('planhulp: in de Weekplanning slepen voor een eigen eindtijd', async ({ page }, testInfo) => {
+      await page.locator('[data-hulp="plan"]').click();
+      await page.locator('[data-plan-weergave="raster"]').click();
+      await expect(page.locator('[data-raster]').first()).toBeVisible();
+      // Naar een week met vrije tijd.
+      for (let i = 0; i < 3 && !(await page.locator('[data-raster-strook]').count()); i++) {
+        await page.locator('[data-week-verder]').click();
+        await page.waitForTimeout(300);
+      }
+      const strook = page.locator('[data-raster-strook]').first();
+      const datum = await strook.getAttribute('data-dag'), start = await strook.getAttribute('data-start');
+      const b = await strook.boundingBox();
+      await page.mouse.move(b.x + b.width / 2, b.y + 3);
+      await page.mouse.down();
+      await page.mouse.move(b.x + b.width / 2, b.y + 40, { steps: 4 });
+      await page.mouse.move(b.x + b.width / 2, b.y + 70, { steps: 4 });
+      await expect(page.locator('[data-raster-sleep]')).toBeVisible();
+      await controleer(page, testInfo, 'plan-weekplanning-slepen');
+      await page.mouse.up();
+      const gekozen = page.locator('[data-raster-gekozen="' + datum + ' ' + start + '"]');
+      await expect(gekozen).toHaveCount(1);
+      const [u, m] = start.split(':').map(Number);
+      const eind = await gekozen.getAttribute('data-raster-eind');
+      const [eu, em] = eind.split(':').map(Number);
+      // 70 pixels omlaag is 93 minuten: tot en met het kwartier onder de muis.
+      expect(eu * 60 + em - (u * 60 + m), 'geen standaardduur van 1 uur maar de gesleepte').toBe(105);
+      await controleer(page, testInfo, 'plan-weekplanning-gesleept');
+    });
+
     test('planhulp: de balk onderaan ligt boven het weekraster, ook na scrollen', async ({ page }) => {
       // Laag venster, zodat het raster onder de balk door kan scrollen.
       await page.setViewportSize({ width: breedte, height: 430 });
@@ -205,6 +234,25 @@ for (const breedte of [340, 420]) {
       await page.getByRole('button', { name: /Afspraak maken op 2 momenten/ }).click();
       await expect(page.locator('[data-maak-afspraak]')).toHaveCount(2);
       await controleer(page, testInfo, 'maken-zelfde');
+      // Eindtijd per afspraak: plus per kwartier, zelf typen, en een melding als je bezet bent.
+      const eind0 = page.locator('[data-maak-eind-waarde="0"]');
+      const voor = await eind0.textContent();
+      await page.locator('[data-maak-eind-plus="0"]').click();
+      await expect(eind0).not.toHaveText(voor);
+      await eind0.click();
+      await page.locator('[data-maak-eind-typen="0"]').fill('kwart');
+      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await expect(page.locator('[data-maak-eind-fout="0"]')).toBeVisible();
+      await controleer(page, testInfo, 'maken-eindtijd-fout');
+      await page.locator('[data-maak-eind-typen="0"]').fill('15:00');
+      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await expect(eind0).toHaveText('15:00');
+      await expect(page.locator('[data-maak-bezet="0"]')).toHaveCount(1);
+      await controleer(page, testInfo, 'maken-eindtijd-bezet');
+      await page.locator('[data-maak-eind-waarde="0"]').click();
+      await page.locator('[data-maak-eind-typen="0"]').fill(voor);
+      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await expect(page.locator('[data-maak-bezet="0"]')).toHaveCount(0);
 
       // Een cliënt kiezen: daarna komen type, aanwezig en reistijd in beeld.
       const zoek = page.locator('[data-maak-zoek]').first();

@@ -4,12 +4,12 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { AgendaPil, CHEV_LINKS, CHEV_RECHTS, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, ICON_KLOK, ICON_MIN, ICON_PLUS, Icoon, Invoer, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, Schakelaar, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
+import { AgendaPil, CHEV_LINKS, CHEV_RECHTS, ChipKnop, FONT, FoutStrook, GeluktBalk, ICON_KALENDER, ICON_KLOK, Icoon, KaleKnop, KleineKnop, LaadBalk, LegeStaat, MeldKaart, PrimaryBtn, Regel, SecondaryBtn, Schakelaar, StapKiezer, T, Txt, UITKLAP, Wissel, alleenOpen, dagLang, datumUitYmd, dayLabel, fmtMin, hm, isoWeek, opsomming, overgang, useHover, vanTot, ymdVan } from './ui.jsx';
 import { feestdagAnimatie, feestdagIcoonSvg, feestdagSlingerSvg, feestdagStijl } from './feestdagen.js';
 import { MaandKalender } from './kiezers.jsx';
 import { AfspraakBlokken, AfspraakLegenda } from './week-dagen.jsx';
 import { werkweekTekst as werkweekNl } from '../shared/datum.js';
-import { DUUR_MAX, DUUR_MIN, duurInvoer, geldigeDuur, kwartierStap, leesDuur } from '../shared/duur.js';
+import { DUUR_MAX, DUUR_MIN, bezetVanaf, duurInvoer, geldigeDuur, kwartierStap, leesDuur } from '../shared/duur.js';
 
 const PLAN_STAP = 24;
 // Duur: vaste keuzes, en met het klokje een eigen duur: min en plus per
@@ -140,12 +140,14 @@ function FeestdagKolom({ h, hoog, start, week }) {
 
 // Een begintijd in het weekraster: een strookje van een kwartier.
 // Alleen in de open dag (actief); in een smalle dag niet te bereiken.
+// Pixels per minuut in de Weekplanning.
+const RASTER_PX = 0.75;
 function RasterStrook({ date, m, duur, top, actief, onKies }) {
   const [over, hover] = useHover();
   return (
-    <button type="button" {...hover} tabIndex={actief ? 0 : -1} title={hm(m) + ' tot ' + hm(m + duur) + ' kiezen'} aria-label={dayLabel(date) + ' ' + hm(m) + ' kiezen'} data-dag={date} data-start={hm(m)}
+    <button type="button" {...hover} tabIndex={actief ? 0 : -1} title={hm(m) + ' tot ' + hm(m + duur) + ' kiezen, of omlaag slepen voor een andere eindtijd'} aria-label={dayLabel(date) + ' ' + hm(m) + ' kiezen'} data-dag={date} data-start={hm(m)} data-raster-strook={String(m)}
       onClick={onKies}
-      style={{ position: 'absolute', left: '0', right: '0', top: top + 'px', height: (15 * 0.75) + 'px', border: '0', padding: '0', backgroundColor: over && actief ? 'rgba(204,8,125,.18)' : 'transparent', cursor: 'pointer', pointerEvents: actief ? 'auto' : 'none' }} />
+      style={{ position: 'absolute', left: '0', right: '0', top: top + 'px', height: (15 * RASTER_PX) + 'px', border: '0', padding: '0', backgroundColor: over && actief ? 'rgba(204,8,125,.18)' : 'transparent', cursor: 'pointer', pointerEvents: actief ? 'auto' : 'none' }} />
   );
 }
 
@@ -191,12 +193,10 @@ export function maakPlanhulp(ctx) {
       ctx.plan.result = null; ctx.plan.limit = PLAN_STAP; startPlan();
     }, 450);
   }
-  // De getypte duur overnemen: goed, dan meteen zoeken; anders rood en blijven typen.
-  function duurGetypt() {
-    const m = leesDuur(ctx.plan.eigenTekst);
-    if (!geldigeDuur(m)) { ctx.plan.eigenFout = true; renderPagina(); return; }
-    ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; ctx.plan.eigenKlad = null;
-    if (m === ctx.plan.minutes) { renderPagina(); return; }
+  // De getypte duur (goed gelezen, zie StapKiezer) overnemen en meteen zoeken.
+  function duurGetypt(m) {
+    clearTimeout(duurTimer); ctx.plan.eigenKlad = null;
+    if (m === ctx.plan.minutes) return;
     ctx.plan.minutes = m; ctx.plan.result = null; ctx.plan.limit = PLAN_STAP; startPlan();
   }
   let dagenTimer = null;
@@ -241,15 +241,19 @@ export function maakPlanhulp(ctx) {
   }
   // Dagenfilter: [1..5] (1 = maandag); null of alle vijf = alle dagen.
   function gekozenDagen() { return ctx.plan.dagen && ctx.plan.dagen.length && ctx.plan.dagen.length < 5 ? ctx.plan.dagen.slice() : null; }
-  function wisselMoment(date, startMin) {
+  // Duur van een gekozen moment: eigen (slepen in de Weekplanning, eindtijd
+  // bij Afspraak maken) of de duur die bij het kiezen gold.
+  function duurVan(mo) { return mo && mo.minutes > 0 ? mo.minutes : ctx.plan.minutes; }
+  // Kiezen of loslaten. minutes: de duur van dit moment (standaard de gekozen duur).
+  function wisselMoment(date, startMin, minutes) {
     const i = momentIndex(date, startMin);
+    const duur = minutes > 0 ? minutes : ctx.plan.minutes;
     if (i >= 0) BEWAARD.momenten.splice(i, 1);
-    else if (!fAan('plannerCopies')) BEWAARD.momenten = [{ date: date, startMin: startMin }]; // kopieën uit: één moment
+    else if (!fAan('plannerCopies')) BEWAARD.momenten = [{ date: date, startMin: startMin, minutes: duur }]; // kopieën uit: één moment
     else {
       // Twee keer dezelfde afspraak die elkaar overlapt kan niet: de oude eruit.
-      const duur = ctx.plan.minutes;
-      BEWAARD.momenten = BEWAARD.momenten.filter(function (m) { return !(m.date === date && m.startMin < startMin + duur && m.startMin + duur > startMin); });
-      BEWAARD.momenten.push({ date: date, startMin: startMin });
+      BEWAARD.momenten = BEWAARD.momenten.filter(function (m) { return !(m.date === date && m.startMin < startMin + duur && m.startMin + duurVan(m) > startMin); });
+      BEWAARD.momenten.push({ date: date, startMin: startMin, minutes: duur });
     }
     BEWAARD.momenten.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
     // Het eerste moment is altijd het formulier zelf, nooit apart.
@@ -266,9 +270,15 @@ export function maakPlanhulp(ctx) {
     const eerste = ms[0];
     const zelfde = ms.slice(1).filter(function (m) { return !m.eigen; });
     const eigen = ms.slice(1).filter(function (m) { return m.eigen; });
-    const tijd = function (m) { return { date: m.date, time: hm(m.startMin) }; };
+    // Een andere duur dan het eerste moment gaat mee; anders volgt het moment
+    // de afspraak zoals hij in ONS is opgeslagen.
+    const tijd = function (m) {
+      const t = { date: m.date, time: hm(m.startMin) };
+      if (duurVan(m) !== duurVan(eerste)) t.minutes = duurVan(m);
+      return t;
+    };
     actions.onNewEvent({
-      date: eerste.date, time: hm(eerste.startMin), minutes: ctx.plan.minutes,
+      date: eerste.date, time: hm(eerste.startMin), minutes: duurVan(eerste),
       extra: zelfde.map(tijd), eigen: eigen.map(tijd)
     }, function (res) {
       if (!(res && res.ok)) { fout((res && res.error) || 'Openen mislukt.'); }
@@ -296,7 +306,7 @@ export function maakPlanhulp(ctx) {
                 return (
                   <div key={m.date + '|' + m.startMin} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.ink, minHeight: '30px', borderBottom: '1px solid ' + T.lineSoft }}>
                     <span style={{ flex: '0 0 74px', fontWeight: '600' }}>{dayLabel(m.date)}</span>
-                    <span style={{ flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }}>{hm(m.startMin) + ' tot ' + hm(m.startMin + ctx.plan.minutes)}</span>
+                    <span style={{ flex: '0 0 auto', fontVariantNumeric: 'tabular-nums' }}>{hm(m.startMin) + ' tot ' + hm(m.startMin + duurVan(m))}</span>
                     {vink ? <span style={{ flex: '1 1 auto' }} /> : (
                       // Vinkje 'Apart formulier': dit moment krijgt geen kopie maar een eigen
                       // afspraakformulier, waarin de afspraakhulp opnieuw wordt doorlopen.
@@ -407,7 +417,7 @@ export function maakPlanhulp(ctx) {
     const eigen = !!ctx.plan.eigenOpen || !vast;
     instRij('Duur', VASTE_DUUR.map(function (d) {
       return keuze(d[0], d[1], d[2], !eigen && ctx.plan.minutes === d[0], function () {
-        clearTimeout(duurTimer); ctx.plan.eigenKlad = null; ctx.plan.eigenOpen = false; ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; ctx.plan.minutes = d[0]; opnieuw();
+        clearTimeout(duurTimer); ctx.plan.eigenKlad = null; ctx.plan.eigenOpen = false; ctx.plan.eigenInvoer = {}; ctx.plan.minutes = d[0]; opnieuw();
       }, ['data-plan-duur', String(d[0])]);
     }).concat([keuze('eigen', '', 'Eigen duur', eigen, function () {
       if (eigen) return;
@@ -416,37 +426,16 @@ export function maakPlanhulp(ctx) {
     { 'aria-expanded': eigen ? 'true' : 'false', children: <Icoon d={ICON_KLOK} size={16} /> })]));
     if (eigen) {
       const nu = ctx.plan.eigenKlad != null ? ctx.plan.eigenKlad : ctx.plan.minutes;
-      const stap = function (teken, label, attr, uit) {
-        return (
-          <KaleKnop key={attr} {...{ [attr]: '' }} aria-label={label} title={label} disabled={uit} onClick={function () { eigenDuur(kwartierStap(nu, teken === '+' ? 1 : -1)); }}
-            style={{ flex: '0 0 auto', width: '36px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '1px solid ' + (uit ? T.line : T.brand), backgroundColor: '#fff', color: uit ? '#b9b0b4' : T.brand, cursor: uit ? 'default' : 'pointer', padding: '0' }}>
-            <Icoon d={teken === '+' ? ICON_PLUS : ICON_MIN} size={16} />
-          </KaleKnop>
-        );
-      };
+      const invoer = ctx.plan.eigenInvoer || (ctx.plan.eigenInvoer = {});
       instRij('Eigen', [
-        stap('-', 'Korter', 'data-plan-duur-min', nu <= DUUR_MIN),
-        // Op de tijd tikken: zelf typen, tot op de minuut (Enter of ernaast
-        // klikken neemt hem over, Escape niet).
-        ctx.plan.eigenTypen ? (
-          <span key="typ" style={{ flex: '1 1 auto', minWidth: '0', display: 'flex' }}>
-            <Invoer waarde={ctx.plan.eigenTekst || ''} onWaarde={function (v) { ctx.plan.eigenTekst = v; ctx.plan.eigenFout = false; }} autoFocus
-              aria-label="Duur, uren en minuten" placeholder="2:45" data-plan-duur-typen="" autoComplete="off" inputMode="numeric"
-              onKeyDown={function (e) {
-                if (e.key === 'Enter') { e.preventDefault(); duurGetypt(); }
-                if (e.key === 'Escape') { e.preventDefault(); ctx.plan.eigenTypen = false; ctx.plan.eigenFout = false; renderPagina(); }
-              }}
-              onBlur={function () { if (ctx.plan.eigenTypen) duurGetypt(); }}
-              style={{ textAlign: 'center', font: '700 15px ' + FONT, border: '1px solid ' + (ctx.plan.eigenFout ? T.bad : T.line) }} />
-          </span>
-        ) : (
-          <KaleKnop key="duur" data-plan-duur-waarde="" aria-live="polite" aria-label={'Duur ' + fmtMin(nu) + ', zelf invullen'} title="Tik om de duur zelf in te vullen, tot op de minuut"
-            onClick={function () { clearTimeout(duurTimer); ctx.plan.eigenTekst = duurInvoer(nu); ctx.plan.eigenTypen = true; ctx.plan.eigenFout = false; renderPagina(); }}
-            style={{ flex: '1 1 auto', minWidth: '0', height: '32px', border: '0', borderRadius: '8px', backgroundColor: 'transparent', cursor: 'text', fontSize: '15px', fontWeight: '700', color: T.ink, fontVariantNumeric: 'tabular-nums', padding: '0' }}>{fmtMin(nu)}</KaleKnop>
-        ),
-        stap('+', 'Langer', 'data-plan-duur-plus', nu >= DUUR_MAX)
+        <StapKiezer key="eigen" staat={invoer} toon={fmtMin(nu)} invoer={duurInvoer(nu)}
+          lees={function (t) { const m = leesDuur(t); return geldigeDuur(m) ? m : null; }}
+          onKies={duurGetypt} onStap={function (r) { eigenDuur(kwartierStap(nu, r)); }}
+          minUit={nu <= DUUR_MIN} plusUit={nu >= DUUR_MAX}
+          attr={function (soort) { return { ['data-plan-duur-' + soort]: '' }; }}
+          labels={{ min: 'Korter', plus: 'Langer', waarde: 'Duur ' + fmtMin(nu) + ', zelf invullen', typen: 'Duur, uren en minuten', voorbeeld: '2:45' }} />
       ]);
-      if (ctx.plan.eigenFout) {
+      if (invoer.fout) {
         rijen.push(<div key="duurfout" data-plan-duur-fout="" style={{ fontSize: '11.5px', color: T.bad, padding: '0 0 8px 62px', marginTop: '-6px' }}>Bijvoorbeeld 2:45 of 0:20, tussen 0:05 en 8:00.</div>);
       }
     }
@@ -567,10 +556,70 @@ export function maakPlanhulp(ctx) {
   // Een begintijd kiezen of loslaten; bij kiezen ook ONS' overlapcontrole.
   function tikMoment(date, m, duur) {
     const aan = momentIndex(date, m) < 0;
-    wisselMoment(date, m);
+    wisselMoment(date, m, duur);
     const mo = BEWAARD.momenten[momentIndex(date, m)];
     if (aan && mo && actions.onSlotCheck) {
       vraagOns(date, m, duur, function (o) {
+        mo.ons = o;
+        setTimeout(function () { if (ctx.pagina === 'plan') renderPagina(); }, 0);
+      });
+    }
+    renderPagina();
+  }
+  // Weekplanning: klikken en slepen. Druk op een begintijd in het groen en
+  // sleep omlaag: de eindtijd volgt per kwartier (minstens een kwartier,
+  // hooguit 8 uur, niet voorbij het raster). Loslaten kiest het moment met die
+  // duur; een gewone klik kiest de gekozen duur. Pas na een paar pixels is het
+  // slepen; dan pakt de dag de muis (pointer capture), anders blijft het een klik.
+  let sleep = null, klikNegeren = false;
+  function sleepBegin(e, date, ws, we) {
+    if (e.button !== 0 || e.isPrimary === false) return;
+    const strook = e.target && e.target.closest ? e.target.closest('[data-raster-strook]') : null;
+    if (!strook) return;
+    const start = Number(strook.getAttribute('data-raster-strook'));
+    const lijf = e.currentTarget, doc = lijf.ownerDocument;
+    // Een vorige die nooit is losgelaten (muis buiten het venster): opruimen.
+    if (sleep && sleep.stop) sleep.stop();
+    const s = sleep = { date: date, start: start, eind: start + 15, y0: e.clientY, id: e.pointerId, actief: false, lijf: lijf, ws: ws, we: we };
+    const beweeg = function (ev) {
+      if (sleep !== s || ev.pointerId !== s.id) return;
+      if (!s.actief && Math.abs(ev.clientY - s.y0) < 4) return;
+      if (!s.actief) {
+        s.actief = true;
+        try { if (lijf.setPointerCapture) lijf.setPointerCapture(s.id); } catch (x) {}
+      }
+      const y = s.ws + (ev.clientY - lijf.getBoundingClientRect().top) / RASTER_PX;
+      const eind = Math.max(s.start + 15, Math.min(s.start + Math.ceil((y - s.start) / 15) * 15, s.we, s.start + DUUR_MAX, 24 * 60));
+      if (eind !== s.eind || !s.getekend) { s.eind = eind; s.getekend = true; renderPagina(); }
+    };
+    const stop = s.stop = function () {
+      doc.removeEventListener('pointermove', beweeg);
+      doc.removeEventListener('pointerup', klaar);
+      doc.removeEventListener('pointercancel', klaar);
+      if (sleep === s) sleep = null;
+    };
+    const klaar = function (ev) {
+      if (sleep !== s || ev.pointerId !== s.id) return;
+      stop();
+      if (!s.actief) return;
+      if (ev.type === 'pointercancel') { renderPagina(); return; }
+      // De klik die na het loslaten nog komt, telt niet.
+      klikNegeren = true;
+      setTimeout(function () { klikNegeren = false; }, 0);
+      kiesMetDuur(s.date, s.start, s.eind - s.start);
+    };
+    doc.addEventListener('pointermove', beweeg);
+    doc.addEventListener('pointerup', klaar);
+    doc.addEventListener('pointercancel', klaar);
+  }
+  // Een moment met een eigen duur kiezen (na slepen); stond hij er al, dan
+  // krijgt hij de nieuwe duur. ONS kijkt het daarna na.
+  function kiesMetDuur(date, m, minutes) {
+    if (momentIndex(date, m) >= 0) wisselMoment(date, m);
+    wisselMoment(date, m, minutes);
+    const mo = BEWAARD.momenten[momentIndex(date, m)];
+    if (mo && actions.onSlotCheck) {
+      vraagOns(date, m, minutes, function (o) {
         mo.ons = o;
         setTimeout(function () { if (ctx.pagina === 'plan') renderPagina(); }, 0);
       });
@@ -695,7 +744,7 @@ export function maakPlanhulp(ctx) {
     // Raster: uren links, ma t/m vr. Grijs = bezet (buiten de vrije tijd), groen = vrij.
     const ws = Math.floor((res.windowStart != null ? res.windowStart : 480) / 60) * 60;
     const we = Math.ceil((res.windowEnd != null ? res.windowEnd : 1020) / 60) * 60;
-    const PX = 0.75, hoog = (we - ws) * PX;
+    const PX = RASTER_PX, hoog = (we - ws) * PX;
     const feest = feestdagPer(res);
     const nuD = new Date(), vandaagYmd = ymdVan(nuD), nuMin = nuD.getHours() * 60 + nuD.getMinutes();
     // Detail: de afspraken in de dagen (alles wat tijd bezet houdt).
@@ -733,12 +782,13 @@ export function maakPlanhulp(ctx) {
       };
       return (
         <div data-raster-dag={date} onDoubleClick={isOpen ? toch : undefined} title={isOpen ? 'Dubbelklik in het grijs of op een afspraak om daar toch te plannen' : undefined}
-          style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', backgroundColor: isOpen ? '#ece7e5' : '#f4f0ee', transition: overgang('background-color 300ms ease') }}>
+          onPointerDown={isOpen ? function (e) { sleepBegin(e, date, ws, we); } : undefined}
+          style={{ position: 'relative', height: hoog + 'px', borderRadius: '6px', backgroundColor: isOpen ? '#ece7e5' : '#f4f0ee', transition: overgang('background-color 300ms ease'), userSelect: 'none' }}>
           {(d.per[date] || []).map(function (g) {
             const stroken = [];
             // Elke mogelijke begintijd is een strookje van een kwartier: tik = kiezen.
             for (let m = g.startMin; m + duur <= g.endMin; m += 15) {
-              stroken.push(<RasterStrook key={m} date={date} m={m} duur={duur} top={(m - g.startMin) * PX} actief={isOpen} onKies={function () { tikMoment(date, m, duur); }} />);
+              stroken.push(<RasterStrook key={m} date={date} m={m} duur={duur} top={(m - g.startMin) * PX} actief={isOpen} onKies={function () { if (!klikNegeren) tikMoment(date, m, duur); }} />);
             }
             return (
               <div key={g.startMin} data-raster-vrij={hm(g.startMin) + '-' + hm(g.endMin)}
@@ -759,15 +809,36 @@ export function maakPlanhulp(ctx) {
           {afspraken && afspraken[date] ? <AfspraakBlokken items={afspraken[date].items} ws={ws} we={we} px={PX} hoog={hoog} isOpen={isOpen} /> : null}
           {/* Gekozen momenten (roze); tik om los te laten. Dicht: een dun roze streepje. */}
           {BEWAARD.momenten.filter(function (mo) { return mo.date === date; }).map(function (mo) {
+            // Elk moment met zijn eigen duur; oranje als ONS overlap meldt of als
+            // hij doorloopt tot in bezette tijd.
+            const mDuur = duurVan(mo), eind = mo.startMin + mDuur;
+            const bezet = bezetVanaf(res.gaps, date, mo.startMin, eind);
+            const titel = (bezet != null ? 'Je bent bezet vanaf ' + hm(bezet) : mo.ons === true ? 'ONS meldt overlap' : hm(mo.startMin) + ' tot ' + hm(eind)) + '; tik om los te laten';
             return (
-              <button key={'m' + mo.startMin} type="button" tabIndex={isOpen ? 0 : -1} data-raster-gekozen={date + ' ' + hm(mo.startMin)} title={mo.ons === true ? 'ONS meldt overlap; tik om los te laten' : 'Gekozen; tik om los te laten'}
-                onClick={function () { tikMoment(date, mo.startMin, duur); }}
-                style={{ position: 'absolute', left: rand, right: rand, top: ((mo.startMin - ws) * PX) + 'px', height: (duur * PX) + 'px', border: '0', borderRadius: isOpen ? '5px' : '3px',
-                  backgroundColor: mo.ons === true ? T.warn : T.brand, color: '#fff', font: '700 10px ' + FONT, textAlign: 'left', padding: '2px 4px', cursor: 'pointer', zIndex: '2', overflow: 'hidden', whiteSpace: 'nowrap', transition: schuif }}>
+              <button key={'m' + mo.startMin} type="button" tabIndex={isOpen ? 0 : -1} data-raster-gekozen={date + ' ' + hm(mo.startMin)} data-raster-eind={hm(eind)} data-raster-bezet={bezet != null ? hm(bezet) : undefined}
+                title={titel} aria-label={dayLabel(date) + ' ' + hm(mo.startMin) + ' tot ' + hm(eind) + ', gekozen; tik om los te laten'}
+                onClick={function () { if (!klikNegeren) tikMoment(date, mo.startMin, mDuur); }}
+                style={{ position: 'absolute', left: rand, right: rand, top: ((mo.startMin - ws) * PX) + 'px', height: (mDuur * PX) + 'px', border: '0', borderRadius: isOpen ? '5px' : '3px',
+                  backgroundColor: mo.ons === true || bezet != null ? T.warn : T.brand, color: '#fff', font: '700 10px ' + FONT, textAlign: 'left', padding: '2px 4px', cursor: 'pointer', zIndex: '2', overflow: 'hidden', whiteSpace: 'nowrap', transition: schuif }}>
                 <span style={Object.assign({ display: 'block', overflow: 'hidden' }, open)}>{hm(mo.startMin) + ' ✓'}</span>
+                {mDuur * PX >= 24 ? <span style={Object.assign({ display: 'block', overflow: 'hidden', fontWeight: '600' }, open)}>{hm(eind)}</span> : null}
               </button>
             );
           })}
+          {/* Slepen: van de begintijd tot de eindtijd onder de muis; oranje als
+              je dan bezet bent. */}
+          {sleep && sleep.actief && sleep.date === date ? (function () {
+            const bezet = bezetVanaf(res.gaps, date, sleep.start, sleep.eind);
+            return (
+              <div data-raster-sleep={hm(sleep.start) + '-' + hm(sleep.eind)} data-raster-bezet={bezet != null ? hm(bezet) : undefined}
+                style={{ position: 'absolute', left: rand, right: rand, top: ((sleep.start - ws) * PX) + 'px', height: ((sleep.eind - sleep.start) * PX) + 'px', borderRadius: '5px', boxSizing: 'border-box',
+                  backgroundColor: bezet != null ? T.warn : T.brand, opacity: '0.85', color: '#fff', font: '700 10px ' + FONT, padding: '2px 4px', pointerEvents: 'none', zIndex: '5', overflow: 'hidden', whiteSpace: 'nowrap',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                {(sleep.eind - sleep.start) * PX >= 24 ? <span>{hm(sleep.start)}</span> : null}
+                <span>{'tot ' + hm(sleep.eind)}</span>
+              </div>
+            );
+          })() : null}
           {/* Vandaag: wat voorbij is gestreept, met een stip en lijn op nu. */}
           {date === vandaagYmd && nuMin > ws ? (
             <div data-raster-voorbij="" style={{ position: 'absolute', left: '0', right: '0', top: '0', height: ((Math.min(nuMin, we) - ws) * PX) + 'px', borderRadius: '6px 6px 0 0', pointerEvents: 'none', zIndex: '1',
@@ -808,6 +879,11 @@ export function maakPlanhulp(ctx) {
         </div>
       );
     });
+    // Gekozen momenten deze week die doorlopen tot in bezette tijd.
+    const bezetRegels = BEWAARD.momenten.filter(function (mo) { return datums.indexOf(mo.date) >= 0; }).map(function (mo) {
+      const eind = mo.startMin + duurVan(mo), b = bezetVanaf(res.gaps, mo.date, mo.startMin, eind);
+      return b == null ? null : dayLabel(mo.date) + ' ' + hm(mo.startMin) + ' tot ' + hm(eind) + ': je bent bezet vanaf ' + hm(b);
+    }).filter(Boolean);
     const legenda = [['#ece7e5', 'Bezet'], ['#e6f4ec', 'Vrij'], ['#fdf3e2', 'Reservering'], [T.brand, 'Gekozen']];
     if (Object.keys(feest).length) legenda.push(['linear-gradient(135deg,#ff9a33,#cfe8fd,#24684a)', 'Feestdag']);
     return (
@@ -820,14 +896,10 @@ export function maakPlanhulp(ctx) {
             <div style={{ fontSize: '11.5px', color: T.inkSoft }}>{werkweekNl(ctx.plan.rasterWeek, true)}</div>
           </div>
           {pijl(1, 'data-week-verder')}
-          {/* Vandaag als zachte pil zonder rand; in de week van vandaag grijs en uit. */}
-          <KaleKnop disabled={hier} data-week-vandaag="" title={hier ? 'Je bekijkt de week van vandaag' : 'Naar de week van vandaag'}
-            hoverStijl={hier ? null : { backgroundColor: '#f9e0ee' }}
-            onClick={function () { if (ctx.plan.rasterWeek !== huidigeWeek) { ctx.plan.rasterWeek = huidigeWeek; ctx.plan.rasterOpen = ''; renderPagina(); } }}
-            style={{ flex: 'none', height: '28px', padding: '0 12px', marginLeft: '6px', whiteSpace: 'nowrap', border: '0', borderRadius: '14px',
-              backgroundColor: hier ? T.lineSoft : T.brandWash, color: hier ? '#b9b0b4' : T.brand, font: '600 12px ' + FONT, cursor: hier ? 'default' : 'pointer' }}>
-            Vandaag
-          </KaleKnop>
+          {/* Vandaag: dezelfde knop als de keuzes in de tabel; in de week van vandaag grijs en uit. */}
+          <ChipKnop tekst="Vandaag" disabled={hier} data-week-vandaag="" title={hier ? 'Je bekijkt de week van vandaag' : 'Naar de week van vandaag'}
+            onClick={function () { ctx.plan.rasterWeek = huidigeWeek; ctx.plan.rasterOpen = ''; renderPagina(); }}
+            extra={{ flex: 'none', height: '30px', padding: '0 10px', marginLeft: '6px', whiteSpace: 'nowrap', fontSize: '12.5px', border: '1px solid ' + T.line }} />
         </div>
         {metDetail ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', margin: '0 0 6px' }}>
@@ -846,13 +918,14 @@ export function maakPlanhulp(ctx) {
           </div>
           {kolommen}
         </div>
+        {bezetRegels.map(function (t) { return <Regel key={t} toon="let" data-raster-melding="" tekst={t} style={{ margin: '6px 0 0' }} />; })}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '11px', color: T.inkSoft, marginTop: '8px' }}>
           {legenda.map(function (l) {
             return <span key={l[1]}><i style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '3px', background: l[0], marginRight: '4px', verticalAlign: '-1px' }} />{l[1]}</span>;
           })}
         </div>
         {detail ? <AfspraakLegenda /> : null}
-        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{(uitklap ? 'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd.' : 'Tik in het groen op de begintijd.') + ' De afspraak duurt ' + fmtMin(duur) + '. ' + (uitklap ? 'Toch over een afspraak plannen: dubbelklik erop.' : 'Toch op een bezet moment plannen: dubbelklik in het grijs.')}</Txt>
+        <Txt kind="help" style={{ margin: '6px 0 0', fontSize: '11.5px' }}>{(uitklap ? 'Tik op een dag om hem uit te klappen, en dan in het groen op de begintijd.' : 'Tik in het groen op de begintijd.') + ' De afspraak duurt ' + fmtMin(duur) + '; sleep omlaag voor een andere eindtijd. ' + (uitklap ? 'Toch over een afspraak plannen: dubbelklik erop.' : 'Toch op een bezet moment plannen: dubbelklik in het grijs.')}</Txt>
       </div>
     );
   }

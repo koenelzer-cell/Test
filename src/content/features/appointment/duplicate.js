@@ -30,8 +30,8 @@ const geldigMoment = (m) => !!m && /^\d{4}-\d{2}-\d{2}$/.test(String(m.date))
   && Number.isInteger(m.startMin) && m.startMin >= 0 && m.startMin < 24 * 60;
 const CREATE_URL = '/calendar/events';
 
-// moments: [{ date: 'YYYY-MM-DD', startMin }] die een kopie krijgen van de
-// afspraak die nu wordt opgeslagen. eigen: momenten met andere instellingen;
+// moments: [{ date: 'YYYY-MM-DD', startMin, minutes? }] die een kopie krijgen
+// van de afspraak die nu wordt opgeslagen (minutes: een eigen duur). eigen: momenten met andere instellingen;
 // die krijgen daarna elk een eigen, nieuw afspraakformulier (de afspraakhulp
 // loopt dan opnieuw). Beide leeg = niets klaarzetten (en oude weg).
 export function storePendingDuplicates(moments, eigen) {

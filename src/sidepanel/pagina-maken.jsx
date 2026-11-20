@@ -4,7 +4,8 @@
 // volgorde op afstand (efficiëntie).
 
 import { BEWAARD, onthoudFormulierTitels } from './bewaard.js';
-import { FONT, FoutStrook, GeluktBalk, Icoon, Invoer, KaleKnop, KeuzeMenu, Knop, LaadBalk, PrimaryBtn, Regel, SecondaryBtn, T, Txt, Wissel, dagLang, dayLabel, hm, opsomming, useHover } from './ui.jsx';
+import { FONT, FoutStrook, GeluktBalk, Icoon, Invoer, KaleKnop, KeuzeMenu, Knop, LaadBalk, PrimaryBtn, Regel, SecondaryBtn, StapKiezer, T, Txt, Wissel, dagLang, dayLabel, hm, opsomming, useHover } from './ui.jsx';
+import { DUUR_MAX, DUUR_MIN, bezetVanaf, leesTijd, naarKwartier } from '../shared/duur.js';
 import { buren, extraKmVan, planMany } from './multi-plan.js';
 import { normPostcode, roadMatrix, vraagRoutes } from './geo.js';
 
@@ -359,9 +360,14 @@ export function maakAfspraakMaken(ctx) {
   function kanDirect() { return fAan('plannerDirect') && !!actions.onEventOptions && !!actions.onCreateEvents; }
   function naarMaken(momenten, minutes) {
     const items = momenten.map(function (m) {
-      return { date: m.date, startMin: m.startMin, minutes: minutes, labelId: '', typeAangepast: false, locatie: '', locatieAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
+      return { date: m.date, startMin: m.startMin, minutes: m.minutes > 0 ? m.minutes : minutes, labelId: '', typeAangepast: false, locatie: '', locatieAangepast: false, titel: '', titelAangepast: false, reisHeen: 0, reisTerug: 0, clients: [leegClient()] };
     });
-    BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null };
+    // De vrije blokken van die dagen (uit de planhulp) bewaren: daarmee meldt
+    // de pagina het als een afspraak doorloopt tot in bezette tijd.
+    const dagen = {};
+    items.forEach(function (it) { dagen[it.date] = true; });
+    const vrij = vrijeBlokken().filter(function (g) { return dagen[g.date]; });
+    BEWAARD.maak = { items: items, modus: 'dup', clients: [leegClient()], geavanceerd: false, labels: [], hourTypes: {}, uursoort: {}, metaKnown: true, laden: true, busy: false, error: '', uitslag: null, eff: null, vrij: vrij };
     naarPagina('maken');
     const mk = BEWAARD.maak;
     actions.onEventOptions([], function (res) {
@@ -374,6 +380,56 @@ export function maakAfspraakMaken(ctx) {
       }
       if (ctx.pagina === 'maken') renderPagina();
     }, { locaties: true });
+  }
+  // Vrije blokken die het zijpaneel nu kent (lijst en Weekplanning van de planhulp).
+  function vrijeBlokken() {
+    return ((ctx.plan.result && ctx.plan.result.gaps) || []).concat((ctx.plan.raster && ctx.plan.raster.result && ctx.plan.raster.result.gaps) || []);
+  }
+  // Eindtijd van een afspraak aanpassen (minuten na middernacht); de keuze in
+  // de planhulp krijgt dezelfde duur.
+  function zetEind(mk, it, eind) {
+    const oud = it.minutes;
+    it.minutes = Math.max(DUUR_MIN, Math.min(DUUR_MAX, 24 * 60 - it.startMin, eind - it.startMin));
+    if (it.minutes === oud) return;
+    (BEWAARD.momenten || []).forEach(function (m) { if (m.date === it.date && m.startMin === it.startMin) { m.minutes = it.minutes; m.ons = undefined; } });
+    mk.eff = null;
+  }
+  // Ben je bezet? De afspraak loopt door tot na het vrije blok waarin hij
+  // begint, of overlapt een andere afspraak van deze pagina. -> [tekst, …]
+  function bezetMeldingen(mk, it) {
+    const eind = it.startMin + it.minutes, uit = [];
+    const b = bezetVanaf((mk.vrij || []).concat(mk.gaps || [], vrijeBlokken()), it.date, it.startMin, eind);
+    if (b != null) uit.push('Je bent bezet vanaf ' + hm(b));
+    mk.items.forEach(function (o, j) {
+      if (o !== it && o.date === it.date && o.startMin < eind && o.startMin + o.minutes > it.startMin) {
+        uit.push('Overlapt met afspraak ' + (j + 1) + ' (' + hm(o.startMin) + ' tot ' + hm(o.startMin + o.minutes) + ')');
+      }
+    });
+    return uit;
+  }
+  // Regel Eindtijd: min en plus per kwartier, tik op de tijd om hem te typen.
+  function eindRegel(mk, it, k) {
+    const eind = it.startMin + it.minutes;
+    const max = Math.min(24 * 60, it.startMin + DUUR_MAX), min = it.startMin + DUUR_MIN;
+    const invoer = it.eindInvoer || (it.eindInvoer = {});
+    return (
+      <>
+        <div data-maak-eind-rij={String(k)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
+          <span style={Object.assign({ flex: '0 0 74px' }, LABEL)}>Eindtijd</span>
+          <div style={{ display: 'flex', gap: '5px', flex: '1 1 auto', minWidth: '0' }}>
+            <StapKiezer staat={invoer} toon={hm(eind)} invoer={hm(eind)}
+              lees={function (t) { const m = leesTijd(t); return m != null && m >= min && m <= max ? m : null; }}
+              onKies={function (m) { zetEind(mk, it, m); }}
+              onStap={function (r) { zetEind(mk, it, Math.max(min, Math.min(max, naarKwartier(eind, r)))); renderPagina(); }}
+              minUit={eind <= min} plusUit={eind >= max}
+              attr={function (soort) { return { ['data-maak-eind-' + soort]: String(k) }; }}
+              labels={{ min: 'Eerder klaar', plus: 'Later klaar', waarde: 'Eindtijd ' + hm(eind) + ', zelf invullen', typen: 'Eindtijd', voorbeeld: '11:30' }} />
+          </div>
+        </div>
+        {invoer.fout ? <div data-maak-eind-fout={String(k)} style={{ fontSize: '11.5px', color: T.bad, padding: '0 0 6px 82px', marginTop: '-4px' }}>{'Bijvoorbeeld 11:30, na ' + hm(it.startMin) + ' en tot en met ' + hm(max) + '.'}</div> : null}
+        {bezetMeldingen(mk, it).map(function (t) { return <Regel key={t} toon="let" tekst={t} style={{ margin: '0 0 6px' }} data-maak-bezet={String(k)} />; })}
+      </>
+    );
   }
   // Standaard afspraaktype voor wat nog niet zelf gekozen is.
   function standaardType(mk) {
@@ -814,6 +870,7 @@ export function maakAfspraakMaken(ctx) {
           ) : null}
         </div>
         <div style={{ padding: '4px 12px 6px' }}>
+          {!klaar ? eindRegel(mk, it, k) : null}
           {body}
           {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="Op dit tijdstip staat al een afspraak bij de cliënt(en)" /> : null}
           {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
@@ -994,7 +1051,8 @@ export function maakAfspraakMaken(ctx) {
     const mee = meeMet(mk, eerste);
     if (mee.length) req.medewerkers = mee;
     if (mk.modus === 'los') { req.multi = true; req.eigen = items.slice(1).map(function (it) { return metType(Object.assign(tijd(it), { minutes: it.minutes, clientIds: ids(it) }), it); }); }
-    else req.extra = items.slice(1).map(tijd);
+    // Kopieën: een andere eindtijd dan de eerste afspraak gaat mee.
+    else req.extra = items.slice(1).map(function (it) { const t = tijd(it); if (it.minutes !== eerste.minutes) t.minutes = it.minutes; return t; });
     actions.onNewEvent(req, function (r) { if (!(r && r.ok)) { mk.error = (r && r.error) || 'Openen mislukt.'; renderPagina(); } });
   }
   function routesBron() { return ctx.state && ctx.state.routesProxy && (ctx.state.routesProxy.key || ctx.state.routesProxy.url) ? ctx.state.routesProxy : null; }
@@ -1053,7 +1111,7 @@ export function maakAfspraakMaken(ctx) {
     placed.forEach(function (p) { mk.items[p.i].date = p.date; mk.items[p.i].startMin = p.startMin; });
     reisInvullen(mk, reis);
     mk.items.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.startMin - b.startMin; });
-    BEWAARD.momenten = mk.items.map(function (it) { return { date: it.date, startMin: it.startMin, eigen: false }; });
+    BEWAARD.momenten = mk.items.map(function (it) { return { date: it.date, startMin: it.startMin, minutes: it.minutes, eigen: false }; });
     mk.eff = null;
     renderPagina();
   }

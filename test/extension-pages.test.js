@@ -811,6 +811,71 @@ test('zijpaneel: planhulp A - instellingen in één regel, per dag begintijden k
   assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: '2026-10-08', time: '11:00', minutes: 60, extra: [{ date: ymd(ma10), time: '10:30' }], eigen: [] });
 });
 
+test('planhulp Weekplanning: klikken en slepen kiest een eigen eindtijd, een klik de gekozen duur; doorslepen tot in bezet geeft een melding', async () => {
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7); // volgende week
+  const dag = (n) => ymd(new Date(ma.getFullYear(), ma.getMonth(), ma.getDate() + n));
+  const { document, dom, verzonden } = zijpaneelMetTools({
+    'ag-free-slots': (msg, cb) => cb({ ok: true, result: { minutes: msg.minutes, weeks: msg.weeks, windowStart: 480, windowEnd: 1020, gaps: msg.from === dag(0)
+      ? [{ date: dag(1), startMin: 540, endMin: 720, minutes: 180 }, { date: dag(2), startMin: 540, endMin: 1020, minutes: 480 }] : [] } }),
+    'ag-slot-check': (msg, cb) => cb({ ok: true, status: 'ready', overlap: false }),
+    'ag-new-event': (msg, cb) => cb({ ok: true }),
+  }, { ...AGENDA_STATE_TOOLS, features: { plannerDirect: false } });
+  const win = dom.window;
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-plan-weergave="raster"]').click();
+  await tick();
+  document.querySelector('[data-week-verder]').click();
+  await tick();
+  // Raster vanaf 8:00, 0,75 pixel per minuut; jsdom zet het raster op y = 0.
+  const y = (min) => (min - 480) * 0.75;
+  const muis = (el, type, minuut) => el.dispatchEvent(new win.MouseEvent(type, { bubbles: true, button: 0, clientY: y(minuut) }));
+  const strook = (d, t) => document.querySelector('[data-raster-dag="' + d + '"] [data-start="' + t + '"]');
+  const gekozen = (d, t) => document.querySelector('[data-raster-gekozen="' + d + ' ' + t + '"]');
+  // Slepen van 9:00 naar 10:20: tot 10:30 (per kwartier).
+  muis(strook(dag(1), '09:00'), 'pointerdown', 541);
+  muis(document, 'pointermove', 543);
+  assert.equal(document.querySelector('[data-raster-sleep]'), null, 'een paar pixels is nog een klik');
+  muis(document, 'pointermove', 620);
+  assert.equal(document.querySelector('[data-raster-sleep]').getAttribute('data-raster-sleep'), '09:00-10:30');
+  assert.equal(document.querySelector('[data-raster-sleep]').getAttribute('data-raster-bezet'), null);
+  muis(document, 'pointerup', 620);
+  strook(dag(1), '09:00').click(); // de klik die de browser na het loslaten stuurt
+  assert.equal(document.querySelector('[data-raster-sleep]'), null);
+  assert.equal(gekozen(dag(1), '09:00').getAttribute('data-raster-eind'), '10:30', 'gekozen met de gesleepte eindtijd');
+  assert.ok(verzonden.some((m) => m.type === 'ag-slot-check' && m.date === dag(1) && m.startMin === 540 && m.minutes === 90), 'ONS kijkt de gesleepte tijd na');
+  await new Promise((r) => setTimeout(r, 5));
+  // Een gewone klik: de gekozen duur (1 uur).
+  strook(dag(2), '10:00').click();
+  assert.equal(gekozen(dag(2), '10:00').getAttribute('data-raster-eind'), '11:00');
+  // Omhoog slepen: minstens een kwartier.
+  muis(strook(dag(2), '14:00'), 'pointerdown', 841);
+  muis(document, 'pointermove', 700);
+  assert.equal(document.querySelector('[data-raster-sleep]').getAttribute('data-raster-sleep'), '14:00-14:15');
+  muis(document, 'pointerup', 700);
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(gekozen(dag(2), '14:00').getAttribute('data-raster-eind'), '14:15');
+  gekozen(dag(2), '14:00').click();
+  assert.equal(gekozen(dag(2), '14:00'), null, 'een tik op een gekozen moment laat hem los');
+  // Doorslepen tot na het vrije blok: oranje en een melding.
+  muis(strook(dag(1), '11:00'), 'pointerdown', 661);
+  muis(document, 'pointermove', 745);
+  assert.equal(document.querySelector('[data-raster-sleep]').getAttribute('data-raster-bezet'), '12:00');
+  muis(document, 'pointerup', 745);
+  await new Promise((r) => setTimeout(r, 5));
+  const laat = gekozen(dag(1), '11:00');
+  assert.equal(laat.getAttribute('data-raster-eind'), '12:30');
+  assert.equal(laat.getAttribute('data-raster-bezet'), '12:00');
+  assert.equal(laat.style.backgroundColor, 'rgb(138, 90, 0)', 'oranje');
+  assert.match(document.querySelector('[data-raster-melding]').textContent, /11:00 tot 12:30: je bent bezet vanaf 12:00$/);
+  // Via het ONS-formulier: elke kopie met een andere duur dan de eerste krijgt die mee.
+  knop(document, 'Afspraak maken op 3 momenten').click();
+  assert.deepEqual(JSON.parse(JSON.stringify(verzonden.at(-1))), { type: 'ag-new-event', date: dag(1), time: '09:00', minutes: 90,
+    extra: [{ date: dag(1), time: '11:00' }, { date: dag(2), time: '10:00', minutes: 60 }], eigen: [] });
+});
+
 test('planhulp Weekplanning: met Detail staat één dag open met het raster, de rest is smal; een smalle dag aantikken klapt hem uit', async () => {
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const nu = new Date(), ma = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() - ((nu.getDay() + 6) % 7) + 7); // volgende week
@@ -1424,7 +1489,7 @@ test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uurs
   assert.equal(document.querySelector('[data-maak-geavanceerd]'), null, 'geen geavanceerd');
   assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst een uursoort');
   kies(document, dom, '[data-maak-nc-uursoort]', '77');
-  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /^1Afspraak 1 van 2Ma 12 oktober10:00 tot 11:00TeamoverlegVerwijderen$/, 'kaart: moment en uursoort');
+  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /^1Afspraak 1 van 2Ma 12 oktober10:00 tot 11:00Eindtijd11:00TeamoverlegVerwijderen$/, 'kaart: moment, eindtijd en uursoort');
   assert.equal(document.querySelector('[data-maak-aanpassen="0"]'), null, 'niets aan te passen');
   document.querySelector('[data-maak-knop]').click();
   await tick();
@@ -1830,6 +1895,60 @@ test('planhulp: eigen duur zelf typen tot op de minuut, ook korter dan een half 
   await tick();
   assert.equal(waarde().textContent, '1 u 7 m');
   assert.equal(zoek().minutes, 67, 'het raster zoekt met 67 minuten');
+});
+
+test('Afspraak maken: eindtijd per afspraak met min, plus en typen; een melding als je bezet bent of afspraken overlappen', async () => {
+  const { document, dom, verzonden } = maakPaneel();
+  await tick();
+  navKnop(document, 'Planhulp').click();
+  await tick();
+  document.querySelector('[data-dag="2026-10-12"][data-start="09:00"]').click();
+  document.querySelector('[data-dag="2026-10-12"][data-start="10:00"]').click();
+  knop(document, 'Afspraak maken op 2 momenten').click();
+  await tick();
+  const win = dom.window;
+  const toets = (el, key) => el.dispatchEvent(new win.KeyboardEvent('keydown', { key, bubbles: true }));
+  const eind = (k) => document.querySelector('[data-maak-eind-waarde="' + k + '"]');
+  const veld = (k) => document.querySelector('[data-maak-eind-typen="' + k + '"]');
+  const bezet = (k) => [...document.querySelectorAll('[data-maak-bezet="' + k + '"]')].map((n) => n.textContent);
+  const kop = (k) => document.querySelector('[data-maak-regel="' + k + '"]').textContent;
+  assert.equal(eind(0).textContent, '10:00');
+  assert.deepEqual(bezet(0), []);
+  // Plus: een kwartier later, en dan overlapt hij met de tweede afspraak.
+  document.querySelector('[data-maak-eind-plus="0"]').click();
+  assert.equal(eind(0).textContent, '10:15');
+  assert.match(kop(0), /09:00 tot 10:15/);
+  assert.deepEqual(bezet(0), ['Overlapt met afspraak 2 (10:00 tot 11:00)']);
+  assert.deepEqual(bezet(1), ['Overlapt met afspraak 1 (09:00 tot 10:15)']);
+  document.querySelector('[data-maak-eind-min="0"]').click();
+  assert.deepEqual(bezet(0), [], 'weer terug: geen melding');
+  // Typen: voor de begintijd kan niet, 9:40 wel.
+  eind(0).click();
+  assert.equal(veld(0).value, '10:00');
+  typ(veld(0), '8:30');
+  toets(veld(0), 'Enter');
+  assert.equal(document.querySelector('[data-maak-eind-fout="0"]').textContent, 'Bijvoorbeeld 11:30, na 09:00 en tot en met 17:00.');
+  typ(veld(0), '9:40');
+  toets(veld(0), 'Enter');
+  assert.equal(eind(0).textContent, '09:40');
+  assert.equal(document.querySelector('[data-maak-eind-fout="0"]'), null);
+  // De tweede tot na het vrije blok (9:00 tot 17:00): bezet.
+  eind(1).click();
+  typ(veld(1), '1730');
+  toets(veld(1), 'Enter');
+  assert.equal(eind(1).textContent, '17:30');
+  assert.deepEqual(bezet(1), ['Je bent bezet vanaf 17:00']);
+  // Via het ONS-formulier: de kopie krijgt zijn eigen duur mee.
+  await kiesClient(document, dom, 'dup0', 'Tamara');
+  kies(document, dom, '[data-maak-uursoort="11142"]', '5');
+  document.querySelector('[data-maak-ons]').click();
+  const ons = JSON.parse(JSON.stringify(verzonden.filter((m) => m.type === 'ag-new-event').at(-1)));
+  assert.deepEqual([ons.time, ons.minutes, ons.extra], ['09:00', 40, [{ date: '2026-10-12', time: '10:00', minutes: 450 }]]);
+  // Meteen maken: elke afspraak met zijn eigen eindtijd; bezet houdt het maken niet tegen.
+  document.querySelector('[data-maak-knop]').click();
+  await tick();
+  const ev = JSON.parse(JSON.stringify(verzonden.find((m) => m.type === 'ag-create-events'))).events;
+  assert.deepEqual(ev.map((e) => [e.startMin, e.minutes]), [[540, 40], [600, 450]]);
 });
 
 test('Afspraak maken: Geen uursoort bovenaan, niet vooraf gekozen; gekozen gaat de afspraak zonder uursoort naar ONS', async () => {

@@ -3425,7 +3425,7 @@
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
-    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    // { date, time, minutes, extra?: [{ date, time, minutes? }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
     AGENDA_FORM_TITLE: "ag-form-title",
     // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",
@@ -4639,7 +4639,8 @@
   function duplicateEventPayload(payload, moment) {
     const info = inspectEventPayload(payload);
     if (!info.ok || !moment || !/^\d{4}-\d{2}-\d{2}$/.test(String(moment.date || ""))) return null;
-    const start = moment.startMin, eind = start + info.minutes;
+    const eigen = parseInt(moment.minutes, 10);
+    const start = moment.startMin, eind = start + (eigen > 0 && eigen <= 24 * 60 ? eigen : info.minutes);
     if (!(start >= 0) || eind > 24 * 60) return null;
     const van = isoLocalWithOffset(moment.date, start);
     const tot2 = eind === 24 * 60 ? null : isoLocalWithOffset(moment.date, eind);

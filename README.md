@@ -748,8 +748,8 @@ en oker).
   rest; 'Naar dag' opent die dag in de agenda); tikken = kiezen, nog eens
   tikken = loslaten, ook over meerdere dagen. *Weekplanning*: een mini-agenda
   ma-vr per week (bladeren met de pijlknoppen links en rechts van de week, de
-  zachtroze pil 'Vandaag' brengt je terug naar de huidige week en is grijs als
-  je die al bekijkt; vandaag heeft een roze kop, wat al voorbij is staat
+  knop 'Vandaag' (zelfde stijl als de keuzes in de tabel) brengt je terug
+  naar de huidige week en is grijs als je die al bekijkt; vandaag heeft een roze kop, wat al voorbij is staat
   gestreept en een dunne roze lijn met stip toont het huidige tijdstip): grijs bezet, groen vrij, oranje
   reservering, roze gekozen. Eén dag staat open en breed (eerst de eerste dag
   met vrije tijd), met 'van tot' in het groen; de andere dagen zijn smal, met
@@ -767,7 +767,15 @@ en oker).
   nooit in. Verder de tijden en de reistijd ervoor en erna; een roze stip bij
   nog registreren, gestippeld wat nog gepland staat, gestreept een hele dag
   afwezig. Afspraken die tegelijk vallen staan naast elkaar. In de smalle
-  dagen dunne streepjes. Toch op een bezet moment plannen: dubbelklik in het
+  dagen dunne streepjes. Klikken en slepen: druk op een begintijd in het groen
+  en sleep omlaag; de eindtijd volgt per kwartier (tot en met het kwartier
+  onder de muis, minstens een kwartier, hooguit 8 uur). Tijdens het slepen
+  staat er 'tot 10:45' in het blok, oranje als je dan bezet bent. Loslaten
+  kiest het moment met die duur; een gewone klik kiest de gekozen duur. Zo kan
+  elk moment een eigen duur hebben; een gekozen blok toont begin en eind en
+  is oranje als het doorloopt tot na het vrije blok, met onder het raster
+  'vr 27 nov 12:00 tot 14:00: je bent bezet vanaf 13:00'. ONS kijkt een
+  gesleept moment ook na. Toch op een bezet moment plannen: dubbelklik in het
   grijs of op een afspraak; dat kwartier wordt gekozen en ONS kijkt het na
   (oranje bij overlap). Detail onthoudt het zijpaneel op dit apparaat; de
   afspraken komen uit dezelfde weekgegevens als de vrije tijd
@@ -788,12 +796,15 @@ en oker).
   zet een oranje rand om die begintijd als ONS overlap ziet. Elke gekozen
   tijd wordt ook nagekeken (melding als ONS overlap ziet). Een antwoord van
   ONS blijft vijf minuten bewaard per dag, begintijd en duur. De gekozen momenten staan in een vaste balk onderin met één knop
-  'Afspraak maken (op n momenten)'; klik op de teller om de lijst te zien en
-  daar momenten weg te halen of alles te wissen. 'Afspraak maken' gaat naar
+  'Afspraak maken (op n momenten)'; klik op de teller om de lijst te zien
+  (elk moment met zijn eigen begin- en eindtijd) en daar momenten weg te
+  halen of alles te wissen. Een andere duur kiezen geldt voor wat je daarna
+  kiest; gekozen momenten houden hun eigen duur. 'Afspraak maken' gaat naar
   de pagina Afspraak maken (hieronder).
   Staat 'afspraak meteen in ONS maken' uit in het beheer, dan opent het
   ONS-formulier voor het eerste moment en maakt de hulp na het opslaan
-  dezelfde afspraak op de andere momenten; met 'Apart afspraakformulier' bij
+  dezelfde afspraak op de andere momenten (een moment met een andere duur dan
+  het eerste krijgt een kopie met die eigen eindtijd); met 'Apart afspraakformulier' bij
   een gekozen tijd krijgt dat moment een eigen formulier. Niet voor
   herhalende afspraken, en hooguit 20 momenten per keer.
   Reserveringen (tijd vastgehouden voor een soort werk, bijv. 'JG
@@ -835,7 +846,15 @@ en oker).
   voor alle afspraken, per afspraak aan te passen. Dan
   **n afspraken**: elke afspraak een eigen kaart met een roze nummer,
   'Afspraak 1 van 2', de dag en de tijd ('Di 13 oktober', '10:00 tot
-  11:00'). Bij *Zelfde cliënt(en)* daaronder de titel ('Huisbezoek Tamara en
+  11:00'). Bovenin elke kaart de regel **Eindtijd** met min en plus (naar het
+  vorige of volgende hele kwartier) en de eindtijd; tik erop om hem zelf te
+  typen ('11:30', '1130', '11'; na de begintijd en hooguit 8 uur later,
+  anders een rode rand met een voorbeeld). Loopt de afspraak door tot na het
+  vrije blok waarin hij begint, dan staat eronder 'Je bent bezet vanaf
+  12:00'; overlapt hij een andere afspraak op deze pagina, dan 'Overlapt met
+  afspraak 2 (11:00 tot 12:00)'. Het maken gaat gewoon door (het is een
+  waarschuwing). De gekozen momenten in de planhulp krijgen dezelfde duur.
+  Bij *Zelfde cliënt(en)* daaronder de titel ('Huisbezoek Tamara en
   Bram') met labels: Cliënten aanwezig of niet, de reistijd, en 'Eigen keuze'
   als deze afspraak afwijkt. Onderin twee knoppen met tekst: **Aanpassen**
   (klapt de kaart open: type, titel, Cliënten zijn aanwezig en reistijd van
@@ -846,7 +865,8 @@ en oker).
   (ook meerdere, '+ Cliënt'), het type, de titel, Cliënten zijn aanwezig en
   de reistijd van die afspraak; daar is geen Aanpassen nodig. Onderin: 'n afspraken maken in ONS' (pas als elke
   cliënt een uursoort heeft) en de link **ONS Afspraakformulier** als
-  terugval (zelfde cliënten: één formulier + kopieën; per afspraak anders:
+  terugval (zelfde cliënten: één formulier + kopieën, een kopie met een
+  andere eindtijd dan de eerste afspraak krijgt die mee; per afspraak anders:
   een eigen formulier per afspraak, cliënten al ingevuld via
   `invitee_ids[]`). Het formulier opent meteen met de datum, de begin- en
   eindtijd en het gekozen afspraaktype: de hulp zet die in het lege

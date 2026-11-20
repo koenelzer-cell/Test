@@ -83,7 +83,7 @@ export function maakRondleidingen(ctx) {
             return els;
           } },
         { titel: 'Je gekozen momenten', tekst: 'Hier staan je keuzes. Tik op de teller om ze te bekijken of te wissen, en ga dan door naar Afspraak maken.', voor: eenMoment, vind: function () { return el.balkHost && el.balkHost.firstChild; } },
-        { titel: 'De weekplanning', tekst: 'Groen is vrij. Tik in het groen op de begintijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.', voor: function () { naarPlan('raster'); },
+        { titel: 'De weekplanning', tekst: 'Groen is vrij. Tik in het groen op de begintijd, of sleep vanaf de begintijd omlaag voor een andere eindtijd. Met de pijlen blader je, met Vandaag ben je zo terug. Feestdagen hebben een eigen kleur.', voor: function () { naarPlan('raster'); },
           vind: alle('[data-raster],[data-week-titel],[data-week-vandaag]') },
         { titel: 'Zelfde of per afspraak anders', tekst: 'Bij meerdere momenten kies je of elke afspraak dezelfde cliënt(en) krijgt, of per afspraak andere.', als: ctx.kanDirect, voor: naarMakenPagina, vind: alle('[data-maak-modus]') },
         { titel: 'Cliënt zoeken', tekst: 'Typ een naam zoals in ONS. Je ziet cliëntnummer, geboortedatum en postcode. Vink aan om ook cliënten uit zorg te vinden.', als: ctx.kanDirect, voor: naarMakenPagina,

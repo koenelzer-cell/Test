@@ -142,3 +142,11 @@ test('kopieën deels mislukt: een melding die blijft (alert), met Mislukte opnie
   assert.equal(melding().getAttribute('role'), 'status');
   assert.match(melding().textContent, /^Nu wel gemaakt op /);
 });
+
+test('kopie met een eigen duur: andere eindtijd, de rest gelijk', () => {
+  const k = duplicateEventPayload(VOORBEELD(), { date: '2026-10-20', startMin: 9 * 60 + 15, minutes: 105 });
+  assert.equal(k.event.start_time, '2026-10-20T09:15:00+02:00');
+  assert.equal(k.event.end_time, '2026-10-20T11:00:00+02:00');
+  assert.equal(duplicateEventPayload(VOORBEELD(), { date: '2026-10-20', startMin: 540, minutes: 0 }).event.end_time, '2026-10-20T10:00:00+02:00', 'zonder duur: even lang als het voorbeeld');
+  assert.equal(duplicateEventPayload(VOORBEELD(), { date: '2026-10-20', startMin: 22 * 60, minutes: 150 }), null, 'niet over middernacht');
+});

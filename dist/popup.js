@@ -156,7 +156,7 @@
     AGENDA_QUICK_REGISTER: "ag-quick-register",
     // { date, time, minutes, force } -> { ok, overlap?, error? }
     AGENDA_NEW_EVENT: "ag-new-event",
-    // { date, time, minutes, extra?: [{ date, time }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
+    // { date, time, minutes, extra?: [{ date, time, minutes? }] } -> { ok, error? }  afspraakformulier openen (extra: kopieën na opslaan)
     AGENDA_FORM_TITLE: "ag-form-title",
     // content -> zijpaneel: { date, time } -> { title }  titel uit Afspraak maken voor het ONS-formulier dat net openging (alleen in het geheugen van het zijpaneel)
     AGENDA_DUPLICATES_DONE: "ag-duplicates-done",

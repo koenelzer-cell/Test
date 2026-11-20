@@ -2,6 +2,20 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.328
+
+- Weekplanning: druk op een begintijd in het groen en sleep omlaag om de
+  eindtijd te kiezen. Een gewone klik kiest nog steeds de ingestelde duur.
+  Zo kan elke afspraak een andere duur hebben. Sleep je door tot in bezette
+  tijd, dan wordt het blok oranje en staat er onder de week een melding.
+- Afspraak maken: elke afspraak heeft een regel Eindtijd met min en plus;
+  tik op de tijd om hem zelf te typen. Ben je dan bezet, of overlapt hij een
+  andere afspraak, dan zie je dat meteen.
+- Via het ONS Afspraakformulier krijgt een kopie met een andere eindtijd die
+  eindtijd mee.
+- De knop Vandaag en de min en plus bij een eigen duur zien eruit als de
+  andere keuzeknoppen.
+
 ## 1.6.327
 
 - Planhulp: met het klokje naast de duur kies je zelf hoe lang de afspraak
