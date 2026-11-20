@@ -12,7 +12,7 @@ Hoe het in elkaar zit: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 |---|---|
 | Medewerkers | [Snelstart](docs/gebruikers/snelstart.md), [Veelgestelde vragen en problemen](docs/gebruikers/faq.md) |
 | Ontwikkelaars | Dit bestand (bouwen, laden, uitbrengen, alle functies), [architectuuroverzicht met diagram](docs/techniek/architectuur-overzicht.md), [volledige architectuur](docs/ARCHITECTURE.md), [permissies en opslag](docs/techniek/permissies-en-opslag.md) |
-| Uitbrengen | [Test- en releasechecklist](docs/release/checklist.md), [uitrol](docs/UITROL.md), [changelog-sjabloon](docs/release/changelog-template.md), [CHANGELOG.md](CHANGELOG.md) |
+| Uitbrengen | [Test- en releasechecklist](docs/uitbrengen/checklist.md), [uitrol](docs/UITROL.md), [changelog-sjabloon](docs/uitbrengen/changelog-template.md), [CHANGELOG.md](CHANGELOG.md) |
 | Privacy en winkel | [Permissies uitgelegd](docs/privacy/permissies-uitgelegd.md), [basis privacybeleid](docs/privacy/privacybeleid-basis.md), [beveiliging en gegevensverwerking](SECURITY.md) |
 
 Overzicht van alle documenten: [docs/README.md](docs/README.md).

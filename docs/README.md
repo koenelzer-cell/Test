@@ -18,8 +18,8 @@ documentatie aan in dezelfde commit als de code ("docs as code").
 
 | Document | Waarover |
 |---|---|
-| [release/checklist.md](release/checklist.md) | Test- en releasechecklist voor een nieuwe versie in de winkel(s) |
-| [release/changelog-template.md](release/changelog-template.md) | Sjabloon voor de changelog volgens Keep a Changelog |
+| [uitbrengen/checklist.md](uitbrengen/checklist.md) | Test- en releasechecklist voor een nieuwe versie in de winkel(s) |
+| [uitbrengen/changelog-template.md](uitbrengen/changelog-template.md) | Sjabloon voor de changelog volgens Keep a Changelog |
 | [../CHANGELOG.md](../CHANGELOG.md) | Wat er per versie veranderde, in gewone taal |
 
 ## Voor medewerkers
