@@ -234,24 +234,24 @@ for (const breedte of [340, 420]) {
       await page.getByRole('button', { name: /Afspraak maken op 2 momenten/ }).click();
       await expect(page.locator('[data-maak-afspraak]')).toHaveCount(2);
       await controleer(page, testInfo, 'maken-zelfde');
-      // Eindtijd per afspraak: plus per kwartier, zelf typen, en een melding als je bezet bent.
-      const eind0 = page.locator('[data-maak-eind-waarde="0"]');
+      // Eindtijd per afspraak: tik op de eindtijd en typ; een melding als je bezet bent.
+      const eind0 = page.locator('[data-maak-eind="0"]');
+      const veld0 = page.locator('[data-maak-eind-typen="0"]');
       const voor = await eind0.textContent();
-      await page.locator('[data-maak-eind-plus="0"]').click();
-      await expect(eind0).not.toHaveText(voor);
       await eind0.click();
-      await page.locator('[data-maak-eind-typen="0"]').fill('kwart');
-      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await expect(veld0).toBeFocused();
+      await veld0.fill('kwart');
+      await veld0.press('Enter');
       await expect(page.locator('[data-maak-eind-fout="0"]')).toBeVisible();
       await controleer(page, testInfo, 'maken-eindtijd-fout');
-      await page.locator('[data-maak-eind-typen="0"]').fill('15:00');
-      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await veld0.fill('15:00');
+      await veld0.press('Enter');
       await expect(eind0).toHaveText('15:00');
       await expect(page.locator('[data-maak-bezet="0"]')).toHaveCount(1);
       await controleer(page, testInfo, 'maken-eindtijd-bezet');
-      await page.locator('[data-maak-eind-waarde="0"]').click();
-      await page.locator('[data-maak-eind-typen="0"]').fill(voor);
-      await page.locator('[data-maak-eind-typen="0"]').press('Enter');
+      await eind0.click();
+      await veld0.fill(voor);
+      await veld0.press('Enter');
       await expect(page.locator('[data-maak-bezet="0"]')).toHaveCount(0);
 
       // Een cliënt kiezen: daarna komen type, aanwezig en reistijd in beeld.

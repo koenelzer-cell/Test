@@ -697,7 +697,8 @@ en oker).
   en weekplanning, duur, vooruit, dagen, begintijd kiezen, gekozen momenten,
   weekplanning, afspraak maken). Een onderdeel dat uit staat, wordt
   overgeslagen; na afloop staat alles terug zoals het was. Opnieuw starten via
-  de i-knop of de knop 'Rondleiding' in de Planhulp. Of hij gedaan is, staat
+  de i-knop, of in de Planhulp met de vraagteken-knop naast de i-knop
+  bovenin (titel 'Rondleiding door de Planhulp'). Of hij gedaan is, staat
   alleen in het zijpaneel zelf (localStorage).
 - **Planhulp**: bovenaan **Lijst** of **Weekplanning** (het raster haalt per
   week zelf de vrije tijd op en bladert zonder grens vooruit, los van
@@ -844,19 +845,21 @@ en oker).
   standaard van dat type) en bij een type met reistijd (kolom *Reistijd* in
   beheer; niet ingesteld: alleen een huisbezoek) **Reistijd** heen en terug
   voor alle afspraken, per afspraak aan te passen. Dan
-  **n afspraken**: elke afspraak een eigen kaart met een roze nummer,
-  'Afspraak 1 van 2', de dag en de tijd ('Di 13 oktober', '10:00 tot
-  11:00'). Bovenin elke kaart de regel **Eindtijd** met min en plus (naar het
-  vorige of volgende hele kwartier) en de eindtijd; tik erop om hem zelf te
-  typen ('11:30', '1130', '11'; na de begintijd en hooguit 8 uur later,
-  anders een rode rand met een voorbeeld). Loopt de afspraak door tot na het
+  **n afspraken**: elke afspraak een eigen, compacte kaart. Bovenaan op één
+  regel een roze nummer, de dag ('Di 13 okt') en rechts de tijd ('10:00 tot'
+  en de eindtijd in een knopje met een stippellijn). Tik op de eindtijd en
+  het knopje wordt een invoerveld: typ de eindtijd ('11:30', '1130', '11')
+  en druk op Enter (of klik ernaast); Escape laat hem zoals hij was. Na de
+  begintijd en hooguit 8 uur later, anders een rode rand met een voorbeeld
+  eronder. Loopt de afspraak door tot na het
   vrije blok waarin hij begint, dan staat eronder 'Je bent bezet vanaf
   12:00'; overlapt hij een andere afspraak op deze pagina, dan 'Overlapt met
   afspraak 2 (11:00 tot 12:00)'. Het maken gaat gewoon door (het is een
   waarschuwing). De gekozen momenten in de planhulp krijgen dezelfde duur.
-  Bij *Zelfde cliënt(en)* daaronder de titel ('Huisbezoek Tamara en
-  Bram') met labels: Cliënten aanwezig of niet, de reistijd, en 'Eigen keuze'
-  als deze afspraak afwijkt. Onderin twee knoppen met tekst: **Aanpassen**
+  Bij *Zelfde cliënt(en)* daaronder, ingesprongen onder de dag, de titel
+  ('Huisbezoek Tamara en Bram') met labels op één regel: Cliënten aanwezig
+  of niet, de reistijd, en 'Eigen keuze' als deze afspraak afwijkt. Onderin
+  rechts twee kleine knoppen met icoon en tekst: **Aanpassen**
   (klapt de kaart open: type, titel, Cliënten zijn aanwezig en reistijd van
   alleen deze afspraak; de knop heet dan Klaar) en **Verwijderen** (rood; na
   de browsermelding 'Weet je het zeker?', ook uit de keuze in de planhulp;

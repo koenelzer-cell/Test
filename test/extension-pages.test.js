@@ -1444,7 +1444,7 @@ test('zijpaneel: afspraak maken A - gedeelde keuzes eerst (cliënten + uursoort,
   kies(document, dom, '[data-maak-uursoort="222"]', '5');
   assert.equal(document.querySelector('[data-maak-type-alle]').value, '47', 'standaard Face to face');
   kies(document, dom, '[data-maak-type-alle]', '46');
-  assert.equal(document.querySelector('[data-maak-regel="1"]').textContent, '2Afspraak 2 van 2Di 13 oktober10:00 tot 11:00', 'kaart met nummer, dag en tijd');
+  assert.equal(document.querySelector('[data-maak-regel="1"]').textContent, '2Di 13 okt10:00 tot11:00', 'kaart met nummer, dag en tijd op één regel');
   assert.match(document.querySelector('[data-maak-samenvatting="1"]').textContent, /^Huisbezoek Tamara en Bram/, 'type voor alle afspraken, met de cliënten');
   assert.equal(document.querySelector('[data-maak-aanpassen="1"]').textContent, 'Aanpassen', 'knop met tekst in plaats van een pijltje');
   assert.equal(document.querySelector('[data-maak-weg="1"]').textContent, 'Verwijderen', 'knop met tekst in plaats van een kruisje');
@@ -1489,7 +1489,7 @@ test('zijpaneel: afspraak maken - niet cliëntgebonden afspraak: alleen een uurs
   assert.equal(document.querySelector('[data-maak-geavanceerd]'), null, 'geen geavanceerd');
   assert.equal(document.querySelector('[data-maak-knop]').disabled, true, 'eerst een uursoort');
   kies(document, dom, '[data-maak-nc-uursoort]', '77');
-  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /^1Afspraak 1 van 2Ma 12 oktober10:00 tot 11:00Eindtijd11:00TeamoverlegVerwijderen$/, 'kaart: moment, eindtijd en uursoort');
+  assert.match(document.querySelector('[data-maak-afspraak="0"]').textContent, /^1Ma 12 okt10:00 tot11:00TeamoverlegVerwijderen$/, 'kaart: moment, eindtijd en uursoort');
   assert.equal(document.querySelector('[data-maak-aanpassen="0"]'), null, 'niets aan te passen');
   document.querySelector('[data-maak-knop]').click();
   await tick();
@@ -1897,7 +1897,7 @@ test('planhulp: eigen duur zelf typen tot op de minuut, ook korter dan een half 
   assert.equal(zoek().minutes, 67, 'het raster zoekt met 67 minuten');
 });
 
-test('Afspraak maken: eindtijd per afspraak met min, plus en typen; een melding als je bezet bent of afspraken overlappen', async () => {
+test('Afspraak maken: eindtijd per afspraak typen in het knopje; een melding als je bezet bent of afspraken overlappen', async () => {
   const { document, dom, verzonden } = maakPaneel();
   await tick();
   navKnop(document, 'Planhulp').click();
@@ -1908,19 +1908,32 @@ test('Afspraak maken: eindtijd per afspraak met min, plus en typen; een melding 
   await tick();
   const win = dom.window;
   const toets = (el, key) => el.dispatchEvent(new win.KeyboardEvent('keydown', { key, bubbles: true }));
-  const eind = (k) => document.querySelector('[data-maak-eind-waarde="' + k + '"]');
+  const eind = (k) => document.querySelector('[data-maak-eind="' + k + '"]');
   const veld = (k) => document.querySelector('[data-maak-eind-typen="' + k + '"]');
   const bezet = (k) => [...document.querySelectorAll('[data-maak-bezet="' + k + '"]')].map((n) => n.textContent);
   const kop = (k) => document.querySelector('[data-maak-regel="' + k + '"]').textContent;
   assert.equal(eind(0).textContent, '10:00');
+  assert.equal(document.querySelector('[data-maak-eind-min]'), null, 'geen min en plus');
   assert.deepEqual(bezet(0), []);
-  // Plus: een kwartier later, en dan overlapt hij met de tweede afspraak.
-  document.querySelector('[data-maak-eind-plus="0"]').click();
+  // Tik op de eindtijd: het knopje wordt een invoerveld; 10:15 overlapt met de tweede afspraak.
+  eind(0).click();
+  assert.equal(eind(0), null);
+  assert.equal(veld(0).value, '10:00');
+  typ(veld(0), '1015');
+  toets(veld(0), 'Enter');
+  assert.equal(veld(0), null, 'Enter: weer een knopje');
   assert.equal(eind(0).textContent, '10:15');
-  assert.match(kop(0), /09:00 tot 10:15/);
+  assert.match(kop(0), /09:00 tot10:15/);
   assert.deepEqual(bezet(0), ['Overlapt met afspraak 2 (10:00 tot 11:00)']);
   assert.deepEqual(bezet(1), ['Overlapt met afspraak 1 (09:00 tot 10:15)']);
-  document.querySelector('[data-maak-eind-min="0"]').click();
+  // Escape: niets overgenomen.
+  eind(0).click();
+  typ(veld(0), '12:00');
+  toets(veld(0), 'Escape');
+  assert.equal(eind(0).textContent, '10:15');
+  eind(0).click();
+  typ(veld(0), '10');
+  toets(veld(0), 'Enter');
   assert.deepEqual(bezet(0), [], 'weer terug: geen melding');
   // Typen: voor de begintijd kan niet, 9:40 wel.
   eind(0).click();
@@ -2117,7 +2130,7 @@ test('zijpaneel: afspraak maken - moment verwijderen na Weet je het zeker?', asy
   antwoord = true;
   document.querySelector('[data-maak-weg="0"]').click();
   assert.equal(regels().length, 1, 'OK: weg');
-  assert.match(regels()[0].textContent, /^1Di 13 oktober/, 'het andere moment blijft, nu als enige');
+  assert.match(regels()[0].textContent, /^1Di 13 okt/, 'het andere moment blijft, nu als enige');
   assert.equal(document.querySelector('[data-maak-modus]'), null, 'bij één moment geen keuze zelfde of per afspraak');
   document.querySelector('[data-maak-weg="0"]').click();
   assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Planhulp', 'laatste weg: terug naar de planhulp');

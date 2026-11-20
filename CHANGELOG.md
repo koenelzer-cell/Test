@@ -2,6 +2,16 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.329
+
+- Afspraak maken: compactere kaarten. Nummer, dag en tijd staan op één
+  regel, de titel met labels eronder en Aanpassen en Verwijderen als kleine
+  knoppen rechtsonder. Zo zie je meer afspraken tegelijk.
+- De eindtijd pas je aan door erop te tikken en de tijd te typen (bijvoorbeeld
+  1130), dan Enter. De regel met min en plus is weg.
+- Planhulp: de knop Rondleiding staat nu als vraagteken naast de i-knop
+  bovenin.
+
 ## 1.6.328
 
 - Weekplanning: druk op een begintijd in het groen en sleep omlaag om de

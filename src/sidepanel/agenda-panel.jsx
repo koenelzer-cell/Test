@@ -43,7 +43,7 @@ import { Component, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import { BEWAARD, ietsBezig, legeResultaten, wisAlles } from './bewaard.js';
 import { activiteit, stilteStappen } from './inactief.js';
-import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, TekstKnop, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
+import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
 import { AgendaWeekPanel } from './week-kaart.jsx';
 import { maakWeekDagen } from './week-dagen.jsx';
 import { sluitRondleiding } from './rondleiding.jsx';
@@ -125,6 +125,17 @@ function Kop({ ctx }) {
       </span>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', marginLeft: '8px' }}>
         <AanUit aan={!!(ctx.state && ctx.state.enabled)} zetRef={function (n) { ctx.el.onoff = n; }} onKlik={ctx.wisselAan} />
+        {/* Planhulp: de rondleiding naast het i-tje, in dezelfde knop. */}
+        {ctx.pagina === 'plan' && ctx.fAan('planner') ? (
+          <KaleKnop data-plan-rondleiding="" title="Rondleiding door de Planhulp" aria-label="Rondleiding door de Planhulp"
+            onClick={function (e) { e.preventDefault(); e.stopPropagation(); ctx.startPlanRondleiding(); }}
+            style={{
+              background: T.lineSoft, border: '1px solid ' + T.line, borderRadius: '8px', color: T.inkSoft,
+              cursor: 'pointer', width: '28px', height: '28px', padding: '0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto'
+            }}>
+            <Icoon d={ICON_HELP} size={17} />
+          </KaleKnop>
+        ) : null}
         <KaleKnop ref={function (n) { ctx.el.info = n; }} title="Legenda en versie" aria-label="Legenda en versie"
           onClick={function (e) { e.preventDefault(); e.stopPropagation(); ctx.naarPagina(opInfo ? 'hoofd' : 'info'); }}
           style={{
@@ -263,12 +274,6 @@ function Pagina({ ctx }) {
     : ctx.pageInfo();
   return (
     <>
-      {ctx.pagina === 'plan' && ctx.fAan('planner') ? (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '-6px -6px 4px 0' }}>
-          <TekstKnop icoon={ICON_HELP} tekst="Rondleiding" data-plan-rondleiding="" title="Rondleiding door de Planhulp" style={{ color: T.inkSoft }}
-            onClick={function () { ctx.startPlanRondleiding(); }} />
-        </div>
-      ) : null}
       {/* Eigen sleutel per pagina: een andere pagina begint met schone velden. */}
       <Fragment key={ctx.pagina}>{inhoud}</Fragment>
     </>

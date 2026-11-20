@@ -633,7 +633,7 @@ export function ChipKnop({ tekst, gekozen, onClick, extra, children, disabled, .
   );
 }
 // Min en plus: zoals de keuzeknoppen (wit, grijze rand), iets smaller.
-export const STAP_STIJL = { flex: '0 0 auto', width: '36px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12.5px', border: '1px solid ' + T.line };
+export const STAP_STIJL = { flex: '0 0 auto', width: '36px', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12.5px', border: '1px solid ' + T.line, background: '#fff' };
 // Min, waarde en plus (eigen duur in de planhulp, eindtijd bij Afspraak
 // maken). Tik op de waarde om hem zelf te typen: Enter of ernaast klikken
 // neemt hem over, Escape niet; wat niet te lezen is, krijgt een rode rand.

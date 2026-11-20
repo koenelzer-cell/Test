@@ -4,8 +4,8 @@
 // volgorde op afstand (efficiëntie).
 
 import { BEWAARD, onthoudFormulierTitels } from './bewaard.js';
-import { FONT, FoutStrook, GeluktBalk, Icoon, Invoer, KaleKnop, KeuzeMenu, Knop, LaadBalk, PrimaryBtn, Regel, SecondaryBtn, StapKiezer, T, Txt, Wissel, dagLang, dayLabel, hm, opsomming, useHover } from './ui.jsx';
-import { DUUR_MAX, DUUR_MIN, bezetVanaf, leesTijd, naarKwartier } from '../shared/duur.js';
+import { FONT, FoutStrook, GeluktBalk, Icoon, Invoer, KaleKnop, KeuzeMenu, Knop, LaadBalk, PrimaryBtn, Regel, SecondaryBtn, T, Txt, Wissel, dagLang, dayLabel, hm, opsomming, useHover } from './ui.jsx';
+import { DUUR_MAX, DUUR_MIN, bezetVanaf, leesTijd } from '../shared/duur.js';
 import { buren, extraKmVan, planMany } from './multi-plan.js';
 import { normPostcode, roadMatrix, vraagRoutes } from './geo.js';
 
@@ -52,12 +52,13 @@ function LabelRij({ label, style, children }) {
     </div>
   );
 }
-// Knop onderin een afspraakkaart: icoon en tekst.
+// Kleine knop onderin een afspraakkaart: icoon en tekst, zonder rand.
+// vol: aan (Aanpassen is open en heet dan Klaar).
 function KaartKnop({ icoon, tekst, kleur, vol, onClick, ...rest }) {
   return (
-    <KaleKnop onClick={onClick} {...rest}
-      style={{ flex: '1 1 0', height: '30px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '8px', cursor: 'pointer',
-        border: '1px solid ' + (vol ? T.brand : T.line), background: vol ? T.brand : '#fff', color: vol ? '#fff' : kleur, font: '600 12px ' + FONT }}>
+    <KaleKnop onClick={onClick} {...rest} hoverStijl={vol ? null : { backgroundColor: T.lineSoft }}
+      style={{ flex: 'none', height: '30px', padding: '0 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', borderRadius: '7px', cursor: 'pointer',
+        border: '0', backgroundColor: vol ? T.brandWash : 'transparent', color: vol ? T.brand : kleur, font: '600 12px ' + FONT }}>
       <Icoon d={icoon} size={14} />{tekst}
     </KaleKnop>
   );
@@ -407,27 +408,52 @@ export function maakAfspraakMaken(ctx) {
     });
     return uit;
   }
-  // Regel Eindtijd: min en plus per kwartier, tik op de tijd om hem te typen.
-  function eindRegel(mk, it, k) {
+  // Eindtijd aanpassen: tik op de eindtijd bovenin de kaart en het knopje
+  // wordt een invoerveld ('11:30', '1130', '11'). Enter of ernaast klikken
+  // neemt de tijd over, Escape niet; wat niet kan, krijgt een rode rand met een
+  // voorbeeld. Eén kaart tegelijk.
+  function eindGrens(it) { return { min: it.startMin + DUUR_MIN, max: Math.min(24 * 60, it.startMin + DUUR_MAX) }; }
+  function beginEind(mk, it) {
+    mk.items.forEach(function (o) { o.eindTypen = false; o.eindFout = false; });
+    it.eindTypen = true; it.eindTekst = hm(it.startMin + it.minutes); it.eindFout = false;
+    renderPagina();
+  }
+  function stopEind(it) { it.eindTypen = false; it.eindFout = false; renderPagina(); }
+  function neemEindOver(mk, it) {
+    const g = eindGrens(it), m = leesTijd(it.eindTekst);
+    if (m == null || m < g.min || m > g.max) { it.eindFout = true; renderPagina(); return; }
+    zetEind(mk, it, m);
+    stopEind(it);
+  }
+  // Het knopje met de eindtijd, of tijdens het typen het invoerveld op zijn plek.
+  function eindVeld(mk, it, k) {
     const eind = it.startMin + it.minutes;
-    const max = Math.min(24 * 60, it.startMin + DUUR_MAX), min = it.startMin + DUUR_MIN;
-    const invoer = it.eindInvoer || (it.eindInvoer = {});
+    if (it.eindTypen) {
+      return (
+        <Invoer key="typ" waarde={it.eindTekst || ''} autoFocus aria-label="Eindtijd" placeholder="11:30" autoComplete="off" inputMode="numeric" data-maak-eind-typen={String(k)}
+          onWaarde={function (v) { it.eindTekst = v; it.eindFout = false; }}
+          onKeyDown={function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); neemEindOver(mk, it); }
+            if (e.key === 'Escape') { e.preventDefault(); stopEind(it); }
+          }}
+          onBlur={function () { if (it.eindTypen) neemEindOver(mk, it); }}
+          style={{ flex: 'none', width: '66px', height: '26px', padding: '0 6px', borderRadius: '7px', textAlign: 'center', font: '700 12.5px ' + FONT, border: '1px solid ' + (it.eindFout ? T.bad : T.brand) }} />
+      );
+    }
+    return (
+      <KaleKnop key="knop" data-maak-eind={String(k)} aria-label={'Eindtijd ' + hm(eind) + ', tik om te typen'} title="Tik om de eindtijd te typen"
+        hoverStijl={{ backgroundColor: T.lineSoft }} onClick={function () { beginEind(mk, it); }}
+        style={{ flex: 'none', height: '26px', padding: '0 8px', borderRadius: '7px', cursor: 'text', border: '1px solid ' + T.line, backgroundColor: '#fff', color: T.ink,
+          fontFamily: FONT, fontSize: '12.5px', fontWeight: '700', fontVariantNumeric: 'tabular-nums', textDecoration: 'underline dotted #b9b0b4', textUnderlineOffset: '3px' }}>{hm(eind)}</KaleKnop>
+    );
+  }
+  // Onder de kopregel: de uitleg bij een getypte tijd die niet kan, en de
+  // meldingen als je bezet bent of afspraken overlappen.
+  function eindMeldingen(mk, it, k) {
     return (
       <>
-        <div data-maak-eind-rij={String(k)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0' }}>
-          <span style={Object.assign({ flex: '0 0 74px' }, LABEL)}>Eindtijd</span>
-          <div style={{ display: 'flex', gap: '5px', flex: '1 1 auto', minWidth: '0' }}>
-            <StapKiezer staat={invoer} toon={hm(eind)} invoer={hm(eind)}
-              lees={function (t) { const m = leesTijd(t); return m != null && m >= min && m <= max ? m : null; }}
-              onKies={function (m) { zetEind(mk, it, m); }}
-              onStap={function (r) { zetEind(mk, it, Math.max(min, Math.min(max, naarKwartier(eind, r)))); renderPagina(); }}
-              minUit={eind <= min} plusUit={eind >= max}
-              attr={function (soort) { return { ['data-maak-eind-' + soort]: String(k) }; }}
-              labels={{ min: 'Eerder klaar', plus: 'Later klaar', waarde: 'Eindtijd ' + hm(eind) + ', zelf invullen', typen: 'Eindtijd', voorbeeld: '11:30' }} />
-          </div>
-        </div>
-        {invoer.fout ? <div data-maak-eind-fout={String(k)} style={{ fontSize: '11.5px', color: T.bad, padding: '0 0 6px 82px', marginTop: '-4px' }}>{'Bijvoorbeeld 11:30, na ' + hm(it.startMin) + ' en tot en met ' + hm(max) + '.'}</div> : null}
-        {bezetMeldingen(mk, it).map(function (t) { return <Regel key={t} toon="let" tekst={t} style={{ margin: '0 0 6px' }} data-maak-bezet={String(k)} />; })}
+        {it.eindTypen && it.eindFout ? <div data-maak-eind-fout={String(k)} style={{ fontSize: '11.5px', color: T.bad, padding: '4px 0 0 30px' }}>{'Bijvoorbeeld 11:30, na ' + hm(it.startMin) + ' en tot en met ' + hm(eindGrens(it).max) + '.'}</div> : null}
+        {bezetMeldingen(mk, it).map(function (t) { return <Regel key={t} toon="let" tekst={t} style={{ margin: '6px 0 0' }} data-maak-bezet={String(k)} />; })}
       </>
     );
   }
@@ -811,13 +837,13 @@ export function maakAfspraakMaken(ctx) {
     if (mk.nietClient) {
       const loc = locatieTekst(mk, it);
       body = (
-        <div style={{ padding: '6px 0' }}>
+        <div style={{ padding: '6px 0 4px 30px' }}>
           <div style={{ fontWeight: '600', fontSize: '13px' }}>{ncNaam(mk) || 'Niet cliëntgebonden'}</div>
           {loc ? <div data-maak-locatie-label={String(k)} style={{ fontSize: '12px', color: T.inkSoft, marginTop: '2px' }}>{loc}</div> : null}
         </div>
       );
     }
-    else if (klaar) body = <div style={{ fontWeight: '600', fontSize: '13px', padding: '6px 0' }}>{titelVan(mk, it)}</div>;
+    else if (klaar) body = <div style={{ fontWeight: '600', fontSize: '13px', padding: '6px 0 4px 30px' }}>{titelVan(mk, it)}</div>;
     else if (los) {
       // Per afspraak anders: alles van deze afspraak staat in de kaart.
       body = <>{clientsLijst(mk, it.clients, 'los' + k + '-')}{typeSel()}{locatieHier}{titelHier}{aanwezigHier}{reisVan(mk, it) ? reisHier() : null}</>;
@@ -840,44 +866,49 @@ export function maakAfspraakMaken(ctx) {
       const eigen = it.typeAangepast || it.locatieAangepast || it.aanwezig != null || it.reisAangepast || it.titelAangepast;
       const loc = locatieTekst(mk, it);
       body = (
-        <div data-maak-samenvatting={String(k)} style={{ padding: '4px 0 2px' }}>
-          <div style={{ fontWeight: '600', fontSize: '13px', padding: '2px 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titelVan(mk, it)}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', padding: '0 0 4px' }}>
-            {chip(aw ? 'Cliënten aanwezig' : 'Cliënten niet aanwezig', aw ? '' : 'uit', { 'data-maak-aanwezig-label': aw ? 'ja' : 'nee' })}
-            {loc ? chip(loc, '', { 'data-maak-locatie-label': String(k) }) : null}
-            {reisVan(mk, it) && (it.reisHeen || it.reisTerug) ? chip('Reistijd ' + (it.reisHeen || 0) + ' min heen en ' + (it.reisTerug || 0) + ' min terug') : null}
-            {eigen ? chip('Eigen keuze', 'eigen', { 'data-eigen-keuze': String(k), 'data-eigen-type': it.typeAangepast && it.labelId !== mk.typeAlle ? String(k) : undefined }) : null}
-          </div>
+        // Titel en labels op één regel (lopen door als het niet past), onder de datum.
+        <div data-maak-samenvatting={String(k)} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px 6px', padding: '6px 0 4px 30px' }}>
+          <span style={{ fontWeight: '600', fontSize: '13px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titelVan(mk, it)}</span>
+          {chip(aw ? 'Cliënten aanwezig' : 'Cliënten niet aanwezig', aw ? '' : 'uit', { 'data-maak-aanwezig-label': aw ? 'ja' : 'nee' })}
+          {loc ? chip(loc, '', { 'data-maak-locatie-label': String(k) }) : null}
+          {reisVan(mk, it) && (it.reisHeen || it.reisTerug) ? chip('Reistijd ' + (it.reisHeen || 0) + ' min heen en ' + (it.reisTerug || 0) + ' min terug') : null}
+          {eigen ? chip('Eigen keuze', 'eigen', { 'data-eigen-keuze': String(k), 'data-eigen-type': it.typeAangepast && it.labelId !== mk.typeAlle ? String(k) : undefined }) : null}
         </div>
       );
     }
+    // Compacte kaart: nummer, korte datum en de tijd op één regel; tik op de
+    // eindtijd om hem te typen. Daaronder de titel met labels (of de velden),
+    // meldingen en onderin kleine knoppen.
+    const eind = it.startMin + it.minutes;
+    const kortDatum = dayLabel(it.date).replace(/^./, function (x) { return x.toUpperCase(); });
     return (
       <div key={it.date + '|' + it.startMin + '|' + k} data-maak-afspraak={String(k)}
-        style={{ border: '1px solid ' + (open ? '#f0b6d6' : T.line), borderRadius: '12px', background: '#fff', marginBottom: '10px', overflow: 'hidden', boxShadow: open ? '0 0 0 3px ' + T.brandWash : 'none' }}>
-        <div data-maak-regel={String(k)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: T.lineSoft, borderBottom: '1px solid ' + T.line }}>
-          <span style={{ width: '24px', height: '24px', borderRadius: '12px', background: T.brand, color: '#fff', fontWeight: '800', fontSize: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}>{String(k + 1)}</span>
-          <span style={{ flex: '1 1 auto', minWidth: '0', lineHeight: '1.25' }}>
-            {n > 1 ? <span style={{ display: 'block', fontSize: '10.5px', fontWeight: '600', color: T.inkSoft }}>{'Afspraak ' + (k + 1) + ' van ' + n}</span> : null}
-            <span style={{ display: 'block', fontWeight: '700', fontSize: '13px' }}>{dagLang(it.date, true)}</span>
-            <span style={{ display: 'block', fontSize: '12px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums' }}>{hm(it.startMin) + ' tot ' + hm(it.startMin + it.minutes)}</span>
-          </span>
-          {u ? (
-            <span data-maak-uitslag={u.ok ? 'ok' : 'fout'} title={!u.ok && u.error ? u.error : undefined}
-              style={{ flex: '0 0 auto', fontWeight: '700', fontSize: '12px', color: u.ok ? T.ok : T.bad }}>{u.ok ? '✓ gemaakt' : 'mislukt'}</span>
-          ) : it.onsCl && it.onsCl.overlap === true ? (
-            <span data-maak-ons-overlap={String(k)} title="ONS meldt overlap met de gekozen cliënt(en) op dit tijdstip."
-              style={{ flex: '0 0 auto', fontSize: '10.5px', fontWeight: '700', borderRadius: '6px', padding: '2px 6px', background: '#fdf3e2', color: T.warn }}>ONS: overlap</span>
-          ) : null}
+        style={{ border: '1px solid ' + (open ? '#f0b6d6' : T.line), borderRadius: '12px', background: '#fff', marginBottom: '8px', padding: '10px 12px ' + (klaar ? '8px' : '4px'), boxShadow: open ? '0 0 0 3px ' + T.brandWash : 'none' }}>
+        <div data-maak-regel={String(k)} style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '26px' }}>
+          <span style={{ width: '22px', height: '22px', borderRadius: '11px', background: T.brand, color: '#fff', fontWeight: '800', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' }}
+            title={n > 1 ? 'Afspraak ' + (k + 1) + ' van ' + n : undefined}>{String(k + 1)}</span>
+          <span title={dagLang(it.date)} style={{ fontWeight: '700', fontSize: '13.5px', whiteSpace: 'nowrap' }}>{kortDatum}</span>
+          <span style={{ flex: '1 1 auto' }} />
+          {klaar ? (
+            <>
+              <span style={{ fontSize: '12.5px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{hm(it.startMin) + ' tot ' + hm(eind)}</span>
+              <span data-maak-uitslag={u && u.ok ? 'ok' : 'fout'} title={u && !u.ok && u.error ? u.error : undefined}
+                style={{ flex: '0 0 auto', fontWeight: '700', fontSize: '12px', color: u && u.ok ? T.ok : T.bad }}>{u && u.ok ? '✓ gemaakt' : 'mislukt'}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '12.5px', color: T.inkSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{hm(it.startMin) + ' tot'}</span>
+              {eindVeld(mk, it, k)}
+            </>
+          )}
         </div>
-        <div style={{ padding: '4px 12px 6px' }}>
-          {!klaar ? eindRegel(mk, it, k) : null}
-          {body}
-          {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" style={{ margin: '4px 0 6px' }} tekst="Op dit tijdstip staat al een afspraak bij de cliënt(en)" /> : null}
-          {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
-          {!klaar && (mk.collegas || []).length ? <div data-mw-moment={String(k)} style={{ padding: '2px 0 4px' }}>{collegaRegels(mk, it, k)}</div> : null}
-        </div>
+        {!klaar ? eindMeldingen(mk, it, k) : null}
+        {body}
+        {!klaar && it.onsCl && it.onsCl.overlap === true ? <Regel toon="let" data-maak-ons-overlap={String(k)} style={{ margin: '4px 0 6px' }} tekst="Op dit tijdstip staat al een afspraak bij de cliënt(en)" /> : null}
+        {!klaar ? reisProblemen(mk, it).map(function (t, i) { return <Regel key={i} toon="let" tekst={t} style={{ margin: '4px 0 6px' }} data-maak-reis-conflict={String(k)} />; }) : null}
+        {!klaar && (mk.collegas || []).length ? <div data-mw-moment={String(k)} style={{ padding: '2px 0 4px' }}>{collegaRegels(mk, it, k)}</div> : null}
         {!klaar ? (
-          <div style={{ display: 'flex', gap: '8px', padding: '8px 12px 10px', borderTop: '1px solid ' + T.lineSoft }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '2px', marginTop: '4px', paddingTop: '2px', borderTop: '1px solid ' + T.lineSoft }}>
             {/* Aanpassen alleen bij Zelfde cliënt(en); bij Per afspraak anders
                 staat alles al in de kaart. */}
             {!mk.nietClient && !los ? (
