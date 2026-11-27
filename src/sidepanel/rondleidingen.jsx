@@ -4,7 +4,7 @@
 // nieuwe versie. De weergave zelf zit in rondleiding.jsx.
 
 import { BEWAARD, momentIndex } from './bewaard.js';
-import { ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, T } from './ui.jsx';
+import { ICON_EXPORT, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, T } from './ui.jsx';
 import { rondleidingActief, rondleidingGedaan, startRondleiding } from './rondleiding.jsx';
 import { extensionVersion } from '../shared/version.js';
 
@@ -144,6 +144,13 @@ export function maakRondleidingen(ctx) {
       welkom('Verhouding per uursoort', 'Zie per uursoort hoe je tijd in een week verdeeld is.'),
       stap('Andere week', 'Blader met de pijlen naar een vorige of volgende week.', '[data-tour="verhouding-week"]'),
       laatste(stap('Per uursoort', 'Per uursoort hoeveel tijd je die week hebt, en hoe dat zich verhoudt.', '[data-tour="verhouding-kaarten"]'))
+    ] },
+    export: { kop: 'Rondleiding Agenda exporteren', icoon: ICON_EXPORT, als: function () { return fAan('agendaExport'); }, stappen: [
+      welkom('Agenda exporteren', 'Download je agenda als Excel-bestand, bijvoorbeeld voor je eigen overzicht of een gesprek met je leidinggevende.'),
+      stap('Kies een periode', 'Van welke dag tot en met welke dag, hooguit 26 weken.', '[data-tour="export-periode"]'),
+      stap('Wat neem je mee', 'Vink aan wat in het bestand moet: afspraken per status, registraties met direct, indirect en reistijd, onbeschikbaarheid en meer.', '[data-tour="export-soorten"]'),
+      stap('Cliëntnummers', 'Standaard staan er geen gegevens van cliënten in. Vink dit aan als je de cliëntnummers nodig hebt; namen komen er nooit in.', '[data-tour="export-nummers"]'),
+      laatste(stap('Downloaden', 'De hulp haalt alles op bij ONS en zet het bestand in je downloads.', '[data-export-knop]'))
     ] },
     info: { kop: 'Rondleiding Over de Agendahulp', icoon: ICON_HELP, stappen: [
       welkom('Over de Agendahulp', 'Hier vind je wat de kleuren in ONS betekenen en welke versie je hebt.'),

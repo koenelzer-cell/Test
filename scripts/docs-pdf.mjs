@@ -263,8 +263,8 @@ figure.diagram svg { width: 100%; height: auto; }
 .voorblad .merk { font-size: 11pt; font-weight: 700; color: #cc087d; letter-spacing: 0.06em; }
 .inhoud h1 { border: 0; }
 .inhoud ol { list-style: none; padding: 0; }
-.inhoud li { margin: 0; padding: 1.3mm 0; border-bottom: 1px solid #f1ecea; }
-.inhoud li.n1 { font-weight: 700; padding-top: 2.2mm; }
+.inhoud li { margin: 0; padding: 1.1mm 0; border-bottom: 1px solid #f1ecea; }
+.inhoud li.n1 { font-weight: 700; padding-top: 1.8mm; }
 .inhoud li.n2 { padding-left: 7mm; color: #3f393c; font-size: 9pt; }
 .inhoud a { color: inherit; }
 `;

@@ -47,6 +47,7 @@ Overig in het manifest:
 | `google.com/maps/dir` (link) | Route van de dag, na een klik op Route openen | Adressen van de huisbezoeken van die dag, in een nieuw tabblad |
 | AFAS (link uit de configuratie) | Na Verlof aanvragen | Niets; de extensie opent alleen de pagina |
 | TOPdesk en de kennisbank (links in de popup en in de hulp) | Als de medewerker erop klikt | Niets; gewone links |
+| De downloadmap van de medewerker (geen server) | Agenda exporteren, na een klik op Excel downloaden | Een .xlsx-bestand met de gekozen agenda-items; cliëntnummers alleen als aangevinkt. Via een downloadlink met een blob-adres in het zijpaneel, zonder het recht `downloads` (`src/sidepanel/pagina-export.jsx`, `xlsx.js`) |
 
 Geen analytics, tracking of CDN. Code wordt niet van buiten geladen.
 

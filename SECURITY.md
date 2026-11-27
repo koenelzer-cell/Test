@@ -82,6 +82,22 @@ vastleggen van verlof, en alleen nadat de medewerker daar zelf op bevestigt.
     `event.meta`, en bewaart daarvan alleen ja/nee- en getalwaarden
     (localStorage `onsHelper.eventMetaTemplate`). Uit te zetten met
     `features.plannerDirect`.
+  - **Agenda exporteren** (zijpaneel, uit te zetten met
+    `features.agendaExport`): op verzoek van de medewerker haalt de
+    agendapagina de gekozen lagen van de agenda('s) die open staan op
+    (`entries/week` per laag en de registratie-details), hooguit 26 weken, en
+    brengt ze terug tot neutrale velden per regel (datum, tijden, duur,
+    soort, status, label, uursoort, aantal cliënten, minuten, locatie). Een
+    titel alleen bij een afspraak of afwezigheid zonder cliënt, nooit het
+    onderwerp van Outlook, een gepland bezoek of een reservering. Alleen als
+    de medewerker **Cliëntnummers meenemen** aanvinkt (standaard uit) komt
+    per regel het cliëntnummer (`identification_no`, gecontroleerd op alleen
+    letters, cijfers en streepjes) erbij; nooit naam, geboortedatum, BSN of
+    adres. Het zijpaneel maakt er een .xlsx-bestand van en zet dat via een
+    downloadlink in de downloads van de medewerker. De hulp bewaart niets en
+    stuurt niets naar buiten; het bestand is daarna van de medewerker, die in
+    het zijpaneel en in de handleiding leest dat het met cliëntnummers
+    persoonsgegevens bevat. Geen extra recht nodig (geen `downloads`).
   - **Cliënt kiezen bij Afspraak maken**: de medewerker zoekt een
     cliënt op naam via dezelfde ONS-zoekfunctie als het afspraakformulier
     (`/search_panel/clients`, pas na een korte pauze in het typen). Naam,

@@ -173,6 +173,8 @@ export const ICON_RATIO = 'M3 5h18v4H3zm0 5h11v4H3zm12 0h6v4h-6zM3 15h7v4H3zm8 0
 export const ICON_KLOK = 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 3v6.4l4.6 2.8 1-1.7-3.6-2.2V7z';
 export const ICON_MIN = 'M5 11h14v2H5z';
 export const ICON_PLUS = 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z';
+// Pijl omlaag naar een streep: downloaden (Agenda exporteren).
+export const ICON_EXPORT = 'M19 9h-4V3H9v6H5l7 7zM5 18v2h14v-2z';
 export const ICON_KALENDER = 'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5z';
 
 /* ── Bouwstenen ────────────────────────────────────────────────────────── */
@@ -507,7 +509,7 @@ export function ClickCard({ onClick, title, style, children, ...rest }) {
 // Hulpmiddelen op het startscherm: elk een eigen zachte kleur voor het icoon.
 export const HULP_KLEUR = {
   open: ['#c2185b', '#fde8f0'], plan: ['#1f7a8c', '#e3f3f5'], snel: ['#6a4fb3', '#efeafb'],
-  route: ['#c06a12', '#fdf0e1'], verhouding: ['#2f5d7c', '#e6eef4'], info: ['#6b6367', '#f1edec']
+  route: ['#c06a12', '#fdf0e1'], verhouding: ['#2f5d7c', '#e6eef4'], export: ['#2e7d4f', '#e5f3ea'], info: ['#6b6367', '#f1edec']
 };
 const CHEV_GRIJS = '#b9b0b4';
 // Eén regel in de lijst hulpmiddelen: gekleurd icoon, titel, eventueel een

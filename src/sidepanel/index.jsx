@@ -85,6 +85,7 @@ const agendaActies = {
   onColleagueCheck: function (req, cb) { vraagAanTab({ type: MSG.AGENDA_COLLEAGUE_CHECK, ids: req.ids, moments: req.moments }, cb); },
   onWeekRatio: function (date, cb) { vraagAanTab({ type: MSG.AGENDA_WEEK_RATIO, date: date }, cb); },
   onProduction: function (from, to, cb) { vraagAanTab({ type: MSG.AGENDA_PRODUCTION, from: from, to: to }, cb); },
+  onExport: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_EXPORT }, req), cb); },
   onQuickRegister: function (req, cb) { vraagAanTab(Object.assign({ type: MSG.AGENDA_QUICK_REGISTER }, req), cb); },
   // Debug, Netwerk: de verzoeken van het tabblad na 'sinds' (houdt het log aan).
   onNetwerklog: function (sinds, cb, antwoorden) { vraagAanTab({ type: MSG.AGENDA_NETLOG, sinds: sinds, antwoorden: antwoorden === true }, cb); },

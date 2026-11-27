@@ -31,8 +31,12 @@ van huisbezoeken tonen en de opbouw van de week laten zien.
 | Herinnering, laatste weekstand (alleen getallen en datums), registratievormen | `chrome.storage.local` op het apparaat | Tot de extensie wordt verwijderd |
 | Vertrekpunt Route van de dag, geziene rondleidingen, weergavekeuzes | localStorage van de extensie op het apparaat | Tot de extensie wordt verwijderd |
 | Klaargezette waarden voor het volgende formulier | sessionStorage van het ONS-tabblad | Tot ze verlopen of het tabblad sluit |
+| Agenda exporteren: een Excel-bestand met de agenda over een gekozen periode (tijden, labels, uursoorten, minuten; cliëntnummers alleen als de medewerker dat aanvinkt, nooit namen) | In de downloadmap van de medewerker; de extensie bewaart er niets van | Tot de medewerker het bestand verwijdert |
 
-Niet opgeslagen: cliëntnamen, cliëntnummers, geboortedata, BSN.
+Niet opgeslagen: cliëntnamen, cliëntnummers, geboortedata, BSN. Een bestand
+dat de medewerker zelf exporteert, bevat cliëntnummers alleen als die dat
+aanvinkt; dat bestand valt daarna onder de regels van de organisatie voor
+persoonsgegevens op de werkplek. [INVULLEN: verwijzen naar die regels.]
 
 ### Met wie gegevens gedeeld worden
 

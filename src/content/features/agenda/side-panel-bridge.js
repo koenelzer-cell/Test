@@ -25,9 +25,10 @@ import { createEvents, eventOptions } from './event-create.js';
 import { checkColleagues, checkSlotWithOns } from './free-slots.js';
 import { dayRoute, routeEnabled } from './route.js';
 import { weekDagenVoor } from './week-dagen.js';
+import { agendaExport } from './agenda-export.js';
 import { APP_CONFIG, choiceLabels, effectiveChoices } from '../../config/app-config.js';
 
-export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink'];
+export const PANEL_FEATURES = ['weekRatio', 'production', 'openRegistrations', 'quickRegister', 'planner', 'plannerCopies', 'plannerDistance', 'plannerDirect', 'routeLink', 'agendaExport'];
 function panelFeatures() {
   const f = APP_CONFIG.features || {}, uit = {};
   PANEL_FEATURES.forEach(function (k) { uit[k] = f[k] !== false; });
@@ -305,6 +306,16 @@ export function listenForSidePanelMessages() {
             try { sendResponse({ ok: true, result: result }); } catch (e) {}
           }, function (e) {
             try { sendResponse({ ok: false, error: (e && e.message) || 'Berekenen mislukt.' }); } catch (e2) {}
+          });
+          return true;
+        case MSG.AGENDA_EXPORT:
+          if ((APP_CONFIG.features || {}).agendaExport === false) { try { sendResponse({ ok: false, error: 'Exporteren staat uit.' }); } catch (e) {} return; }
+          agendaExport(msg, function (done, total) {
+            try { chrome.runtime.sendMessage({ type: MSG.AGENDA_RANGE_PROGRESS, kind: 'export', done: done, total: total }); } catch (e) {}
+          }).then(function (result) {
+            try { sendResponse({ ok: true, result: result }); } catch (e) {}
+          }, function (e) {
+            try { sendResponse({ ok: false, error: (e && e.message) || 'Exporteren mislukt.' }); } catch (e2) {}
           });
           return true;
         case MSG.AGENDA_QUICK_REGISTER:

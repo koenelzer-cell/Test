@@ -170,8 +170,20 @@ export function parseRegistrationDetails(json, opties) {
     hourTypeName: htName,
     hourTypeId: htId,
     // De dag van de registratie (YYYY-MM-DD), voor een totaal over een periode.
-    date: /^\d{4}-\d{2}-\d{2}$/.test(dymd) ? dymd : ''
+    date: /^\d{4}-\d{2}-\d{2}$/.test(dymd) ? dymd : '',
+    // Voor de export (Excel): begin- en eindtijd, reistijd heen en terug apart
+    // en het aantal cliënten. Geen cliëntgegevens.
+    begin: _hm(st), eind: _hm(et),
+    travelBeforeMin: num(r.travel_time_before), travelAfterMin: num(r.travel_time_after),
+    clientCount: Array.isArray(r.clients) ? r.clients.length : 0
   };
+}
+// '2026-11-04T06:05:00.000+01:00' -> '06:05' (lokale tijd), anders ''.
+function _hm(iso) {
+  const ms = iso ? Date.parse(iso) : NaN;
+  if (!isFinite(ms)) return '';
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 // Aggregeer de detailregels tot een summary die declarabiliteitPct begrijpt.
 export function summarizeWeekRegistrations(detailsList) {

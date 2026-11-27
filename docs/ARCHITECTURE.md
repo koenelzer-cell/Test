@@ -57,7 +57,7 @@ Agendahulp:
 | Bestand | Wat |
 |---|---|
 | `agenda-panel.jsx` | de schil: spine, kop, startscherm (status, weekoverzicht, hulpmiddelen), voet, `naarPagina`, tekenen (`renderPagina`), `update`, het vangnet bij een fout |
-| `pagina-plan.jsx`, `pagina-maken.jsx`, `pagina-open.jsx`, `pagina-snel.jsx`, `pagina-route.jsx`, `pagina-clienttijd.jsx`, `pagina-verhouding.jsx`, `pagina-info.jsx`, `rondleidingen.jsx` | één pagina per bestand, elk een functie `maakX(ctx)` met de acties van de pagina en zijn weergave (`pageX()` geeft React-elementen terug) |
+| `pagina-plan.jsx`, `pagina-maken.jsx`, `pagina-open.jsx`, `pagina-snel.jsx`, `pagina-route.jsx`, `pagina-clienttijd.jsx`, `pagina-verhouding.jsx`, `pagina-export.jsx`, `pagina-info.jsx`, `rondleidingen.jsx` | één pagina per bestand, elk een functie `maakX(ctx)` met de acties van de pagina en zijn weergave (`pageX()` geeft React-elementen terug) |
 | `bewaard.js` | wat blijft staan als het paneel opnieuw wordt opgebouwd (`BEWAARD`), en de titels voor het ONS-formulier (alleen in het geheugen); `wisAlles()` en `debugOpSlot()` na niets doen |
 | `inactief.js` | niets doen in het zijpaneel: `activiteit()` (de schil meldt elke klik, toets en scroll, met capture op `document`) en `stilteStappen()`: na 15 min Debug op slot (`ctx.vergrendelDebug`), na 30 min `wisAlles()` en naar start, niet zolang er iets loopt (`ietsBezig()`); de schil kijkt elke 30 s en bij elke invoer |
 | `ui.jsx`, `kiezers.jsx`, `productie-grafiek.jsx`, `week-kaart.jsx`, `opbouw-kaart.jsx`, `verhouding-kaarten.jsx` | bouwstenen (kleuren, typografie, knoppen, kaarten, iconen, invoerveld, de beweging van uitklappen: `UITKLAP`, `overgang`, `alleenOpen`); datum- en tijdkiezer; de grafiek; weekkaart, opbouw en verhouding; `Schakelaar` (Detail) |
@@ -186,6 +186,11 @@ zijpaneel ──ag-week-dagen {date, vers} (Weekplanning met Detail aan, per wee
     alleen bij een rij zonder cliënt, nooit in het weekgeheugen), de rest uit het weekgeheugen; domain/week-dagen.js:
     per afspraak tijden, reistijd, soort, status en label, 'Cliëntafspraak' of zonder cliënt de titel; Outlook 'vrij'
     niet, reserveringen niet; nooit de titel bij een cliënt, nooit een Outlook-onderwerp)
+zijpaneel ──ag-export {from, to, soorten, clientNummers} (Agenda exporteren, na Excel downloaden)──▶ content ──{from, to, metNummers, rijen, nummersOntbreken}──▶ zijpaneel
+   (features/agenda/agenda-export.js: per week de lagen die de gekozen soorten nodig hebben, vers en nooit in het
+    weekgeheugen (formaat.js weekEntriesVoorExport), en bij Registraties de registratie-details; domain/agenda-export.js
+    maakt er neutrale regels van; voortgang via ag-range-progress met kind 'export'; het zijpaneel maakt het .xlsx-bestand
+    met src/sidepanel/xlsx.js en downloadt het met een blob-link; cliëntnummers (identification_no) alleen met het vinkje)
 zijpaneel ──ag-formulierlog, ag-foutlog (elke seconde, alleen Info met Debug open)──▶ content ──{items}──▶ zijpaneel
    (ag-foutlog: core/foutbuffer.js, de laatste 100 stil opgevangen fouten: safe(), mislukte
     ONS-verzoeken, onverwachte fouten in de hulp; alleen geheugen)
@@ -290,6 +295,7 @@ van stil een lege of verkeerde uitkomst te tonen:
 | `/search_panel/clients?term=…` (planhulp, meerdere plannen) | cliënt op naam zoeken: naam + postcode uit `address` | `features/agenda/client-lookup.js` | postcode zelf invullen |
 | `/search_panel/employees?term=…&usage=event&page=1` (`searchEmployees`, bericht `ag-employee-search`) | Afspraak maken, + Medewerker: collega op naam zoeken; alleen `id` (hetzelfde nummer als in de agenda-adressen en `employee_ids`), naam, team en `can_create_event` blijven over (`domain/collega.js` `medewerkersUitZoek`) | `features/agenda/client-lookup.js` | zonder collega's maken |
 | `…layer=events`, `unavailabilities`, `outlook_appointments`, `planned_visits`, `reservations` van een collega (bericht `ag-colleague-check`) | Afspraak maken: kan de collega op elk moment? Dezelfde lagen en regels als de vrije tijd, per moment `domain/collega.js` `beschikbaarheid` (alleen tijden en soort) | `features/agenda/free-slots.js` `checkColleagues` | mislukt de afsprakenlaag: 'niet na te kijken', de collega wordt uitgenodigd |
+| `…layer=events`, `unavailabilities`, `outlook_appointments`, `planned_visits`, `reservations`, `registrations` en `/registrations/{occ}/details` (bericht `ag-export`) | Agenda exporteren: alleen de lagen die de aangevinkte soorten nodig hebben, hooguit 26 weken, zes verzoeken tegelijk; per item een neutrale regel (`domain/agenda-export.js`), cliëntnummers alleen op verzoek | `features/agenda/agenda-export.js` | mislukt een andere laag dan de afspraken, dan zonder die laag; mislukken de afspraken, dan een fout |
 | `/search_panel/locations/tree` (`locationsTree`, bericht `ag-event-options` met `locaties: true`) | Afspraak maken: regel Locatie; alleen de bladeren met `value` (= `location_id` in de afspraak), label, het label erboven als groep en `authorized` (`domain/locaties.js` `locatiesUitBoom`), één keer per pagina | `features/agenda/event-create.js` | alleen Andere locatie (met de melding eronder); maken kan zonder locatie |
 | `POST /calendar/events` met `custom_location` (tekst) | Afspraak maken, Andere locatie: zelf ingevulde locatie, dan `location_id: null` (`domain/event-create.js`) | `features/agenda/event-create.js` | locatie in het formulier van ONS invullen |
 | `POST /calendar/events` met collega's in `employee_ids` | Afspraak maken: de afspraak ook in de agenda van de gekozen collega's (per afspraak wie mee gaat: kan, of Toch inplannen) | `features/agenda/event-create.js` | ONS Afspraakformulier met de collega's in `invitee_ids[]` (`quick-register.js` `openNewEvent`) |

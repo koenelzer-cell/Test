@@ -38,6 +38,10 @@ Dit is ook de tekst voor "Single purpose" in de Chrome Web Store.
   - de adressen van je huisbezoeken van die dag, alleen als je zelf op
     **Kaart tonen** of **Route openen** klikt (dan opent Google Maps, net als
     de kaartlink in ONS).
+- **Naar je eigen computer, als je Agenda exporteren gebruikt:** een
+  Excel-bestand in je downloads. Cliëntnummers staan erin alleen als je dat
+  aanvinkt; namen nooit. De browser hoeft daar geen extra toestemming voor te
+  vragen.
 - **Niets anders.** Geen statistieken, geen tracking, geen reclame. De
   ontwikkelaar ontvangt geen gegevens.
 

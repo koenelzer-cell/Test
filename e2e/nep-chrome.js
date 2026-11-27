@@ -104,6 +104,21 @@
         otherMinutes: 135, unknownMinutes: 135, clientMinutes: 1950, nonClientMinutes: 135, totalMinutes: 2085, totNaVandaag: msg.to > vandaag };
       return { ok: true, result: { from: msg.from, to: msg.to, weeks: weken, som: som } };
     },
+    'ag-export': function (msg) {
+      // Een paar regels zoals het content-script ze geeft (geen echte gegevens).
+      const r = function (dag, begin, eind, soort, status, naam, extra) {
+        return Object.assign({ agenda: '', datum: dag, einddatum: dag, begin: begin, eind: eind, minuten: begin ? 60 : null, heleDag: !begin, soort: soort, status: status,
+          naam: naam, uursoort: soort === 'Afspraak' || soort === 'Registratie' ? 'JW BG H10 Individuele BG midde' : '', clienten: soort === 'Onbeschikbaarheid' ? 0 : 1,
+          clientNummers: msg.clientNummers && soort !== 'Onbeschikbaarheid' ? '106839' : '', direct: null, indirect: null, reisHeen: null, reisTerug: null, overig: null, locatie: '' }, extra || {});
+      };
+      const rijen = [
+        r(vorigeWeek, '09:00', '10:00', 'Afspraak', 'Geregistreerd', 'Huisbezoek', { reisHeen: 15, reisTerug: 15, locatie: 'Kantoor Oost' }),
+        r(vorigeWeek, '09:00', '10:00', 'Registratie', '', 'JW BG H10 Individuele BG midde', { direct: 40, indirect: 10, reisHeen: 5, reisTerug: 5, overig: 0 }),
+        r(plus(vorigeWeek, 1), '14:00', '15:00', 'Afspraak', 'Nog te registreren', 'Cliëntafspraak'),
+        r(plus(vorigeWeek, 2), '', '', 'Onbeschikbaarheid', '', 'Vrije dag & <feestdag>', { einddatum: plus(vorigeWeek, 3) })
+      ];
+      return { ok: true, result: { from: msg.from, to: msg.to, metNummers: !!msg.clientNummers, nummersOntbreken: 0, rijen: rijen } };
+    },
     'ag-day-route': function (msg) {
       return { ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 1,
         stops: [{ start: '09:00', address: 'Teststraat 1, Stad' }, { start: '11:00', address: '' }, { start: '13:30', address: 'Laan 5, Stad' }],

@@ -35,6 +35,13 @@ export function formulierTitel(date, time) {
    zijpaneel open is, ook als het paneel opnieuw wordt opgebouwd. Dat gebeurt
    bij elke paginawissel in ONS (bijv. naar een registratieformulier en terug).
    Zo blijft de lijst open registraties een afwerklijst. */
+// Agenda exporteren: alles aangevinkt behalve de cliëntnummers.
+export const EXPORT_STANDAARD = ['open', 'geregistreerd', 'nietRegistreren', 'gepland', 'overig', 'registraties', 'onbeschikbaarheid', 'outlook', 'bezoeken', 'reserveringen'];
+function legeExport() {
+  const soorten = {};
+  EXPORT_STANDAARD.forEach(function (k) { soorten[k] = true; });
+  return { from: '', to: '', soorten: soorten, nummers: false, busy: false, done: 0, total: 0, error: '', gelukt: null };
+}
 export const BEWAARD = {
   pagina: 'hoofd',
   // result: de lijst zoals hij getoond wordt; afgewerkt: sleutels van afspraken
@@ -48,6 +55,10 @@ export const BEWAARD = {
   // tot: zoek tot en met die datum (gaat voor op weeks).
   // pc: postcode van de cliënt (optioneel) voor de afstand; sorteer: 'tijd' | 'afstand'.
   plan: { minutes: 60, weeks: 2, tot: '', busy: false, result: null, error: '' },
+  // Agenda exporteren: periode, wat mee moet (soorten), cliëntnummers (standaard
+  // uit) en de uitslag van de laatste download (geen regels: die gaan alleen
+  // naar het bestand).
+  exp: legeExport(),
   // Planhulp: gekozen momenten [{ date, startMin, minutes }] (minutes: de duur
   // van dat moment; slepen of een andere eindtijd) voor één afspraak die na
   // het opslaan wordt gekopieerd; kopie: uitslag van de laatste kopieerronde.
@@ -83,6 +94,7 @@ export function legeResultaten() {
   BEWAARD.kopie = null;
   BEWAARD.balkOpen = false;
   BEWAARD.route = { date: '', busy: false, result: null, error: '' };
+  BEWAARD.exp = legeExport();
   // De afspraken per dag; Detail aan of uit blijft (een voorkeur).
   Object.assign(BEWAARD.weekDagen, { key: '', busy: false, result: null, error: '' });
 }
@@ -115,7 +127,7 @@ export function wisAlles() {
 export function ietsBezig() {
   const b = BEWAARD;
   return !!((b.range && b.range.busy) || (b.prod && b.prod.busy) || (b.plan && b.plan.busy) || (b.ratio && b.ratio.busy) ||
-    (b.route && b.route.busy) || (b.quick && b.quick.busy) || (b.maak && b.maak.busy) || b.debug.bezig || b.regvenster.bezig || b.weekDagen.busy);
+    (b.route && b.route.busy) || (b.exp && b.exp.busy) || (b.quick && b.quick.busy) || (b.maak && b.maak.busy) || b.debug.bezig || b.regvenster.bezig || b.weekDagen.busy);
 }
 
 // Index van een gekozen moment (planhulp), of -1.

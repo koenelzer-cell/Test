@@ -777,6 +777,7 @@
     "plannerDistance": true,
     "plannerDirect": true,
     "routeLink": true,
+    "agendaExport": true,
     "preload": true,
     "formViaModel": true
   },

@@ -2,6 +2,19 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.332
+
+- Nieuw hulpmiddel in het zijpaneel: Agenda exporteren. Je downloadt je agenda
+  als Excel-bestand over een periode die je kiest (hooguit 26 weken).
+- Je vinkt aan wat erin komt: afspraken per status (nog te registreren,
+  geregistreerd, niet registreren, gepland, geen registratie nodig),
+  registraties met direct, indirect en reistijd, onbeschikbaarheid,
+  Outlook-afspraken, geplande bezoeken en reserveringen.
+- Cliëntnummers komen er alleen in als je dat zelf aanvinkt. Namen staan er
+  nooit in. Met cliëntnummers bevat het bestand persoonsgegevens; bewaar het
+  dan veilig.
+- Het scherm heeft een eigen rondleiding onder het vraagteken.
+
 ## 1.6.331
 
 - Cliënttijd, productieverloop: boven de grafiek staat nu het totaal

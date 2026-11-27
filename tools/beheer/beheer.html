@@ -1162,7 +1162,7 @@ const DEFAULTS = {
     doorplannen_waarschuwing:     { text:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", html:"Je gaf aan de afspraak te willen doorplannen, maar de herhaling staat nog op 'Niet'. Stel de herhaling in, of zet 'Afspraak doorplannen?' uit en sla op.", color:'#b3261e', bold:true, italic:false, sizePx:13 },
   },
   compatibility: { schemaVersion:7, minimumExtensionVersion:'1.6.114' },
-  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, preload:true, formViaModel:true },
+  features: { appointmentAssistant:true, registrationAssistant:true, dayColoring:true, managedTexts:true, reportGuidelineLink:true, doorplannenToggle:true, leaveRequest:true, weekRatio:true, production:true, openRegistrations:true, quickRegister:true, planner:true, plannerCopies:true, plannerDistance:true, plannerDirect:true, routeLink:true, agendaExport:true, preload:true, formViaModel:true },
   // Eigen server voor rijtijden over de weg (server/routes-proxy in de broncode).
   routesProxy: { url:'', token:'', embedKey:'', routesKey:'' },
   // Kantoren voor de afstand in de planhulp (ONS-locaties 'BG …' en 'J&G …').
@@ -1245,7 +1245,7 @@ const LSKEY = 'onsBeheerConfig';
 const HISTORY_KEY = 'onsBeheerConfigHistory';
 const SETTINGS_PAGE_KEY = 'onsBeheerActivePage';
 // De extensieversie waar dit beheerscherm bij hoort; npm run release werkt hem bij.
-const MANAGER_VERSION = '1.6.331';
+const MANAGER_VERSION = '1.6.332';
 const FEATURE_META = {
   appointmentAssistant:'Afspraakassistent', registrationAssistant:'Registratieassistent', dayColoring:'Gekleurde dagindeling',
   managedTexts:'Beheerbare schermteksten', reportGuidelineLink:'Link Richtlijn rapporteren',
@@ -1260,6 +1260,7 @@ const FEATURE_META = {
   plannerDistance:'Afspraak maken: Geavanceerd - efficiënter indelen op rijtijd (Google Routes)',
   plannerDirect:'Planhulp: afspraak meteen in ONS maken (cliënt(en), afspraaktype, uursoort per cliënt; gedupliceerd of los)',
   routeLink:'Zijpaneel: Route van de dag (Google Maps)',
+  agendaExport:'Zijpaneel: Agenda exporteren (Excel)',
   preload:'Zijpaneel: gegevens vooraf laden',
   formViaModel:'Afspraakformulier: invullen via het ONS-model (uit: alleen klikken en typen, bijv. na een ONS-update)',
 };
@@ -2808,6 +2809,7 @@ const FEATURE_GROEPEN = [
     ['production', 'Productieverloop', 'Direct en indirect per week, bij Cliënttijd'],
     ['leaveRequest', 'Verlof aanvragen', 'Verlof aanvragen vanuit het zijpaneel'],
     ['routeLink', 'Route van de dag', 'De route langs de afspraken van vandaag, via Google Maps'],
+    ['agendaExport', 'Agenda exporteren', 'De agenda als Excel-bestand downloaden; cliëntnummers alleen als de medewerker ze aanvinkt'],
     ['preload', 'Gegevens vooraf laden', 'Haalt gegevens alvast op, zodat het zijpaneel sneller is'],
   ] },
 ];
@@ -3920,7 +3922,7 @@ function troubleValidateConfigWiring(contentJs, configInfo, results) {
     'Registratievormen': ['registrationForms','vorm','startVerdeling','uursoort','eindtijdBeginPlusMin','rapportagePrefix','vraagDirecteTijd','vraagIndirecteTijd','vraagReistijd','labels','relevantForTeams','volgorde'],
     'Kleurzones': ['palette','profileSectors','zoneProfiles','start','end','zone','color','fill','legend'],
     'Beheerbare teksten': ['texts','text','html','bold','italic','sizePx'],
-    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerDirect','routeLink','preload','formViaModel','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
+    'Functies en compatibiliteit': ['features','appointmentAssistant','registrationAssistant','dayColoring','managedTexts','reportGuidelineLink','doorplannenToggle','leaveRequest','weekRatio','production','openRegistrations','quickRegister','planner','plannerCopies','plannerDistance','plannerDirect','routeLink','agendaExport','preload','formViaModel','offices','routesProxy','compatibility','schemaVersion','minimumExtensionVersion'],
     'Teams': ['profileSectors']
   };
   Object.keys(groups).forEach((group) => {

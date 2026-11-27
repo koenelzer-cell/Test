@@ -43,7 +43,7 @@ import { Component, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import { BEWAARD, ietsBezig, legeResultaten, wisAlles } from './bewaard.js';
 import { activiteit, stilteStappen } from './inactief.js';
-import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
+import { CHEV_LINKS, ClickCard, FONT, FoutStrook, HulpRij, ICON_HELP, ICON_EXPORT, ICON_PLAN, ICON_QUICK, ICON_RANGE, ICON_RATIO, ICON_ROUTE, Icoon, InfoIcoon, KaleKnop, Knop, LaadBalk, LegeStaat, Regel, SecondaryBtn, SectionHead, SpineCheck, SpinePause, T, TYPE, Tag, TekenContext, Txt, plusWeken, zorgVoorStijl } from './ui.jsx';
 import { AgendaWeekPanel } from './week-kaart.jsx';
 import { maakWeekDagen } from './week-dagen.jsx';
 import { sluitRondleiding } from './rondleiding.jsx';
@@ -56,10 +56,11 @@ import { maakSnelRegistreren } from './pagina-snel.jsx';
 import { maakRoute } from './pagina-route.jsx';
 import { maakInfo } from './pagina-info.jsx';
 import { maakRondleidingen } from './rondleidingen.jsx';
+import { maakExport } from './pagina-export.jsx';
 
 const PAGINA_TITEL = {
   hoofd: 'Agendahulp', clienttijd: 'Cliënttijd', verhouding: 'Verhouding per uursoort',
-  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', plan: 'Planhulp', route: 'Route van de dag', maken: 'Afspraak maken'
+  open: 'Open registraties', snel: 'Snel registreren', info: 'Over de Agendahulp', plan: 'Planhulp', route: 'Route van de dag', maken: 'Afspraak maken', export: 'Agenda exporteren'
 };
 
 // Driehoek met uitroepteken.
@@ -249,6 +250,7 @@ function Hulpmiddelen({ ctx }) {
   if (ctx.fAan('quickRegister')) rijen.push(['snel', ICON_QUICK, 'Snel registreren', naar('snel')]);
   if (!(ctx.state && ctx.state.routeEnabled === false) && ctx.fAan('routeLink')) rijen.push(['route', ICON_ROUTE, 'Route van de dag', naar('route')]);
   if (ctx.fAan('weekRatio')) rijen.push(['verhouding', ICON_RATIO, 'Verhouding per uursoort', naar('verhouding')]);
+  if (ctx.fAan('agendaExport')) rijen.push(['export', ICON_EXPORT, 'Agenda exporteren', naar('export')]);
   return (
     <div ref={function (n) { ctx.el.navBox = n; }} style={{ padding: '18px 12px 12px' }}>
       {rijen.length ? <div style={{ fontSize: '12px', fontWeight: '700', color: T.inkSoft, margin: '0 2px 8px' }}>Hulpmiddelen</div> : null}
@@ -272,6 +274,7 @@ function Pagina({ ctx }) {
     : ctx.pagina === 'plan' ? ctx.pagePlan()
     : ctx.pagina === 'route' ? ctx.pageRoute()
     : ctx.pagina === 'maken' ? ctx.pageMaken()
+    : ctx.pagina === 'export' ? ctx.pageExport()
     : ctx.pageInfo();
   return (
     <>
@@ -413,6 +416,7 @@ export function create(render, actions) {
   const quick = BEWAARD.quick;
   ctx.ratio = BEWAARD.ratio;
   ctx.plan = BEWAARD.plan;
+  ctx.exp = BEWAARD.exp;
 
   function vulStandaarden() {
     if (!ctx.state) return;
@@ -423,6 +427,9 @@ export function create(render, actions) {
     // (dezelfde periode die de pagina vooraf heeft geladen).
     if (!ctx.prod.to && ctx.state.today) ctx.prod.to = ctx.state.productionDefaultTo || plusWeken(ctx.state.today, 4);
     if (!quick.date && ctx.state.today) quick.date = ctx.state.today;
+    // Exporteren: standaard de eerste van deze maand tot en met vandaag.
+    if (!ctx.exp.from && ctx.state.today) ctx.exp.from = ctx.state.today.slice(0, 8) + '01';
+    if (!ctx.exp.to && ctx.state.today) ctx.exp.to = ctx.state.today;
   }
   // Na het verlaten van een veld opnieuw tekenen, maar pas als de focus al in
   // het volgende veld staat.
@@ -441,6 +448,7 @@ export function create(render, actions) {
   Object.assign(ctx, maakSnelRegistreren(ctx));
   Object.assign(ctx, maakRoute(ctx));
   Object.assign(ctx, maakInfo(ctx));
+  Object.assign(ctx, maakExport(ctx));
   Object.assign(ctx, maakRondleidingen(ctx));
   Object.assign(ctx, maakWeekDagen(ctx));
 
@@ -456,7 +464,7 @@ export function create(render, actions) {
     if (stap.slot) ctx.vergrendelDebug();
     if (stap.leeg) {
       wisAlles();
-      ctx.range = BEWAARD.range; ctx.prod = BEWAARD.prod; ctx.ratio = BEWAARD.ratio; ctx.plan = BEWAARD.plan;
+      ctx.range = BEWAARD.range; ctx.prod = BEWAARD.prod; ctx.ratio = BEWAARD.ratio; ctx.plan = BEWAARD.plan; ctx.exp = BEWAARD.exp;
       ctx.onsGezien = {};
       if (viaInvoer) slikKlik = Date.now();
       naarPagina('hoofd');
@@ -508,7 +516,7 @@ export function create(render, actions) {
       if (agendas) BEWAARD.agendaSleutel = agendas;
       if (inv && BEWAARD.inviteeId && inv !== BEWAARD.inviteeId) {
         legeResultaten();
-        ctx.range = BEWAARD.range; ctx.prod = BEWAARD.prod; ctx.ratio = BEWAARD.ratio; ctx.plan = BEWAARD.plan;
+        ctx.range = BEWAARD.range; ctx.prod = BEWAARD.prod; ctx.ratio = BEWAARD.ratio; ctx.plan = BEWAARD.plan; ctx.exp = BEWAARD.exp;
         BEWAARD.inviteeId = inv;
         vergelijkSig = '';
         naarPagina('hoofd');
@@ -528,7 +536,7 @@ export function create(render, actions) {
       teken();
     },
     setRangeProgress: function (kind, done, total) {
-      const doel = kind === 'productie' ? ctx.prod : ctx.range;
+      const doel = kind === 'productie' ? ctx.prod : kind === 'export' ? ctx.exp : ctx.range;
       if (!doel.busy) return;
       doel.done = done; doel.total = total;
       teken();

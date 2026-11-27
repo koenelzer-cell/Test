@@ -128,7 +128,7 @@ reistijd (oker). Met **Opbouw en productieverloop** ga je naar de details.
 Daaronder staan de **hulpmiddelen**. Bij Open registraties staat hoeveel
 afspraken nog open staan.
 
-Onderaan het zijpaneel staat **Verlof aanvragen** (zie hoofdstuk 11).
+Onderaan het zijpaneel staat **Verlof aanvragen** (zie hoofdstuk 12).
 
 ## 5. Planhulp: vrije tijd zoeken
 
@@ -315,7 +315,47 @@ alleen wat je tot en met vandaag hebt geregistreerd.
 hebt, verdeeld over direct, indirect, reistijd en overig. Blader met de
 pijlen naar een andere week. Toekomstige weken tonen wat gepland staat.
 
-## 11. Verlof aanvragen
+## 11. Agenda exporteren
+
+Met **Agenda exporteren** download je je agenda als Excel-bestand, bijvoorbeeld
+voor je eigen overzicht of een gesprek met je leidinggevende.
+
+![Agenda exporteren](afbeeldingen/exporteren.png)
+
+1. Kies **Van** en **Tot en met**. Standaard is dat de eerste van deze maand
+   tot en met vandaag. De periode mag hooguit 26 weken zijn.
+2. Vink aan wat je wilt meenemen. Bij **Afspraken** kies je per status: nog
+   te registreren, geregistreerd, niet registreren, gepland (nog niet
+   voorbij) en afspraken waarvoor geen registratie nodig is, zoals een pauze.
+   Bij **Andere items** kies je registraties (met direct, indirect, reistijd
+   heen en terug en overig), onbeschikbaarheid, Outlook-afspraken, geplande
+   bezoeken en reserveringen. Standaard staat alles aan; met **Alles aan** en
+   **Alles uit** zet je alles in één keer om.
+3. Wil je de **cliëntnummers** in het bestand, vink dat dan aan. Standaard
+   staat dit uit. Namen, geboortedatums en BSN komen er nooit in.
+4. Klik op **Excel downloaden**. De hulp haalt alles op bij ONS en zet het
+   bestand in je downloads.
+
+![Na het downloaden](afbeeldingen/exporteren-gelukt.png)
+
+In het bestand staat per afspraak, registratie of ander item één regel: de
+datum en de dag, begin en eind, de duur in minuten, de soort en de status,
+het label of de naam, de uursoort, het aantal cliënten, de minuten direct,
+indirect en reistijd, en de locatie. Bij een afspraak zonder cliënt staat de
+titel erbij; bij een afspraak met een cliënt alleen het label of
+"Cliëntafspraak". De kopregel staat vast en heeft een filter, zodat je
+makkelijk sorteert en filtert. Kijk je naar de agenda's van meer collega's
+tegelijk, dan staat er een kolom Agenda bij.
+
+Heb je de cliëntnummers aangevinkt, dan bevat het bestand persoonsgegevens.
+Bewaar het dan op een veilige plek, deel het niet zomaar en verwijder het
+als je het niet meer nodig hebt. De hulp zelf bewaart niets van de export.
+
+Registraties volgen dezelfde regels als het weekoverzicht: registraties die
+daar niet meetellen, zoals in het weekend of met de status niet declareren,
+staan ook niet in het bestand.
+
+## 12. Verlof aanvragen
 
 Onderaan het zijpaneel staat **Verlof aanvragen**. Je vult in wat je ook in
 ONS bij Onbeschikbaarheid invult: omschrijving, datum, begin- en eindtijd of
@@ -323,7 +363,7 @@ hele dag, en eventueel een herhaling. Bij opslaan zet de hulp de
 onbeschikbaarheid in je ONS-agenda en opent hij AFAS in een nieuw tabblad,
 waar je het verlof aanvraagt.
 
-## 12. Rondleidingen en hulp
+## 13. Rondleidingen en hulp
 
 ![Een rondleiding](afbeeldingen/rondleiding.png)
 
@@ -337,10 +377,12 @@ versie. Je bladert met **Volgende** en **Vorige** (of de pijltjestoetsen);
 Onder het **i-tje** staan de legenda van de kleuren, je werktijden en de
 versie.
 
-## 13. Privacy in het kort
+## 14. Privacy in het kort
 
 - De hulp werkt binnen ONS, met jouw eigen sessie. Hij bewaart nooit namen,
   cliëntnummers of geboortedata.
+- Agenda exporteren zet een Excel-bestand in je downloads. Cliëntnummers
+  staan erin alleen als je dat zelf aanvinkt; namen nooit.
 - Op je computer onthoudt hij alleen je keuzes (team, werktijden,
   herinnering, vertrekpunt) en getallen voor de herinnering.
 - Naar Google gaat alleen iets als je beheerder dat heeft ingesteld: postcodes
@@ -350,7 +392,7 @@ versie.
 
 Meer: zie het document "Waarom de Agendahulp deze permissies vraagt".
 
-## 14. Problemen oplossen
+## 15. Problemen oplossen
 
 **Ik zie de hulp niet in ONS.** Kijk of het adres klopt
 (`impegno.onsagenda.nl`), herlaad de pagina en kijk of de schakelaar in het
@@ -373,6 +415,9 @@ of kijk bij Dagen.
 **Bij Verwijderen staat "Voorkomen dat deze pagina extra dialoogvensters
 maakt".** Vink dat niet aan; anders werkt Verwijderen niet meer. Gebeurd?
 Sluit het zijpaneel en open het opnieuw.
+
+**Bij Agenda exporteren staat "Periode te lang".** Kies een periode van
+hooguit 26 weken, of exporteer in twee delen.
 
 **De herinnering komt niet.** Kijk in de popup of hij aanstaat en of de
 browser meldingen mag tonen. Stond de browser vrijdag om 15:00 dicht, dan

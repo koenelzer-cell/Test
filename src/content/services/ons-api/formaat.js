@@ -9,6 +9,7 @@
 import * as v from 'valibot';
 import { mapAgendaEntry, mapAgendaWeekResponse } from '../../domain/agenda-entries.js';
 import { titelZonderClient } from '../../domain/week-dagen.js';
+import { clientNummersUit } from '../../domain/agenda-export.js';
 
 const OBJECT = v.looseObject({});
 const LIJST = v.array(OBJECT);
@@ -50,6 +51,21 @@ export function controleerOns(soort, json) {
 // entries/week -> schone entries (domain/agenda-entries.js), na controle.
 export function weekEntries(json) {
   return mapAgendaWeekResponse(controleerOns('weekagenda', json));
+}
+// Voor de export (Excel): als weekEntriesMetTitels, en met metNummers ook de
+// cliëntnummers per rij (alleen identification_no, zie clientNummersUit).
+// Komt nooit in het weekgeheugen.
+export function weekEntriesVoorExport(json, metNummers) {
+  const schoon = controleerOns('weekagenda', json);
+  const rijen = Array.isArray(schoon) ? schoon : ((schoon && Array.isArray(schoon.data)) ? schoon.data : []);
+  return rijen.map(function (r) {
+    const e = mapAgendaEntry(r);
+    if (!e) return null;
+    const t = e.clientPresent ? '' : titelZonderClient(r);
+    if (t) e.titel = t;
+    if (metNummers) e.clientNummers = clientNummersUit(r.clients);
+    return e;
+  }).filter(Boolean);
 }
 // Hetzelfde, met bij afspraken zonder cliënt de titel erbij (titel). Alleen
 // voor Detail in de Weekplanning; komt nooit in het weekgeheugen.

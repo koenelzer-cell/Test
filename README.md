@@ -662,7 +662,7 @@ De hoofdpagina toont het weekoverzicht en de hulpmiddelen. Het weekoverzicht is
 cliënttijd groot, niet-cliënttijd en totaal klein rechts, een balk met direct,
 indirect en reistijd, en onderin 'Opbouw en productieverloop'. Daaronder de
 hulpmiddelen als één lijst (Open registraties, Planhulp, Snel registreren, Route
-van de dag, Verhouding per uursoort), elk met een eigen kleur; bij Open
+van de dag, Verhouding per uursoort, Agenda exporteren), elk met een eigen kleur; bij Open
 registraties een teller zodra het aantal bekend is (vooraf geladen, nooit een
 extra controle). Alles wat verder gaat, opent als eigen pagina in het zijpaneel,
 met een terugpijl in de kop. Overal dezelfde stijl: kopjes boven witte kaarten,
@@ -690,6 +690,31 @@ en oker).
   latere weken (met een laadscherm zolang een week wordt opgehaald). Deze en eerdere weken tonen wat geregistreerd is; latere weken
   wat gepland staat, met direct of indirect uit het label (geen label maar wel
   een cliënt = direct).
+- **Agenda exporteren**: de agenda('s) die open staan als Excel-bestand
+  (.xlsx) downloaden. Kies Van en Tot en met (standaard de eerste van deze
+  maand tot en met vandaag, hooguit 26 weken) en vink aan wat meegaat:
+  afspraken per status (Nog te registreren, Geregistreerd, Niet registreren,
+  Gepland, Geen registratie nodig zoals pauze) en Registraties (met direct,
+  indirect, reistijd heen en terug en overig), Onbeschikbaarheid,
+  Outlook-afspraken, Geplande bezoeken en Reserveringen; standaard alles aan,
+  met Alles aan en Alles uit. Eén regel per item met datum, dag, begin, eind,
+  duur, soort, status, label of naam, uursoort, het aantal cliënten, de
+  minuten en de locatie; bij meerdere agenda's een kolom Agenda. Datums en
+  tijden staan er als echte Excel-datums en -tijden in, met een vaste,
+  vette kopregel en een filter. Een naam of titel alleen bij een afspraak of
+  afwezigheid zonder cliënt (zoals Detail in de Weekplanning), nooit het
+  onderwerp van Outlook. **Cliëntnummers meenemen** staat standaard uit;
+  aangevinkt komt alleen het cliëntnummer (`identification_no`) erbij, nooit
+  naam, geboortedatum of BSN, met de waarschuwing dat het bestand dan
+  persoonsgegevens bevat. Kon de hulp bij een regel met een cliënt het nummer
+  niet lezen, dan staat dat er na het downloaden bij. Registraties volgen de
+  regels van het weekoverzicht (uitgesloten statussen, weekenden, concepten op
+  de vernieuwde formulieren). Alles wordt vers bij ONS opgehaald
+  (`entries/week` per laag, registratie-details) en alleen in het bestand
+  gezet; de hulp bewaart niets. Het bestand maakt het zijpaneel zelf
+  (`src/sidepanel/xlsx.js`, zonder extra pakket) en zet het in de downloads
+  van de browser; er is geen extra recht voor nodig. Uit te zetten in het
+  beheerscherm (`agendaExport`).
 - **Open registraties**: kies een periode (standaard vanaf het begin van het
   aanpasvenster van ONS tot vandaag) en zie per dag welke afgelopen afspraken nog
   niet geregistreerd zijn. Dit is een afwerklijst: registreer je een afspraak of
@@ -721,7 +746,8 @@ en oker).
   begintijd kiezen, gekozen momenten, weekplanning, afspraak maken), Afspraak
   maken (zelfde of per afspraak anders, voor alle afspraken, de kaart, de
   eindtijd, medewerkers, maken), Open registraties, Snel registreren, Route
-  van de dag, Cliënttijd, Verhouding per uursoort en Over de Agendahulp. Een
+  van de dag, Cliënttijd, Verhouding per uursoort, Agenda exporteren en Over
+  de Agendahulp. Een
   onderdeel dat uit staat of (nog) niet in beeld is, wordt overgeslagen; na
   afloop staat alles terug zoals het was. Alleen de rondleiding van het
   startscherm start vanzelf: bij elke nieuwe versie één keer (het zijpaneel
@@ -1023,7 +1049,7 @@ en oker).
 - **Zijpaneelfuncties aan/uit** (beheerscherm, pagina Functies): Verhouding per
   uursoort, Productieverloop, Open registraties, Snel registreren, Planhulp
   (met apart: kopieën op meerdere momenten, afspraak meteen maken en Huisbezoek/efficiënter indelen), Route
-  van de dag, Verlof aanvragen en het vooraf laden. Uit = de knop of het
+  van de dag, Agenda exporteren, Verlof aanvragen en het vooraf laden. Uit = de knop of het
   onderdeel verdwijnt uit het zijpaneel.
 - **Route van de dag**: je afspraken met een cliënt van een dag (niet op een
   BG/J&G-kantoorlocatie; geen labelcontrole) op volgorde van begintijd, met het adres uit het
@@ -1047,7 +1073,9 @@ Alle aanroepen naar ONS gaan via relatieve paden binnen de bestaande sessie;
 `host_permissions` in het manifest beperkt de toegang tot de ONS-domeinen. De
 enige verbindingen naar buiten zijn Google Routes (alleen postcodes, met een
 sleutel van de beheerder en na toestemming) en Google Maps (de adressen van
-één dag, alleen na een klik op Kaart tonen of Route openen); zie
+één dag, alleen na een klik op Kaart tonen of Route openen). Agenda
+exporteren zet een Excel-bestand in de downloads van de medewerker, met
+cliëntnummers alleen als die dat aanvinkt; zie
 [docs/techniek/permissies-en-opslag.md](docs/techniek/permissies-en-opslag.md). Wat de hulp klaarzet in
 de sessionStorage van het tabblad (een afspraak uit de planhulp, kopieën, een
 registratie vanuit een afspraak) gaat weg zodra het verlopen is, bij de

@@ -85,11 +85,13 @@
     // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
     AGENDA_WEEK_DAYS: "ag-week-dagen",
     // { date, vers } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam, bron, heleDag }] }] } | error }  planhulp, Weekplanning, Detail: alles wat tijd bezet per dag (afspraaktype, uursoort of soort; geen titel of cliënt)
+    AGENDA_EXPORT: "ag-export",
+    // { from, to, soorten: [...], clientNummers } -> { ok, result: { from, to, metNummers, rijen: [...], nummersOntbreken } | error }  agenda exporteren (Excel); voortgang als ag-range-progress kind 'export'
     AGENDA_PRODUCTION: "ag-production",
     // { from, to } -> { ok, result | error }  cliënttijd per week; result.som (en persons[].som): totaal geregistreerd van from tot en met to (hooguit vandaag)
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress"
-    // { kind: 'open'|'productie', done, total } voortgang
+    // { kind: 'open'|'productie'|'export', done, total } voortgang
   };
 
   // src/shared/storage-keys.js

@@ -512,7 +512,7 @@ test('zijpaneel: de knoppen naar de pagina\'s staan onder het weekoverzicht', as
   assert.ok(knoppen.every(Boolean), 'knoppen naar de pagina\'s');
   const lijst = knoppen[0].parentElement;
   assert.ok(lijst.hasAttribute('data-hulpmiddelen'), 'samen in één lijst');
-  assert.deepEqual([...lijst.querySelectorAll('[data-hulp]')].map((b) => b.textContent), ['Open registraties', 'Planhulp', 'Snel registreren', 'Route van de dag', 'Verhouding per uursoort'], 'zonder ondertitels, in deze volgorde');
+  assert.deepEqual([...lijst.querySelectorAll('[data-hulp]')].map((b) => b.textContent), ['Open registraties', 'Planhulp', 'Snel registreren', 'Route van de dag', 'Verhouding per uursoort', 'Agenda exporteren'], 'zonder ondertitels, in deze volgorde');
   assert.equal(lijst.previousElementSibling.textContent, 'Hulpmiddelen');
   assert.equal(lijst.parentElement.previousElementSibling.children.length, 2, 'direct erboven staat het weekoverzicht (laadstrook + overzicht)');
 });
@@ -632,6 +632,96 @@ test('zijpaneel: cliënttijd, productieverloop met het totaal geregistreerd tuss
   knop(document, 'Productieverloop berekenen').click();
   assert.match(blok().textContent, /Geen registraties in deze periode\./);
   assert.doesNotMatch(blok().textContent, /Tot en met vandaag/);
+});
+
+// Een .xlsx uit het zijpaneel uitpakken (opgeslagen zip, zoals xlsx.js hem maakt).
+function xlsxBlad(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let o = 0;
+  while (dv.getUint32(o, true) === 0x04034b50) {
+    const grootte = dv.getUint32(o + 18, true), naamLen = dv.getUint16(o + 26, true);
+    const naam = new TextDecoder().decode(bytes.subarray(o + 30, o + 30 + naamLen));
+    if (naam === 'xl/worksheets/sheet1.xml') return new TextDecoder().decode(bytes.subarray(o + 30 + naamLen, o + 30 + naamLen + grootte));
+    o += 30 + naamLen + grootte;
+  }
+  return '';
+}
+
+test('zijpaneel: agenda exporteren als Excel, met aanvinken wat meegaat en cliëntnummers alleen op verzoek', async () => {
+  const regel = (extra) => ({ agenda: '', datum: '2026-10-05', einddatum: '2026-10-05', begin: '09:00', eind: '10:00', minuten: 60, heleDag: false, soort: 'Afspraak',
+    status: 'Geregistreerd', naam: 'Huisbezoek', uursoort: 'JW BG', clienten: 1, clientNummers: '', direct: null, indirect: null, reisHeen: 15, reisTerug: 0, overig: null, locatie: '', ...extra });
+  let antwoord = null;
+  const { document, verzonden, dom } = zijpaneelMetTools({ 'ag-export': (msg, cb) => cb(antwoord(msg)) });
+  const w = dom.window;
+  const blobs = [], namen = [];
+  w.URL.createObjectURL = (b) => { blobs.push(b); return 'blob:test/' + blobs.length; };
+  w.URL.revokeObjectURL = () => {};
+  w.HTMLAnchorElement.prototype.click = function () { namen.push(this.getAttribute('download')); };
+  await tick();
+  const hulp = document.querySelector('[data-hulp="export"]');
+  assert.ok(hulp, 'hulpmiddel op het startscherm');
+  assert.equal(hulp.textContent, 'Agenda exporteren');
+  hulp.click();
+  assert.equal(document.querySelector('[data-paneel-titel]').textContent, 'Agenda exporteren');
+  assert.deepEqual([...document.querySelectorAll('[data-tour="export-periode"] [data-datum]')].map((b) => b.getAttribute('data-datum')), ['2026-10-01', '2026-10-07'], 'standaard de eerste van de maand tot en met vandaag');
+  const vinkjes = () => [...document.querySelectorAll('[data-export-soort]')];
+  assert.deepEqual(vinkjes().map((v) => v.getAttribute('data-export-soort')), ['open', 'geregistreerd', 'nietRegistreren', 'gepland', 'overig', 'registraties', 'onbeschikbaarheid', 'outlook', 'bezoeken', 'reserveringen']);
+  assert.ok(vinkjes().every((v) => v.checked), 'standaard alles aan');
+  const nummers = () => document.querySelector('[data-export-nummers]');
+  assert.equal(nummers().checked, false, 'cliëntnummers standaard uit');
+  assert.match(document.body.textContent, /Zonder vinkje staan er geen gegevens van cliënten in/);
+  const downloadKnop = () => document.querySelector('[data-export-knop]');
+  document.querySelector('[data-export-niets]').click();
+  assert.ok(vinkjes().every((v) => !v.checked));
+  assert.equal(downloadKnop().disabled, true, 'niets aangevinkt: niet downloaden');
+  document.querySelector('[data-export-alles]').click();
+  assert.equal(downloadKnop().disabled, false);
+  document.querySelector('[data-export-soort="outlook"]').click();
+  assert.equal(document.querySelector('[data-export-soort="outlook"]').checked, false);
+
+  // Downloaden zonder nummers.
+  antwoord = (msg) => ({ ok: true, result: { from: msg.from, to: msg.to, metNummers: false, nummersOntbreken: 0,
+    rijen: [regel(), regel({ datum: '2026-10-06', einddatum: '2026-10-07', begin: '', eind: '', minuten: null, heleDag: true, soort: 'Onbeschikbaarheid', status: '', naam: 'Vrije dag', uursoort: '', clienten: 0, reisHeen: null, reisTerug: null })] } });
+  downloadKnop().click();
+  const m = verzonden.at(-1);
+  assert.deepEqual([m.type, m.from, m.to, m.clientNummers], ['ag-export', '2026-10-01', '2026-10-07', false]);
+  assert.deepEqual([...m.soorten], ['open', 'geregistreerd', 'nietRegistreren', 'gepland', 'overig', 'registraties', 'onbeschikbaarheid', 'bezoeken', 'reserveringen'], 'zonder Outlook');
+  assert.deepEqual(namen, ['Agenda 2026-10-01 tot en met 2026-10-07.xlsx']);
+  assert.equal(document.querySelector('[data-export-gelukt]').textContent, 'Gedownload: Agenda 2026-10-01 tot en met 2026-10-07.xlsx (2 regels)');
+  assert.equal(blobs[0].type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  const blad = xlsxBlad(new Uint8Array(await blobs[0].arrayBuffer()));
+  const koppen = [...blad.matchAll(/<c r="[A-Z]+1"[^>]*><is><t>([^<]*)<\/t>/g)].map((x) => x[1]);
+  assert.deepEqual(koppen, ['Datum', 'Dag', 'Einddatum', 'Begin', 'Eind', 'Duur (min)', 'Hele dag', 'Soort', 'Status', 'Naam of label', 'Uursoort', 'Cliënten',
+    'Direct (min)', 'Indirect (min)', 'Reistijd heen (min)', 'Reistijd terug (min)', 'Overig (min)', 'Locatie'], 'geen kolom Agenda (één agenda) en geen Cliëntnummers');
+  assert.match(blad, /<c r="A2" s="2"><v>46300<\/v><\/c><c r="B2" t="inlineStr"><is><t>ma<\/t>/, 'datum als Excel-datum en de dag');
+  assert.match(blad, /<t>Vrije dag<\/t>/);
+
+  // Met cliëntnummers: een waarschuwing, de kolom, en wat ontbrak.
+  nummers().click();
+  assert.equal(nummers().checked, true);
+  assert.match(document.body.textContent, /Het bestand bevat dan persoonsgegevens\. Bewaar het veilig/);
+  assert.equal(document.querySelector('[data-export-gelukt]'), null, 'na een andere keuze geen oude melding');
+  antwoord = (msg) => ({ ok: true, result: { from: msg.from, to: msg.to, metNummers: true, nummersOntbreken: 1,
+    rijen: [regel({ clientNummers: '106839' }), regel({ begin: '11:00', clientNummers: '' })] } });
+  downloadKnop().click();
+  assert.equal(verzonden.at(-1).clientNummers, true);
+  assert.match(document.querySelector('[data-export-nummers-ontbreken]').textContent, /Bij 1 regel met een cliënt kon de hulp het cliëntnummer niet lezen\./);
+  const blad2 = xlsxBlad(new Uint8Array(await blobs[1].arrayBuffer()));
+  assert.match(blad2, /<t>Cliëntnummers<\/t>/);
+  assert.match(blad2, /<t>106839<\/t>/);
+
+  // Een fout van de hulp.
+  antwoord = () => ({ ok: false, error: 'Periode te lang (hooguit 26 weken).' });
+  downloadKnop().click();
+  assert.match(document.querySelector('[role="alert"]').textContent, /Periode te lang \(hooguit 26 weken\)\./);
+  assert.equal(blobs.length, 2, 'geen bestand bij een fout');
+});
+
+test('zijpaneel: agenda exporteren staat niet op het startscherm als het beheerscherm het uitzet', async () => {
+  const { document } = zijpaneelMetTools({}, { ...AGENDA_STATE_TOOLS, features: { agendaExport: false } });
+  await tick();
+  assert.ok(document.querySelector('[data-hulp="plan"]'));
+  assert.equal(document.querySelector('[data-hulp="export"]'), null);
 });
 
 test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt bladeren', async () => {
@@ -2622,7 +2712,7 @@ test('rondleidingen: op elk scherm een vraagteken met een eigen rondleiding; ond
     assert.equal(tour(), null, naam + ': na Klaar dicht');
     return titels;
   };
-  for (const [kop, naam, stap] of [['Open registraties', 'open', 'Kies een periode'], ['Snel registreren', 'snel', 'Hoe lang'], ['Route van de dag', 'route', 'Dag en vertrekpunt'], ['Verhouding per uursoort', 'verhouding', 'Andere week']]) {
+  for (const [kop, naam, stap] of [['Open registraties', 'open', 'Kies een periode'], ['Snel registreren', 'snel', 'Hoe lang'], ['Route van de dag', 'route', 'Dag en vertrekpunt'], ['Verhouding per uursoort', 'verhouding', 'Andere week'], ['Agenda exporteren', 'export', 'Cliëntnummers']]) {
     navKnop(document, kop).click();
     await tick();
     const titels = await doorloop(naam);

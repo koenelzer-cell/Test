@@ -48,7 +48,7 @@ async function naarPlan(page) {
 
 // 1. Startscherm.
 let p = await paneel();
-await foto(p, 'startscherm', { hoog: 620 });
+await foto(p, 'startscherm', { hoog: 690 });
 await p.close();
 
 // 2. Planhulp: de lijst, een eigen duur, gekozen momenten.
@@ -136,6 +136,21 @@ await p.locator('[data-productie-som]').waitFor();
 await p.mouse.move(0, 0);
 await p.waitForTimeout(400);
 await foto(p, 'clienttijd-totaal', { vanaf: '[data-productie-som]', marge: 14, hoog: 470 });
+await p.close();
+
+// 6b. Agenda exporteren: het scherm, en na het downloaden.
+p = await paneel();
+await p.locator('[data-hulp="export"]').click();
+await p.locator('[data-export-knop]').waitFor();
+await p.waitForTimeout(300);
+await foto(p, 'exporteren', { hoog: 760 });
+const dl = p.waitForEvent('download');
+await p.locator('[data-export-knop]').click();
+await dl;
+await p.locator('[data-export-gelukt]').waitFor();
+await p.mouse.move(0, 0);
+await p.waitForTimeout(300);
+await foto(p, 'exporteren-gelukt', { vanaf: '[data-tour="export-nummers"]', marge: 14, hoog: 260 });
 await p.close();
 
 // 7. Info en de kop met vraagteken en i-tje.

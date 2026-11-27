@@ -177,6 +177,23 @@ for (const breedte of [340, 420]) {
       await controleer(page, testInfo, 'clienttijd-totaal');
     });
 
+    test('agenda exporteren: aanvinken, cliëntnummers en een echt .xlsx-bestand', async ({ page }, testInfo) => {
+      await page.locator('[data-hulp="export"]').click();
+      await expect(page.locator('[data-paneel-titel]')).toHaveText('Agenda exporteren');
+      await expect(page.locator('[data-export-soort]')).toHaveCount(10);
+      await controleer(page, testInfo, 'exporteren');
+      await page.locator('[data-export-nummers]').check();
+      await expect(page.getByText('Het bestand bevat dan persoonsgegevens.', { exact: false })).toBeVisible();
+      const download = page.waitForEvent('download');
+      await page.locator('[data-export-knop]').click();
+      const d = await download;
+      expect(d.suggestedFilename()).toMatch(/^Agenda \d{4}-\d{2}-01 tot en met \d{4}-\d{2}-\d{2}\.xlsx$/);
+      await expect(page.locator('[data-export-gelukt]')).toContainText('(4 regels)');
+      await controleer(page, testInfo, 'exporteren-gelukt');
+      // Desgewenst bewaren om met een echte Excel-lezer na te kijken (EXPORT_XLSX_UIT=pad, {b} wordt de breedte).
+      if (process.env.EXPORT_XLSX_UIT) await d.saveAs(process.env.EXPORT_XLSX_UIT.replace('{b}', String(breedte)));
+    });
+
     test('planhulp: in de Weekplanning slepen voor een eigen eindtijd', async ({ page }, testInfo) => {
       await page.locator('[data-hulp="plan"]').click();
       await page.locator('[data-plan-weergave="raster"]').click();
