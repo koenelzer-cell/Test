@@ -3461,7 +3461,7 @@
     AGENDA_WEEK_DAYS: "ag-week-dagen",
     // { date, vers } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam, bron, heleDag }] }] } | error }  planhulp, Weekplanning, Detail: alles wat tijd bezet per dag (afspraaktype, uursoort of soort; geen titel of cliënt)
     AGENDA_PRODUCTION: "ag-production",
-    // { from, to } -> { ok, result | error }  cliënttijd per week
+    // { from, to } -> { ok, result | error }  cliënttijd per week; result.som (en persons[].som): totaal geregistreerd van from tot en met to (hooguit vandaag)
     // CS -> SP (uitgezonden)
     AGENDA_RANGE_PROGRESS: "ag-range-progress"
     // { kind: 'open'|'productie', done, total } voortgang
@@ -4169,11 +4169,14 @@
       otherMin,
       durationMin: durMin || accounted,
       hourTypeName: htName,
-      hourTypeId: htId
+      hourTypeId: htId,
+      // De dag van de registratie (YYYY-MM-DD), voor een totaal over een periode.
+      date: /^\d{4}-\d{2}-\d{2}$/.test(dymd) ? dymd : ""
     };
   }
   function summarizeWeekRegistrations(detailsList) {
     let direct = 0, indirect = 0, travel = 0, other = 0, count = 0, byType = /* @__PURE__ */ Object.create(null);
+    const perDag = /* @__PURE__ */ Object.create(null);
     const n = function(v) {
       return typeof v === "number" && isFinite(v) ? v : 0;
     };
@@ -4185,6 +4188,14 @@
       indirect += ind;
       travel += tra;
       other += oth;
+      if (d.date) {
+        const dag = perDag[d.date] || (perDag[d.date] = { direct: 0, indirect: 0, travel: 0, other: 0, count: 0 });
+        dag.direct += dir;
+        dag.indirect += ind;
+        dag.travel += tra;
+        dag.other += oth;
+        dag.count++;
+      }
       const name = d.hourTypeName || "Onbekend";
       if (!byType[name]) byType[name] = { type: name, direct: 0, indirect: 0, travel: 0, other: 0 };
       byType[name].direct += dir;
@@ -4216,8 +4227,39 @@
       directPct: direct + indirect > 0 ? Math.round(direct / (direct + indirect) * 1e3) / 10 : 0,
       directTargetPct: 80,
       byHourType,
-      byType: byHourType
+      byType: byHourType,
       // per-uursoort opbouw; agendaWeekPanelEl toont .minutes
+      perDag
+    };
+  }
+  function somGeregistreerd(perDagLijst, van, tot2) {
+    let direct = 0, indirect = 0, travel = 0, other = 0, count = 0, dagen = 0;
+    (perDagLijst || []).forEach(function(perDag) {
+      Object.keys(perDag || {}).forEach(function(dag) {
+        if (van && dag < van || tot2 && dag > tot2) return;
+        const d = perDag[dag];
+        direct += d.direct || 0;
+        indirect += d.indirect || 0;
+        travel += d.travel || 0;
+        other += d.other || 0;
+        count += d.count || 0;
+        dagen++;
+      });
+    });
+    const client = direct + indirect + travel;
+    return {
+      van,
+      tot: tot2,
+      count,
+      dagen,
+      directMinutes: direct,
+      indirectMinutes: indirect,
+      travelMinutes: travel,
+      otherMinutes: other,
+      unknownMinutes: other,
+      clientMinutes: client,
+      nonClientMinutes: other,
+      totalMinutes: client + other
     };
   }
 
@@ -8598,7 +8640,9 @@
       nonClientMinutes: s.nonClientMinutes || 0,
       totalMinutes: s.totalMinutes || 0,
       declarabelPct: dec.pct,
-      count: s.count || 0
+      count: s.count || 0,
+      // Alleen voor het totaal over de periode (computeProduction haalt het weg).
+      perDag: s.perDag || null
     };
   }
   function plannedProductionRow(weekStart, entries2) {
@@ -8660,13 +8704,28 @@
         });
       }));
     };
+    const somTot = toYmd > today ? today : toYmd;
+    const som = function(rows) {
+      const s = somGeregistreerd(rows.map(function(r) {
+        return r.perDag;
+      }), fromYmd, somTot);
+      s.totNaVandaag = toYmd > today;
+      return s;
+    };
     return Promise.all(ids.map(voor)).then(function(perPersoon) {
+      const sommen = perPersoon.map(som);
+      perPersoon.forEach(function(rows) {
+        rows.forEach(function(r) {
+          delete r.perDag;
+        });
+      });
       return {
         from: fromYmd,
         to: toYmd,
         weeks: perPersoon[0],
+        som: sommen[0],
         persons: perPersoon.map(function(rows, i) {
-          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", weeks: rows };
+          return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : "", weeks: rows, som: sommen[i] };
         })
       };
     });

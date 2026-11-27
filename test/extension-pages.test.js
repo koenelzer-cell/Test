@@ -602,6 +602,36 @@ test('zijpaneel: cliënttijd is een pagina met opbouw en productieverloop (lijng
   knop(document, 'Tabel tonen').click();
   assert.match(document.body.textContent, /42gepland12 u2 u30 m13 u 20 m4111 u2 u30 m13 u 20 m/, 'tabel met dezelfde getallen, nieuwste week bovenaan');
   assert.ok(knop(document, 'Tabel verbergen'));
+  assert.equal(document.querySelector('[data-productie-som]'), null, 'een antwoord zonder totaal: geen totaal');
+});
+
+test('zijpaneel: cliënttijd, productieverloop met het totaal geregistreerd tussen de gekozen datums', async () => {
+  const week = (w, i) => ({ planned: false, week: w, weekStart: i ? '2026-10-05' : '2026-09-28', directMinutes: 600, indirectMinutes: 120, travelMinutes: 30, clientMinutes: 750, nonClientMinutes: 0, totalMinutes: 750, declarabelPct: 100, count: 3 });
+  let som = { van: '2026-08-19', tot: '2026-10-07', count: 12, dagen: 10, directMinutes: 1800, indirectMinutes: 360, travelMinutes: 90, otherMinutes: 30, unknownMinutes: 30,
+    clientMinutes: 2250, nonClientMinutes: 30, totalMinutes: 2280, totNaVandaag: true };
+  const state = { ...AGENDA_STATE_TOOLS, productionDefaultFrom: '2026-08-19', week: {
+    summary: { clientMinutes: 690, nonClientMinutes: 5, totalMinutes: 695, directMinutes: 480, indirectMinutes: 150, travelMinutes: 60, unknownMinutes: 5, byType: [] },
+    opts: { week: 41, embedded: true, scope: 'week' }, clientRows: [], overigRows: [] } };
+  const { document } = zijpaneelMetTools({ 'ag-production': (msg, cb) => cb({ ok: true, result: { from: msg.from, to: msg.to, weeks: [40, 41].map(week), som } }) }, state);
+  document.defaultView.eval(read('dist/react-bundle.js'));
+  env_update(document, state);
+  await tick();
+  document.querySelector('[data-ons-week-panel] [role="button"]').click();
+  await tick();
+  knop(document, 'Productieverloop berekenen').click();
+  const blok = () => document.querySelector('[data-productie-som]');
+  assert.ok(blok(), 'totaal boven de grafiek');
+  assert.equal(blok().querySelector('[data-productie-som-periode]').textContent, 'wo 19 aug tot en met wo 7 okt');
+  assert.match(blok().textContent, /^Totaal geregistreerdwo 19 aug tot en met wo 7 oktCliënttijd37 u 30 m/);
+  assert.match(blok().textContent, /Direct30 u80%Indirect6 u16%Reistijd1 u 30 m4%/);
+  assert.match(blok().textContent, /Totaal38 u/);
+  assert.match(blok().textContent, /Tot en met vandaag; latere dagen staan alleen in de planning\./);
+  assert.ok(blok().nextElementSibling && blok().nextElementSibling.querySelector('svg[role="img"]'), 'daaronder de grafiek');
+  // Geen registraties in de periode: dat staat er, zonder lege kaart.
+  som = { ...som, count: 0, dagen: 0, directMinutes: 0, indirectMinutes: 0, travelMinutes: 0, otherMinutes: 0, unknownMinutes: 0, clientMinutes: 0, nonClientMinutes: 0, totalMinutes: 0, totNaVandaag: false };
+  knop(document, 'Productieverloop berekenen').click();
+  assert.match(blok().textContent, /Geen registraties in deze periode\./);
+  assert.doesNotMatch(blok().textContent, /Tot en met vandaag/);
 });
 
 test('zijpaneel: verhouding per uursoort is een pagina waarin je per week kunt bladeren', async () => {

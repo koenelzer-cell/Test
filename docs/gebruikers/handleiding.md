@@ -302,6 +302,13 @@ opbouw van je week en het **productieverloop**: je directe, indirecte en
 reistijd per week over een periode die je kiest, als grafiek en tabel.
 Weken in de toekomst komen uit je planning.
 
+Boven de grafiek staat het **Totaal geregistreerd** tussen je gekozen datums,
+op de dag precies: je cliënttijd, verdeeld over direct, indirect en reistijd,
+je niet-cliënttijd en het totaal. Loopt de periode door na vandaag, dan telt
+alleen wat je tot en met vandaag hebt geregistreerd.
+
+![Totaal geregistreerd tussen de gekozen datums](afbeeldingen/clienttijd-totaal.png)
+
 ![Verhouding per uursoort](afbeeldingen/verhouding.png)
 
 **Verhouding per uursoort** toont per uursoort hoeveel tijd je in een week

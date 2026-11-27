@@ -138,7 +138,7 @@ export function maakRondleidingen(ctx) {
     clienttijd: { kop: 'Rondleiding Cliënttijd', icoon: ICON_RATIO, stappen: [
       welkom('Cliënttijd', 'De opbouw van je week: hoeveel tijd met en zonder cliënt, en hoe die verdeeld is.'),
       stap('Opbouw van de week', 'Cliënttijd en niet-cliënttijd van de week die je in ONS bekijkt, met direct, indirect en reistijd.', '[data-tour="clienttijd-opbouw"]'),
-      laatste(stap('Productieverloop', 'Bereken je uren per week over een langere periode.', '[data-tour="clienttijd-productie"]'))
+      laatste(stap('Productieverloop', 'Kies een periode en zie het totaal geregistreerd tussen die datums, en je uren per week.', '[data-tour="clienttijd-productie"]'))
     ] },
     verhouding: { kop: 'Rondleiding Verhouding per uursoort', icoon: ICON_RATIO, als: function () { return fAan('weekRatio'); }, stappen: [
       welkom('Verhouding per uursoort', 'Zie per uursoort hoe je tijd in een week verdeeld is.'),

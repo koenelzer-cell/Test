@@ -128,7 +128,17 @@ for (const [hulp, naam, hoog] of [['open', 'open-registraties', 760], ['snel', '
   await p.close();
 }
 
-// 6. Info en de kop met vraagteken en i-tje.
+// 6. Cliënttijd: het totaal geregistreerd tussen de gekozen datums.
+p = await paneel();
+await p.getByText('Opbouw en productieverloop').click();
+await p.getByRole('button', { name: 'Productieverloop berekenen' }).click();
+await p.locator('[data-productie-som]').waitFor();
+await p.mouse.move(0, 0);
+await p.waitForTimeout(400);
+await foto(p, 'clienttijd-totaal', { vanaf: '[data-productie-som]', marge: 14, hoog: 470 });
+await p.close();
+
+// 7. Info en de kop met vraagteken en i-tje.
 p = await paneel();
 await foto(p, 'kop', { hoog: 70 });
 await p.locator('[aria-label="Legenda en versie"]').click();
@@ -136,7 +146,7 @@ await p.waitForTimeout(400);
 await foto(p, 'info', { hoog: 340 });
 await p.close();
 
-// 7. Een rondleiding.
+// 8. Een rondleiding.
 p = await paneel();
 await p.locator('[data-rondleiding-knop="hoofd"]').click();
 await p.locator('[data-rondleiding-volgende]').click();

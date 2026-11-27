@@ -2,6 +2,13 @@
 
 Per versie wat je als medewerker merkt. De nieuwste staat bovenaan.
 
+## 1.6.331
+
+- Cliënttijd, productieverloop: boven de grafiek staat nu het totaal
+  geregistreerd tussen je gekozen datums, op de dag precies: cliënttijd,
+  direct, indirect, reistijd, niet-cliënttijd en totaal. Loopt de periode
+  door na vandaag, dan telt alleen wat je tot en met vandaag registreerde.
+
 ## 1.6.330
 
 - Elk scherm heeft nu bovenin een vraagteken naast het i-tje, met een korte

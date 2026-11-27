@@ -167,6 +167,16 @@ for (const breedte of [340, 420]) {
       }
     });
 
+    test('cliënttijd: productieverloop met het totaal geregistreerd tussen de gekozen datums', async ({ page }, testInfo) => {
+      await page.getByText('Opbouw en productieverloop').click();
+      await expect(page.locator('[data-paneel-titel]')).toHaveText('Cliënttijd');
+      await page.getByRole('button', { name: 'Productieverloop berekenen' }).click();
+      await expect(page.locator('[data-productie-som]')).toBeVisible();
+      await expect(page.locator('[data-productie-som]')).toContainText('Cliënttijd32 u 30 m');
+      await page.locator('[data-productie-som]').scrollIntoViewIfNeeded();
+      await controleer(page, testInfo, 'clienttijd-totaal');
+    });
+
     test('planhulp: in de Weekplanning slepen voor een eigen eindtijd', async ({ page }, testInfo) => {
       await page.locator('[data-hulp="plan"]').click();
       await page.locator('[data-plan-weergave="raster"]').click();

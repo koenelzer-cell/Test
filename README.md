@@ -675,7 +675,16 @@ en oker).
   kies een periode (standaard acht weken terug tot vier weken vooruit, hooguit
   26) en zie directe, indirecte en reistijd per week als lijngrafiek, met de
   getallen in een tabel eronder. Tot en met deze week uit de registraties;
-  latere weken uit de planning (gestippeld).
+  latere weken uit de planning (gestippeld). Boven de grafiek staat het
+  **Totaal geregistreerd** van de begindatum tot en met de einddatum, op de
+  dag precies (ook als de periode midden in een week begint of eindigt), in
+  dezelfde kaart als de opbouw van de week: cliënttijd, direct, indirect,
+  reistijd met procenten, niet-cliënttijd en totaal. Na vandaag telt niets
+  mee ('Tot en met vandaag; latere dagen staan alleen in de planning'); zonder
+  registraties staat er 'Geen registraties in deze periode'. Het content-script
+  telt per dag (`summarizeWeekRegistrations().perDag`, `somGeregistreerd` in
+  `domain/registrations.js`), met dezelfde regels als het weekoverzicht
+  (uitgesloten statussen, weekenden); alleen minuten en datums.
 - **Verhouding per uursoort**: per cliëntgebonden uursoort direct, indirect,
   reistijd en overig, met percentages. Blader met de pijlen naar eerdere en
   latere weken (met een laadscherm zolang een week wordt opgehaald). Deze en eerdere weken tonen wat geregistreerd is; latere weken

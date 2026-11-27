@@ -95,8 +95,14 @@
       ] } };
     },
     'ag-production': function (msg) {
-      const weken = [0, 1, 2, 3].map(function (i) { return { weekStart: plus(maandag, -7 * (3 - i)), week: 39 + i, client: 600 + i * 30, direct: 420 + i * 20, indirect: 150, travel: 60, total: 700 + i * 30 }; });
-      return { ok: true, result: { from: msg.from, to: msg.to, weeks: weken } };
+      const weken = [0, 1, 2, 3].map(function (i) {
+        return { weekStart: plus(maandag, -7 * (3 - i)), week: 39 + i, planned: i === 3, directMinutes: 420 + i * 20, indirectMinutes: 150, travelMinutes: 60,
+          clientMinutes: 630 + i * 20, nonClientMinutes: 45, totalMinutes: 675 + i * 20, declarabelPct: 90, count: 8 };
+      });
+      // Totaal geregistreerd tussen de gekozen datums (hooguit vandaag).
+      const som = { van: msg.from, tot: msg.to < vandaag ? msg.to : vandaag, count: 24, dagen: 15, directMinutes: 1320, indirectMinutes: 450, travelMinutes: 180,
+        otherMinutes: 135, unknownMinutes: 135, clientMinutes: 1950, nonClientMinutes: 135, totalMinutes: 2085, totNaVandaag: msg.to > vandaag };
+      return { ok: true, result: { from: msg.from, to: msg.to, weeks: weken, som: som } };
     },
     'ag-day-route': function (msg) {
       return { ok: true, result: { date: msg.date, persons: [{ id: '1', name: '', missing: 1,

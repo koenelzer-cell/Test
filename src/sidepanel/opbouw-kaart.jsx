@@ -19,14 +19,15 @@ function Regel({ kleur, label, waarde, pct, sterk, zacht, eerste }) {
   );
 }
 
-export function OpbouwKaart({ summary, opts }) {
+// stijl: aanvullingen op de kaart (bijv. zonder rand binnen een andere kaart).
+export function OpbouwKaart({ summary, opts, stijl }) {
   const s = summary || {};
   const o = opts || {};
   const oth = s.unknownMinutes != null ? s.unknownMinutes : s.otherMinutes || 0;
   const som = DELEN.reduce((t, d) => t + (s[d[0]] || 0), 0);
   const pct = (m) => (som > 0 ? Math.round((m / som) * 100) + '%' : '');
   return (
-    <div style={{ border: '1px solid ' + T.line, borderRadius: 12, background: '#fff', padding: '12px 14px' }}>
+    <div style={Object.assign({ border: '1px solid ' + T.line, borderRadius: 12, background: '#fff', padding: '12px 14px' }, stijl)}>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft }}>Cliënttijd</div>
       <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.15, letterSpacing: '-0.4px', color: T.ink, fontVariantNumeric: 'tabular-nums' }}>{fmtMin(s.clientMinutes)}</div>
       <div style={{ display: 'flex', gap: 2, height: 8, borderRadius: 4, overflow: 'hidden', margin: '12px 0 6px', background: som > 0 ? 'transparent' : T.lineSoft }}>

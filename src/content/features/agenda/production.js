@@ -12,6 +12,7 @@ import { agendaWeekNumber, agendaYmd } from '../../core/datetime.js';
 import { ACTIVE_PROFILE } from '../../config/app-config.js';
 import { declarabiliteitPct } from '../../domain/declarabiliteit.js';
 import { weekStartsBetween } from '../../domain/open-registrations.js';
+import { somGeregistreerd } from '../../domain/registrations.js';
 import { createLimiter, fetchInviteeWeek, fetchWeekRegistrationDeclarabiliteit } from '../../services/ons-api/calendar.js';
 import { plannedRatioRows } from './week-ratio.js';
 
@@ -42,7 +43,9 @@ export function productionWeekRow(weekStart, summary, profile) {
     nonClientMinutes: s.nonClientMinutes || 0,
     totalMinutes: s.totalMinutes || 0,
     declarabelPct: dec.pct,
-    count: s.count || 0
+    count: s.count || 0,
+    // Alleen voor het totaal over de periode (computeProduction haalt het weg).
+    perDag: s.perDag || null
   };
 }
 
@@ -94,10 +97,21 @@ export function computeProduction(fromYmd, toYmd, onProgress) {
       });
     }));
   };
+  // Totaal geregistreerd: precies van de begindatum tot en met de einddatum
+  // (hooguit vandaag; later staat er alleen planning), per dag uit de weken.
+  const somTot = toYmd > today ? today : toYmd;
+  const som = function (rows) {
+    const s = somGeregistreerd(rows.map(function (r) { return r.perDag; }), fromYmd, somTot);
+    s.totNaVandaag = toYmd > today;
+    return s;
+  };
   return Promise.all(ids.map(voor)).then(function (perPersoon) {
+    const sommen = perPersoon.map(som);
+    // De per-dag-opbouw hoeft niet mee naar het zijpaneel.
+    perPersoon.forEach(function (rows) { rows.forEach(function (r) { delete r.perDag; }); });
     return {
-      from: fromYmd, to: toYmd, weeks: perPersoon[0],
-      persons: perPersoon.map(function (rows, i) { return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : '', weeks: rows }; })
+      from: fromYmd, to: toYmd, weeks: perPersoon[0], som: sommen[0],
+      persons: perPersoon.map(function (rows, i) { return { id: ids[i], name: ids.length > 1 ? inviteeName(ids[i]) : '', weeks: rows, som: sommen[i] }; })
     };
   });
 }

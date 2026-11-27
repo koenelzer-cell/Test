@@ -168,17 +168,26 @@ export function parseRegistrationDetails(json, opties) {
     directMin: direct, indirectMin: indirect, travelMin: travel, otherMin: otherMin,
     durationMin: durMin || accounted,
     hourTypeName: htName,
-    hourTypeId: htId
+    hourTypeId: htId,
+    // De dag van de registratie (YYYY-MM-DD), voor een totaal over een periode.
+    date: /^\d{4}-\d{2}-\d{2}$/.test(dymd) ? dymd : ''
   };
 }
 // Aggregeer de detailregels tot een summary die declarabiliteitPct begrijpt.
 export function summarizeWeekRegistrations(detailsList) {
   let direct = 0, indirect = 0, travel = 0, other = 0, count = 0, byType = Object.create(null);
+  // Per dag dezelfde getallen (alleen minuten), voor een totaal over een
+  // periode die midden in een week begint of eindigt (productieverloop).
+  const perDag = Object.create(null);
   const n = function (v) { return (typeof v === 'number' && isFinite(v)) ? v : 0; };
   (detailsList || []).forEach(function (d) {
     if (!d) return;
     const dir = n(d.directMin), ind = n(d.indirectMin), tra = n(d.travelMin), oth = n(d.otherMin);
     count++; direct += dir; indirect += ind; travel += tra; other += oth;
+    if (d.date) {
+      const dag = perDag[d.date] || (perDag[d.date] = { direct: 0, indirect: 0, travel: 0, other: 0, count: 0 });
+      dag.direct += dir; dag.indirect += ind; dag.travel += tra; dag.other += oth; dag.count++;
+    }
     const name = d.hourTypeName || 'Onbekend';
     // Per uursoort de opbouw bijhouden (direct/indirect/reistijd/overig).
     if (!byType[name]) byType[name] = { type: name, direct: 0, indirect: 0, travel: 0, other: 0 };
@@ -197,6 +206,30 @@ export function summarizeWeekRegistrations(detailsList) {
     clientMinutes: clientMin, nonClientMinutes: nonClientMin,
     directPct: (direct + indirect) > 0 ? Math.round(direct / (direct + indirect) * 1000) / 10 : 0, directTargetPct: 80,
     byHourType: byHourType,
-    byType: byHourType // per-uursoort opbouw; agendaWeekPanelEl toont .minutes
+    byType: byHourType, // per-uursoort opbouw; agendaWeekPanelEl toont .minutes
+    perDag: perDag
+  };
+}
+
+// Totaal van de geregistreerde tijd van dag van tot en met dag tot
+// (YYYY-MM-DD), uit de per-dag-opbouw van één of meer weken
+// (summarizeWeekRegistrations().perDag). Dezelfde vorm als een weekoverzicht,
+// zodat het zijpaneel hem in dezelfde kaart kan tonen. Alleen minuten.
+export function somGeregistreerd(perDagLijst, van, tot) {
+  let direct = 0, indirect = 0, travel = 0, other = 0, count = 0, dagen = 0;
+  (perDagLijst || []).forEach(function (perDag) {
+    Object.keys(perDag || {}).forEach(function (dag) {
+      if ((van && dag < van) || (tot && dag > tot)) return;
+      const d = perDag[dag];
+      direct += d.direct || 0; indirect += d.indirect || 0; travel += d.travel || 0; other += d.other || 0; count += d.count || 0;
+      dagen++;
+    });
+  });
+  const client = direct + indirect + travel;
+  return {
+    van: van, tot: tot, count: count, dagen: dagen,
+    directMinutes: direct, indirectMinutes: indirect, travelMinutes: travel,
+    otherMinutes: other, unknownMinutes: other,
+    clientMinutes: client, nonClientMinutes: other, totalMinutes: client + other
   };
 }

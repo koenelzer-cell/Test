@@ -58,7 +58,7 @@ export const MSG = {
   AGENDA_FREE_SLOTS: 'ag-free-slots',   // { minutes, weeks, to?, from?, days? ([1..5]: alleen die weekdagen), limit? (aantal blokken) } -> { ok, result: { gaps, ... } | error }  planhulp (to: zoek tot en met die datum; from: vanaf die datum, weekraster)
   AGENDA_WEEK_RATIO: 'ag-week-ratio',   // { date } -> { ok, result: { weekStart, week, mode, rows } | error }
   AGENDA_WEEK_DAYS: 'ag-week-dagen',   // { date, vers } -> { ok, result: { maandag, startMin, endMin, days: [{ date, open, items: [{ startMin, minutes, travelBefore, travelAfter, soort, status, naam, bron, heleDag }] }] } | error }  planhulp, Weekplanning, Detail: alles wat tijd bezet per dag (afspraaktype, uursoort of soort; geen titel of cliënt)
-  AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week
+  AGENDA_PRODUCTION: 'ag-production',   // { from, to } -> { ok, result | error }  cliënttijd per week; result.som (en persons[].som): totaal geregistreerd van from tot en met to (hooguit vandaag)
 
   // CS -> SP (uitgezonden)
   AGENDA_RANGE_PROGRESS: 'ag-range-progress', // { kind: 'open'|'productie', done, total } voortgang
